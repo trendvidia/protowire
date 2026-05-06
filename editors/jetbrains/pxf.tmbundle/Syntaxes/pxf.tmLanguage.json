@@ -1,0 +1,229 @@
+{
+  "name": "PXF",
+  "scopeName": "source.pxf",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#type-directive"
+    },
+    {
+      "include": "#triple-quoted-string"
+    },
+    {
+      "include": "#bytes-literal"
+    },
+    {
+      "include": "#double-quoted-string"
+    },
+    {
+      "include": "#null"
+    },
+    {
+      "include": "#boolean"
+    },
+    {
+      "include": "#timestamp"
+    },
+    {
+      "include": "#duration"
+    },
+    {
+      "include": "#float"
+    },
+    {
+      "include": "#integer"
+    },
+    {
+      "include": "#enum-value"
+    },
+    {
+      "include": "#field-assignment"
+    },
+    {
+      "include": "#map-key-value"
+    },
+    {
+      "include": "#block-key"
+    },
+    {
+      "include": "#operators"
+    },
+    {
+      "include": "#punctuation"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.number-sign.pxf",
+          "match": "#.*$"
+        },
+        {
+          "name": "comment.line.double-slash.pxf",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.pxf",
+          "begin": "/\\*",
+          "end": "\\*/",
+          "captures": {
+            "0": {
+              "name": "punctuation.definition.comment.pxf"
+            }
+          }
+        }
+      ]
+    },
+    "type-directive": {
+      "match": "(@type)\\s+([A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*)",
+      "captures": {
+        "1": {
+          "name": "keyword.other.directive.pxf"
+        },
+        "2": {
+          "name": "entity.name.type.pxf"
+        }
+      }
+    },
+    "triple-quoted-string": {
+      "name": "string.quoted.triple.pxf",
+      "begin": "\"\"\"",
+      "end": "\"\"\"",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.string.begin.pxf"
+        }
+      },
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.string.end.pxf"
+        }
+      }
+    },
+    "bytes-literal": {
+      "name": "constant.other.bytes.pxf",
+      "match": "b\"([^\"\\\\]|\\\\.)*\""
+    },
+    "double-quoted-string": {
+      "name": "string.quoted.double.pxf",
+      "begin": "\"",
+      "end": "\"",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.string.begin.pxf"
+        }
+      },
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.string.end.pxf"
+        }
+      },
+      "patterns": [
+        {
+          "name": "constant.character.escape.pxf",
+          "match": "\\\\(?:[\"\\\\bfnrt/]|u[0-9A-Fa-f]{4})"
+        }
+      ]
+    },
+    "null": {
+      "name": "constant.language.null.pxf",
+      "match": "\\bnull\\b"
+    },
+    "boolean": {
+      "name": "constant.language.boolean.pxf",
+      "match": "\\b(true|false)\\b"
+    },
+    "timestamp": {
+      "name": "constant.other.timestamp.pxf",
+      "match": "\\b\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})\\b"
+    },
+    "duration": {
+      "name": "constant.other.duration.pxf",
+      "match": "(?<=\\s|=)\\d+(?:\\.\\d+)?(?:h|m|s|ms|us|ns)(?:\\d+(?:\\.\\d+)?(?:h|m|s|ms|us|ns))*\\b"
+    },
+    "float": {
+      "name": "constant.numeric.float.pxf",
+      "match": "-?\\b\\d+\\.\\d+(?:[eE][+-]?\\d+)?\\b"
+    },
+    "integer": {
+      "name": "constant.numeric.integer.pxf",
+      "match": "-?\\b\\d+\\b"
+    },
+    "enum-value": {
+      "name": "constant.other.enum.pxf",
+      "match": "\\b[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+\\b"
+    },
+    "field-assignment": {
+      "match": "([a-z_][a-z0-9_]*)\\s*(=)",
+      "captures": {
+        "1": {
+          "name": "variable.other.member.pxf"
+        },
+        "2": {
+          "name": "keyword.operator.assignment.pxf"
+        }
+      }
+    },
+    "map-key-value": {
+      "match": "([a-z_][a-z0-9_]*)\\s*(:)",
+      "captures": {
+        "1": {
+          "name": "variable.other.member.pxf"
+        },
+        "2": {
+          "name": "keyword.operator.mapping.pxf"
+        }
+      }
+    },
+    "block-key": {
+      "match": "([a-z_][a-z0-9_]*)\\s*(?=\\{)",
+      "captures": {
+        "1": {
+          "name": "variable.other.member.pxf"
+        }
+      }
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.assignment.pxf",
+          "match": "="
+        },
+        {
+          "name": "keyword.operator.mapping.pxf",
+          "match": ":"
+        }
+      ]
+    },
+    "punctuation": {
+      "patterns": [
+        {
+          "name": "punctuation.separator.comma.pxf",
+          "match": ","
+        },
+        {
+          "name": "punctuation.section.braces.begin.pxf",
+          "match": "\\{"
+        },
+        {
+          "name": "punctuation.section.braces.end.pxf",
+          "match": "\\}"
+        },
+        {
+          "name": "punctuation.section.brackets.begin.pxf",
+          "match": "\\["
+        },
+        {
+          "name": "punctuation.section.brackets.end.pxf",
+          "match": "\\]"
+        }
+      ]
+    }
+  },
+  "fileTypes": [
+    "pxf"
+  ]
+}

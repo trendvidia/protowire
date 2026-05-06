@@ -1,0 +1,5 @@
+@type adversarial.v1.Tree
+
+child {
+    123 = 123
+}

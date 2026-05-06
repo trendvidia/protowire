@@ -1,0 +1,185 @@
+(*
+ * PXF (Proto eXpressive Format) — concrete syntax in EBNF.
+ *
+ * Notation: ISO/IEC 14977 EBNF.
+ *   '...'  terminal string literal
+ *   |      alternation
+ *   { x }  zero or more
+ *   [ x ]  zero or one (optional)
+ *   ( x )  grouping
+ *   ?...?  inlined description (e.g. character class)
+ *   (* *)  comment
+ *
+ * Whitespace (spaces, tabs, CR) and newlines are insignificant between tokens
+ * and are not shown explicitly in the rules below. Comments may appear
+ * anywhere whitespace may appear.
+ *)
+
+
+(* === Document === *)
+
+(*
+ * The document itself represents a proto message; only field_entry is
+ * allowed at the top level. Map literals (':') only appear inside a
+ * '{ … }' block, where the parser cannot statically tell whether the
+ * surrounding field is a message or a map<K,V> — both forms are accepted
+ * there and disambiguated by the schema layer.
+ *)
+document      = [ type_directive ] , { field_entry } ;
+
+type_directive = '@type' , identifier ;
+
+
+(* === Entries === *)
+
+(*
+ * Inside any '{ … }' block, an entry is either a field assignment /
+ * submessage on a message, or a key/value pair inside a map<K,V>. The
+ * two forms intentionally use different keys:
+ *
+ *   field_entry — '=' value, or '{' … '}' submessage. The key MUST be
+ *                 an identifier because it names a field on a proto
+ *                 message, and proto field names are identifiers.
+ *
+ *   map_entry   — ':' value. The key may be identifier | string |
+ *                 integer because protobuf map keys can be any of the
+ *                 scalar key types (int*, sint*, fixed*, bool, string).
+ *                 Bare identifiers cover bool and bare-token forms;
+ *                 strings cover string keys; integers cover int* keys.
+ *)
+entry         = field_entry | map_entry ;
+
+field_entry   = identifier , ( assignment_tail | block_tail ) ;
+map_entry     = map_key , map_tail ;
+
+assignment_tail = '=' , value ;
+map_tail        = ':' , value ;
+block_tail      = '{' , { entry } , '}' ;
+
+map_key       = identifier | string | integer ;
+
+
+(* === Values === *)
+
+value         = string
+              | integer
+              | float
+              | bool
+              | null
+              | bytes
+              | timestamp
+              | duration
+              | identifier
+              | list
+              | block_value ;
+
+list          = '[' , [ value , { [ ',' ] , value } ] , ']' ;
+
+block_value   = '{' , { entry } , '}' ;
+
+
+(* === Lexical: identifiers, literals === *)
+
+identifier    = ident_start , { ident_part } ;
+ident_start   = letter | '_' ;
+ident_part    = letter | digit | '_' | '.' ;
+
+bool          = 'true' | 'false' ;
+null          = 'null' ;
+
+
+(* === Lexical: numbers === *)
+
+integer       = [ '-' ] , digit , { digit } ;
+
+float         = [ '-' ] , digit , { digit } ,
+                ( '.' , { digit } , [ exponent ]
+                | exponent ) ;
+
+exponent      = ( 'e' | 'E' ) , [ '+' | '-' ] , digit , { digit } ;
+
+
+(* === Lexical: timestamp & duration === *)
+
+(* RFC 3339 timestamp; recognized when the input begins with exactly four
+   digits followed by '-'. Examples: 2024-01-15T10:30:00Z,
+   2024-01-15T10:30:00.123456789+02:00. *)
+timestamp     = ?RFC 3339 date-time? ;
+
+(* Go time.ParseDuration syntax. Examples: 30s, 1h30m, 500ms, 1.5h. *)
+duration      = duration_segment , { duration_segment } ;
+duration_segment = digit , { digit } , [ '.' , digit , { digit } ] , time_unit ;
+time_unit     = 'ns' | 'us' | 'µs' | 'ms' | 's' | 'm' | 'h' ;
+
+
+(* === Lexical: strings === *)
+
+string        = simple_string | triple_string ;
+
+simple_string = '"' , { string_char | escape_seq } , '"' ;
+string_char   = ?any byte except '"' or '\' or LF? ;
+
+(* Triple-quoted strings preserve raw content between """ delimiters. No
+   escape interpretation; the leading newline is stripped and the closing
+   line's indent is removed from each preceding line. *)
+triple_string = '"""' , ?any text not containing """? , '"""' ;
+
+escape_seq    = '\' , ( simple_escape
+                      | hex_escape
+                      | octal_escape
+                      | unicode_4_escape
+                      | unicode_8_escape ) ;
+
+simple_escape    = '"' | '\' | "'" | '?'
+                 | 'a' | 'b' | 'f' | 'n' | 'r' | 't' | 'v' ;
+hex_escape       = 'x' , hex_digit , hex_digit ;
+octal_escape     = oct_lead , oct_digit , oct_digit ;     (* 3 octal digits, value <= 0xFF *)
+unicode_4_escape = 'u' , hex_digit , hex_digit , hex_digit , hex_digit ;
+unicode_8_escape = 'U' , hex_digit , hex_digit , hex_digit , hex_digit ,
+                         hex_digit , hex_digit , hex_digit , hex_digit ;
+
+
+(* === Lexical: bytes === *)
+
+(* The body must be valid base64 (standard or raw, padding optional).
+   Backslashes are not interpreted inside b"...". *)
+bytes         = 'b' , '"' , { base64_char } , '"' ;
+base64_char   = letter | digit | '+' | '/' | '=' ;
+
+
+(* === Lexical: comments === *)
+
+comment       = line_comment | block_comment ;
+line_comment  = ( '#' | '//' ) , { ?any byte except LF? } ;
+block_comment = '/*' , { ?any byte? } , '*/' ;
+
+
+(* === Character classes === *)
+
+letter        = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J'
+              | 'K' | 'L' | 'M' | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T'
+              | 'U' | 'V' | 'W' | 'X' | 'Y' | 'Z'
+              | 'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g' | 'h' | 'i' | 'j'
+              | 'k' | 'l' | 'm' | 'n' | 'o' | 'p' | 'q' | 'r' | 's' | 't'
+              | 'u' | 'v' | 'w' | 'x' | 'y' | 'z' ;
+
+digit         = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' ;
+hex_digit     = digit | 'a' | 'b' | 'c' | 'd' | 'e' | 'f'
+                      | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' ;
+oct_digit     = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' ;
+oct_lead      = '0' | '1' | '2' | '3' ;   (* keeps \nnn <= 0xFF *)
+
+
+(* === Notes ===
+ *
+ * - Unicode escapes \uHHHH and \UHHHHHHHH must form a valid scalar value:
+ *   the codepoint must be <= U+10FFFF and must not be a surrogate half
+ *   (U+D800..U+DFFF).
+ * - List elements may be separated by commas, by newlines, or both. The
+ *   comma is consumed if present after each element, otherwise the next
+ *   value is parsed directly.
+ * - The lexer recognizes a 4-digit-year-then-'-' prefix as a timestamp,
+ *   and digits-followed-by-a-time-unit-letter as a duration. Negative
+ *   integers and identifiers that begin with letters take precedence
+ *   over those forms.
+ *)

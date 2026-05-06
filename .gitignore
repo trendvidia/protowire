@@ -1,0 +1,30 @@
+# Editor / IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+
+# Built Go binaries (produced by `go build ./cmd/...`)
+/protowire
+/protoc-gen-pxf-java-meta
+
+# VS Code extension build artifacts.
+# We commit editors/vscode/dist/pxf-*.vsix as the pre-built install asset.
+# The bundled extension.js is a build product and stays out of git.
+editors/vscode/node_modules/
+editors/vscode/dist/extension.js
+editors/vscode/dist/extension.js.map
+*.vsix
+!editors/vscode/dist/*.vsix
+
+# JetBrains plugin build artifacts (from `./gradlew buildPlugin`).
+# We commit editors/jetbrains/plugin/dist/pxf-jetbrains-*.zip as a pre-built
+# install asset, so only ignore everything *except* dist/.
+editors/jetbrains/plugin/.gradle/
+editors/jetbrains/plugin/.intellijPlatform/
+editors/jetbrains/plugin/.kotlin/
+editors/jetbrains/plugin/build/
+editors/jetbrains/plugin/dist/*.zip
+!editors/jetbrains/plugin/dist/pxf-jetbrains-*.zip

@@ -1,0 +1,72 @@
+<!--
+  SPDX-License-Identifier: MIT
+  Copyright (c) 2026 TrendVidia, LLC.
+-->
+<idea-plugin>
+    <id>com.trendvidia.pxf</id>
+    <name>PXF — Proto eXpressive Format</name>
+    <vendor email="info@trendvidia.com" url="https://protowire.org">
+        TrendVidia, LLC.
+    </vendor>
+
+    <description><![CDATA[
+        <p>Syntax highlighting and basic editor support for <strong>PXF</strong>
+        (Proto eXpressive Format) files in any JetBrains IDE — IntelliJ IDEA,
+        GoLand, PyCharm, RustRover, WebStorm, CLion, RubyMine, PhpStorm, Rider,
+        Android Studio.</p>
+
+        <p>The plugin bundles a TextMate grammar and registers it on first project
+        open, so you don't need to use <em>Settings → Editor → TextMate Bundles →
+        Add Bundle</em> manually. It also adds a <em>New → PXF File</em> entry to
+        the project context menu.</p>
+
+        <p>See <a href="https://protowire.org">protowire.org</a> for the
+        format specification, the EBNF grammar, and reference
+        implementations across nine languages.</p>
+    ]]></description>
+
+    <change-notes><![CDATA[
+        <h3>0.1.1</h3>
+        <ul>
+            <li>Parser stricter on key forms (matches updated grammar):
+                <code>=</code> and <code>{ … }</code> require an identifier key;
+                top-level <code>:</code> (map-entry form) is rejected — use
+                <code>=</code> for top-level field assignments.</li>
+            <li>Identifiers used as block keys (e.g.
+                <code>nested_field { … }</code>) now get the same
+                <em>variable.other.member</em> highlight as keys on the
+                left of <code>=</code> and <code>:</code>.</li>
+        </ul>
+
+        <h3>0.1.0</h3>
+        <ul>
+            <li>Initial release: TextMate-based syntax highlighting for <code>.pxf</code> files
+            (comments, <code>@type</code> directive, strings, bytes, RFC 3339 timestamps,
+            durations, integers, floats, booleans, <code>null</code>, enum values, field
+            assignments, map entries).</li>
+            <li>Bracket matching, auto-closing pairs, brace folding.</li>
+            <li>Comment toggle (⌘/) for <code>#</code>, <code>//</code>, and <code>/* */</code>.</li>
+            <li><em>New → PXF File</em> action with a starter template.</li>
+            <li>Inline parse-error squiggles via the bundled <code>protowire-java</code> parser
+            (syntax errors only — schema-aware validation comes in a follow-up release).</li>
+        </ul>
+    ]]></change-notes>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>org.jetbrains.plugins.textmate</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <postStartupActivity implementation="com.trendvidia.pxf.PxfBundleActivity"/>
+        <internalFileTemplate name="PXF File"/>
+        <externalAnnotator language="textmate" implementationClass="com.trendvidia.pxf.PxfAnnotator"/>
+    </extensions>
+
+    <actions>
+        <action id="PXF.NewPxfFile"
+                class="com.trendvidia.pxf.actions.NewPxfFileAction"
+                text="PXF File"
+                description="Create a new PXF (Proto eXpressive Format) file">
+            <add-to-group group-id="NewGroup" anchor="before" relative-to-action="NewFile"/>
+        </action>
+    </actions>
+</idea-plugin>

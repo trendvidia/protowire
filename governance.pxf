@@ -1,0 +1,202 @@
+@type steward.governance.v1.Governance
+
+# Steward governance config for protowire (the PXF/PB/SBE serialization
+# library). Steward: https://steward-dev.ai
+#
+# Two project-specific calls:
+#  1. Coverage thresholds are aggressive (≥0.95 in core-encoding) because
+#     untested edge cases in a serialization library bite users in
+#     production.
+#  2. The "alternatives" gate is intentionally empty — protowire IS the
+#     library; there is no equivalence-group taxonomy that applies.
+
+version = "1.0.0"
+
+manifesto {
+  mission = "Human-friendly text serialization for protobuf schemas, plus PB/SBE bindings. Tiny, fast, zero-framework."
+  mission_drift_gate = true
+  # Block heavy frameworks that would betray the manifesto. Keep
+  # narrowly scoped — false positives make the gate noisy. Add as
+  # adopters request.
+  blocked_module_globs = [
+    "github.com/spf13/viper",
+    "github.com/gorilla/**"
+  ]
+  # Serialization libraries are perf primitives — a 10% regression is a
+  # real bug that justifies blocking the merge.
+  max_perf_regression_percent = 10
+}
+
+# Domain Vectors. Order matters when path_globs overlap — most-specific
+# (longest prefix) first.
+domains = [
+  {
+    name = "core-encoding"
+    path_globs = ["encoding/**"]
+    min_coverage = 0.95
+    max_cyclomatic_complexity = 8
+    approval_threshold = 1500
+    supermajority_ratio = 0.75
+    criticality_multiplier = 2.0
+    restricted = true
+    ignored_sarif_rules = []
+  }
+  {
+    name = "proto-schemas"
+    path_globs = ["proto/**"]
+    # .proto files don't have Go-style coverage; exempt.
+    min_coverage = 0.0
+    max_cyclomatic_complexity = 0
+    # Schema changes are breaking — require supermajority of holders.
+    approval_threshold = 1000
+    supermajority_ratio = 0.75
+    criticality_multiplier = 1.5
+    restricted = true
+    ignored_sarif_rules = []
+  }
+  {
+    name = "envelope"
+    path_globs = ["envelope/**"]
+    min_coverage = 0.90
+    max_cyclomatic_complexity = 10
+    approval_threshold = 800
+    supermajority_ratio = 0.51
+    criticality_multiplier = 1.5
+    restricted = true
+    ignored_sarif_rules = []
+  }
+  {
+    name = "cli"
+    path_globs = ["cmd/**"]
+    min_coverage = 0.70
+    max_cyclomatic_complexity = 12
+    approval_threshold = 500
+    supermajority_ratio = 0.51
+    criticality_multiplier = 1.0
+    restricted = false
+    ignored_sarif_rules = []
+  }
+  {
+    name = "editors-and-tooling"
+    path_globs = ["editors/**", "scripts/**"]
+    min_coverage = 0.0
+    max_cyclomatic_complexity = 0
+    approval_threshold = 300
+    supermajority_ratio = 0.51
+    criticality_multiplier = 0.8
+    restricted = false
+    ignored_sarif_rules = []
+  }
+  {
+    name = "documentation"
+    path_globs = ["**/*.md", "testdata/**"]
+    min_coverage = 0.0
+    max_cyclomatic_complexity = 0
+    approval_threshold = 100
+    supermajority_ratio = 0.0
+    criticality_multiplier = 0.5
+    restricted = false
+    ignored_sarif_rules = []
+  }
+]
+
+escrow {
+  sandbox_issue_count = 2
+  sandbox_labels = ["sandbox"]
+  sandbox_templates = [
+    {
+      title = "Sandbox: write a regression test for a PXF parsing edge case"
+      body = "Pick a previously-reported PXF parsing bug (or invent a plausible edge case) and add a test in encoding/pxf/* that exercises it. Aim for ≤200 lines of diff. Closing this issue counts toward unlocking your escrowed PR."
+    }
+    {
+      title = "Sandbox: tighten a serialization error message"
+      body = "Find an `fmt.Errorf` site in encoding/pxf, encoding/pb, or encoding/sbe whose message would be unhelpful in a production log (lacks the offending field name, the byte offset, or the schema ref). Improve it. Closing this issue counts toward unlocking your escrowed PR."
+    }
+    {
+      title = "Sandbox: document one undocumented exported function"
+      body = "Find an exported function in encoding/* without a doc comment and add one explaining *why* it exists, not just what it does. Include a one-line usage example. Closing this issue counts toward unlocking your escrowed PR."
+    }
+  ]
+}
+
+decay {
+  half_life = 720h        # 30 days
+  base_points = 10
+}
+
+immune_system {
+  allowed_licenses = ["MIT", "Apache-2.0", "BSD-3-Clause"]
+  # All `replace` directives now point at tagged-or-pseudo-version repos
+  # (no local paths remain), so the pinned-deps gate is on. Once
+  # trendvidia/protobuf-go publishes a `v1.36.11` tag, swap the
+  # pseudo-version in go.mod for the named tag.
+  require_pinned_dependencies = true
+  anomaly_quarantine {
+    documentation_concentration = 0.90
+    sensitive_path_globs = ["**/encoding/**", "**/proto/**"]
+    timelock = 72h
+  }
+}
+
+amendments {
+  supermajority_ratio = 0.75
+  top_n_holders = 10
+  voting_period = 336h    # 14 days
+  amendment_path_globs = [
+    "governance.pxf",
+    "proto/**"
+  ]
+}
+
+slashing {
+  enabled = true
+  base_points = 50
+  growth_half_life = 720h
+  max_multiplier = 100
+}
+
+# Dictator's Handoff. The original maintainer starts with enough rep
+# to reach approval thresholds in every domain on day one; natural
+# decay dilutes that over ~6 months as community rep accrues.
+founders = [
+  {
+    handle = "decoder"
+    reputation_seed = {
+      "core-encoding": 7500
+      "proto-schemas": 5000
+      "envelope": 4000
+      "cli": 2500
+      "editors-and-tooling": 1500
+      "documentation": 500
+    }
+  }
+]
+
+# Empty groups disables the "alternatives" gate — protowire IS the
+# library; there's no equivalence-group taxonomy that applies.
+alternatives {
+  enabled = false
+  groups = []
+}
+
+# SARIF gate — enabled but no-op until the host CI publishes .sarif
+# artifacts. Per ADR-007 (amended), .go files are excluded from SARIF
+# anyway (Tier 1 native AST is authoritative for Go).
+sarif {
+  enabled = true
+  artifact_glob = "*.sarif"
+}
+
+# Smart Triage backend. Start with deterministic regex+Jaccard; flip
+# to "llm" once ANTHROPIC_API_KEY is provisioned in repo secrets.
+triage {
+  backend = "deterministic"
+}
+
+# Historical-precedent (duplicate-detection) backend. Same opt-in
+# pattern as triage.
+precedent {
+  backend = "jaccard"
+  threshold = 0.40
+  candidate_limit = 50
+}

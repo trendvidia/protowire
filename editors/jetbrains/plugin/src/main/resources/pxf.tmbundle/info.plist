@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTD/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>name</key>
+	<string>PXF</string>
+	<key>uuid</key>
+	<string>2D0C8A7B-8BF4-4CEB-B75D-1234C447C321</string>
+	<key>contactName</key>
+	<string>TrendVidia, LLC.</string>
+	<key>description</key>
+	<string>PXF (Proto eXpressive Format) syntax highlighting and comment toggle.</string>
+</dict>
+</plist>

@@ -1,0 +1,31 @@
+# EditorConfig — https://editorconfig.org
+# Applies to every editor that ships an EditorConfig plugin (most do).
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+[*.go]
+indent_style = tab
+indent_size = 4
+
+[Makefile]
+indent_style = tab
+
+[*.{md,markdown}]
+trim_trailing_whitespace = false  # markdown uses trailing spaces for line breaks
+
+[*.{kt,kts,java,gradle}]
+indent_size = 4
+
+[*.py]
+indent_size = 4
+
+[*.{rs,c,cc,cpp,h,hpp}]
+indent_size = 4

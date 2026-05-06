@@ -1,0 +1,5 @@
+@type adversarial.v1.StringHolder
+
+# U+D800 is a lone high surrogate — not a valid Unicode scalar value.
+# \u escapes encoding surrogates must be rejected per docs/HARDENING.md § UTF-8.
+value = "\uD800"

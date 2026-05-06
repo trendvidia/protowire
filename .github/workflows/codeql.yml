@@ -1,0 +1,62 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 TrendVidia, LLC.
+
+name: CodeQL
+
+# Static-analysis SAST for Go (the canonical CLI) and Kotlin (the
+# JetBrains plugin's startup activity / annotator). The protowire-java
+# parser jar bundled by the JetBrains plugin is owned by protowire-java;
+# CodeQL there is run in that repo, not here.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly re-scan to catch newly-disclosed CodeQL queries firing on
+    # unchanged code.
+    - cron: "37 6 * * 1"
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [go, java-kotlin]
+    steps:
+      - uses: actions/checkout@v6
+
+      - if: matrix.language == 'go'
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - if: matrix.language == 'java-kotlin'
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-and-quality
+
+      - if: matrix.language == 'go'
+        run: go build ./...
+
+      - if: matrix.language == 'java-kotlin'
+        working-directory: editors/jetbrains/plugin
+        run: ./gradlew --quiet classes
+
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"

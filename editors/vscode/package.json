@@ -1,0 +1,77 @@
+{
+  "name": "pxf",
+  "displayName": "PXF — Proto eXpressive Format",
+  "description": "Syntax highlighting and inline parse-error squiggles for PXF (Proto eXpressive Format) files.",
+  "version": "0.1.1",
+  "publisher": "trendvidia",
+  "license": "MIT",
+  "author": {
+    "name": "TrendVidia, LLC."
+  },
+  "homepage": "https://protowire.org",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/trendvidia/protowire.git",
+    "directory": "editors/vscode"
+  },
+  "bugs": {
+    "url": "https://github.com/trendvidia/protowire/issues"
+  },
+  "keywords": [
+    "pxf",
+    "protowire",
+    "protobuf",
+    "syntax",
+    "language"
+  ],
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onLanguage:pxf"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "pxf",
+        "aliases": [
+          "PXF",
+          "pxf"
+        ],
+        "extensions": [
+          ".pxf"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "pxf",
+        "scopeName": "source.pxf",
+        "path": "./syntaxes/pxf.tmLanguage.json"
+      }
+    ]
+  },
+  "scripts": {
+    "build": "esbuild ./src/extension.ts --bundle --platform=node --target=node18 --external:vscode --format=cjs --outfile=./dist/extension.js",
+    "watch": "npm run build -- --sourcemap --watch",
+    "package": "npm run build && vsce package --out dist/",
+    "publish": "npm run build && vsce publish",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@trendvidia/protowire": "file:./libs/trendvidia-protowire.tgz"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/vscode": "^1.75.0",
+    "@vscode/vsce": "^3.0.0",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.6.0"
+  }
+}

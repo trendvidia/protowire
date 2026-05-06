@@ -1,0 +1,3 @@
+@type adversarial.v1.Tree
+
+child{child{child{child{child{child{child{child{child{child{}}}}}}}}}}
