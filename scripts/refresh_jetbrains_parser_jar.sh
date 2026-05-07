@@ -29,10 +29,13 @@ fi
 echo "→ building :pxf jar in $JAVA_DIR"
 (cd "$JAVA_DIR" && ./gradlew --quiet :pxf:jar)
 
-# protowire-java versions the jar (e.g. pxf-0.1.0.jar). Pick the most recent.
-SRC="$(ls -t "$JAVA_DIR/pxf/build/libs/"pxf-*.jar | head -1)"
-if [[ ! -f "$SRC" ]]; then
-  echo "error: build did not produce a pxf jar in $JAVA_DIR/pxf/build/libs/" >&2
+# protowire-java versions the jar (e.g. pxf-0.70.0.jar). Pick the most
+# recent main-classes jar — explicitly exclude -sources.jar / -javadoc.jar
+# variants the maven-publish plugin produces alongside it.
+SRC="$(ls -t "$JAVA_DIR/pxf/build/libs/"pxf-*.jar 2>/dev/null \
+  | grep -Ev -- '-(sources|javadoc)\.jar$' | head -1)"
+if [[ -z "$SRC" || ! -f "$SRC" ]]; then
+  echo "error: build did not produce a main pxf jar in $JAVA_DIR/pxf/build/libs/" >&2
   exit 1
 fi
 

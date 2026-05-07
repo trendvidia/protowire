@@ -9,8 +9,8 @@ import com.intellij.lang.annotation.HighlightSeverity
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiFile
-import com.trendvidia.protowire.pxf.Parser
-import com.trendvidia.protowire.pxf.PxfException
+import org.protowire.pxf.Parser
+import org.protowire.pxf.PxfException
 
 /**
  * Phase-1 PXF validator: runs the protowire-java parser on every .pxf file
