@@ -72,35 +72,33 @@ editors/vscode/
 │   └── extension.ts                # activate() + DiagnosticCollection
 ├── syntaxes/
 │   └── pxf.tmLanguage.json         # canonical grammar (mirrored into JetBrains bundle)
-├── libs/
-│   └── trendvidia-protowire.tgz    # vendored parser package (see below)
 └── dist/
     ├── extension.js                # esbuild bundle (build product, not committed)
-    └── pxf-0.1.1.vsix              # prebuilt extension package (committed)
+    └── pxf-0.1.2.vsix              # prebuilt extension package (committed)
 ```
 
-## Refreshing the parser package (temporary workflow)
+## Parser dependency
 
-The extension's parser comes from **protowire-typescript**'s
-`@trendvidia/protowire/pxf` export. Until that package is published to
-the npm registry, the build is **vendored** as a tarball at
-[`libs/trendvidia-protowire.tgz`](libs/trendvidia-protowire.tgz) and
-refreshed by a script:
+The extension's parser comes from
+[`@trendvidia/protowire`](https://www.npmjs.com/package/@trendvidia/protowire)
+on the npm registry, declared in `package.json` as:
 
-```bash
-bash scripts/refresh_vscode_parser_pkg.sh
-cd editors/vscode && npm install && npm run package
+```json
+"dependencies": {
+  "@trendvidia/protowire": "^0.70.0"
+}
 ```
 
-The script expects the sibling `protowire-typescript/` checkout next to
-this repo, runs `npm run build` over there, and `npm pack`s the result
-into `editors/vscode/libs/`.
+When `npm run package` runs, esbuild tree-shakes the
+`@trendvidia/protowire/pxf` subpath into the bundled `dist/extension.js`,
+so the published `.vsix` is self-contained — no runtime npm install on
+the user's side. To refresh against a newer parser release, just bump
+the version range in `package.json` and `npm install && npm run package`.
 
-> **TODO (packaging refactor)**: switch to a regular registry dependency
-> `"@trendvidia/protowire": "^X.Y.Z"` once protowire-typescript is
-> published to npm. At that point `libs/`, the `file:` reference in
-> `package.json`, and this entire section all go away. Marked in
-> `package.json` next to the dependency.
+The published artifact is signed via npm provenance; if you want to
+verify what got bundled was built from a known commit of
+`trendvidia/protowire-typescript`, run `npm audit signatures` after
+`npm install`.
 
 ## Keeping the grammar in sync
 

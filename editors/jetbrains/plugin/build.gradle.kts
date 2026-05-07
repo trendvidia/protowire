@@ -3,11 +3,11 @@
 
 plugins {
     id("org.jetbrains.kotlin.jvm") version "1.9.25"
-    id("org.jetbrains.intellij.platform") version "2.2.1"
+    id("org.jetbrains.intellij.platform") version "2.16.0"
 }
 
 group = "com.trendvidia.pxf"
-version = "0.1.1"
+version = "0.1.2"
 
 repositories {
     mavenCentral()

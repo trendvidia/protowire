@@ -75,8 +75,10 @@ updates:
       vscode-minor-and-patch:
         update-types: ["minor", "patch"]
     ignore:
-      # libs/trendvidia-protowire.tgz is the vendored protowire-typescript
-      # tarball; bumps come via scripts/refresh_vscode_parser_pkg.sh.
+      # @trendvidia/protowire is part of the wire contract and bumps in
+      # lockstep with the rest of the protowire-* stack; we re-pin
+      # manually when a new 0.7x release lands rather than letting
+      # Dependabot drift the version on its own schedule.
       - dependency-name: "@trendvidia/protowire"
 
   # --- GitHub Actions (CI workflows) ---------------------------------------

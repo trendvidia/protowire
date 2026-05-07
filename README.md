@@ -456,7 +456,7 @@ install locally:
 - **VS Code** — install the pre-built package directly:
 
   ```bash
-  code --install-extension editors/vscode/dist/pxf-0.1.1.vsix
+  code --install-extension editors/vscode/dist/pxf-0.1.2.vsix
   ```
 
   Or use the **Extensions → Install from VSIX…** menu. To rebuild from
@@ -464,7 +464,7 @@ install locally:
   [editors/vscode/README.md](editors/vscode/README.md).
 - **JetBrains** (IntelliJ, GoLand, PyCharm, …) — install the prebuilt
   plugin via **Settings → Plugins → ⚙ → Install Plugin from Disk…** and
-  pick `editors/jetbrains/plugin/dist/pxf-jetbrains-0.1.1.zip`. The
+  pick `editors/jetbrains/plugin/dist/pxf-jetbrains-0.1.2.zip`. The
   plugin auto-registers the bundled TextMate grammar (no manual "Add
   Bundle" step), adds a **New → PXF File** entry, and surfaces parse
   errors inline. The raw `.tmbundle/` directory is also still available
