@@ -456,7 +456,7 @@ install locally:
 - **VS Code** — install the pre-built package directly:
 
   ```bash
-  code --install-extension editors/vscode/dist/pxf-0.1.1.vsix
+  code --install-extension editors/vscode/dist/pxf-0.1.2.vsix
   ```
 
   Or use the **Extensions → Install from VSIX…** menu. To rebuild from
