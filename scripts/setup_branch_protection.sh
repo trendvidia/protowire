@@ -85,13 +85,17 @@ status_checks_for() {
 }
 
 # --- Ruleset builders ------------------------------------------------------
-# All branch rulesets share the bypass-actor list. "OrganizationAdmin" with
-# actor_id 1 means every org admin can bypass via PR (i.e. self-merge a PR
-# even if reviews are short). Add Steward's GitHub App actor here once
-# it's installed:
+# All branch rulesets share the bypass-actor list. "RepositoryRole" with
+# actor_id 5 maps to the repo Admin role — every repo admin can bypass
+# via PR. We avoid the alternative (`actor_type: "OrganizationAdmin"` with
+# actor_id 1) because that bypass entry is validated against admin:org
+# scope at ruleset-create time, and our automation token is scoped to
+# read:org only. Repo Admin bypass gives us the same operational
+# escape hatch without requiring the token-scope upgrade. Add Steward's
+# GitHub App actor here once it's installed:
 #   { actor_id: <STEWARD_APP_ID>, actor_type: "Integration", bypass_mode: "always" }
 bypass_actors_json() {
-  jq -n '[{ actor_id: 1, actor_type: "OrganizationAdmin", bypass_mode: "pull_request" }]'
+  jq -n '[{ actor_id: 5, actor_type: "RepositoryRole", bypass_mode: "pull_request" }]'
 }
 
 # Build the rules array for a branch ruleset.
