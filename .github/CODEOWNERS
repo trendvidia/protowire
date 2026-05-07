@@ -1,0 +1,48 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 TrendVidia, LLC.
+#
+# Code ownership for the canonical protowire spec repository.
+#
+# Lines later in the file take precedence; the LAST matching pattern wins
+# per file. Patterns follow gitignore syntax. See:
+#   https://docs.github.com/en/repositories/managing-your-repositories-settings-and-features/customizing-your-repository/about-code-owners
+#
+# Required teams (must exist under the trendvidia GitHub org):
+#   - @trendvidia/maintainers — full review authority on wire-format and
+#     governance changes.
+#   - @trendvidia/contributors — broader reviewer pool for tooling /
+#     editor / docs changes.
+#
+# Until the @trendvidia/contributors team is provisioned, all paths fall
+# through to @trendvidia/maintainers via the catch-all at the top.
+
+# Catch-all: maintainers see every PR by default. Path-specific lines
+# below either narrow or widen the reviewer set.
+*                              @trendvidia/maintainers
+
+# --- Wire format (every change rebroadcasts to all 9 ports) ---------------
+# Touching anything here is a cross-port event. Maintainer review is required.
+/proto/                        @trendvidia/maintainers
+/docs/grammar.ebnf             @trendvidia/maintainers
+/docs/grammar.svg              @trendvidia/maintainers
+/docs/draft-*.txt              @trendvidia/maintainers
+/docs/HARDENING.md             @trendvidia/maintainers
+/testdata/                     @trendvidia/maintainers
+/governance.pxf                @trendvidia/maintainers
+/STABILITY.md                  @trendvidia/maintainers
+/SECURITY.md                   @trendvidia/maintainers
+/GOVERNANCE.md                 @trendvidia/maintainers
+
+# --- Tooling and editors (looser — open to broader reviewer pool) --------
+/cmd/                          @trendvidia/contributors @trendvidia/maintainers
+/scripts/                      @trendvidia/contributors @trendvidia/maintainers
+/editors/                      @trendvidia/contributors @trendvidia/maintainers
+
+# --- CI / repo plumbing (maintainer review keeps supply chain trustworthy) -
+/.github/                      @trendvidia/maintainers
+/go.mod                        @trendvidia/maintainers
+/go.sum                        @trendvidia/maintainers
+
+# --- Per-language editor extensions (port-aligned) -----------------------
+# Bumping the vendored protowire-java jar or @trendvidia/protowire tarball
+# inside an editor extension still rides under /editors/ above.

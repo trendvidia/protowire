@@ -1,0 +1,93 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 TrendVidia, LLC.
+#
+# Dependabot config for the canonical protowire spec repository.
+#
+# This repo carries four ecosystems:
+#   1. Go (go.mod)               — the canonical CLI in cmd/
+#   2. Gradle (Kotlin)           — the JetBrains plugin in editors/jetbrains/plugin/
+#   3. npm                        — the VS Code extension in editors/vscode/
+#   4. GitHub Actions             — the workflows in .github/workflows/
+#
+# Per-port repos should mirror the relevant block from this file:
+#   - protowire-go        → gomod        (already configured)
+#   - protowire-cpp       → github-actions (CMake fetched deps aren't supported)
+#   - protowire-rust      → cargo + github-actions
+#   - protowire-java      → gradle + github-actions
+#   - protowire-typescript → npm + github-actions
+#   - protowire-python     → pip + github-actions
+#   - protowire-csharp     → nuget + github-actions
+#   - protowire-swift      → github-actions  (swift package manager support
+#                                              is opt-in; turn on once the
+#                                              port has external swift deps)
+#   - protowire-dart       → github-actions  (pub is not natively supported
+#                                              by Dependabot — use renovate
+#                                              or accept manual bumps)
+
+version: 2
+updates:
+
+  # --- Go (cmd/protowire and the protoc-gen-pxf-java-meta codegen plugin) ---
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    commit-message:
+      prefix: "deps(go)"
+    open-pull-requests-limit: 5
+    groups:
+      # Bundle non-major bumps so we don't get one PR per indirect dep.
+      go-minor-and-patch:
+        update-types: ["minor", "patch"]
+    ignore:
+      # Pinned via the replace directive in go.mod to the trendvidia fork.
+      # Bumping upstream here would conflict; we sync the fork separately.
+      - dependency-name: "google.golang.org/protobuf"
+
+  # --- JetBrains plugin (Kotlin / Gradle) ----------------------------------
+  - package-ecosystem: "gradle"
+    directory: "/editors/jetbrains/plugin"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    commit-message:
+      prefix: "deps(jetbrains)"
+    open-pull-requests-limit: 3
+    groups:
+      jetbrains-minor-and-patch:
+        update-types: ["minor", "patch"]
+    ignore:
+      # libs/protowire-pxf.jar is a flat-file dependency that Dependabot
+      # cannot reason about; bumps come via scripts/refresh_jetbrains_parser_jar.sh.
+      - dependency-name: "files"
+
+  # --- VS Code extension (npm) ---------------------------------------------
+  - package-ecosystem: "npm"
+    directory: "/editors/vscode"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    commit-message:
+      prefix: "deps(vscode)"
+    open-pull-requests-limit: 3
+    groups:
+      vscode-minor-and-patch:
+        update-types: ["minor", "patch"]
+    ignore:
+      # libs/trendvidia-protowire.tgz is the vendored protowire-typescript
+      # tarball; bumps come via scripts/refresh_vscode_parser_pkg.sh.
+      - dependency-name: "@trendvidia/protowire"
+
+  # --- GitHub Actions (CI workflows) ---------------------------------------
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    commit-message:
+      prefix: "deps(actions)"
+    open-pull-requests-limit: 5
+    groups:
+      actions-minor-and-patch:
+        update-types: ["minor", "patch"]

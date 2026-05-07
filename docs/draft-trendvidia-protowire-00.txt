@@ -2,8 +2,8 @@
 
 
 
-Network Working Group                                       B. Eckhardt
-Internet-Draft                                                Trendvidia
+Network Working Group                                     B. Franco Jr.
+Internet-Draft                                           TrendVidia, LLC
 Intended status: Informational                              4 May 2026
 Expires: 5 November 2026
 
@@ -55,7 +55,7 @@ Copyright Notice
 
 
 
-Eckhardt                  Expires 5 November 2026                [Page 1]
+Franco Jr.                Expires 5 November 2026                [Page 1]
 
 Internet-Draft                  protowire                       May 2026
 
@@ -113,7 +113,7 @@ Table of Contents
 
 
 
-Eckhardt                  Expires 5 November 2026                [Page 2]
+Franco Jr.                Expires 5 November 2026                [Page 2]
 
 Internet-Draft                  protowire                       May 2026
 
@@ -210,7 +210,7 @@ Internet-Draft                  protowire                       May 2026
 
 
 
-Eckhardt                  Expires 5 November 2026                [Page 3]
+Franco Jr.                Expires 5 November 2026                [Page 3]
 
 Internet-Draft                  protowire                       May 2026
 
@@ -267,7 +267,7 @@ Internet-Draft                  protowire                       May 2026
 
 
 
-Eckhardt                  Expires 5 November 2026                [Page 4]
+Franco Jr.                Expires 5 November 2026                [Page 4]
 
 Internet-Draft                  protowire                       May 2026
 
@@ -324,7 +324,7 @@ Internet-Draft                  protowire                       May 2026
 
 
 
-Eckhardt                  Expires 5 November 2026                [Page 5]
+Franco Jr.                Expires 5 November 2026                [Page 5]
 
 Internet-Draft                  protowire                       May 2026
 
@@ -359,19 +359,19 @@ Internet-Draft                  protowire                       May 2026
    per Section 3.2 MAY appear between any two adjacent tokens and
    are not shown.
 
-     document        = [ type-directive ] *entry
+     document        = [ type-directive ] *field-entry
 
      type-directive  = %s"@type" 1*WSP identifier
 
-     entry           = key ( assignment-tail
-                           / map-tail
-                           / block-tail )
+     entry           = field-entry / map-entry
+     field-entry     = identifier ( assignment-tail / block-tail )
+     map-entry       = map-key map-tail
 
      assignment-tail = "=" value
      map-tail        = ":" value
      block-tail      = "{" *entry "}"
 
-     key             = identifier / string / integer
+     map-key         = identifier / string / integer
 
      value           = string
                      / number
@@ -381,7 +381,7 @@ Internet-Draft                  protowire                       May 2026
 
 
 
-Eckhardt                  Expires 5 November 2026                [Page 6]
+Franco Jr.                Expires 5 November 2026                [Page 6]
 
 Internet-Draft                  protowire                       May 2026
 
@@ -437,7 +437,7 @@ Internet-Draft                  protowire                       May 2026
 
 
 
-Eckhardt                  Expires 5 November 2026                [Page 7]
+Franco Jr.                Expires 5 November 2026                [Page 7]
 
 Internet-Draft                  protowire                       May 2026
 
@@ -494,7 +494,7 @@ Internet-Draft                  protowire                       May 2026
 
 
 
-Eckhardt                  Expires 5 November 2026                [Page 8]
+Franco Jr.                Expires 5 November 2026                [Page 8]
 
 Internet-Draft                  protowire                       May 2026
 
@@ -512,39 +512,45 @@ Internet-Draft                  protowire                       May 2026
       written; both forms are accepted, and emitters SHOULD use
       whichever the schema declares).
 
-   *  A string key is used when the surrounding type is a map or
-      when the key would not be a valid identifier.  The string
-      MUST be a UTF-8 string; for map<K,V> fields with non-string
-      K, the string is parsed as a literal of K's type.
+   *  A string or integer key is permitted only inside a map<K,V>
+      literal (i.e. the *map-entry* production of Section 3.3).
+      A string key MUST be a UTF-8 string; for map<K,V> fields with
+      non-string K, the string is parsed as a literal of K's type.
+      An integer key matches a map<K,V> field whose K is one of
+      the protobuf scalar integer types (int32, int64, sint32,
+      sint64, uint32, uint64, fixed32, fixed64, sfixed32, sfixed64,
+      bool encoded as 0/1).
 
-   *  An integer key is used when the surrounding type is a map
-      with integer K, or when the field is referenced by its
-      proto field number rather than its name.
+   The three entry tails are NOT interchangeable; the grammar in
+   Section 3.3 splits them across two productions:
 
-   The three entry tails are NOT interchangeable.  Their use is
-   determined by the surrounding type:
+   *  An assignment-tail "=" binds a scalar, list, or block to a
+      field of an enclosing *message* type.  It is the right-hand
+      side of *field-entry* and REQUIRES an identifier key (= proto
+      field name).  Parsers MUST reject "=" with a non-identifier
+      key (string or integer) at parse time.
 
-   *  An assignment-tail "=" is the form for binding a scalar, list,
-      or block to a field of an enclosing *message* type.  Decoders
-      MUST reject "=" appearing inside a *map* value with an error
-      indicating that map entries use ":".
-
-   *  A map-tail ":" is the form for binding a value to a key of an
-      enclosing *map* type.  Decoders MUST reject ":" appearing
-      inside a message value with an error indicating that field
+   *  A map-tail ":" binds a value to a key of an enclosing *map*
+      type.  It is the right-hand side of *map-entry*.  *map-entry*
+      MUST NOT appear at document top level (the document represents
+      a proto message, never a map<K,V>); parsers MUST reject ":"
+      at the top level with an error indicating that field
       assignments use "=".
 
    *  A block-tail "{ ... }" with no preceding "=" or ":" is
       permitted only in message context, where the bound field is
-      message-typed; it is equivalent to "= { ... }".  Map values
-      that are themselves messages MUST use the explicit form
-      "key: { ... }"; the bare-block form is not accepted in map
-      context.
+      message-typed; it is equivalent to "= { ... }".  Like
+      assignment-tail, it REQUIRES an identifier key, and parsers
+      MUST reject a block-tail with a non-identifier key.  Map
+      values that are themselves messages MUST use the explicit
+      form "key: { ... }"; the bare-block form is not accepted in
+      map context.
 
-   The grammar in Section 3.3 admits all three tails after any key
-   for parsing simplicity; the message-vs-map enforcement above is
-   a semantic check applied after the surrounding type has been
-   resolved from the schema.
+   Inside a "{ ... }" block the parser cannot statically tell
+   whether the surrounding field is message-typed or map-typed;
+   both *field-entry* and *map-entry* are accepted in that position
+   and the message-vs-map disambiguation is performed by the
+   schema-resolution step that runs after parsing.
 
    Repeated fields MAY be expressed either as a single key with a
    list-typed value, or as multiple entries with the same key and
@@ -562,7 +568,7 @@ Internet-Draft                  protowire                       May 2026
 
 
 
-Eckhardt                  Expires 5 November 2026                [Page 9]
+Franco Jr.                Expires 5 November 2026                [Page 9]
 
 Internet-Draft                  protowire                       May 2026
 
@@ -619,7 +625,7 @@ Internet-Draft                  protowire                       May 2026
 
 
 
-Eckhardt                  Expires 5 November 2026               [Page 10]
+Franco Jr.                Expires 5 November 2026               [Page 10]
 
 Internet-Draft                  protowire                       May 2026
 
@@ -676,7 +682,7 @@ Internet-Draft                  protowire                       May 2026
 
 
 
-Eckhardt                  Expires 5 November 2026               [Page 11]
+Franco Jr.                Expires 5 November 2026               [Page 11]
 
 Internet-Draft                  protowire                       May 2026
 
@@ -743,7 +749,7 @@ Internet-Draft                  protowire                       May 2026
 
 
 
-Eckhardt                  Expires 5 November 2026               [Page 12]
+Franco Jr.                Expires 5 November 2026               [Page 12]
 
 Internet-Draft                  protowire                       May 2026
 
@@ -800,7 +806,7 @@ Internet-Draft                  protowire                       May 2026
 
 
 
-Eckhardt                  Expires 5 November 2026               [Page 13]
+Franco Jr.                Expires 5 November 2026               [Page 13]
 
 Internet-Draft                  protowire                       May 2026
 
@@ -869,7 +875,7 @@ Internet-Draft                  protowire                       May 2026
 
 
 
-Eckhardt                  Expires 5 November 2026               [Page 14]
+Franco Jr.                Expires 5 November 2026               [Page 14]
 
 Internet-Draft                  protowire                       May 2026
 
@@ -926,7 +932,7 @@ Internet-Draft                  protowire                       May 2026
 
 
 
-Eckhardt                  Expires 5 November 2026               [Page 15]
+Franco Jr.                Expires 5 November 2026               [Page 15]
 
 Internet-Draft                  protowire                       May 2026
 
@@ -983,7 +989,7 @@ Internet-Draft                  protowire                       May 2026
 
 
 
-Eckhardt                  Expires 5 November 2026               [Page 16]
+Franco Jr.                Expires 5 November 2026               [Page 16]
 
 Internet-Draft                  protowire                       May 2026
 
@@ -1041,7 +1047,7 @@ Internet-Draft                  protowire                       May 2026
 
 
 
-Eckhardt                  Expires 5 November 2026               [Page 17]
+Franco Jr.                Expires 5 November 2026               [Page 17]
 
 Internet-Draft                  protowire                       May 2026
 
@@ -1098,7 +1104,7 @@ Internet-Draft                  protowire                       May 2026
 
 
 
-Eckhardt                  Expires 5 November 2026               [Page 18]
+Franco Jr.                Expires 5 November 2026               [Page 18]
 
 Internet-Draft                  protowire                       May 2026
 
@@ -1154,7 +1160,7 @@ Internet-Draft                  protowire                       May 2026
 
 
 
-Eckhardt                  Expires 5 November 2026               [Page 19]
+Franco Jr.                Expires 5 November 2026               [Page 19]
 
 Internet-Draft                  protowire                       May 2026
 
@@ -1211,7 +1217,7 @@ Internet-Draft                  protowire                       May 2026
 
 
 
-Eckhardt                  Expires 5 November 2026               [Page 20]
+Franco Jr.                Expires 5 November 2026               [Page 20]
 
 Internet-Draft                  protowire                       May 2026
 
@@ -1290,7 +1296,7 @@ Internet-Draft                  protowire                       May 2026
 
 
 
-Eckhardt                  Expires 5 November 2026               [Page 21]
+Franco Jr.                Expires 5 November 2026               [Page 21]
 
 Internet-Draft                  protowire                       May 2026
 
@@ -1347,7 +1353,7 @@ Internet-Draft                  protowire                       May 2026
 
 
 
-Eckhardt                  Expires 5 November 2026               [Page 22]
+Franco Jr.                Expires 5 November 2026               [Page 22]
 
 Internet-Draft                  protowire                       May 2026
 
@@ -1404,7 +1410,7 @@ Internet-Draft                  protowire                       May 2026
 
 
 
-Eckhardt                  Expires 5 November 2026               [Page 23]
+Franco Jr.                Expires 5 November 2026               [Page 23]
 
 Internet-Draft                  protowire                       May 2026
 
@@ -1461,7 +1467,7 @@ Internet-Draft                  protowire                       May 2026
 
 
 
-Eckhardt                  Expires 5 November 2026               [Page 24]
+Franco Jr.                Expires 5 November 2026               [Page 24]
 
 Internet-Draft                  protowire                       May 2026
 
@@ -1523,17 +1529,17 @@ Internet-Draft                  protowire                       May 2026
                <https://pypi.org/project/defusedxml/>.
 
    [PROTOWIRE-BIGNUM]
-               Trendvidia, "PXF arbitrary-precision numeric
+               TrendVidia LLC, "PXF arbitrary-precision numeric
                types", proto/pxf/bignum.proto in the protowire
                canonical repository,
                <https://github.com/trendvidia/protowire>.
 
 Authors' Addresses
 
-   B. Eckhardt   (please replace with author's full legal name)
-   Trendvidia
-   Email: bene@trendvidia.com
+   B. Franco Jr.
+   TrendVidia, LLC
+   Email: contact@trendvidia.com
 
 
 
-Eckhardt                  Expires 5 November 2026               [Page 25]
+Franco Jr.                Expires 5 November 2026               [Page 25]
