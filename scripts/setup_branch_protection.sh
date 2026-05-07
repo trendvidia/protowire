@@ -47,7 +47,7 @@ command -v jq >/dev/null || { echo "jq not on PATH"; exit 1; }
 gh auth status >/dev/null 2>&1 || { echo "gh not authenticated; run 'gh auth login'"; exit 1; }
 
 # --- Repo classification ---------------------------------------------------
-SPEC_REPOS=(protowire)
+SPEC_REPOS=(protowire protoregistry)
 PORT_REPOS=(
   protowire-go
   protowire-cpp
@@ -69,6 +69,7 @@ FORK_REPOS=(protobuf-go)
 status_checks_for() {
   case "$1" in
     protowire)            echo "test|Analyze (go)|Analyze (java-kotlin)" ;;
+    protoregistry)        echo "build|lint|vet|headers|test-unit|test-integration" ;;
     protowire-go)         echo "test" ;;
     protowire-cpp)        echo "build" ;;
     protowire-rust)       echo "test|clippy" ;;
