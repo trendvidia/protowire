@@ -10,6 +10,13 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+## [0.70.0] – 2026-05-06
+
+First tagged baseline of the spec repo, matching the `v0.70.x` release
+line cut by every sibling port. Establishes the cross-port wire-equivalence
+reference point and the adversarial corpus all ports must accept (or
+reject, where the corpus probes hardening).
+
 ### Changed
 
 - **PXF grammar (breaking)** — `docs/grammar.ebnf` now distinguishes
