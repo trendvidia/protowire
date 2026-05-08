@@ -38,6 +38,7 @@ REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 SIBLING_DIR="$(dirname "$REPO_DIR")"
 TESTDATA_DIR="$REPO_DIR/testdata"
 
+GO_DIR="${SIBLING_DIR}/protowire-go"
 CPP_DIR="${SIBLING_DIR}/protowire-cpp"
 TS_DIR="${SIBLING_DIR}/protowire-typescript"
 JAVA_DIR="${SIBLING_DIR}/protowire-java"
@@ -69,7 +70,7 @@ run_port() {
 # --- Go ---
 if ! skip go; then
   run_port "Go bench" \
-    bash -c "cd '$REPO_DIR' && exec go run ./scripts/bench_pxf \"\$@\"" --
+    bash -c "cd '$GO_DIR' && exec go run ./scripts/bench_pxf \"\$@\"" --
 fi
 
 # --- C++ ---
