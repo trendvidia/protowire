@@ -4,6 +4,13 @@
 
 This repository is the **canonical, language-neutral specification**. It contains the proto schemas, the EBNF grammar, the railroad diagram, editor plugins, and the cross-port test fixtures. Implementations live in sibling repositories — see [Implementations](#implementations).
 
+## Resources
+
+- [protowire.org](https://protowire.org) — documentation website and specification overview
+- [`docs/grammar.ebnf`](docs/grammar.ebnf) — PXF concrete syntax (source of truth)
+- [`docs/grammar.svg`](docs/grammar.svg) — railroad diagram, generated from the EBNF
+- [`docs/draft-trendvidia-protowire-00.txt`](docs/draft-trendvidia-protowire-00.txt) — IETF draft of the wire format
+
 ```
 @type infra.v1.ServerConfig
 
@@ -62,7 +69,7 @@ PXF uses your existing `.proto` files as the schema. No new schema language. No 
 
 ## Implementations
 
-PXF, `pb`, `sbe`, and the envelope are defined in this repo and implemented independently across nine languages. Every port is wire-compatible against the canonical `testdata/` fixtures.
+PXF, `pb`, `sbe`, and the envelope are defined in this repo and implemented across ten languages. Every port is wire-compatible against the canonical `testdata/` fixtures.
 
 | Language | Repository |
 |----------|------------|
@@ -70,13 +77,16 @@ PXF, `pb`, `sbe`, and the envelope are defined in this repo and implemented inde
 | C++ | [trendvidia/protowire-cpp](https://github.com/trendvidia/protowire-cpp) |
 | Rust | [trendvidia/protowire-rust](https://github.com/trendvidia/protowire-rust) |
 | Java | [trendvidia/protowire-java](https://github.com/trendvidia/protowire-java) |
+| Kotlin | [trendvidia/protowire-kotlin](https://github.com/trendvidia/protowire-kotlin) |
 | TypeScript | [trendvidia/protowire-typescript](https://github.com/trendvidia/protowire-typescript) |
 | Python | [trendvidia/protowire-python](https://github.com/trendvidia/protowire-python) |
 | C# | [trendvidia/protowire-csharp](https://github.com/trendvidia/protowire-csharp) |
 | Swift | [trendvidia/protowire-swift](https://github.com/trendvidia/protowire-swift) |
 | Dart | [trendvidia/protowire-dart](https://github.com/trendvidia/protowire-dart) |
 
-Each port provides the in-language library (lexer, parser, encoder, decoder) only. Command-line operations are handled by the shared CLI below.
+Eight ports implement the lexer/parser/encoder/decoder from scratch. Two build on a sibling rather than duplicating the codecs: `protowire-python` wraps `protowire-cpp` over a nanobind FFI, and `protowire-kotlin` is a Kotlin-extensions companion (suspending wrappers, DSL builders, `Flow` adapters) that calls `protowire-java`'s codecs natively.
+
+Each port provides the in-language library only. Command-line operations are handled by the shared CLI below.
 
 ## CLI
 
@@ -113,6 +123,12 @@ protoregistry pxf decode   [namespace] file.pb  --schema billing -m billing.v1.I
 protoregistry pxf validate [namespace] file.pxf --schema billing -m billing.v1.Invoice
 protoregistry pxf fmt      [namespace] file.pxf --schema billing -m billing.v1.Invoice
 ```
+
+## Schema registry
+
+[`trendvidia/protoregistry`](https://github.com/trendvidia/protoregistry) is the companion `.proto` catalog/registry: a multi-namespace schema store with versioning, two-phase staging, backward-compatibility enforcement, and lock-free hot-swap. It compiles `.proto` sources at runtime, deduplicates them by content hash in PostgreSQL, and serves compiled descriptors over gRPC for dynamic message creation and validation.
+
+Every protowire CLI subcommand can pull schemas from a running registry via `-s <server> -n <namespace> --schema <name>` (see the example above), and the protoregistry CLI ships PXF subcommands directly so registry-resident schemas can encode/decode/validate/format PXF documents without re-exporting the descriptors. See the [protoregistry README](https://github.com/trendvidia/protoregistry#readme) for installation, namespace bootstrapping, and the Go client SDK.
 
 ## Syntax
 
@@ -425,15 +441,20 @@ Implementations are expected to provide tools that round-trip between FIX SBE XM
 
 Every implementation runs the same canonical fixtures (`testdata/bench-test.{proto,pxf}` for PXF, `testdata/sbe-bench.proto` for SBE) and decodes into a descriptor-driven dynamic message — no codegen — so the comparison reflects codec dispatch, not generated-message ergonomics.
 
-|        | PXF unmarshal | PXF marshal | SBE unmarshal | SBE marshal |
-|---|---|---|---|---|
-| **C++**    | **3.78 µs** (164.5 MiB/s) | **3.13 µs** | **382 ns** (234.7 MiB/s) | **236 ns** |
-| Go         | 5.52 µs (112.7 MiB/s) | 3.48 µs | 1.05 µs (85.1 MiB/s) | 378 ns |
-| Rust       | 5.88 µs (105.8 MiB/s) | 5.26 µs | 576 ns (155.5 MiB/s) | 432 ns |
-| Java       | 9.32 µs (66.7 MiB/s) | 3.32 µs | 865 ns (103.6 MiB/s) | 276 ns |
-| TypeScript | 11.78 µs (52.6 MiB/s) | 4.65 µs | 1.59 µs (56.4 MiB/s) | 946 ns |
+|            | PXF unmarshal             | PXF marshal | SBE unmarshal              | SBE marshal |
+|------------|---------------------------|-------------|----------------------------|-------------|
+| C++        | **3.83 µs** (**162.4 MiB/s**) | **3.16 µs** | 390 ns (229.5 MiB/s)       | **236 ns**  |
+| Go         | 5.83 µs (106.6 MiB/s)     | 3.47 µs     | 1.06 µs (84.6 MiB/s)       | 375 ns      |
+| Rust       | 6.06 µs (102.7 MiB/s)     | 5.25 µs     | 584 ns (153.4 MiB/s)       | 438 ns      |
+| Java       | 9.48 µs (65.6 MiB/s)      | **3.25 µs** | 894 ns (100.2 MiB/s)       | 265 ns      |
+| TypeScript | 11.90 µs (52.3 MiB/s)     | 4.84 µs     | 1.59 µs (56.5 MiB/s)       | 939 ns      |
+| C#         | 16.36 µs (38.0 MiB/s)     | 4.40 µs     | **342 ns** (**261.9 MiB/s**) | 279 ns    |
+| Python     | —                         | —           | 2.44 µs (36.8 MiB/s)       | 1.36 µs     |
+| Swift¹     | 277.90 µs (2.2 MiB/s)     | 39.18 µs    | —                          | —           |
 
-Apple M1, 3-second measurement window per op. PXF uses a 624-byte `bench.v1.Config` (mixed scalars, repeated lists, maps, Timestamp, Duration); SBE uses a 94-byte `bench.v1.Order` (10 scalars + a 2-entry repeating group). Numbers are not yet collected for Python, C#, Swift, and Dart.
+Apple M1, 3-second measurement window per op. PXF uses a 624-byte `bench.v1.Config` (mixed scalars, repeated lists, maps, Timestamp, Duration); SBE uses a 94-byte `bench.v1.Order` (10 scalars + a 2-entry repeating group). C++ leads PXF in both directions; C# leads SBE unmarshal/throughput while C++ holds the SBE marshal lead. The Kotlin companion delegates to `protowire-java` and inherits Java's numbers (with one extra dispatch hop when called from a coroutine on `Dispatchers.IO`); Dart and the Java/Android (protobuf-javalite) tier do not yet ship bench harnesses.
+
+¹ Swift PXF lands roughly an order of magnitude behind the other ports on this fixture (release build, descriptor-driven path — same harness as every other row).
 
 To reproduce, clone the language ports next to this repo and run:
 
@@ -453,7 +474,8 @@ embeds `protowire-java`'s parser, the VS Code extension embeds
 `protowire-typescript`'s). Neither is published to a marketplace yet, so
 install locally:
 
-- **VS Code** — install the pre-built package directly:
+- **VS Code** — implementation in [`editors/vscode/`](editors/vscode/).
+  Install the pre-built package directly:
 
   ```bash
   code --install-extension editors/vscode/dist/pxf-0.1.2.vsix
@@ -461,15 +483,16 @@ install locally:
 
   Or use the **Extensions → Install from VSIX…** menu. To rebuild from
   source or set up a development symlink, see
-  [editors/vscode/README.md](editors/vscode/README.md).
-- **JetBrains** (IntelliJ, GoLand, PyCharm, …) — install the prebuilt
+  [`editors/vscode/README.md`](editors/vscode/README.md).
+- **JetBrains** (IntelliJ, GoLand, PyCharm, …) — implementation in
+  [`editors/jetbrains/`](editors/jetbrains/). Install the prebuilt
   plugin via **Settings → Plugins → ⚙ → Install Plugin from Disk…** and
   pick `editors/jetbrains/plugin/dist/pxf-jetbrains-0.1.2.zip`. The
   plugin auto-registers the bundled TextMate grammar (no manual "Add
   Bundle" step), adds a **New → PXF File** entry, and surfaces parse
-  errors inline. The raw `.tmbundle/` directory is also still available
-  for TextMate / Sublime Text users — see
-  [editors/jetbrains/README.md](editors/jetbrains/README.md).
+  errors inline. The raw [`pxf.tmbundle/`](editors/jetbrains/pxf.tmbundle/)
+  directory is also still available for TextMate / Sublime Text users —
+  see [`editors/jetbrains/README.md`](editors/jetbrains/README.md).
 
 Schema-aware validation (field/type checking against a descriptor set) is
 intentionally not in either extension yet — it's planned for a follow-up
