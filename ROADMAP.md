@@ -134,9 +134,19 @@ Ordered roughly by "biggest deal-breaker first" within each port.
 
 The reference implementation. Fewest gaps; the focus here is supply-chain hygiene.
 
+#### Already shipped
+
+- ✅ **`pxf.Secret` well-known type recognition.** PXF scalar shorthand (`pw = "x"`) and explicit block form (`pw { value = "x", hint = "h" }`) both decode; encode picks the form based on whether `hint`/`fingerprint` is set so authoring metadata round-trips. Canonical descriptor in `proto/pxf/secret.proto`; codec stays free of any memory-protection dependency (mlock/wipe semantics are the consumer runtime's concern). See `encoding/pxf/secret_test.go` for the conformance set. Sibling ports gain equivalent recognition as consumer demand appears — see "Cross-port follow-up" below.
+
+#### Pending
+
 - **0.71.0** — Pin `trendvidia/protobuf-go` fork to a specific SHA in `go.mod` with a comment explaining (a) why the fork exists, (b) what the diff against upstream is, (c) when we'll attempt upstreaming.
 - **0.72.0** — Reproducible-build verification: `go install github.com/trendvidia/protowire/cmd/protowire@<tag>` produces byte-identical binaries given the same Go toolchain version.
 - **0.74.0** — File the upstream issue against `google.golang.org/protobuf` for `dynamicpb.SetUnsafe` / `AppendUnsafe` / `MapSetUnsafe`. If accepted, drop the fork at 1.0.0; if rejected, document the fork as permanent.
+
+#### Cross-port follow-up
+
+- **`pxf.Secret` recognition in non-Go ports** is *not* a roadmap commitment — it lands in a port only when (a) a consumer for that language needs it, or (b) a wire-equivalence test fails. The reference implementation is `protowire-go @ encoding/pxf/{wellknown,decode_fast,encode}.go`; the conformance fixtures are `protowire-go @ encoding/pxf/secret_test.go`. The canonical descriptor lives in `proto/pxf/secret.proto` (this repo) alongside `bignum.proto`; ports that pre-generate WKT bindings can pick it up from there.
 
 ### Java (`protowire-java`)
 
