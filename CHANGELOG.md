@@ -10,6 +10,17 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+## [0.73.0] – 2026-05-11
+
+Schema-constraint + directive-expansion release. Three additions to
+the PXF text format, all strictly additive on the wire: a new
+schema-level reserved-name rule (Section 3.13), the `@entry` bundle
+directive (Section 3.4.3) with a generalized zero-or-more
+prefix-identifier list on every named directive, and the `@table`
+bulk-rows directive (Section 3.4.4) — the protowire-native
+replacement for CSV. Wire format unchanged. First-port
+implementation: `protowire-go` v0.73.0.
+
 ### Added
 
 - **PXF grammar — `@table` directive (CSV replacement).** New top-level
