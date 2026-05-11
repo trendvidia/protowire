@@ -42,7 +42,7 @@ directive     = type_directive | named_directive ;
 
 type_directive    = '@type' , identifier ;
 named_directive   = '@' , directive_name , [ identifier ] , [ block_tail ] ;
-directive_name    = identifier - 'type' ;
+directive_name    = identifier - ( 'type' | 'null' | 'true' | 'false' ) ;
 
 
 (* === Entries === *)
@@ -197,4 +197,32 @@ oct_lead      = '0' | '1' | '2' | '3' ;   (* keeps \nnn <= 0xFF *)
  *   and digits-followed-by-a-time-unit-letter as a duration. Negative
  *   integers and identifiers that begin with letters take precedence
  *   over those forms.
+ *)
+
+
+(* === Schema Constraints ===
+ *
+ * The PXF lexer reserves 'null', 'true', and 'false' as value keywords
+ * (and 'type' as the type-directive name). A protobuf schema whose
+ * declared names collide with any of these keywords produces fields,
+ * enum values, oneofs, or named-directive registrations that are
+ * unreachable from PXF surface syntax: the keyword always wins in the
+ * tokenizer, so 'field = null' resolves to the null-literal branch and
+ * an enum value literally named 'null' can never be selected. PXF
+ * therefore constrains the schema as follows:
+ *
+ * - A message field name MUST NOT be case-sensitively equal to 'null',
+ *   'true', or 'false'.
+ * - A oneof name MUST NOT be case-sensitively equal to 'null', 'true',
+ *   or 'false'.
+ * - An enum value name MUST NOT be case-sensitively equal to 'null',
+ *   'true', or 'false'.
+ * - A named-directive name MUST NOT be case-sensitively equal to
+ *   'type' (reserved for the type directive), 'null', 'true', or
+ *   'false'. Encoded by the directive_name production above.
+ *
+ * Tools that bind a protobuf descriptor for PXF use (encoders,
+ * decoders, codegen plugins, linters) MUST reject a non-conforming
+ * schema at bind time. The check is case-sensitive: 'NULL', 'True',
+ * 'FALSE' parse as ordinary identifiers and are unaffected.
  *)

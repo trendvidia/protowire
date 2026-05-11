@@ -366,8 +366,9 @@ Internet-Draft                  protowire                       May 2026
      named-directive = "@" directive-name
                        [ 1*WSP identifier ]
                        [ block-tail ]
-     directive-name  = identifier ; with the literal "type" excluded
-                                  ; (those match type-directive).
+     directive-name  = identifier ; excluding the literals "type"
+                                  ; (matches type-directive), "null",
+                                  ; "true", and "false" (Section 3.13).
 
      entry           = field-entry / map-entry
      field-entry     = identifier ( assignment-tail / block-tail )
@@ -779,6 +780,10 @@ Internet-Draft                  protowire                       May 2026
    open enum semantics, in which case the unknown name is preserved
    in the message's unknown-fields set.
 
+   Because "true", "false", and "null" are reserved value keywords,
+   a protobuf schema MUST NOT declare an enum value, message field,
+   or oneof bearing any of those names; see Section 3.13.
+
 3.10.  Timestamps and Durations
 
    A timestamp literal is an RFC 3339 [RFC3339] date-time
@@ -885,6 +890,60 @@ Internet-Draft                  protowire                       May 2026
    by newlines or by both; this is consistent with the ABNF in
    Section 3.3, where entries are juxtaposed without an explicit
    separator and the optional ";" is consumed as whitespace.
+
+3.13.  Schema Constraints
+
+   The PXF lexer reserves "true", "false", and "null" as value
+   keywords (Section 3.9), and "type" as the type-directive name
+   (Section 3.4.1).  A protobuf schema whose declared names collide
+   with any of these keywords produces fields, oneofs, enum values,
+   or named-directive registrations that are unreachable from PXF
+   surface syntax: the keyword wins in the tokenizer, so an
+   assignment such as "field = null" always resolves to the null-
+   literal branch, and an enum value literally named "null" can
+   never be selected by name.  PXF therefore constrains schemas as
+   follows.
+
+   A protobuf schema bound for PXF use MUST NOT declare any of the
+   following with a name case-sensitively equal to "null", "true",
+   or "false":
+
+   *  a message field (any field of any message);
+
+   *  a oneof (the oneof identifier itself, not its member fields,
+      which are governed by the message-field rule above);
+
+   *  an enum value.
+
+   In addition, a named-directive registration (Section 3.4.2) MUST
+   NOT use a name case-sensitively equal to "type" (reserved for
+   the type directive), "null", "true", or "false".  This is
+   already enforced by the directive-name production of Section
+   3.3.
+
+   The check is case-sensitive.  Names such as "NULL", "True", or
+   "FALSE" lex as ordinary identifiers and are unaffected.  Names
+   that begin with a digit (e.g. "1null") are already forbidden by
+   the protobuf identifier rule and need no PXF-specific
+   restriction.
+
+   Conformance:
+
+   *  Tools that bind a protobuf descriptor for PXF use (encoders,
+      decoders, codegen plugins, schema linters, schema registries)
+      MUST reject a non-conforming schema at bind time.  A
+      conforming decoder MUST NOT silently produce bindings in
+      which a declared enum value, field, or oneof is unreachable
+      from PXF surface syntax.
+
+   *  Implementations SHOULD report the offending element by its
+      fully-qualified protobuf name (e.g.
+      "trades.v1.Side.null") and SHOULD point at this section.
+
+   *  Schemas that violate this constraint were never round-
+      trippable through PXF.  Rejecting them on upgrade surfaces a
+      pre-existing latent bug rather than introducing one; this
+      document therefore defines no migration accommodation.
 
 4.  PB Binary Encoding
 
@@ -1002,6 +1061,11 @@ Internet-Draft                  protowire                       May 2026
    absent annotated field as if the document had supplied the
    default literal.  The default applies only to absent fields, not
    to fields explicitly set to "null" or to the proto3 zero value.
+
+   The schema-level constraints of Section 3.13 apply independently
+   of these annotations: a field, oneof, or enum value whose name
+   collides with a reserved PXF keyword is non-conforming
+   regardless of whether pxf.required or pxf.default is set.
 
    The well-known types pxf.BigInt, pxf.Decimal, and pxf.BigFloat
    are defined in [PROTOWIRE-BIGNUM] (this is the

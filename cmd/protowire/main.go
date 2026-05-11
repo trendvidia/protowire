@@ -22,6 +22,8 @@ import (
 
 	"github.com/trendvidia/protowire-go/encoding/pxf"
 	"github.com/trendvidia/protowire-go/encoding/sbe"
+
+	"github.com/trendvidia/protowire/internal/pxfschema"
 )
 
 var (
@@ -46,7 +48,7 @@ func main() {
 	pf.StringVar(&schemaName, "schema", "", "protoregistry schema name")
 
 	root.AddCommand(
-		encodeCmd(), decodeCmd(), validateCmd(), fmtCmd(),
+		encodeCmd(), decodeCmd(), validateCmd(), fmtCmd(), lintCmd(),
 		sbe2protoCmd(), proto2sbeCmd(),
 	)
 
@@ -265,6 +267,84 @@ func sbe2protoCmd() *cobra.Command {
 			}
 			_, err = os.Stdout.Write(out)
 			return err
+		},
+	}
+}
+
+// resolveFiles returns every file descriptor available from the configured
+// schema source (--proto or --server). Used by schema-level commands such
+// as `lint`, which operate on entire files rather than a single message.
+func resolveFiles() ([]protoreflect.FileDescriptor, error) {
+	if len(protoFiles) > 0 {
+		comp := protocompile.Compiler{
+			Resolver: protocompile.WithStandardImports(&protocompile.SourceResolver{}),
+		}
+		result, err := comp.Compile(context.Background(), protoFiles...)
+		if err != nil {
+			return nil, fmt.Errorf("compile: %w", err)
+		}
+		out := make([]protoreflect.FileDescriptor, 0, len(result))
+		for _, f := range result {
+			out = append(out, f)
+		}
+		return out, nil
+	}
+	if server != "" {
+		if namespace == "" {
+			return nil, fmt.Errorf("--namespace is required with --server")
+		}
+		if schemaName == "" {
+			return nil, fmt.Errorf("--schema is required with --server")
+		}
+		conn, err := grpc.NewClient(server, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			return nil, fmt.Errorf("connect: %w", err)
+		}
+		defer conn.Close()
+		client := registrypb.NewRegistryServiceClient(conn)
+		resp, err := client.GetDescriptor(context.Background(), &registrypb.GetDescriptorRequest{
+			NamespaceId: namespace,
+			SchemaId:    schemaName,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("GetDescriptor: %w", err)
+		}
+		files, err := protodesc.NewFiles(resp.FileDescriptorSet)
+		if err != nil {
+			return nil, fmt.Errorf("build descriptors: %w", err)
+		}
+		var out []protoreflect.FileDescriptor
+		files.RangeFiles(func(fd protoreflect.FileDescriptor) bool {
+			out = append(out, fd)
+			return true
+		})
+		return out, nil
+	}
+	return nil, fmt.Errorf("specify --proto or --server to provide a schema")
+}
+
+func lintCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "lint",
+		Short: "Check schema(s) for PXF reserved-name violations (draft §3.13)",
+		Args:  cobra.NoArgs,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			files, err := resolveFiles()
+			if err != nil {
+				return err
+			}
+			var all []pxfschema.Violation
+			for _, fd := range files {
+				all = append(all, pxfschema.ValidateReflect(fd)...)
+			}
+			if len(all) == 0 {
+				fmt.Fprintln(os.Stderr, "ok")
+				return nil
+			}
+			for _, v := range all {
+				fmt.Fprintln(os.Stderr, v.String())
+			}
+			return fmt.Errorf("%d reserved-name violation(s)", len(all))
 		},
 	}
 }

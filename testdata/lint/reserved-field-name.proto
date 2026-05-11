@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Fixture for draft §3.13: a message field named `true` is unreachable
+// from PXF surface syntax and MUST be rejected at descriptor-bind time.
+
+syntax = "proto3";
+package test.lint.v1;
+
+message Flag {
+  bool enabled = 1;
+  bool true    = 2;  // VIOLATION
+}

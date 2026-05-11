@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Fixture for draft §3.13: a oneof named `false` is unreachable from PXF
+// surface syntax and MUST be rejected.
+
+syntax = "proto3";
+package test.lint.v1;
+
+message Choice {
+  oneof false {  // VIOLATION (oneof name)
+    string text   = 1;
+    int32  number = 2;
+  }
+}

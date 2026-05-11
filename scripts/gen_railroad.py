@@ -74,7 +74,7 @@ add(
 
 add(
     "directive_name",
-    Comment("identifier except 'type'"),
+    Comment("identifier except 'type', 'null', 'true', 'false'"),
 )
 
 add(

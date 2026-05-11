@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Fixture for draft §3.13: enum value named `null` is unreachable from PXF
+// surface syntax (the keyword wins in the tokenizer) and MUST be rejected.
+
+syntax = "proto3";
+package test.lint.v1;
+
+message Order {
+  Side side = 1;
+}
+
+enum Side {
+  SIDE_UNSPECIFIED = 0;
+  BUY  = 1;
+  SELL = 2;
+  null = 3;  // VIOLATION
+}

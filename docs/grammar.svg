@@ -196,7 +196,7 @@
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 20v20m10 -20v20m-10 -10h20" /></g><path d="M40 30h10" /><g class="non-terminal ">
-<path d="M50 30h0.0" /><path d="M228.0 30h0.0" /><text class="comment" x="139" y="35">identifier except &apos;type&apos;</text></g><path d="M228 30h10" /><path d="M 238 30 h 20 m -10 -10 v 20 m 10 -20 v 20"></path></g><style>/* <![CDATA[ */
+<path d="M50 30h0.0" /><path d="M403.0 30h0.0" /><text class="comment" x="226.5" y="35">identifier except &apos;type&apos;, &apos;null&apos;, &apos;true&apos;, &apos;false&apos;</text></g><path d="M403 30h10" /><path d="M 413 30 h 20 m -10 -10 v 20 m 10 -20 v 20"></path></g><style>/* <![CDATA[ */
 	svg.railroad-diagram {
 		background-color:hsl(30,20%,95%);
 	}
