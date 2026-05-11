@@ -364,7 +364,7 @@ Internet-Draft                  protowire                       May 2026
      directive       = type-directive / named-directive
      type-directive  = %s"@type" 1*WSP identifier
      named-directive = "@" directive-name
-                       [ 1*WSP identifier ]
+                       *( 1*WSP identifier )
                        [ block-tail ]
      directive-name  = identifier ; excluding the literals "type"
                                   ; (matches type-directive), "null",
@@ -513,27 +513,35 @@ Internet-Draft                  protowire                       May 2026
 
    A named directive has the form
 
-     @<name> [ <type> ] [ "{" inner "}" ]
+     @<name> *( <prefix-id> ) [ "{" inner "}" ]
 
-   where <name> is an identifier other than "type", <type> is an
-   optional dotted identifier naming the inner block's message type,
-   and inner is a sequence of entries syntactically identical to the
-   body of a message block.
+   where <name> is an identifier other than "type", "null", "true",
+   or "false" (Section 3.13); each <prefix-id> is an identifier
+   (possibly dotted); and inner is a sequence of entries
+   syntactically identical to the body of a message block.
+
+   The prefix-identifier list is positional; the count and meaning
+   of the identifiers are per-directive-registration.  The
+   conventional shape used in the wild is a single prefix
+   identifier naming the inner block's message type (e.g.
+   chameleon's "@header chameleon.v1.LayerHeader { ... }" preamble,
+   which carries per-file sanity-check fields the resolver enforces
+   against its chain spec).  Section 3.4.3 defines a second shape
+   ("@entry") that uses two prefix identifiers.
 
    Named directives carry side-channel metadata that the consumer's
    runtime interprets — never the body's schema layer.  This
-   document defines no <name>; specific names are reserved by other
-   specifications or by applications.  Examples in the wild include
-   chameleon's "@header chameleon.v1.LayerHeader { ... }" preamble,
-   which carries per-file sanity-check fields the resolver enforces
-   against its chain spec.
+   document defines no <name> beyond those registered in
+   subsections of Section 3.4; specific names are reserved by other
+   specifications or by applications.
 
    Conformance:
 
    *  A decoder that does not recognize a directive name MAY skip
-      the directive after parsing its block (if present) for
-      syntactic well-formedness, or MAY reject the document.
-      Implementations SHOULD document which policy they apply.
+      the directive after parsing its prefix identifiers and block
+      (if present) for syntactic well-formedness, or MAY reject the
+      document.  Implementations SHOULD document which policy they
+      apply.
 
    *  A decoder MUST NOT attempt to interpret the inner block
       against the body's schema; the inner block is a self-contained
@@ -544,6 +552,12 @@ Internet-Draft                  protowire                       May 2026
       message body (Section 3.3): the same brace-matching, string,
       and comment rules apply.  Braces inside string literals or
       comments do not close the block.
+
+   *  The number and interpretation of prefix identifiers are
+      specified by each directive's registration.  A decoder that
+      recognizes the directive name MUST enforce the registered
+      cardinality.  A decoder that does not recognize the name MAY
+      accept any cardinality (the grammar imposes no upper bound).
 
    *  Multiple named directives MAY appear; their relative order is
       preserved by decoders that expose a directive list to callers.
@@ -557,6 +571,55 @@ Internet-Draft                  protowire                       May 2026
 
    A document with no entries denotes the message-typed default
    value (all fields unset).
+
+3.4.3.  The "@entry" Directive
+
+   The "@entry" directive is the canonical PXF shape for bundling
+   heterogeneous, typed sub-messages alongside (or in place of) a
+   document body.  Its form is
+
+     @entry [ <name> ] [ <type> ] [ "{" inner "}" ]
+
+   where <name> is a caller-provided label identifier, <type> is a
+   dotted identifier naming the inner block's message type, and
+   inner is a sequence of entries decoded against <type>.  Each
+   prefix identifier is optional; permitted shapes are:
+
+     @entry { ... }                       ; anonymous, typeless
+     @entry name { ... }                  ; labeled, typeless
+     @entry name some.pkg.Type { ... }    ; labeled and typed
+     @entry some.pkg.Type { ... }         ; typed only (no label)
+
+   The fourth shape is disambiguated from the second by the
+   presence of a "." in the single prefix identifier: a dotted
+   identifier is interpreted as a type; an undotted identifier is
+   interpreted as a label.  Applications that need an undotted
+   type identifier MUST use the third shape with an empty-string
+   label or supply the label explicitly.
+
+   "@entry" is consumer-interpreted; this document defines no
+   meaning for the label beyond its preservation in directive
+   order.  Typical uses include manifest documents, mixed-type
+   exports, and any case where a document needs to carry several
+   typed values that are not naturally a single repeated field.
+
+   Conformance:
+
+   *  A decoder that recognizes "@entry" MUST accept zero, one, or
+      two prefix identifiers and MUST reject three or more.
+
+   *  A decoder MUST preserve "@entry" occurrences in document
+      order when exposing them to callers.  Duplicate labels MAY
+      appear; this document does not impose a uniqueness rule.
+
+   *  An "@entry" with no body block ("{}") denotes the default
+      value of its declared <type>, or an empty anonymous sub-
+      document if <type> is absent.
+
+   *  "@entry" inherits the schema constraint of Section 3.13:
+      <name> MUST NOT be case-sensitively equal to "null", "true",
+      or "false"; <type> MUST refer to a non-conformant-name-free
+      message type.
 
 3.5.  Entries and Keys
 

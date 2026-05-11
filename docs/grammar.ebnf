@@ -41,8 +41,28 @@ document      = { directive } , { field_entry } ;
 directive     = type_directive | named_directive ;
 
 type_directive    = '@type' , identifier ;
-named_directive   = '@' , directive_name , [ identifier ] , [ block_tail ] ;
+named_directive   = '@' , directive_name , { identifier } , [ block_tail ] ;
 directive_name    = identifier - ( 'type' | 'null' | 'true' | 'false' ) ;
+
+(*
+ * The prefix-identifier list is positional; its meaning is per-directive.
+ * Two registrations defined by this spec:
+ *
+ *   - @<name> <type> { ... }
+ *       conventional "one prefix identifier" form (the form v0.72.0
+ *       introduced). The identifier names the inner block's message
+ *       type, dotted. This is the shape used by '@header' and similar
+ *       side-channel directives.
+ *
+ *   - @entry [ <name> ] [ <type> ] { ... }
+ *       bundle/manifest form (Section 3.4.4 of the draft). The first
+ *       optional identifier is a caller-provided label; the second
+ *       optional identifier is the dotted message type. Either or both
+ *       may be omitted.
+ *
+ * The grammar accepts arbitrarily many prefix identifiers — individual
+ * directive registrations may further constrain the count.
+ *)
 
 
 (* === Entries === *)

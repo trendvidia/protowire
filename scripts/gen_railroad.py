@@ -67,7 +67,7 @@ add(
     Sequence(
         t("@"),
         n("directive_name"),
-        Optional(n("identifier")),
+        ZeroOrMore(n("identifier")),
         Optional(Sequence(t("{"), ZeroOrMore(n("entry")), t("}"))),
     ),
 )
