@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Fixture for draft §3.13: the rule is case-sensitive. Names like `NULL`,
+// `True`, `FALSE` lex as ordinary identifiers and MUST be accepted.
+
+syntax = "proto3";
+package test.lint.v1;
+
+message Box {
+  string NULL = 1;
+  bool   True = 2;
+}
+
+enum Truth {
+  TRUTH_UNSPECIFIED = 0;
+  NULL  = 1;
+  TRUE  = 2;
+  FALSE = 3;
+}

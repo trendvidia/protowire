@@ -10,6 +10,50 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+### Changed
+
+- **PXF schema constraint — reserved names.** A protobuf schema bound
+  for PXF use MUST NOT declare a message field, oneof, or enum value
+  whose name is case-sensitively equal to `null`, `true`, or `false`.
+  These names lex as PXF value keywords (Section 3.9 of the draft), so
+  a field/oneof/enum value bearing such a name is unreachable from
+  PXF surface syntax — the tokenizer always resolves the bare token
+  to the keyword branch. The directive-name exclusion is widened
+  symmetrically: `@null`, `@true`, and `@false` join `@type` as
+  reserved directive names.
+
+  Wire format unchanged — this is a static-time schema check, not a
+  wire migration. Schemas that violate the constraint were never
+  round-trippable through PXF; rejecting them at descriptor-bind time
+  surfaces a pre-existing latent bug rather than introducing one.
+
+  Spec changes:
+  - `docs/grammar.ebnf`: `directive_name` production now excludes
+    `null`/`true`/`false` in addition to `type`. New "Schema
+    Constraints" notes block formalizes the field/oneof/enum-value
+    rule.
+  - `docs/draft-trendvidia-protowire-00.txt` Section 3.3 ABNF:
+    `directive-name` exclusion list updated. New Section 3.13
+    ("Schema Constraints") states the rule with MUST-language and
+    bind-time conformance requirements. Cross-references added from
+    Sections 3.9 and 6.1. (Section page numbering downstream of
+    §3.13 has drifted; re-paginate before submission.)
+  - `docs/grammar.svg`: regenerated.
+
+  Tooling:
+  - New `internal/pxfschema` Go package with `ValidateReflect` /
+    `ValidateProto` entry points covering both descriptor shapes
+    used in this repo.
+  - `cmd/protoc-gen-pxf-java-meta`: rejects non-conforming
+    `FileDescriptorSet`s at the top of `generateFile`.
+  - `cmd/protowire`: new `lint` subcommand that runs the same check
+    standalone against `--proto` or `--server` schemas.
+
+  Ports MUST add the equivalent descriptor-bind check before
+  claiming the next-version conformance. The check is ~30 lines per
+  port (walk messages/oneofs/enum-values, case-sensitive set
+  match).
+
 ## [0.72.0] – 2026-05-11
 
 Named-directive release. Extends the PXF text format with

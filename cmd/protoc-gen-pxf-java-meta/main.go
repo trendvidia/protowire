@@ -111,6 +111,8 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/pluginpb"
+
+	"github.com/trendvidia/protowire/internal/pxfschema"
 )
 
 // pluginOptions captures the comma-separated key[=value] parameters passed
@@ -216,6 +218,14 @@ func generateFile(
 	opts pluginOptions,
 	resp *pluginpb.CodeGeneratorResponse,
 ) error {
+	// Reject schemas that declare names colliding with PXF value keywords
+	// (draft-trendvidia-protowire-00 §3.13). These elements would be
+	// unreachable from PXF surface syntax; emitting Java meta tables for
+	// them ships a silently broken binding.
+	if err := pxfschema.AsError(pxfschema.ValidateProto(file)); err != nil {
+		return err
+	}
+
 	javaPkg := file.GetOptions().GetJavaPackage()
 	if javaPkg == "" {
 		return fmt.Errorf("file %q has no java_package option; protoc-gen-pxf-java-meta requires one", file.GetName())
