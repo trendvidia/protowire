@@ -113,7 +113,7 @@ Table of Contents
 
 
 
-Franco Jr.                Expires 5 November 2026                [Page 2]
+Franco Jr.                Expires 5 November 2026               [Page 2]
 
 Internet-Draft                  protowire                       May 2026
 
@@ -168,6 +168,14 @@ Internet-Draft                  protowire                       May 2026
 
    Relationship to ProtoJSON.  Protocol Buffers also defines a JSON
    mapping commonly called "ProtoJSON" [PROTOJSON], which serializes
+
+
+
+Franco Jr.                Expires 5 November 2026               [Page 3]
+
+Internet-Draft                  protowire                       May 2026
+
+
    messages as JSON [RFC8259] objects, represents
    google.protobuf.Timestamp as an RFC 3339 [RFC3339] string, and
    represents google.protobuf.Duration as a decimal-seconds string
@@ -207,14 +215,6 @@ Internet-Draft                  protowire                       May 2026
 
    *  the conformance requirements that any decoder operating on
       untrusted input MUST satisfy (Section 8).
-
-
-
-Franco Jr.                Expires 5 November 2026                [Page 3]
-
-Internet-Draft                  protowire                       May 2026
-
-
    This document does not define library APIs, programming-language
    bindings, code generation strategies, or performance
    characteristics.
@@ -226,6 +226,14 @@ Internet-Draft                  protowire                       May 2026
    "MAY", and "OPTIONAL" in this document are to be interpreted as
    described in BCP 14 [RFC2119] [RFC8174] when, and only when, they
    appear in all capitals, as shown here.
+
+
+
+Franco Jr.                Expires 5 November 2026               [Page 4]
+
+Internet-Draft                  protowire                       May 2026
+
+
 
    The following terms are used throughout this document:
 
@@ -264,14 +272,6 @@ Internet-Draft                  protowire                       May 2026
    any message defined in a schema: PXF text, PB binary, SBE binary
    (when the message carries SBE annotations), and Envelope binary
    (which is itself a PB message).
-
-
-
-Franco Jr.                Expires 5 November 2026                [Page 4]
-
-Internet-Draft                  protowire                       May 2026
-
-
 2.1.  Common Schema Layer
 
    For any schema S, the four encodings represent the same logical
@@ -284,6 +284,14 @@ Internet-Draft                  protowire                       May 2026
    *  decode_SBE(encode_SBE(v))  == v   if T carries SBE annotations
    *  encode_PB(decode_PXF(t))   == encode_PB(v)
                                    if t = encode_PXF(v)
+
+
+
+Franco Jr.                Expires 5 November 2026               [Page 5]
+
+Internet-Draft                  protowire                       May 2026
+
+
 
    Equality is defined per [PROTOBUF] Section "Message equality"
    (field-by-field, with proto3 default semantics applied).
@@ -321,14 +329,6 @@ Internet-Draft                  protowire                       May 2026
       \UHHHHHHHH escapes producing those code points are excluded
       by Section 3.6).
 
-
-
-
-Franco Jr.                Expires 5 November 2026                [Page 5]
-
-Internet-Draft                  protowire                       May 2026
-
-
    *  A leading UTF-8 byte order mark (U+FEFF, encoded as %xEF.BB.BF)
       MAY be present and MUST be ignored.  Subsequent occurrences of
       U+FEFF are interpreted as ordinary characters and have no
@@ -341,6 +341,14 @@ Internet-Draft                  protowire                       May 2026
    separates tokens but is otherwise insignificant.
 
    PXF supports two comment forms:
+
+
+
+
+Franco Jr.                Expires 5 November 2026               [Page 6]
+
+Internet-Draft                  protowire                       May 2026
+
 
    *  Line comments begin with "#" or "//" and extend to (but do not
       include) the next U+000A.
@@ -392,6 +400,14 @@ Internet-Draft                  protowire                       May 2026
      map-tail        = ":" value
      block-tail      = "{" *entry "}"
 
+
+
+
+Franco Jr.                Expires 5 November 2026               [Page 7]
+
+Internet-Draft                  protowire                       May 2026
+
+
      map-key         = identifier / string / integer
 
      value           = string
@@ -399,14 +415,6 @@ Internet-Draft                  protowire                       May 2026
                      / bool
                      / null
                      / bytes
-
-
-
-Franco Jr.                Expires 5 November 2026                [Page 6]
-
-Internet-Draft                  protowire                       May 2026
-
-
                      / timestamp
                      / duration
                      / identifier
@@ -450,19 +458,19 @@ Internet-Draft                  protowire                       May 2026
                      / %x72 / %x74 / %x76         ; a b f n r t v
      hex-escape      = "x" 2HEXDIG
      octal-escape    = oct-lead 2OCT-DIGIT       ; value <= 0xFF
+
+
+
+Franco Jr.                Expires 5 November 2026               [Page 8]
+
+Internet-Draft                  protowire                       May 2026
+
+
      unicode-4-escape = "u" 4HEXDIG
      unicode-8-escape = "U" 8HEXDIG
 
      bytes           = %x62 DQUOTE *base64-char DQUOTE   ; 'b' "..."
      base64-char     = ALPHA / DIGIT / "+" / "/" / "="
-
-
-
-Franco Jr.                Expires 5 November 2026                [Page 7]
-
-Internet-Draft                  protowire                       May 2026
-
-
      timestamp       = date-time     ; per RFC 3339, Section 5.6
 
      duration        = 1*duration-segment
@@ -508,6 +516,14 @@ Internet-Draft                  protowire                       May 2026
    names the body's schema-typed message (Section 3.4.1) and is
    the only directive given semantics by this document.  All other
    directive names are application-extensible (Section 3.4.2).
+
+
+
+Franco Jr.                Expires 5 November 2026               [Page 9]
+
+Internet-Draft                  protowire                       May 2026
+
+
 
 3.4.1.  The "@type" Directive
 
@@ -558,6 +574,14 @@ Internet-Draft                  protowire                       May 2026
       apply.
 
    *  A decoder MUST NOT attempt to interpret the inner block
+
+
+
+Franco Jr.                Expires 5 November 2026              [Page 10]
+
+Internet-Draft                  protowire                       May 2026
+
+
       against the body's schema; the inner block is a self-contained
       sub-document and is decoded against its own type (if any) by
       the consumer.
@@ -575,14 +599,6 @@ Internet-Draft                  protowire                       May 2026
 
    *  Multiple named directives MAY appear; their relative order is
       preserved by decoders that expose a directive list to callers.
-
-
-
-Franco Jr.                Expires 5 November 2026                [Page 8]
-
-Internet-Draft                  protowire                       May 2026
-
-
    A document with no entries denotes the message-typed default
    value (all fields unset).
 
@@ -616,6 +632,14 @@ Internet-Draft                  protowire                       May 2026
    order.  Typical uses include manifest documents, mixed-type
    exports, and any case where a document needs to carry several
    typed values that are not naturally a single repeated field.
+
+
+
+Franco Jr.                Expires 5 November 2026              [Page 11]
+
+Internet-Draft                  protowire                       May 2026
+
+
 
    Conformance:
 
@@ -666,6 +690,14 @@ Internet-Draft                  protowire                       May 2026
 
    *  An empty cell (no value between two commas, or leading /
       trailing inside a row, e.g. "(1, , 3)") denotes an absent
+
+
+
+Franco Jr.                Expires 5 November 2026              [Page 12]
+
+Internet-Draft                  protowire                       May 2026
+
+
       field.  When the bound field carries (pxf.default), the
       default literal is applied; when it carries (pxf.required),
       the document MUST be rejected.
@@ -715,6 +747,14 @@ Internet-Draft                  protowire                       May 2026
 
    *  A decoder MUST reject a row whose arity differs from the
       column count.
+
+
+
+
+Franco Jr.                Expires 5 November 2026              [Page 13]
+
+Internet-Draft                  protowire                       May 2026
+
 
    *  A decoder MUST reject a column entry containing a ".".
 
@@ -767,6 +807,14 @@ Internet-Draft                  protowire                       May 2026
       at the top level with an error indicating that field
       assignments use "=".
 
+
+
+Franco Jr.                Expires 5 November 2026              [Page 14]
+
+Internet-Draft                  protowire                       May 2026
+
+
+
    *  A block-tail "{ ... }" with no preceding "=" or ":" is
       permitted only in message context, where the bound field is
       message-typed; it is equivalent to "= { ... }".  Like
@@ -795,14 +843,6 @@ Internet-Draft                  protowire                       May 2026
    Simple strings use double-quote delimiters and recognize escape
    sequences:
 
-
-
-
-Franco Jr.                Expires 5 November 2026                [Page 9]
-
-Internet-Draft                  protowire                       May 2026
-
-
        "Hello, world\n"
 
    Within a simple-string, U+000A (LF) MUST NOT appear unescaped:
@@ -824,6 +864,14 @@ Internet-Draft                  protowire                       May 2026
        \v      U+000B LINE TABULATION
 
    Numeric escapes:
+
+
+
+Franco Jr.                Expires 5 November 2026              [Page 15]
+
+Internet-Draft                  protowire                       May 2026
+
+
 
        \xHH        two hex digits, denotes the byte 0xHH
        \NNN        three octal digits, value MUST be <= 0xFF;
@@ -852,14 +900,6 @@ Internet-Draft                  protowire                       May 2026
    U+0022 characters.  Inside a triple-quoted string:
 
    *  Escape sequences are NOT interpreted; backslashes are literal.
-
-
-
-Franco Jr.                Expires 5 November 2026               [Page 10]
-
-Internet-Draft                  protowire                       May 2026
-
-
    *  If the byte immediately following the opening """ is U+000A,
       that LF MUST be removed by the decoder.
 
@@ -881,6 +921,14 @@ Internet-Draft                  protowire                       May 2026
    [RFC4648]:
 
        b"SGVsbG8sIHdvcmxkIQ=="
+
+
+
+
+Franco Jr.                Expires 5 November 2026              [Page 16]
+
+Internet-Draft                  protowire                       May 2026
+
 
    Decoders MUST accept both the standard base64 alphabet and the
    URL-safe alphabet [RFC4648] Section 5; padding ("=") is OPTIONAL
@@ -909,14 +957,6 @@ Internet-Draft                  protowire                       May 2026
       sint32, sint64, fixed32, fixed64, sfixed32, sfixed64),
       decoders MUST reject literals whose value falls outside the
       field's representable range.
-
-
-
-Franco Jr.                Expires 5 November 2026               [Page 11]
-
-Internet-Draft                  protowire                       May 2026
-
-
    *  For float and double fields, decoders MUST accept literals in
       the IEEE 754 [IEEE754] representable range; values that round
       to +Inf or -Inf are rejected unless explicitly written as the
@@ -939,6 +979,14 @@ Internet-Draft                  protowire                       May 2026
 
    *  When bound to a singular message-typed field, MUST clear the
       field.
+
+
+
+
+Franco Jr.                Expires 5 November 2026              [Page 17]
+
+Internet-Draft                  protowire                       May 2026
+
 
    *  When bound to a singular scalar field, MUST be rejected
       unless the schema marks the field as nullable via a wrapper
@@ -980,14 +1028,6 @@ Internet-Draft                  protowire                       May 2026
    Decoders MUST accept timestamps with arbitrary fractional-second
    precision up to nanoseconds.  Decoders that target a
    fixed-precision representation (typically
-
-
-
-Franco Jr.                Expires 5 November 2026               [Page 12]
-
-Internet-Draft                  protowire                       May 2026
-
-
    google.protobuf.Timestamp, which has nanosecond resolution) MUST
    reject literals exceeding that precision rather than silently
    truncating.
@@ -998,6 +1038,14 @@ Internet-Draft                  protowire                       May 2026
        30s          ; 30 seconds
        1h30m        ; 1 hour 30 minutes
        500ms        ; 500 milliseconds
+
+
+
+Franco Jr.                Expires 5 November 2026              [Page 18]
+
+Internet-Draft                  protowire                       May 2026
+
+
        1.5h         ; 1.5 hours
        2µs          ; 2 microseconds (alternative form: 2us)
 
@@ -1037,14 +1085,6 @@ Internet-Draft                  protowire                       May 2026
    A nested message field is bound with "=" (or with the bare-block
    form, which is its abbreviation):
 
-
-
-
-Franco Jr.                Expires 5 November 2026               [Page 13]
-
-Internet-Draft                  protowire                       May 2026
-
-
        address = { city = "Berlin", zip = "10115" }
        address   { city = "Berlin", zip = "10115" }   ; same value
 
@@ -1056,6 +1096,14 @@ Internet-Draft                  protowire                       May 2026
          "X-Request-ID":  "abc123"
          "Content-Type":  "application/pxf"
        }
+
+
+
+Franco Jr.                Expires 5 November 2026              [Page 19]
+
+Internet-Draft                  protowire                       May 2026
+
+
 
    Decoders MUST reject "=" inside a map block and ":" inside a
    message block (Section 3.5).
@@ -1106,6 +1154,14 @@ Internet-Draft                  protowire                       May 2026
    *  Tools that bind a protobuf descriptor for PXF use (encoders,
       decoders, codegen plugins, schema linters, schema registries)
       MUST reject a non-conforming schema at bind time.  A
+
+
+
+Franco Jr.                Expires 5 November 2026              [Page 20]
+
+Internet-Draft                  protowire                       May 2026
+
+
       conforming decoder MUST NOT silently produce bindings in
       which a declared enum value, field, or oneof is unreachable
       from PXF surface syntax.
@@ -1156,17 +1212,17 @@ Internet-Draft                  protowire                       May 2026
 5.1.  Header and Block Length
 
    Every SBE message on the wire is preceded by an 8-byte
-   message-header carrying the schema's blockLength, templateId,
-   schemaId, and version, in little-endian byte order.  Decoders
-   MUST validate, before reading any field of the body:
 
 
 
-
-Franco Jr.                Expires 5 November 2026               [Page 14]
+Franco Jr.                Expires 5 November 2026              [Page 21]
 
 Internet-Draft                  protowire                       May 2026
 
+
+   message-header carrying the schema's blockLength, templateId,
+   schemaId, and version, in little-endian byte order.  Decoders
+   MUST validate, before reading any field of the body:
 
    1.  data.length >= HEADER_SIZE + wire_block_length
 
@@ -1214,16 +1270,16 @@ Internet-Draft                  protowire                       May 2026
 
      extend google.protobuf.FieldOptions {
        bool   required = 50000;
-       string default  = 50001;
-     }
 
 
 
-
-Franco Jr.                Expires 5 November 2026               [Page 15]
+Franco Jr.                Expires 5 November 2026              [Page 22]
 
 Internet-Draft                  protowire                       May 2026
 
+
+       string default  = 50001;
+     }
 
    pxf.required: when true, decoders MUST reject a PXF document in
    which the annotated field is absent.  A field bound to "null" is
@@ -1272,6 +1328,14 @@ Internet-Draft                  protowire                       May 2026
 
    sbe.length specifies a fixed byte length for string- or
    bytes-typed fields.  Values longer than the limit MUST be
+
+
+
+Franco Jr.                Expires 5 November 2026              [Page 23]
+
+Internet-Draft                  protowire                       May 2026
+
+
    truncated by emitters; values shorter MUST be padded with U+0000
    bytes; decoders MUST trim trailing U+0000 bytes when populating
    string fields and MUST NOT trim them when populating bytes fields.
@@ -1279,14 +1343,6 @@ Internet-Draft                  protowire                       May 2026
    sbe.encoding narrows a Protocol Buffers numeric type to a smaller
    SBE primitive.  The defined values are: "int8", "int16",
    "int32", "int64", "uint8", "uint16", "uint32", "uint64",
-
-
-
-Franco Jr.                Expires 5 November 2026               [Page 16]
-
-Internet-Draft                  protowire                       May 2026
-
-
    "float", "double".  Emitters MUST reject values that fall outside
    the narrowed type's range; decoders MUST sign-extend or
    zero-extend per the SBE primitive when populating the wider
@@ -1330,6 +1386,14 @@ Internet-Draft                  protowire                       May 2026
 
    *  data is the success payload, encoded in whichever wire form
       the surrounding transport selects (PXF, PB, JSON).
+
+
+
+Franco Jr.                Expires 5 November 2026              [Page 24]
+
+Internet-Draft                  protowire                       May 2026
+
+
       Decoders MUST treat data as opaque bytes; it is parsed only
       after the envelope itself is parsed.
 
@@ -1337,14 +1401,6 @@ Internet-Draft                  protowire                       May 2026
       identifiers; clients perform localization by consulting a
       string table keyed by "error.<code>" and "field.<code>" and
       substituting args positionally.
-
-
-
-Franco Jr.                Expires 5 November 2026               [Page 17]
-
-Internet-Draft                  protowire                       May 2026
-
-
    The package path "envelope.v1" is part of the wire contract.
    Incompatible changes MUST bump the package to "envelope.v2";
    "v1" and "v2" MAY coexist indefinitely.
@@ -1388,20 +1444,20 @@ Internet-Draft                  protowire                       May 2026
    +------------------------+------------+-------------------------+
    | MaxMessageSize         | 67108864   | Total input length to a |
    |                        | (64 MiB)   | single decode call      |
+
+
+
+Franco Jr.                Expires 5 November 2026              [Page 25]
+
+Internet-Draft                  protowire                       May 2026
+
+
    +------------------------+------------+-------------------------+
    | MaxNumericLiteralDigits| 4096       | Digit count of any PXF  |
    |                        |            | numeric literal         |
    +------------------------+------------+-------------------------+
    | MaxBytesLiteralLength  | =          | Decoded byte length of  |
    |                        | MaxMessage | any PXF b"..." literal  |
-
-
-
-Franco Jr.                Expires 5 November 2026               [Page 18]
-
-Internet-Draft                  protowire                       May 2026
-
-
    |                        | Size       |                         |
    +------------------------+------------+-------------------------+
    | MaxVarintBytes         | 10         | Every PB varint read.   |
@@ -1446,17 +1502,17 @@ Internet-Draft                  protowire                       May 2026
    Conforming decoders:
 
    *  MUST validate UTF-8 strictly when populating any string-typed
-      field, regardless of the source encoding (PB length-delimited
-      bytes, SBE char-array fields, SBE varData, PXF simple-string
-      or triple-string).
 
 
 
-
-Franco Jr.                Expires 5 November 2026               [Page 19]
+Franco Jr.                Expires 5 November 2026              [Page 26]
 
 Internet-Draft                  protowire                       May 2026
 
+
+      field, regardless of the source encoding (PB length-delimited
+      bytes, SBE char-array fields, SBE varData, PXF simple-string
+      or triple-string).
 
    *  MUST NOT use UTF-8 decoders that substitute U+FFFD for invalid
       sequences when populating string-typed fields.
@@ -1504,17 +1560,17 @@ Internet-Draft                  protowire                       May 2026
    application/pxf
        PXF text format (Section 3).  The schema-type association is
        carried either by the document's @type directive or
-       out-of-band (e.g. an HTTP Content-Schema parameter).
-       Charset: UTF-8 (fixed; the format MUST be UTF-8 per
-       Section 3.1).
 
 
 
-Franco Jr.                Expires 5 November 2026               [Page 20]
+Franco Jr.                Expires 5 November 2026              [Page 27]
 
 Internet-Draft                  protowire                       May 2026
 
 
+       out-of-band (e.g. an HTTP Content-Schema parameter).
+       Charset: UTF-8 (fixed; the format MUST be UTF-8 per
+       Section 3.1).
    application/protowire-pb
        Protocol Buffers binary, with the protowire constraints
        (Section 4).
@@ -1562,6 +1618,14 @@ Internet-Draft                  protowire                       May 2026
        Subtype name:     pxf
        Required parameters: none
        Optional parameters: charset (fixed value: utf-8)
+
+
+
+Franco Jr.                Expires 5 November 2026              [Page 28]
+
+Internet-Draft                  protowire                       May 2026
+
+
        Encoding considerations: 8bit; UTF-8 text.
        Security considerations: See Section 11 of this document.
        Interoperability considerations: See Section 8.
@@ -1584,14 +1648,6 @@ Internet-Draft                  protowire                       May 2026
        Fragment identifier considerations: none defined.
        Author/Change controller: IETF.
        Provisional registration: yes.
-
-
-
-
-
-Franco Jr.                Expires 5 November 2026               [Page 21]
-
-Internet-Draft                  protowire                       May 2026
 
 
        Type name:        application
@@ -1620,6 +1676,14 @@ Internet-Draft                  protowire                       May 2026
        Applications that use this media type: API integration.
        Fragment identifier considerations: none defined.
        Author/Change controller: IETF.
+
+
+
+Franco Jr.                Expires 5 November 2026              [Page 29]
+
+Internet-Draft                  protowire                       May 2026
+
+
        Provisional registration: yes.
 
 10.2.  Annotation Field Number Range
@@ -1641,14 +1705,6 @@ Internet-Draft                  protowire                       May 2026
 
    Future protowire extensions SHOULD allocate within this range
    and document the assignment in a successor of this document.
-
-
-
-
-
-Franco Jr.                Expires 5 November 2026               [Page 22]
-
-Internet-Draft                  protowire                       May 2026
 
 
 11.  Security Considerations
@@ -1678,6 +1734,14 @@ Internet-Draft                  protowire                       May 2026
    integer conversions that abort the process on out-of-range
    input (Swift Int(_:), Rust "as" without checked_*, Java
    Math.toIntExact, C++ static_cast with subsequent UB).  When
+
+
+
+Franco Jr.                Expires 5 November 2026              [Page 30]
+
+Internet-Draft                  protowire                       May 2026
+
+
    converting attacker-supplied lengths or counts to native integer
    widths, implementations MUST use fallible conversion forms.
 
@@ -1699,14 +1763,6 @@ Internet-Draft                  protowire                       May 2026
    feature flags "disallow-doctype-decl",
    "external-general-entities", and "external-parameter-entities"
    in Java).
-
-
-
-
-Franco Jr.                Expires 5 November 2026               [Page 23]
-
-Internet-Draft                  protowire                       May 2026
-
 
    Prototype pollution.  Decoders implemented in JavaScript,
    TypeScript, or any language with prototype-mutation semantics
@@ -1737,6 +1793,14 @@ Internet-Draft                  protowire                       May 2026
                Internet: Timestamps", RFC 3339,
                DOI 10.17487/RFC3339, July 2002.
 
+
+
+Franco Jr.                Expires 5 November 2026              [Page 31]
+
+Internet-Draft                  protowire                       May 2026
+
+
+
    [RFC3629]   Yergeau, F., "UTF-8, a transformation format of
                ISO 10646", STD 63, RFC 3629,
                DOI 10.17487/RFC3629, November 2003.
@@ -1757,14 +1821,6 @@ Internet-Draft                  protowire                       May 2026
    [RFC7405]   Kyzivat, P., "Case-Sensitive String Support in
                ABNF", RFC 7405, DOI 10.17487/RFC7405,
                December 2014.
-
-
-
-Franco Jr.                Expires 5 November 2026               [Page 24]
-
-Internet-Draft                  protowire                       May 2026
-
-
    [RFC8174]   Leiba, B., "Ambiguity of Uppercase vs Lowercase in
                RFC 2119 Key Words", BCP 14, RFC 8174,
                DOI 10.17487/RFC8174, May 2017.
@@ -1794,6 +1850,14 @@ Internet-Draft                  protowire                       May 2026
 
    [FIX-SBE]   FIX Trading Community, "Simple Binary Encoding,
                Version 2.0", FIX Protocol Ltd., 2020,
+
+
+
+Franco Jr.                Expires 5 November 2026              [Page 32]
+
+Internet-Draft                  protowire                       May 2026
+
+
                <https://www.fixtrading.org/standards/sbe/>.
 
 12.2.  Informative References
@@ -1835,4 +1899,16 @@ Authors' Addresses
 
 
 
-Franco Jr.                Expires 5 November 2026               [Page 25]
+
+
+
+
+
+
+
+
+
+
+
+
+Franco Jr.                Expires 5 November 2026              [Page 33]
