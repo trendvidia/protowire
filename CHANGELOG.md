@@ -10,6 +10,13 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+## [0.72.0] – 2026-05-11
+
+Named-directive release. Extends the PXF text format with
+application-extensible `@<name> [<type>] [{ ... }]` blocks at
+document root, alongside the existing `@type` directive. Wire format
+unchanged. First-port implementation: `protowire-go` v0.72.0.
+
 ### Added
 
 - **PXF grammar — named directives.** The document grammar grows a
