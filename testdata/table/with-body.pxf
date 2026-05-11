@@ -1,0 +1,9 @@
+# §3.4.4 standalone. @table coexisting with a top-level field_entry.
+# MUST be rejected — a @table document has no body field entries.
+
+@table test.v1.AllTypes (string_field, int32_field)
+
+("row-1", 1)
+
+# Forbidden — field_entry at document root alongside @table.
+string_field = "stray"

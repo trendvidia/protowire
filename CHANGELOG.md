@@ -12,6 +12,80 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ### Added
 
+- **PXF grammar — `@table` directive (CSV replacement).** New top-level
+  directive form for representing many instances of a single message
+  type in a single PXF document. Syntax:
+
+  ```
+  @table <type> ( <col1>, <col2>, ... )
+  ( <val1>, <val2>, ... )
+  ( <val1>, <val2>, ... )
+  ```
+
+  The header names the row message type and the column list (top-level
+  field names on `<type>`); each subsequent parenthesized tuple is a
+  row whose values bind positionally to the columns. Empty cells
+  (between two commas) denote absent fields and engage the existing
+  `pxf.default` / `pxf.required` machinery; `null` literals denote
+  present-but-null; any other value is present-with-value. Same
+  three-state semantics as the keyed form, just spelled positionally.
+
+  v1 restrictions (relaxed in a future revision):
+  - Cell values are scalar-shaped (`value − list − block_value`).
+    List literals `[...]` and block values `{...}` are NOT permitted
+    in cells.
+  - Column entries are unqualified field names. Dotted paths
+    (`addr.city`) are NOT permitted.
+  - Strict row arity: row arity MUST equal column count. No
+    trailing-empty shorthand.
+  - Standalone: a document containing `@table` MUST NOT also contain
+    `@type` or top-level field entries. The `@table` header is the
+    document's type declaration.
+
+  `@table` is consumer-interpreted in the same side-channel manner as
+  `@header` / `@entry`: rows are exposed through a parser API distinct
+  from the body's schema layer. This spec does NOT mandate a canonical
+  "decode-as-`repeated <type>`" semantics — applications that want
+  that one-liner construct it on top of the rows API.
+
+  Wire format unchanged. Strictly additive — any v0.74.0-valid PXF
+  document remains valid (the new productions occupy fresh top-level
+  surface).
+
+  Spec changes:
+  - `docs/grammar.ebnf`: new `table_directive`, `column_list`, `row`,
+    `row_cell`, `row_value` productions; `directive` choice extended;
+    `directive_name` excludes `table`.
+  - `docs/draft-trendvidia-protowire-00.txt` §3.3 ABNF: matching
+    additions. New §3.4.4 "The @table Directive" with normative
+    conformance rules.
+  - `docs/grammar.svg`: regenerated (47 rules; +5 over the prior
+    revision).
+
+  Editor support:
+  - `editors/vscode/syntaxes/pxf.tmLanguage.json`: new
+    `table-directive` pattern highlights `@table <type>` consistently
+    with `@type`; new paren punctuation rules.
+  - JetBrains bundle regenerated.
+
+  Testdata:
+  - `testdata/example-table.pxf` — happy path over `test.v1.AllTypes`
+    with five columns and four rows, exercising the three cell states.
+  - `testdata/table/` — adversarial fixtures: short/long row arity,
+    `@table` + `@type`, `@table` + body field, list cell, block cell,
+    dotted column. Each fixture states its violation in the leading
+    comment. Conformance-harness wiring deferred.
+
+  Ports: implementing `@table` is a new lexer entry (`@table`
+  keyword), a new parser path (header + row loop), and a thin
+  consumer-API surface (`parser.tables()` or equivalent returning
+  an ordered list of `TableBlock` records). The schema layer never
+  receives table rows as message body entries.
+
+  Carry-forward fix: PR #16's grammar.ebnf comment referenced
+  "Section 3.4.4" for `@entry`; the draft places it at §3.4.3.
+  Corrected here while updating the same notes block for `@table`.
+
 - **PXF grammar — `@entry` directive + generalized prefix list.** The
   `named_directive` production grows from a single optional prefix
   identifier to zero-or-more: `@<name> *(<prefix-id>) [ { ... } ]`.

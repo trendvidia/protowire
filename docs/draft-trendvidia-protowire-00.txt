@@ -361,14 +361,28 @@ Internet-Draft                  protowire                       May 2026
 
      document        = *directive *field-entry
 
-     directive       = type-directive / named-directive
+     directive       = type-directive
+                     / table-directive
+                     / named-directive
      type-directive  = %s"@type" 1*WSP identifier
      named-directive = "@" directive-name
                        *( 1*WSP identifier )
                        [ block-tail ]
      directive-name  = identifier ; excluding the literals "type"
-                                  ; (matches type-directive), "null",
+                                  ; (matches type-directive), "table"
+                                  ; (matches table-directive), "null",
                                   ; "true", and "false" (Section 3.13).
+
+     table-directive = %s"@table" 1*WSP identifier
+                       1*WSP "(" column-list ")"
+                       *( 1*WSP row )
+     column-list     = identifier *( "," identifier )
+     row             = "(" row-cell *( "," row-cell ) ")"
+     row-cell        = [ row-value ]
+     row-value       = string / number / bool / null / bytes
+                     / timestamp / duration / identifier
+                     ; cells exclude list and block-value
+                     ; (Section 3.4.4)
 
      entry           = field-entry / map-entry
      field-entry     = identifier ( assignment-tail / block-tail )
@@ -620,6 +634,103 @@ Internet-Draft                  protowire                       May 2026
       <name> MUST NOT be case-sensitively equal to "null", "true",
       or "false"; <type> MUST refer to a non-conformant-name-free
       message type.
+
+3.4.4.  The "@table" Directive
+
+   The "@table" directive is the canonical PXF shape for
+   representing many instances of a single message type in a single
+   document — the protowire-native replacement for CSV.  Its form
+   is
+
+     @table <type> ( <col1> [ , <col2> ... ] )
+     ( <val1> [ , <val2> ... ] )
+     ( <val1> [ , <val2> ... ] )
+     ...
+
+   where <type> is a dotted identifier naming the row message type;
+   <col1>, <col2>, ... is the column list (at least one column);
+   and each subsequent parenthesized tuple is a row whose values
+   bind positionally to the columns.
+
+   Cell value grammar (v1).  A cell value is drawn from the value
+   production of Section 3.3 minus list and block-value: string,
+   number, bool, null, bytes, timestamp, duration, or identifier.
+   List literals ("[ ... ]") and block values ("{ ... }") are NOT
+   permitted in cells.  This restriction keeps rows tokenizable
+   with simple top-level comma splitting and reserves nested-cell
+   semantics for a future revision.
+
+   Three-state cells.  Each row cell denotes one of three states,
+   carried into the bound message via the same semantics as the
+   PXF annotations of Section 6.1:
+
+   *  An empty cell (no value between two commas, or leading /
+      trailing inside a row, e.g. "(1, , 3)") denotes an absent
+      field.  When the bound field carries (pxf.default), the
+      default literal is applied; when it carries (pxf.required),
+      the document MUST be rejected.
+
+   *  A bare "null" literal denotes a present-but-null field.  This
+      satisfies (pxf.required) and suppresses (pxf.default), with
+      the singular-field nullability rules of Section 3.9 applied
+      against <type>'s declared field.
+
+   *  Any other value literal denotes a present field with that
+      value.
+
+   Row arity.  Each row MUST have the same number of cells as the
+   header column list.  Decoders MUST reject a row whose arity
+   differs from the column count.  Trailing-empty shorthand (a
+   row with fewer cells implying absent tail columns) is not
+   permitted in v1.
+
+   Column entries (v1).  Each column entry MUST be an unqualified
+   field name declared on <type>.  Dotted paths (e.g. "addr.city")
+   are NOT permitted in v1 and are reserved for a future revision.
+   Decoders MUST reject a column entry containing a ".".
+
+   Standalone.  A document containing a "@table" directive MUST NOT
+   also contain a "@type" directive and MUST NOT contain top-level
+   field entries (Section 3.5).  The "@table" header is itself the
+   document's type declaration; the rows are the document's
+   payload.  A document MAY contain multiple "@table" directives
+   (whether of the same or different row types); their relative
+   order MUST be preserved by decoders that expose a table list to
+   callers.
+
+   Consumer contract.  "@table" is consumer-interpreted in the
+   same side-channel manner as named directives (Section 3.4.2):
+   the rows are exposed to callers through a parser API distinct
+   from the body's schema layer.  This document does not mandate a
+   single canonical "decode-as-repeated-<type>" semantics; an
+   application that wants that one-liner constructs it on top of
+   the rows API.  The schema layer of <type> MUST NOT receive the
+   rows as message body entries.
+
+   Conformance:
+
+   *  A decoder MUST reject a document where a "@table" directive
+      coexists with a "@type" directive or with any top-level
+      field-entry.
+
+   *  A decoder MUST reject a row whose arity differs from the
+      column count.
+
+   *  A decoder MUST reject a column entry containing a ".".
+
+   *  A decoder MUST reject a cell value that is a list literal or
+      a block value.
+
+   *  A decoder MUST resolve identifier-shaped cell values against
+      the corresponding column field on <type>: an enum-typed
+      column accepts an enum value name (Section 3.9); a string-
+      typed column accepts only quoted strings, not bare
+      identifiers.
+
+   *  "@table" inherits the schema constraint of Section 3.13:
+      <type> MUST refer to a non-conformant-name-free message
+      type, and each column entry MUST name a field whose name is
+      itself non-conformant-name-free.
 
 3.5.  Entries and Keys
 

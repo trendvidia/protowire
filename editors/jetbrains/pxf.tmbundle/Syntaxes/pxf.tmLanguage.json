@@ -9,6 +9,9 @@
       "include": "#type-directive"
     },
     {
+      "include": "#table-directive"
+    },
+    {
       "include": "#named-directive"
     },
     {
@@ -82,6 +85,17 @@
     },
     "type-directive": {
       "match": "(@type)\\s+([A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*)",
+      "captures": {
+        "1": {
+          "name": "keyword.other.directive.pxf"
+        },
+        "2": {
+          "name": "entity.name.type.pxf"
+        }
+      }
+    },
+    "table-directive": {
+      "match": "(@table)\\s+([A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*)",
       "captures": {
         "1": {
           "name": "keyword.other.directive.pxf"
@@ -242,6 +256,14 @@
         {
           "name": "punctuation.section.brackets.end.pxf",
           "match": "\\]"
+        },
+        {
+          "name": "punctuation.section.parens.begin.pxf",
+          "match": "\\("
+        },
+        {
+          "name": "punctuation.section.parens.end.pxf",
+          "match": "\\)"
         }
       ]
     }

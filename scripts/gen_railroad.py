@@ -54,7 +54,7 @@ add(
 
 add(
     "directive",
-    Choice(0, n("type_directive"), n("named_directive")),
+    Choice(0, n("type_directive"), n("table_directive"), n("named_directive")),
 )
 
 add(
@@ -74,7 +74,48 @@ add(
 
 add(
     "directive_name",
-    Comment("identifier except 'type', 'null', 'true', 'false'"),
+    Comment("identifier except 'type', 'table', 'null', 'true', 'false'"),
+)
+
+add(
+    "table_directive",
+    Sequence(
+        t("@table"),
+        n("identifier"),
+        t("("),
+        n("column_list"),
+        t(")"),
+        ZeroOrMore(n("row")),
+    ),
+)
+
+add(
+    "column_list",
+    Sequence(n("identifier"), ZeroOrMore(Sequence(t(","), n("identifier")))),
+)
+
+add(
+    "row",
+    Sequence(
+        t("("),
+        n("row_cell"),
+        ZeroOrMore(Sequence(t(","), n("row_cell"))),
+        t(")"),
+    ),
+)
+
+add(
+    "row_cell",
+    Optional(n("row_value")),
+)
+
+add(
+    "row_value",
+    Choice(
+        0,
+        n("string"), n("integer"), n("float"), n("bool"), n("null"),
+        n("bytes"), n("timestamp"), n("duration"), n("identifier"),
+    ),
 )
 
 add(
