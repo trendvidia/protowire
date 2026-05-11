@@ -24,10 +24,25 @@
  * '{ … }' block, where the parser cannot statically tell whether the
  * surrounding field is a message or a map<K,V> — both forms are accepted
  * there and disambiguated by the schema layer.
+ *
+ * Before the body, the document may carry zero or more directives.
+ * '@type' is the canonical type-declaring directive (special: at most
+ * one, names the body's message type). Other directives are
+ * application-extensible: each names a side-channel block (e.g.
+ * chameleon's '@header chameleon.v1.LayerHeader { ... }') the
+ * consumer's runtime interprets — never the body's schema layer.
+ * Directives may appear in any order. Names other than 'type' have
+ * no semantics defined by this spec; an implementation that does not
+ * recognize a directive name MAY skip the directive (its block, if
+ * present, is parsed for syntactic well-formedness) or MAY error.
  *)
-document      = [ type_directive ] , { field_entry } ;
+document      = { directive } , { field_entry } ;
 
-type_directive = '@type' , identifier ;
+directive     = type_directive | named_directive ;
+
+type_directive    = '@type' , identifier ;
+named_directive   = '@' , directive_name , [ identifier ] , [ block_tail ] ;
+directive_name    = identifier - 'type' ;
 
 
 (* === Entries === *)

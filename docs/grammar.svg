@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg class="railroad-diagram" width="1100" height="5714" viewBox="0 0 1100 5714" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" font-family="monospace" font-size="14">
+<svg class="railroad-diagram" width="1100" height="6080" viewBox="0 0 1100 6080" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" font-family="monospace" font-size="14">
 <style>
   .railroad-diagram { background: #fff; }
   .railroad-diagram path { stroke-width: 2; stroke: black; fill: rgba(0,0,0,0); }
@@ -19,15 +19,17 @@
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 30v20m10 -20v20m-10 -10h20" /></g><path d="M40 40h10" /><g>
-<path d="M50 40h0.0" /><path d="M402.5 40h0.0" /><g>
-<path d="M50.0 40h0.0" /><path d="M229.0 40h0.0" /><path d="M50.0 40a10 10 0 0 0 10 -10v0a10 10 0 0 1 10 -10" /><g>
-<path d="M70.0 20h139.0" /></g><path d="M209.0 20a10 10 0 0 1 10 10v0a10 10 0 0 0 10 10" /><path d="M50.0 40h20" /><g class="non-terminal ">
-<path d="M70.0 40h0.0" /><path d="M209.0 40h0.0" /><rect height="22" width="139" x="70" y="29"></rect><text x="139.5" y="44">type_directive</text></g><path d="M209.0 40h20" /></g><g>
-<path d="M229.0 40h0.0" /><path d="M402.5 40h0.0" /><path d="M229.0 40a10 10 0 0 0 10 -10v0a10 10 0 0 1 10 -10" /><g>
-<path d="M249.0 20h133.5" /></g><path d="M382.5 20a10 10 0 0 1 10 10v0a10 10 0 0 0 10 10" /><path d="M229.0 40h20" /><g>
-<path d="M249.0 40h0.0" /><path d="M382.5 40h0.0" /><path d="M249.0 40h10" /><g class="non-terminal ">
-<path d="M259.0 40h0.0" /><path d="M372.5 40h0.0" /><rect height="22" width="113.5" x="259" y="29"></rect><text x="315.75" y="44">field_entry</text></g><path d="M372.5 40h10" /><path d="M259.0 40a10 10 0 0 0 -10 10v0a10 10 0 0 0 10 10" /><g>
-<path d="M259.0 60h113.5" /></g><path d="M372.5 60a10 10 0 0 0 10 -10v0a10 10 0 0 0 -10 -10" /></g><path d="M382.5 40h20" /></g></g><path d="M402.5 40h10" /><path d="M 412.5 40 h 20 m -10 -10 v 20 m 10 -20 v 20"></path></g><style>/* <![CDATA[ */
+<path d="M50 40h0.0" /><path d="M380.0 40h0.0" /><g>
+<path d="M50.0 40h0.0" /><path d="M206.5 40h0.0" /><path d="M50.0 40a10 10 0 0 0 10 -10v0a10 10 0 0 1 10 -10" /><g>
+<path d="M70.0 20h116.5" /></g><path d="M186.5 20a10 10 0 0 1 10 10v0a10 10 0 0 0 10 10" /><path d="M50.0 40h20" /><g>
+<path d="M70.0 40h0.0" /><path d="M186.5 40h0.0" /><path d="M70.0 40h10" /><g class="non-terminal ">
+<path d="M80.0 40h0.0" /><path d="M176.5 40h0.0" /><rect height="22" width="96.5" x="80" y="29"></rect><text x="128.25" y="44">directive</text></g><path d="M176.5 40h10" /><path d="M80.0 40a10 10 0 0 0 -10 10v0a10 10 0 0 0 10 10" /><g>
+<path d="M80.0 60h96.5" /></g><path d="M176.5 60a10 10 0 0 0 10 -10v0a10 10 0 0 0 -10 -10" /></g><path d="M186.5 40h20" /></g><g>
+<path d="M206.5 40h0.0" /><path d="M380.0 40h0.0" /><path d="M206.5 40a10 10 0 0 0 10 -10v0a10 10 0 0 1 10 -10" /><g>
+<path d="M226.5 20h133.5" /></g><path d="M360.0 20a10 10 0 0 1 10 10v0a10 10 0 0 0 10 10" /><path d="M206.5 40h20" /><g>
+<path d="M226.5 40h0.0" /><path d="M360.0 40h0.0" /><path d="M226.5 40h10" /><g class="non-terminal ">
+<path d="M236.5 40h0.0" /><path d="M350.0 40h0.0" /><rect height="22" width="113.5" x="236.5" y="29"></rect><text x="293.25" y="44">field_entry</text></g><path d="M350.0 40h10" /><path d="M236.5 40a10 10 0 0 0 -10 10v0a10 10 0 0 0 10 10" /><g>
+<path d="M236.5 60h113.5" /></g><path d="M350.0 60a10 10 0 0 0 10 -10v0a10 10 0 0 0 -10 -10" /></g><path d="M360.0 40h20" /></g></g><path d="M380.0 40h10" /><path d="M 390.0 40 h 20 m -10 -10 v 20 m 10 -20 v 20"></path></g><style>/* <![CDATA[ */
 	svg.railroad-diagram {
 		background-color:hsl(30,20%,95%);
 	}
@@ -59,8 +61,47 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,142)"><text x="0" y="0" font-weight="bold" font-size="16">type_directive</text></g>
+<g transform="translate(20,142)"><text x="0" y="0" font-weight="bold" font-size="16">directive</text></g>
 <g transform="translate(20,156)">
+<g transform="translate(.5 .5)">
+<g>
+<path d="M20 21v20m10 -20v20m-10 -10h20" /></g><g>
+<path d="M40 31h0.0" /><path d="M227.5 31h0.0" /><path d="M40.0 31h20" /><g class="non-terminal ">
+<path d="M60.0 31h4.25" /><path d="M203.25 31h4.25" /><rect height="22" width="139" x="64.25" y="20"></rect><text x="133.75" y="35">type_directive</text></g><path d="M207.5 31h20" /><path d="M40.0 31a10 10 0 0 1 10 10v10a10 10 0 0 0 10 10" /><g class="non-terminal ">
+<path d="M60.0 61h0.0" /><path d="M207.5 61h0.0" /><rect height="22" width="147.5" x="60" y="50"></rect><text x="133.75" y="65">named_directive</text></g><path d="M207.5 61a10 10 0 0 0 10 -10v-10a10 10 0 0 1 10 -10" /></g><path d="M 227.5 31 h 20 m -10 -10 v 20 m 10 -20 v 20"></path></g><style>/* <![CDATA[ */
+	svg.railroad-diagram {
+		background-color:hsl(30,20%,95%);
+	}
+	svg.railroad-diagram path {
+		stroke-width:3;
+		stroke:black;
+		fill:rgba(0,0,0,0);
+	}
+	svg.railroad-diagram text {
+		font:bold 14px monospace;
+		text-anchor:middle;
+	}
+	svg.railroad-diagram text.label{
+		text-anchor:start;
+	}
+	svg.railroad-diagram text.comment{
+		font:italic 12px monospace;
+	}
+	svg.railroad-diagram rect{
+		stroke-width:3;
+		stroke:black;
+		fill:hsl(120,100%,90%);
+	}
+	svg.railroad-diagram rect.group-box {
+		stroke: gray;
+		stroke-dasharray: 10 5;
+		fill: none;
+	}
+
+/* ]]> */
+</style></g>
+<g transform="translate(20,276)"><text x="0" y="0" font-weight="bold" font-size="16">type_directive</text></g>
+<g transform="translate(20,290)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 21v20m10 -20v20m-10 -10h20" /></g><path d="M40 31h10" /><g>
@@ -98,8 +139,97 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,246)"><text x="0" y="0" font-weight="bold" font-size="16">entry</text></g>
-<g transform="translate(20,260)">
+<g transform="translate(20,380)"><text x="0" y="0" font-weight="bold" font-size="16">named_directive</text></g>
+<g transform="translate(20,394)">
+<g transform="translate(.5 .5)">
+<g>
+<path d="M20 38v20m10 -20v20m-10 -10h20" /></g><path d="M40 48h10" /><g>
+<path d="M50 48h0.0" /><path d="M632.0 48h0.0" /><g class="terminal ">
+<path d="M50.0 48h0.0" /><path d="M78.5 48h0.0" /><rect height="22" rx="10" ry="10" width="28.5" x="50" y="37"></rect><text x="64.25" y="52">@</text></g><path d="M78.5 48h10" /><path d="M88.5 48h10" /><g class="non-terminal ">
+<path d="M98.5 48h0.0" /><path d="M237.5 48h0.0" /><rect height="22" width="139" x="98.5" y="37"></rect><text x="168" y="52">directive_name</text></g><path d="M237.5 48h10" /><g>
+<path d="M247.5 48h0.0" /><path d="M392.5 48h0.0" /><path d="M247.5 48a10 10 0 0 0 10 -10v0a10 10 0 0 1 10 -10" /><g>
+<path d="M267.5 28h105.0" /></g><path d="M372.5 28a10 10 0 0 1 10 10v0a10 10 0 0 0 10 10" /><path d="M247.5 48h20" /><g class="non-terminal ">
+<path d="M267.5 48h0.0" /><path d="M372.5 48h0.0" /><rect height="22" width="105" x="267.5" y="37"></rect><text x="320" y="52">identifier</text></g><path d="M372.5 48h20" /></g><g>
+<path d="M392.5 48h0.0" /><path d="M632.0 48h0.0" /><path d="M392.5 48a10 10 0 0 0 10 -10v-8a10 10 0 0 1 10 -10" /><g>
+<path d="M412.5 20h199.5" /></g><path d="M612.0 20a10 10 0 0 1 10 10v8a10 10 0 0 0 10 10" /><path d="M392.5 48h20" /><g>
+<path d="M412.5 48h0.0" /><path d="M612.0 48h0.0" /><g class="terminal ">
+<path d="M412.5 48h0.0" /><path d="M441.0 48h0.0" /><rect height="22" rx="10" ry="10" width="28.5" x="412.5" y="37"></rect><text x="426.75" y="52">{</text></g><path d="M441.0 48h10" /><g>
+<path d="M451.0 48h0.0" /><path d="M573.5 48h0.0" /><path d="M451.0 48a10 10 0 0 0 10 -10v0a10 10 0 0 1 10 -10" /><g>
+<path d="M471.0 28h82.5" /></g><path d="M553.5 28a10 10 0 0 1 10 10v0a10 10 0 0 0 10 10" /><path d="M451.0 48h20" /><g>
+<path d="M471.0 48h0.0" /><path d="M553.5 48h0.0" /><path d="M471.0 48h10" /><g class="non-terminal ">
+<path d="M481.0 48h0.0" /><path d="M543.5 48h0.0" /><rect height="22" width="62.5" x="481" y="37"></rect><text x="512.25" y="52">entry</text></g><path d="M543.5 48h10" /><path d="M481.0 48a10 10 0 0 0 -10 10v0a10 10 0 0 0 10 10" /><g>
+<path d="M481.0 68h62.5" /></g><path d="M543.5 68a10 10 0 0 0 10 -10v0a10 10 0 0 0 -10 -10" /></g><path d="M553.5 48h20" /></g><path d="M573.5 48h10" /><g class="terminal ">
+<path d="M583.5 48h0.0" /><path d="M612.0 48h0.0" /><rect height="22" rx="10" ry="10" width="28.5" x="583.5" y="37"></rect><text x="597.75" y="52">}</text></g></g><path d="M612.0 48h20" /></g></g><path d="M632.0 48h10" /><path d="M 642.0 48 h 20 m -10 -10 v 20 m 10 -20 v 20"></path></g><style>/* <![CDATA[ */
+	svg.railroad-diagram {
+		background-color:hsl(30,20%,95%);
+	}
+	svg.railroad-diagram path {
+		stroke-width:3;
+		stroke:black;
+		fill:rgba(0,0,0,0);
+	}
+	svg.railroad-diagram text {
+		font:bold 14px monospace;
+		text-anchor:middle;
+	}
+	svg.railroad-diagram text.label{
+		text-anchor:start;
+	}
+	svg.railroad-diagram text.comment{
+		font:italic 12px monospace;
+	}
+	svg.railroad-diagram rect{
+		stroke-width:3;
+		stroke:black;
+		fill:hsl(120,100%,90%);
+	}
+	svg.railroad-diagram rect.group-box {
+		stroke: gray;
+		stroke-dasharray: 10 5;
+		fill: none;
+	}
+
+/* ]]> */
+</style></g>
+<g transform="translate(20,510)"><text x="0" y="0" font-weight="bold" font-size="16">directive_name</text></g>
+<g transform="translate(20,524)">
+<g transform="translate(.5 .5)">
+<g>
+<path d="M20 20v20m10 -20v20m-10 -10h20" /></g><path d="M40 30h10" /><g class="non-terminal ">
+<path d="M50 30h0.0" /><path d="M228.0 30h0.0" /><text class="comment" x="139" y="35">identifier except &apos;type&apos;</text></g><path d="M228 30h10" /><path d="M 238 30 h 20 m -10 -10 v 20 m 10 -20 v 20"></path></g><style>/* <![CDATA[ */
+	svg.railroad-diagram {
+		background-color:hsl(30,20%,95%);
+	}
+	svg.railroad-diagram path {
+		stroke-width:3;
+		stroke:black;
+		fill:rgba(0,0,0,0);
+	}
+	svg.railroad-diagram text {
+		font:bold 14px monospace;
+		text-anchor:middle;
+	}
+	svg.railroad-diagram text.label{
+		text-anchor:start;
+	}
+	svg.railroad-diagram text.comment{
+		font:italic 12px monospace;
+	}
+	svg.railroad-diagram rect{
+		stroke-width:3;
+		stroke:black;
+		fill:hsl(120,100%,90%);
+	}
+	svg.railroad-diagram rect.group-box {
+		stroke: gray;
+		stroke-dasharray: 10 5;
+		fill: none;
+	}
+
+/* ]]> */
+</style></g>
+<g transform="translate(20,612)"><text x="0" y="0" font-weight="bold" font-size="16">entry</text></g>
+<g transform="translate(20,626)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 21v20m10 -20v20m-10 -10h20" /></g><g>
@@ -137,8 +267,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,380)"><text x="0" y="0" font-weight="bold" font-size="16">field_entry</text></g>
-<g transform="translate(20,394)">
+<g transform="translate(20,746)"><text x="0" y="0" font-weight="bold" font-size="16">field_entry</text></g>
+<g transform="translate(20,760)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 21v20m10 -20v20m-10 -10h20" /></g><path d="M40 31h10" /><g>
@@ -187,8 +317,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,532)"><text x="0" y="0" font-weight="bold" font-size="16">map_entry</text></g>
-<g transform="translate(20,546)">
+<g transform="translate(20,898)"><text x="0" y="0" font-weight="bold" font-size="16">map_entry</text></g>
+<g transform="translate(20,912)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 21v20m10 -20v20m-10 -10h20" /></g><path d="M40 31h10" /><g>
@@ -227,8 +357,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,636)"><text x="0" y="0" font-weight="bold" font-size="16">map_key</text></g>
-<g transform="translate(20,650)">
+<g transform="translate(20,1002)"><text x="0" y="0" font-weight="bold" font-size="16">map_key</text></g>
+<g transform="translate(20,1016)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 21v20m10 -20v20m-10 -10h20" /></g><g>
@@ -267,8 +397,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,800)"><text x="0" y="0" font-weight="bold" font-size="16">value</text></g>
-<g transform="translate(20,814)">
+<g transform="translate(20,1166)"><text x="0" y="0" font-weight="bold" font-size="16">value</text></g>
+<g transform="translate(20,1180)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 21v20m10 -20v20m-10 -10h20" /></g><g>
@@ -315,8 +445,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,1204)"><text x="0" y="0" font-weight="bold" font-size="16">list</text></g>
-<g transform="translate(20,1218)">
+<g transform="translate(20,1570)"><text x="0" y="0" font-weight="bold" font-size="16">list</text></g>
+<g transform="translate(20,1584)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 46v20m10 -20v20m-10 -10h20" /></g><path d="M40 56h10" /><g>
@@ -367,8 +497,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,1342)"><text x="0" y="0" font-weight="bold" font-size="16">block_value</text></g>
-<g transform="translate(20,1356)">
+<g transform="translate(20,1708)"><text x="0" y="0" font-weight="bold" font-size="16">block_value</text></g>
+<g transform="translate(20,1722)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 30v20m10 -20v20m-10 -10h20" /></g><path d="M40 40h10" /><g>
@@ -411,8 +541,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,1464)"><text x="0" y="0" font-weight="bold" font-size="16">identifier</text></g>
-<g transform="translate(20,1478)">
+<g transform="translate(20,1830)"><text x="0" y="0" font-weight="bold" font-size="16">identifier</text></g>
+<g transform="translate(20,1844)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 30v20m10 -20v20m-10 -10h20" /></g><path d="M40 40h10" /><g>
@@ -460,8 +590,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,1675)"><text x="0" y="0" font-weight="bold" font-size="16">bool</text></g>
-<g transform="translate(20,1689)">
+<g transform="translate(20,2041)"><text x="0" y="0" font-weight="bold" font-size="16">bool</text></g>
+<g transform="translate(20,2055)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 21v20m10 -20v20m-10 -10h20" /></g><g>
@@ -499,8 +629,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,1809)"><text x="0" y="0" font-weight="bold" font-size="16">null</text></g>
-<g transform="translate(20,1823)">
+<g transform="translate(20,2175)"><text x="0" y="0" font-weight="bold" font-size="16">null</text></g>
+<g transform="translate(20,2189)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 21v20m10 -20v20m-10 -10h20" /></g><path d="M40 31h10" /><g class="terminal ">
@@ -536,8 +666,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,1913)"><text x="0" y="0" font-weight="bold" font-size="16">integer</text></g>
-<g transform="translate(20,1927)">
+<g transform="translate(20,2279)"><text x="0" y="0" font-weight="bold" font-size="16">integer</text></g>
+<g transform="translate(20,2293)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 30v20m10 -20v20m-10 -10h20" /></g><path d="M40 40h10" /><g>
@@ -579,8 +709,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,2035)"><text x="0" y="0" font-weight="bold" font-size="16">float</text></g>
-<g transform="translate(20,2049)">
+<g transform="translate(20,2401)"><text x="0" y="0" font-weight="bold" font-size="16">float</text></g>
+<g transform="translate(20,2415)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 30v20m10 -20v20m-10 -10h20" /></g><path d="M40 40h10" /><g>
@@ -634,8 +764,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,2187)"><text x="0" y="0" font-weight="bold" font-size="16">exponent</text></g>
-<g transform="translate(20,2201)">
+<g transform="translate(20,2553)"><text x="0" y="0" font-weight="bold" font-size="16">exponent</text></g>
+<g transform="translate(20,2567)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 30v20m10 -20v20m-10 -10h20" /></g><path d="M40 40h10" /><g>
@@ -682,8 +812,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,2330)"><text x="0" y="0" font-weight="bold" font-size="16">duration</text></g>
-<g transform="translate(20,2344)">
+<g transform="translate(20,2696)"><text x="0" y="0" font-weight="bold" font-size="16">duration</text></g>
+<g transform="translate(20,2710)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 21v20m10 -20v20m-10 -10h20" /></g><path d="M40 31h10" /><g>
@@ -721,8 +851,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,2443)"><text x="0" y="0" font-weight="bold" font-size="16">duration_segment</text></g>
-<g transform="translate(20,2457)">
+<g transform="translate(20,2809)"><text x="0" y="0" font-weight="bold" font-size="16">duration_segment</text></g>
+<g transform="translate(20,2823)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 30v20m10 -20v20m-10 -10h20" /></g><path d="M40 40h10" /><g>
@@ -769,8 +899,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,2565)"><text x="0" y="0" font-weight="bold" font-size="16">time_unit</text></g>
-<g transform="translate(20,2579)">
+<g transform="translate(20,2931)"><text x="0" y="0" font-weight="bold" font-size="16">time_unit</text></g>
+<g transform="translate(20,2945)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 21v20m10 -20v20m-10 -10h20" /></g><g>
@@ -813,8 +943,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,2849)"><text x="0" y="0" font-weight="bold" font-size="16">timestamp</text></g>
-<g transform="translate(20,2863)">
+<g transform="translate(20,3215)"><text x="0" y="0" font-weight="bold" font-size="16">timestamp</text></g>
+<g transform="translate(20,3229)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 20v20m10 -20v20m-10 -10h20" /></g><path d="M40 30h10" /><g class="non-terminal ">
@@ -850,8 +980,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,2951)"><text x="0" y="0" font-weight="bold" font-size="16">string</text></g>
-<g transform="translate(20,2965)">
+<g transform="translate(20,3317)"><text x="0" y="0" font-weight="bold" font-size="16">string</text></g>
+<g transform="translate(20,3331)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 21v20m10 -20v20m-10 -10h20" /></g><g>
@@ -889,8 +1019,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,3085)"><text x="0" y="0" font-weight="bold" font-size="16">simple_string</text></g>
-<g transform="translate(20,3099)">
+<g transform="translate(20,3451)"><text x="0" y="0" font-weight="bold" font-size="16">simple_string</text></g>
+<g transform="translate(20,3465)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 30v20m10 -20v20m-10 -10h20" /></g><path d="M40 40h10" /><g>
@@ -935,8 +1065,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,3236)"><text x="0" y="0" font-weight="bold" font-size="16">string_char</text></g>
-<g transform="translate(20,3250)">
+<g transform="translate(20,3602)"><text x="0" y="0" font-weight="bold" font-size="16">string_char</text></g>
+<g transform="translate(20,3616)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 20v20m10 -20v20m-10 -10h20" /></g><path d="M40 30h10" /><g class="non-terminal ">
@@ -972,8 +1102,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,3338)"><text x="0" y="0" font-weight="bold" font-size="16">triple_string</text></g>
-<g transform="translate(20,3352)">
+<g transform="translate(20,3704)"><text x="0" y="0" font-weight="bold" font-size="16">triple_string</text></g>
+<g transform="translate(20,3718)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 21v20m10 -20v20m-10 -10h20" /></g><path d="M40 31h10" /><g>
@@ -1012,8 +1142,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,3442)"><text x="0" y="0" font-weight="bold" font-size="16">escape_seq</text></g>
-<g transform="translate(20,3456)">
+<g transform="translate(20,3808)"><text x="0" y="0" font-weight="bold" font-size="16">escape_seq</text></g>
+<g transform="translate(20,3822)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 21v20m10 -20v20m-10 -10h20" /></g><path d="M40 31h10" /><g>
@@ -1056,8 +1186,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,3666)"><text x="0" y="0" font-weight="bold" font-size="16">simple_escape</text></g>
-<g transform="translate(20,3680)">
+<g transform="translate(20,4032)"><text x="0" y="0" font-weight="bold" font-size="16">simple_escape</text></g>
+<g transform="translate(20,4046)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 21v20m10 -20v20m-10 -10h20" /></g><g>
@@ -1104,8 +1234,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,4070)"><text x="0" y="0" font-weight="bold" font-size="16">hex_escape</text></g>
-<g transform="translate(20,4084)">
+<g transform="translate(20,4436)"><text x="0" y="0" font-weight="bold" font-size="16">hex_escape</text></g>
+<g transform="translate(20,4450)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 21v20m10 -20v20m-10 -10h20" /></g><path d="M40 31h10" /><g>
@@ -1144,8 +1274,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,4174)"><text x="0" y="0" font-weight="bold" font-size="16">octal_escape</text></g>
-<g transform="translate(20,4188)">
+<g transform="translate(20,4540)"><text x="0" y="0" font-weight="bold" font-size="16">octal_escape</text></g>
+<g transform="translate(20,4554)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 21v20m10 -20v20m-10 -10h20" /></g><path d="M40 31h10" /><g>
@@ -1184,8 +1314,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,4278)"><text x="0" y="0" font-weight="bold" font-size="16">unicode_4_escape</text></g>
-<g transform="translate(20,4292)">
+<g transform="translate(20,4644)"><text x="0" y="0" font-weight="bold" font-size="16">unicode_4_escape</text></g>
+<g transform="translate(20,4658)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 21v20m10 -20v20m-10 -10h20" /></g><path d="M40 31h10" /><g>
@@ -1226,8 +1356,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,4382)"><text x="0" y="0" font-weight="bold" font-size="16">unicode_8_escape</text></g>
-<g transform="translate(20,4396)">
+<g transform="translate(20,4748)"><text x="0" y="0" font-weight="bold" font-size="16">unicode_8_escape</text></g>
+<g transform="translate(20,4762)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 21v20m10 -20v20m-10 -10h20" /></g><path d="M40 31h10" /><g>
@@ -1272,8 +1402,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,4486)"><text x="0" y="0" font-weight="bold" font-size="16">bytes</text></g>
-<g transform="translate(20,4500)">
+<g transform="translate(20,4852)"><text x="0" y="0" font-weight="bold" font-size="16">bytes</text></g>
+<g transform="translate(20,4866)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 30v20m10 -20v20m-10 -10h20" /></g><path d="M40 40h10" /><g>
@@ -1317,8 +1447,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,4608)"><text x="0" y="0" font-weight="bold" font-size="16">base64_char</text></g>
-<g transform="translate(20,4622)">
+<g transform="translate(20,4974)"><text x="0" y="0" font-weight="bold" font-size="16">base64_char</text></g>
+<g transform="translate(20,4988)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 21v20m10 -20v20m-10 -10h20" /></g><g>
@@ -1359,8 +1489,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,4832)"><text x="0" y="0" font-weight="bold" font-size="16">comment</text></g>
-<g transform="translate(20,4846)">
+<g transform="translate(20,5198)"><text x="0" y="0" font-weight="bold" font-size="16">comment</text></g>
+<g transform="translate(20,5212)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 21v20m10 -20v20m-10 -10h20" /></g><g>
@@ -1398,8 +1528,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,4966)"><text x="0" y="0" font-weight="bold" font-size="16">line_comment</text></g>
-<g transform="translate(20,4980)">
+<g transform="translate(20,5332)"><text x="0" y="0" font-weight="bold" font-size="16">line_comment</text></g>
+<g transform="translate(20,5346)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 21v20m10 -20v20m-10 -10h20" /></g><path d="M40 31h10" /><g>
@@ -1439,8 +1569,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,5100)"><text x="0" y="0" font-weight="bold" font-size="16">block_comment</text></g>
-<g transform="translate(20,5114)">
+<g transform="translate(20,5466)"><text x="0" y="0" font-weight="bold" font-size="16">block_comment</text></g>
+<g transform="translate(20,5480)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 21v20m10 -20v20m-10 -10h20" /></g><path d="M40 31h10" /><g>
@@ -1479,8 +1609,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,5204)"><text x="0" y="0" font-weight="bold" font-size="16">hex_digit</text></g>
-<g transform="translate(20,5218)">
+<g transform="translate(20,5570)"><text x="0" y="0" font-weight="bold" font-size="16">hex_digit</text></g>
+<g transform="translate(20,5584)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 20v20m10 -20v20m-10 -10h20" /></g><path d="M40 30h10" /><g class="non-terminal ">
@@ -1516,8 +1646,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,5306)"><text x="0" y="0" font-weight="bold" font-size="16">oct_digit</text></g>
-<g transform="translate(20,5320)">
+<g transform="translate(20,5672)"><text x="0" y="0" font-weight="bold" font-size="16">oct_digit</text></g>
+<g transform="translate(20,5686)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 20v20m10 -20v20m-10 -10h20" /></g><path d="M40 30h10" /><g class="non-terminal ">
@@ -1553,8 +1683,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,5408)"><text x="0" y="0" font-weight="bold" font-size="16">oct_lead</text></g>
-<g transform="translate(20,5422)">
+<g transform="translate(20,5774)"><text x="0" y="0" font-weight="bold" font-size="16">oct_lead</text></g>
+<g transform="translate(20,5788)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 20v20m10 -20v20m-10 -10h20" /></g><path d="M40 30h10" /><g class="non-terminal ">
@@ -1590,8 +1720,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,5510)"><text x="0" y="0" font-weight="bold" font-size="16">digit</text></g>
-<g transform="translate(20,5524)">
+<g transform="translate(20,5876)"><text x="0" y="0" font-weight="bold" font-size="16">digit</text></g>
+<g transform="translate(20,5890)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 20v20m10 -20v20m-10 -10h20" /></g><path d="M40 30h10" /><g class="non-terminal ">
@@ -1627,8 +1757,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,5612)"><text x="0" y="0" font-weight="bold" font-size="16">letter</text></g>
-<g transform="translate(20,5626)">
+<g transform="translate(20,5978)"><text x="0" y="0" font-weight="bold" font-size="16">letter</text></g>
+<g transform="translate(20,5992)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 20v20m10 -20v20m-10 -10h20" /></g><path d="M40 30h10" /><g class="non-terminal ">

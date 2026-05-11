@@ -359,9 +359,15 @@ Internet-Draft                  protowire                       May 2026
    per Section 3.2 MAY appear between any two adjacent tokens and
    are not shown.
 
-     document        = [ type-directive ] *field-entry
+     document        = *directive *field-entry
 
+     directive       = type-directive / named-directive
      type-directive  = %s"@type" 1*WSP identifier
+     named-directive = "@" directive-name
+                       [ 1*WSP identifier ]
+                       [ block-tail ]
+     directive-name  = identifier ; with the literal "type" excluded
+                                  ; (those match type-directive).
 
      entry           = field-entry / map-entry
      field-entry     = identifier ( assignment-tail / block-tail )
@@ -479,10 +485,18 @@ Internet-Draft                  protowire                       May 2026
    *  Numeric literals take precedence over identifiers: a leading
       DIGIT or "-" forces the numeric branch.
 
-3.4.  Documents and Type Directives
+3.4.  Documents and Directives
 
-   A PXF document represents a single message value.  The optional
-   type directive, of the form
+   A PXF document represents a single message value.  Before the
+   body, the document MAY carry zero or more directives.  A
+   directive begins with "@" followed by a name; the name "type"
+   names the body's schema-typed message (Section 3.4.1) and is
+   the only directive given semantics by this document.  All other
+   directive names are application-extensible (Section 3.4.2).
+
+3.4.1.  The "@type" Directive
+
+   The "@type" directive, of the form
 
      @type identifier
 
@@ -491,6 +505,47 @@ Internet-Draft                  protowire                       May 2026
    target type; decoders MUST ignore the directive when a target
    type has been pre-bound and the directive matches it, and MUST
    reject when it does not match.
+
+   At most one "@type" directive MAY appear in a document.
+
+3.4.2.  Named Directives
+
+   A named directive has the form
+
+     @<name> [ <type> ] [ "{" inner "}" ]
+
+   where <name> is an identifier other than "type", <type> is an
+   optional dotted identifier naming the inner block's message type,
+   and inner is a sequence of entries syntactically identical to the
+   body of a message block.
+
+   Named directives carry side-channel metadata that the consumer's
+   runtime interprets — never the body's schema layer.  This
+   document defines no <name>; specific names are reserved by other
+   specifications or by applications.  Examples in the wild include
+   chameleon's "@header chameleon.v1.LayerHeader { ... }" preamble,
+   which carries per-file sanity-check fields the resolver enforces
+   against its chain spec.
+
+   Conformance:
+
+   *  A decoder that does not recognize a directive name MAY skip
+      the directive after parsing its block (if present) for
+      syntactic well-formedness, or MAY reject the document.
+      Implementations SHOULD document which policy they apply.
+
+   *  A decoder MUST NOT attempt to interpret the inner block
+      against the body's schema; the inner block is a self-contained
+      sub-document and is decoded against its own type (if any) by
+      the consumer.
+
+   *  The inner block is parsed by the same entry grammar as a
+      message body (Section 3.3): the same brace-matching, string,
+      and comment rules apply.  Braces inside string literals or
+      comments do not close the block.
+
+   *  Multiple named directives MAY appear; their relative order is
+      preserved by decoders that expose a directive list to callers.
 
 
 

@@ -47,14 +47,34 @@ def add(name, body, note=None):
 add(
     "document",
     Sequence(
-        Optional(n("type_directive")),
+        ZeroOrMore(n("directive")),
         ZeroOrMore(n("field_entry")),
     ),
 )
 
 add(
+    "directive",
+    Choice(0, n("type_directive"), n("named_directive")),
+)
+
+add(
     "type_directive",
     Sequence(t("@type"), n("identifier")),
+)
+
+add(
+    "named_directive",
+    Sequence(
+        t("@"),
+        n("directive_name"),
+        Optional(n("identifier")),
+        Optional(Sequence(t("{"), ZeroOrMore(n("entry")), t("}"))),
+    ),
+)
+
+add(
+    "directive_name",
+    Comment("identifier except 'type'"),
 )
 
 add(

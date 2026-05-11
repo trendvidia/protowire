@@ -10,6 +10,42 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+### Added
+
+- **PXF grammar — named directives.** The document grammar grows a
+  generic `@<name> [<type>] [{ ... }]` form alongside the existing
+  `@type` directive. `@type` retains its current meaning (declares
+  the body's message type, at most one per document); other names
+  carry side-channel metadata that the consumer's runtime
+  interprets — never the body's schema layer.
+
+  Decoders that don't recognize a directive name MAY skip the
+  directive after parsing its block for syntactic well-formedness,
+  or MAY reject. The inner block uses the same entry grammar as a
+  message body, so brace-matching, string-literal, and comment
+  rules apply uniformly.
+
+  Wire format unchanged — this is text-format-only sugar. Ports
+  that already shipped a stricter "only @type recognized" lexer
+  MUST relax it to accept the new form before claiming v0.72.0
+  conformance.
+
+  Spec changes:
+  - `docs/grammar.ebnf`: new `directive`, `named_directive`, and
+    `directive_name` productions; `document` rule generalized to
+    accept any sequence of directives before the body.
+  - `docs/draft-trendvidia-protowire-00.txt` Section 3.3: ABNF
+    grammar updated.  Section 3.4 split into 3.4.1 ("@type
+    Directive") and 3.4.2 ("Named Directives") with conformance
+    rules for unrecognized names.
+
+  Motivating use case in the wild: chameleon's `@header
+  chameleon.v1.LayerHeader { id = "x" }` preamble at the top of
+  layer files, carrying per-file sanity-check fields the resolver
+  cross-checks against its chain spec.
+
+  First-port implementation: `protowire-go` v0.72.0.
+
 ## [0.70.0] – 2026-05-06
 
 First tagged baseline of the spec repo, matching the `v0.70.x` release
