@@ -38,15 +38,15 @@
  *)
 document      = { directive } , { field_entry } ;
 
-directive     = type_directive | named_directive ;
+directive     = type_directive | table_directive | named_directive ;
 
 type_directive    = '@type' , identifier ;
 named_directive   = '@' , directive_name , { identifier } , [ block_tail ] ;
-directive_name    = identifier - ( 'type' | 'null' | 'true' | 'false' ) ;
+directive_name    = identifier - ( 'type' | 'table' | 'null' | 'true' | 'false' ) ;
 
 (*
- * The prefix-identifier list is positional; its meaning is per-directive.
- * Two registrations defined by this spec:
+ * The prefix-identifier list of a named_directive is positional; its
+ * meaning is per-directive. Two registrations defined by this spec:
  *
  *   - @<name> <type> { ... }
  *       conventional "one prefix identifier" form (the form v0.72.0
@@ -55,14 +55,60 @@ directive_name    = identifier - ( 'type' | 'null' | 'true' | 'false' ) ;
  *       side-channel directives.
  *
  *   - @entry [ <name> ] [ <type> ] { ... }
- *       bundle/manifest form (Section 3.4.4 of the draft). The first
+ *       bundle/manifest form (Section 3.4.3 of the draft). The first
  *       optional identifier is a caller-provided label; the second
  *       optional identifier is the dotted message type. Either or both
  *       may be omitted.
  *
  * The grammar accepts arbitrarily many prefix identifiers — individual
  * directive registrations may further constrain the count.
+ *
+ * @table is given its own production rather than threaded through
+ * named_directive because its body is a sequence of positional
+ * row tuples '( ... )', not a brace-delimited entry list.
  *)
+
+
+(* === Table directive === *)
+
+(*
+ * @table is a positional, row-oriented form for representing many
+ * instances of a single message type in a single document. Section
+ * 3.4.4 of the draft defines the semantics:
+ *
+ *   @table <type> ( <col1>, <col2>, ... )
+ *   ( <val1>, <val2>, ... )
+ *   ( <val1>, <val2>, ... )
+ *
+ * <type> is the row message type. The column list (>= 1 entry) names
+ * top-level fields on <type>; v1 does not permit dotted paths. Each
+ * row is a parenthesized, comma-separated tuple whose arity MUST
+ * equal the column count.
+ *
+ * Cells are restricted to scalar-shaped values in v1: list ('[ ... ]')
+ * and block ('{ ... }') values are NOT permitted. Three-state cells:
+ *   - empty (between two commas, or leading/trailing inside a row)
+ *     denotes an absent field;
+ *   - the bare token 'null' denotes a present-but-null field;
+ *   - any other value denotes a present field with that value.
+ *
+ * A document containing a table_directive MUST NOT also contain a
+ * type_directive or any field_entry at document root; the @table
+ * header is itself the type declaration.
+ *)
+table_directive   = '@table' , identifier , '(' , column_list , ')' , { row } ;
+column_list       = identifier , { ',' , identifier } ;
+row               = '(' , row_cell , { ',' , row_cell } , ')' ;
+row_cell          = [ row_value ] ;
+row_value         = string
+                  | integer
+                  | float
+                  | bool
+                  | null
+                  | bytes
+                  | timestamp
+                  | duration
+                  | identifier ;
 
 
 (* === Entries === *)

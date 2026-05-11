@@ -1,0 +1,7 @@
+# §3.4.4 cell-value grammar. Block value in a cell. MUST be rejected —
+# v1 cells are scalar-shaped; nested messages are reserved for a future
+# revision.
+
+@table test.v1.AllTypes (string_field, nested_field)
+
+("row-1", { name = "inner", value = 99 })

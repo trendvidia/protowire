@@ -1,0 +1,7 @@
+# §3.4.4 column entries. Dotted path in the header column list.
+# MUST be rejected — v1 column entries are unqualified field names;
+# dotted paths are reserved for a future revision.
+
+@table test.v1.AllTypes (string_field, nested_field.name)
+
+("row-1", "inner")

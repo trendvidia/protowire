@@ -1,0 +1,6 @@
+# §3.4.4 cell-value grammar. List literal in a cell. MUST be rejected —
+# v1 cells are scalar-shaped; lists are reserved for a future revision.
+
+@table test.v1.AllTypes (string_field, repeated_string)
+
+("row-1", ["alpha", "beta"])

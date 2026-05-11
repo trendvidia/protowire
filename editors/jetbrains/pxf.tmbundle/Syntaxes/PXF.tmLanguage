@@ -20,6 +20,10 @@
 		</dict>
 		<dict>
 			<key>include</key>
+			<string>#table-directive</string>
+		</dict>
+		<dict>
+			<key>include</key>
 			<string>#named-directive</string>
 		</dict>
 		<dict>
@@ -334,7 +338,37 @@
 					<key>name</key>
 					<string>punctuation.section.brackets.end.pxf</string>
 				</dict>
+				<dict>
+					<key>match</key>
+					<string>\(</string>
+					<key>name</key>
+					<string>punctuation.section.parens.begin.pxf</string>
+				</dict>
+				<dict>
+					<key>match</key>
+					<string>\)</string>
+					<key>name</key>
+					<string>punctuation.section.parens.end.pxf</string>
+				</dict>
 			</array>
+		</dict>
+		<key>table-directive</key>
+		<dict>
+			<key>captures</key>
+			<dict>
+				<key>1</key>
+				<dict>
+					<key>name</key>
+					<string>keyword.other.directive.pxf</string>
+				</dict>
+				<key>2</key>
+				<dict>
+					<key>name</key>
+					<string>entity.name.type.pxf</string>
+				</dict>
+			</dict>
+			<key>match</key>
+			<string>(@table)\s+([A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*)</string>
 		</dict>
 		<key>timestamp</key>
 		<dict>
