@@ -9,6 +9,9 @@
       "include": "#type-directive"
     },
     {
+      "include": "#named-directive"
+    },
+    {
       "include": "#triple-quoted-string"
     },
     {
@@ -85,6 +88,26 @@
         },
         "2": {
           "name": "entity.name.type.pxf"
+        }
+      }
+    },
+    "named-directive": {
+      "match": "(@[A-Za-z_][A-Za-z0-9_]*)((?:\\s+[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*)*)",
+      "captures": {
+        "1": {
+          "name": "keyword.other.directive.pxf"
+        },
+        "2": {
+          "patterns": [
+            {
+              "match": "[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)+",
+              "name": "entity.name.type.pxf"
+            },
+            {
+              "match": "[A-Za-z_][A-Za-z0-9_]*",
+              "name": "entity.name.tag.pxf"
+            }
+          ]
         }
       }
     },

@@ -10,6 +10,56 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+### Added
+
+- **PXF grammar — `@entry` directive + generalized prefix list.** The
+  `named_directive` production grows from a single optional prefix
+  identifier to zero-or-more: `@<name> *(<prefix-id>) [ { ... } ]`.
+  Any v0.72.0-valid named directive remains valid; the change is
+  strictly additive. Spec registers `@entry` as the first
+  in-spec-defined named directive (Section 3.4.3), with four
+  permitted shapes:
+
+  ```
+  @entry { ... }                       ; anonymous, typeless
+  @entry name { ... }                  ; labeled, typeless
+  @entry some.pkg.Type { ... }         ; typed only (dotted ident)
+  @entry name some.pkg.Type { ... }    ; labeled and typed
+  ```
+
+  `@entry` is consumer-interpreted; this document defines no meaning
+  for the label beyond preservation in directive order. The canonical
+  use case is manifest documents that bundle heterogeneous, typed
+  sub-messages alongside a body.
+
+  Wire format unchanged — text-format-only sugar. Ports MUST relax
+  their `named_directive` lexer to accept zero-or-more prefix
+  identifiers before claiming the next-version conformance (~1-line
+  change in most ports: replace "accept one optional identifier"
+  with "loop accepting identifiers until you hit `{` or end-of-
+  directive"). Ports MUST enforce the `@entry`-specific cardinality
+  (0–2 prefix identifiers) at the consumer layer.
+
+  Spec changes:
+  - `docs/grammar.ebnf`: `named_directive` uses `{ identifier }`
+    instead of `[ identifier ]`. New notes block describes the
+    per-directive cardinality convention.
+  - `docs/draft-trendvidia-protowire-00.txt` Section 3.3 ABNF:
+    `named-directive` uses `*( 1*WSP identifier )`. Section 3.4.2
+    rewritten to describe per-directive prefix semantics. New
+    Section 3.4.3 defines `@entry`.
+  - `docs/grammar.svg`: regenerated.
+
+  Editor support:
+  - `editors/vscode/syntaxes/pxf.tmLanguage.json`: new
+    `named-directive` pattern highlights `@<name>` plus prefix
+    identifiers (dotted → type; bare → tag).
+  - JetBrains bundle regenerated via
+    `scripts/sync_jetbrains_grammar.py`.
+
+  Testdata: `testdata/example-entries.pxf` demonstrates the four
+  shapes alongside a `@type` body declaration.
+
 ### Changed
 
 - **PXF schema constraint — reserved names.** A protobuf schema bound

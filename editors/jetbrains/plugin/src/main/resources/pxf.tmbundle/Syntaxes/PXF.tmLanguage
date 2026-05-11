@@ -20,6 +20,10 @@
 		</dict>
 		<dict>
 			<key>include</key>
+			<string>#named-directive</string>
+		</dict>
+		<dict>
+			<key>include</key>
 			<string>#triple-quoted-string</string>
 		</dict>
 		<dict>
@@ -239,6 +243,37 @@
 			</dict>
 			<key>match</key>
 			<string>([a-z_][a-z0-9_]*)\s*(:)</string>
+		</dict>
+		<key>named-directive</key>
+		<dict>
+			<key>captures</key>
+			<dict>
+				<key>1</key>
+				<dict>
+					<key>name</key>
+					<string>keyword.other.directive.pxf</string>
+				</dict>
+				<key>2</key>
+				<dict>
+					<key>patterns</key>
+					<array>
+						<dict>
+							<key>match</key>
+							<string>[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+</string>
+							<key>name</key>
+							<string>entity.name.type.pxf</string>
+						</dict>
+						<dict>
+							<key>match</key>
+							<string>[A-Za-z_][A-Za-z0-9_]*</string>
+							<key>name</key>
+							<string>entity.name.tag.pxf</string>
+						</dict>
+					</array>
+				</dict>
+			</dict>
+			<key>match</key>
+			<string>(@[A-Za-z_][A-Za-z0-9_]*)((?:\s+[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)*)</string>
 		</dict>
 		<key>null</key>
 		<dict>

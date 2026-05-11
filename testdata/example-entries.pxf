@@ -1,0 +1,30 @@
+# Example of the "@entry" directive (draft §3.4.3).
+#
+# A manifest-style PXF document: the body's type is some bundle message
+# (here, just a placeholder name) and the actual payloads ride alongside
+# as side-channel typed sub-documents. Order is preserved.
+
+@type bundle.v1.Manifest
+
+# Labeled and typed — the most explicit shape.
+@entry alice users.v1.User {
+  name  = "Alice"
+  email = "alice@example.com"
+}
+
+@entry bob users.v1.User {
+  name  = "Bob"
+  email = "bob@example.com"
+}
+
+# Typed only (no label). The dotted identifier marks this as the
+# typed-only shape, not a label.
+@entry orders.v1.Order {
+  id    = "o-99"
+  total = 42.50
+}
+
+# Anonymous, typeless — a free-form sub-document.
+@entry {
+  note = "manifest produced by ops-export 2026-05-11"
+}
