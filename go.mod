@@ -6,7 +6,7 @@ require (
 	github.com/bufbuild/protocompile v0.14.1
 	github.com/spf13/cobra v1.10.2
 	github.com/trendvidia/protoregistry v0.70.1
-	github.com/trendvidia/protowire-go v0.72.0
+	github.com/trendvidia/protowire-go v0.75.0
 	google.golang.org/grpc v1.81.0
 	google.golang.org/protobuf v1.36.11
 )
