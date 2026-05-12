@@ -64,6 +64,7 @@ nullable_name = "present"
 | YAML | Indentation-fragile, type coercion surprises (`no` -> `false`), complex spec |
 | Protobuf textproto | No list/map literals, repeated fields are ugly, `:` separators feel archaic |
 | HCL | Own type system, designed for config not serialization, expression evaluation adds complexity |
+| CSV | No types, no escaping rules, no nesting, ambiguous nulls (the [`@table`](#table--bulk-rows-the-csv-replacement) directive covers this case) |
 
 PXF uses your existing `.proto` files as the schema. No new schema language. No ambiguity — the parser always knows every field's type.
 
@@ -103,10 +104,13 @@ protowire encode    -p schema.proto -m pkg.Type input.pxf > output.pb
 protowire decode    -p schema.proto -m pkg.Type input.pb  > output.pxf
 protowire validate  -p schema.proto -m pkg.Type input.pxf
 protowire fmt       -p schema.proto -m pkg.Type input.pxf
+protowire lint      -p schema.proto                       # schema reserved-name check
 
 protowire sbe2proto schema.xml > schema.proto    # SBE XML → .proto
 protowire proto2sbe -p schema.proto > schema.xml # .proto → SBE XML
 ```
+
+`protowire lint` walks every message field, oneof, and enum value in the supplied schema(s) and reports any name colliding with a PXF value keyword (`null` / `true` / `false`) — see [Schema constraints](#schema-constraints).
 
 Registry mode (fetch schemas from a [protoregistry](https://github.com/trendvidia/protoregistry) server) is available on every subcommand via `-s <server> -n <namespace> --schema <name>`:
 
@@ -129,6 +133,133 @@ protoregistry pxf fmt      [namespace] file.pxf --schema billing -m billing.v1.I
 [`trendvidia/protoregistry`](https://github.com/trendvidia/protoregistry) is the companion `.proto` catalog/registry: a multi-namespace schema store with versioning, two-phase staging, backward-compatibility enforcement, and lock-free hot-swap. It compiles `.proto` sources at runtime, deduplicates them by content hash in PostgreSQL, and serves compiled descriptors over gRPC for dynamic message creation and validation.
 
 Every protowire CLI subcommand can pull schemas from a running registry via `-s <server> -n <namespace> --schema <name>` (see the example above), and the protoregistry CLI ships PXF subcommands directly so registry-resident schemas can encode/decode/validate/format PXF documents without re-exporting the descriptors. See the [protoregistry README](https://github.com/trendvidia/protoregistry#readme) for installation, namespace bootstrapping, and the Go client SDK.
+
+## Directives
+
+A PXF document admits one or more `@<name>` directives at the document root, ahead of the message body. Four directive shapes are spec-defined:
+
+| Directive | Purpose | Spec section |
+|---|---|---|
+| `@type <message-type>` | Names the body's message type | [§3.4.1](docs/draft-trendvidia-protowire-00.txt) |
+| `@<name> *(<prefix-id>) [{ ... }]` | Side-channel metadata interpreted by the consumer, not the body's schema layer | [§3.4.2](docs/draft-trendvidia-protowire-00.txt) |
+| `@entry [<label>] [<type>] { ... }` | Bundle of heterogeneous typed sub-messages — manifest-style documents | [§3.4.3](docs/draft-trendvidia-protowire-00.txt) |
+| `@table <type> ( cols ) ( vals )...` | Many rows of one message type — the protowire-native CSV replacement | [§3.4.4](docs/draft-trendvidia-protowire-00.txt) |
+
+### `@type` — body's message type
+
+```
+@type infra.v1.ServerConfig
+hostname = "web-01.prod.example.com"
+port     = 8443
+```
+
+Names the type of the document body. At most one `@type` per document. Decoders may require it when the caller hasn't pre-bound a target type (e.g. when accepting `application/pxf` over HTTP without a `Content-Schema` parameter).
+
+### `@<name>` — side-channel directives
+
+```
+@header chameleon.v1.LayerHeader {
+  id = "base"
+  encrypted = false
+  generated_at = 2026-05-12T10:00:00Z
+}
+
+string_field = "body content here"
+```
+
+Open-ended namespace for application-defined metadata. The block's inner content is parsed for syntactic well-formedness but **not** decoded against the body's schema — the consumer reads it back as raw bytes via `Result.directives()` (Go) / `Result.directives()` (Java) and binds it to a message type of its own choosing.
+
+**Use case in the wild:** [chameleon](https://github.com/trendvidia/chameleon)'s layer files carry an `@header` preamble with per-file sanity-check fields (file ID, encryption flag, generation timestamp). The resolver reads the header, validates it against its chain spec, and then decodes the body against the layer's schema. Before `@<name>` existed, chameleon had to peel the header off the byte stream with a duplicate tokenizer; now it iterates `result.directives()` and hands each `Directive.body()` back to `unmarshalFull` against `LayerHeader`.
+
+`@<name>` accepts zero-or-more prefix identifiers before the optional `{ ... }` block. The convention shipped in v0.72 used a single identifier as the dotted type name (`@header chameleon.v1.LayerHeader { ... }`); v0.73 generalized to zero-or-more so other registrations (notably `@entry`) can carry their own positional metadata. Specific directive names are registered by other specifications or by applications.
+
+### `@entry` — bundle / manifest documents
+
+```
+@type bundle.v1.Manifest
+
+@entry alice users.v1.User {
+  name  = "Alice"
+  email = "alice@example.com"
+}
+
+@entry bob users.v1.User {
+  name  = "Bob"
+  email = "bob@example.com"
+}
+
+@entry orders.v1.Order {
+  id    = "o-99"
+  total = 42.50
+}
+
+@entry {
+  note = "manifest produced by ops-export 2026-05-11"
+}
+```
+
+Four permitted shapes, distinguished by the prefix identifiers:
+
+| Shape | Example | Meaning |
+|---|---|---|
+| anonymous, typeless | `@entry { ... }` | Free-form sub-document; consumer decides the schema |
+| labeled, typeless | `@entry name { ... }` | Caller-provided label only |
+| typed only (dotted ident) | `@entry some.pkg.Type { ... }` | Dotted prefix is the message type |
+| labeled and typed | `@entry name some.pkg.Type { ... }` | Both — manifest entry with a stable name |
+
+The single-prefix form is disambiguated by the presence of a `.` — dotted ⇒ type, bare ⇒ label.
+
+**Use cases:** export bundles where each entry is a different proto type, manifest files describing several typed artifacts, anything that would otherwise be modeled as `repeated google.protobuf.Any` plus a name string.
+
+### `@table` — bulk rows (the CSV replacement)
+
+```
+@table trades.v1.Trade (symbol, price, qty, side, ts)
+("AAPL", 192.34, 100, BUY,  2026-05-11T10:00:00Z)
+("MSFT", 410.10, 50,  SELL, 2026-05-11T10:00:01Z)
+("GOOG", 142.00, 25,  BUY,  2026-05-11T10:00:02Z)
+```
+
+A header `@table <type> ( cols )` names the row message type and a list of top-level field names; each subsequent `( … )` is a row whose values bind positionally to those columns. The protowire-native CSV replacement: same per-row compactness CSV gives you, but with real types, escape rules, comments, and nullability that CSV famously doesn't.
+
+**Three-state cells** map onto the existing `(pxf.required)` / `(pxf.default)` annotations with zero new spec surface:
+
+```
+@table users.v1.User (name, email, role)
+("alice", "alice@example.com", ADMIN)   # all three set
+("bob",   null,                 GUEST)   # email explicitly null — clears the wrapper
+("eve",   ,                     GUEST)   # email cell empty — field absent, (pxf.default) applies
+```
+
+| Cell | Meaning |
+|---|---|
+| any value literal | field set to that value |
+| `null` | field present-but-null — clears wrappers, oneofs, and `optional` fields per §3.9 |
+| empty (between two commas, or at row start/end) | field absent — `(pxf.default)` is applied if declared; `(pxf.required)` errors |
+
+**v1 restrictions** (the spec keeps these tight so row tokenization is trivially comma-splittable):
+
+- Cells are scalar-shaped — no `[...]` list literals or `{...}` block values inside a cell.
+- Column entries are unqualified top-level field names — no dotted paths like `addr.city`.
+- Row arity MUST equal column count — no trailing-empty shorthand.
+- A document containing `@table` MUST NOT also carry `@type` or top-level field entries. The `@table` header is itself the document's type declaration.
+
+A document MAY contain multiple `@table` directives (same or different types). Order is preserved.
+
+**Use cases:** event logs, market-data ticks, audit trails, batch exports — anywhere CSV would otherwise show up. The first-port implementation in [`protowire-go`](https://github.com/trendvidia/protowire-go) ships both a materializing path (`Result.Tables()`, returns the full row list) and a streaming path (`pxf.TableReader` over an `io.Reader`, working-set memory bounded by the largest single row regardless of total row count). The streaming contract is in the spec at [§3.4.4 "Streaming consumption"](docs/draft-trendvidia-protowire-00.txt).
+
+**Per-row binding into proto messages** is exposed via `TableReader.Scan(msg)` / `pxf.BindRow(msg, cols, row)` in Go and the analogous `TableReader.scan(builder)` / `BindRow.bindRow(...)` in Java. The cell-state semantics above are honored automatically — empty cells leave fields absent, `null` cells clear wrappers, value cells set fields.
+
+### Schema constraints
+
+A protobuf schema bound for PXF use MUST NOT declare a message field, oneof, or enum value whose name is case-sensitively equal to `null`, `true`, or `false` (draft §3.13). Those names lex as PXF value keywords, so the declared element would be unreachable from PXF surface syntax — `field = null` always resolves to the null-literal branch, and an enum value named `null` could never be selected by name. The check is case-sensitive: `NULL`, `True`, `FALSE` lex as ordinary identifiers and are accepted.
+
+Tools enforce this at descriptor-bind time:
+
+- Run [`protowire lint`](#cli) against a `.proto` file or registry-resident schema to surface violations before binding.
+- The Go / Java decoders run the check by default at the top of every `Unmarshal`-style call and reject non-conformant schemas with a clear error. Opt-out is available via `UnmarshalOptions.SkipValidate` for callers who've already pre-validated.
+
+Schemas that violate the constraint were never round-trippable through PXF; rejecting them at bind time surfaces a pre-existing latent bug rather than introducing one.
 
 ## Syntax
 
