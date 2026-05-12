@@ -10,6 +10,16 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+## [0.74.0] – 2026-05-12
+
+Streaming-consumption release. One informational addition to §3.4.4:
+implementations MAY expose a row-by-row streaming API alongside the
+materializing one (and for `@table`'s CSV-replacement use case
+typically SHOULD), with a pinned contract on row order, per-row
+enforcement, and working-set memory. No grammar change, no wire
+change. First-port implementation: `protowire-go` v0.74.0
+(`pxf.TableReader` over `io.Reader`).
+
 ### Changed
 
 - **PXF spec — `@table` streaming consumption.** Section 3.4.4 grows
