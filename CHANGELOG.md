@@ -10,6 +10,34 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+### Changed
+
+- **PXF spec — `@table` streaming consumption.** Section 3.4.4 grows
+  a "Streaming consumption" paragraph stating that implementations
+  MAY (and for the CSV-replacement use case typically SHOULD) expose
+  a row-by-row streaming API alongside the materializing one. The
+  contract: rows in source order, per-row arity + cell-grammar
+  enforced as each row is consumed (not deferred), working-set
+  memory bounded by the largest single row. Streaming and
+  materializing APIs that coexist in the same implementation MUST
+  produce byte-identical row sequences for the same input.
+
+  No grammar change, no wire change — this is informational, making
+  explicit what §3.4.4's existing "consumer-interpreted side-channel"
+  framing already permitted. Without it, port maintainers reasonably
+  read "rows are exposed through a parser API" as mandating full
+  materialization.
+
+  Spec changes:
+  - `docs/draft-trendvidia-protowire-00.txt` §3.4.4: new paragraph
+    after "Consumer contract."
+  - `docs/grammar.ebnf`, `docs/grammar.svg`: unchanged.
+
+  First-port implementation: `protowire-go` v0.74.0 (`pxf.TableReader`
+  over `io.Reader`, `NewTableReader`/`Type`/`Columns`/`Directives`/
+  `Next`). Other ports add streaming when their CSV-replacement
+  consumers ask for it; no conformance obligation to expose it.
+
 ## [0.73.0] – 2026-05-11
 
 Schema-constraint + directive-expansion release. Three additions to
