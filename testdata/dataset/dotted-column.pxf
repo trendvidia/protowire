@@ -2,6 +2,6 @@
 # MUST be rejected — v1 column entries are unqualified field names;
 # dotted paths are reserved for a future revision.
 
-@table test.v1.AllTypes (string_field, nested_field.name)
+@dataset test.v1.AllTypes (string_field, nested_field.name)
 
 ("row-1", "inner")

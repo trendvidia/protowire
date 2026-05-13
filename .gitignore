@@ -28,3 +28,10 @@ editors/jetbrains/plugin/.kotlin/
 editors/jetbrains/plugin/build/
 editors/jetbrains/plugin/dist/*.zip
 !editors/jetbrains/plugin/dist/pxf-jetbrains-*.zip
+
+# kramdown-rfc bibliography cache and xml2rfc intermediate (both
+# regeneratable from docs/draft-trendvidia-protowire.md via
+# scripts/build_rfc.sh).
+.refcache/
+**/.refcache/
+docs/draft-trendvidia-protowire.xml

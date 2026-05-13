@@ -26,23 +26,34 @@
  * there and disambiguated by the schema layer.
  *
  * Before the body, the document may carry zero or more directives.
- * '@type' is the canonical type-declaring directive (special: at most
- * one, names the body's message type). Other directives are
- * application-extensible: each names a side-channel block (e.g.
+ * Four directive shapes are spec-defined: '@type' (Section 3.4.1)
+ * names the body's message type, '@dataset' (Section 3.4.4) is the
+ * row-oriented CSV replacement, '@proto' (Section 3.4.5) carries
+ * an embedded protobuf schema, and '@entry' (Section 3.4.3) bundles
+ * heterogeneous typed sub-messages via the named_directive shape.
+ * All other directive names beyond the reserved set (Section 3.4.6)
+ * are application-extensible: each names a side-channel block (e.g.
  * chameleon's '@header chameleon.v1.LayerHeader { ... }') the
  * consumer's runtime interprets — never the body's schema layer.
- * Directives may appear in any order. Names other than 'type' have
- * no semantics defined by this spec; an implementation that does not
- * recognize a directive name MAY skip the directive (its block, if
- * present, is parsed for syntactic well-formedness) or MAY error.
+ * Directives may appear in any order. An implementation that does
+ * not recognize an application directive name MAY skip the directive
+ * (its block, if present, is parsed for syntactic well-formedness)
+ * or MAY error.
  *)
 document      = { directive } , { field_entry } ;
 
-directive     = type_directive | table_directive | named_directive ;
+directive     = type_directive
+              | dataset_directive
+              | proto_directive
+              | named_directive ;
 
 type_directive    = '@type' , identifier ;
 named_directive   = '@' , directive_name , { identifier } , [ block_tail ] ;
-directive_name    = identifier - ( 'type' | 'table' | 'null' | 'true' | 'false' ) ;
+directive_name    = identifier - ( 'type'        | 'dataset'    | 'proto'
+                                 | 'entry'       | 'table'      | 'datasource'
+                                 | 'view'        | 'procedure'  | 'function'
+                                 | 'permissions' | 'null'       | 'true'
+                                 | 'false' ) ;
 
 (*
  * The prefix-identifier list of a named_directive is positional; its
@@ -58,25 +69,37 @@ directive_name    = identifier - ( 'type' | 'table' | 'null' | 'true' | 'false' 
  *       bundle/manifest form (Section 3.4.3 of the draft). The first
  *       optional identifier is a caller-provided label; the second
  *       optional identifier is the dotted message type. Either or both
- *       may be omitted.
+ *       may be omitted. 'entry' is reserved (Section 3.4.6) and may
+ *       not be used as the name of any other named_directive.
  *
  * The grammar accepts arbitrarily many prefix identifiers — individual
  * directive registrations may further constrain the count.
  *
- * @table is given its own production rather than threaded through
- * named_directive because its body is a sequence of positional
- * row tuples '( ... )', not a brace-delimited entry list.
+ * @dataset and @proto are given their own productions rather than
+ * threaded through named_directive: @dataset's body is a sequence of
+ * positional row tuples '( ... )' not a brace-delimited entry list,
+ * and @proto's body may carry verbatim protobuf source or a base64
+ * descriptor (neither parses as an entry list).
+ *
+ * Reserved directive names. The directive_name production excludes
+ * (a) the names of directives with their own production above
+ * ('type', 'dataset', 'proto'); (b) 'entry', which uses named_directive
+ * shape but is spec-registered; (c) 'table', 'datasource', 'view',
+ * 'procedure', 'function', 'permissions', reserved for future spec
+ * allocation; and (d) the value keywords 'null', 'true', 'false'.
+ * Section 3.4.6 of the draft documents the reserved-name list.
  *)
 
 
-(* === Table directive === *)
+(* === Dataset directive === *)
 
 (*
- * @table is a positional, row-oriented form for representing many
- * instances of a single message type in a single document. Section
- * 3.4.4 of the draft defines the semantics:
+ * @dataset is a positional, row-oriented form for representing many
+ * instances of a single message type in a single document — the
+ * protowire-native replacement for CSV. Section 3.4.4 of the draft
+ * defines the semantics:
  *
- *   @table <type> ( <col1>, <col2>, ... )
+ *   @dataset <type> ( <col1>, <col2>, ... )
  *   ( <val1>, <val2>, ... )
  *   ( <val1>, <val2>, ... )
  *
@@ -92,11 +115,16 @@ directive_name    = identifier - ( 'type' | 'table' | 'null' | 'true' | 'false' 
  *   - the bare token 'null' denotes a present-but-null field;
  *   - any other value denotes a present field with that value.
  *
- * A document containing a table_directive MUST NOT also contain a
- * type_directive or any field_entry at document root; the @table
+ * A document containing a dataset_directive MUST NOT also contain a
+ * type_directive or any field_entry at document root; the @dataset
  * header is itself the type declaration.
+ *
+ * <type> MAY be omitted when an anonymous @proto directive
+ * (Section 3.4.5) precedes the dataset in document order; the
+ * anonymous schema is consumed as the row message type. In that
+ * case the header carries only the column list.
  *)
-table_directive   = '@table' , identifier , '(' , column_list , ')' , { row } ;
+dataset_directive = '@dataset' , [ identifier ] , '(' , column_list , ')' , { row } ;
 column_list       = identifier , { ',' , identifier } ;
 row               = '(' , row_cell , { ',' , row_cell } , ')' ;
 row_cell          = [ row_value ] ;
@@ -109,6 +137,48 @@ row_value         = string
                   | timestamp
                   | duration
                   | identifier ;
+
+
+(* === Proto directive === *)
+
+(*
+ * @proto carries an embedded protobuf schema, allowing a PXF document
+ * to be self-describing. Section 3.4.5 of the draft defines the
+ * semantics. Four body shapes are distinguished lexically:
+ *
+ *   - Anonymous: @proto { <message-body> }
+ *       Defines an unnamed message used by the next typed directive
+ *       in document order (one-shot binding). The body is protobuf
+ *       message-body syntax (field declarations and nested types).
+ *
+ *   - Named: @proto <dotted-name> { <message-body> }
+ *       Sugar for a single named message. The dotted identifier
+ *       names the type: the dotted prefix is the package, the final
+ *       component is the message name.
+ *
+ *   - Source: @proto """<proto-source>"""
+ *       A complete protobuf source file (with 'syntax', 'package',
+ *       'import', one or more 'message' declarations, etc.) carried
+ *       as a triple-quoted string.
+ *
+ *   - Descriptor: @proto b"<base64-FileDescriptorSet>"
+ *       A base64-encoded google.protobuf.FileDescriptorSet, the
+ *       compiled form. Every conformant implementation MUST support
+ *       this shape; source-form support is QoI.
+ *
+ * Multiple @proto directives MAY appear; their union is the document-
+ * scoped schema. An anonymous @proto is one-shot — consumed by the
+ * next typed directive that does not carry an explicit type name.
+ *)
+proto_directive       = '@proto' , proto_body ;
+proto_body            = proto_anonymous_body
+                      | proto_named_body
+                      | proto_source_body
+                      | proto_descriptor_body ;
+proto_anonymous_body  = '{' , ?protobuf message body? , '}' ;
+proto_named_body      = identifier , '{' , ?protobuf message body? , '}' ;
+proto_source_body     = triple_string ;
+proto_descriptor_body = bytes ;
 
 
 (* === Entries === *)
@@ -284,8 +354,13 @@ oct_lead      = '0' | '1' | '2' | '3' ;   (* keeps \nnn <= 0xFF *)
  * - An enum value name MUST NOT be case-sensitively equal to 'null',
  *   'true', or 'false'.
  * - A named-directive name MUST NOT be case-sensitively equal to
- *   'type' (reserved for the type directive), 'null', 'true', or
- *   'false'. Encoded by the directive_name production above.
+ *   the value keywords ('null', 'true', 'false') or to any spec-
+ *   reserved directive name. The reserved set comprises directives
+ *   with their own production ('type', 'dataset', 'proto'), the
+ *   spec-registered 'entry', and the future-allocated names 'table',
+ *   'datasource', 'view', 'procedure', 'function', 'permissions'.
+ *   Encoded by the directive_name production above and documented
+ *   in Section 3.4.6 of the draft.
  *
  * Tools that bind a protobuf descriptor for PXF use (encoders,
  * decoders, codegen plugins, linters) MUST reject a non-conforming

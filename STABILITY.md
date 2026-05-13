@@ -20,6 +20,16 @@ Concretely:
 4. **Envelope schema.** [`proto/envelope/v1/envelope.proto`](proto/envelope/v1/envelope.proto) is versioned in the package path. A `v1` envelope produced by any `0.73.0+` port is byte-equivalent to a `v1` envelope produced by any `1.0.0+` port for the same logical value. Incompatible changes bump the package to `v2`; `v1` and `v2` may coexist indefinitely.
 5. **Well-known type kind constants** (`PxfMeta.WKT_TIMESTAMP = 1`, …, `PxfMeta.WKT_BIG_FLOAT = 14`). The integers are baked into every emitted `WELL_KNOWN_KINDS` table at codegen time. Adding new entries is fine; renumbering is a wire break.
 
+### v1.0 — spec freeze line
+
+v1.0 is the major bump that closes the pre-1.0 spec evolution period. It includes three one-time text-grammar changes that the wire-stability promise above would otherwise forbid; these are permissible at v1.0 because v1.0 is itself the major bump:
+
+- **`@table` → `@dataset` rename** ([draft §3.4.4](docs/draft-trendvidia-protowire-00.txt)). The row-oriented directive is renamed; semantics are unchanged. v1.0 ports do not accept `@table` and no alias period is provided. Migration is textual substitution.
+- **`@proto` directive added** ([draft §3.4.5](docs/draft-trendvidia-protowire-00.txt)). New embedded-schema directive with four body shapes (anonymous, named, source, descriptor). Strictly additive — pre-v1.0 documents that don't use `@table` remain valid v1.0 documents without change.
+- **Reserved directive names expanded** ([draft §3.4.6](docs/draft-trendvidia-protowire-00.txt)). The reserved set grows from 5 names to 13. Applications that used `entry`, `table`, `datasource`, `view`, `procedure`, `function`, or `permissions` as a named-directive name must rename.
+
+Past v1.0, the wire-stability promise applies as written: additive grammar changes are permitted at minor versions, removals or narrowings require another major bump.
+
 ### CLI surface — evolves
 
 The shared CLI in [`cmd/protowire`](cmd/protowire) follows looser rules. New subcommands and flags can be added at any minor version. Existing flags are deprecated with one minor-version notice before removal at the next major. CLI exit codes are stable (`0` success, `1` user error, `2` internal error), and the JSON output schema produced by `bench-pxf` / `bench-sbe` is stable per [point 6](#promises) below.
