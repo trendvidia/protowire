@@ -9,7 +9,10 @@
       "include": "#type-directive"
     },
     {
-      "include": "#table-directive"
+      "include": "#dataset-directive"
+    },
+    {
+      "include": "#proto-directive"
     },
     {
       "include": "#named-directive"
@@ -94,8 +97,19 @@
         }
       }
     },
-    "table-directive": {
-      "match": "(@table)\\s+([A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*)",
+    "dataset-directive": {
+      "match": "(@dataset)(?:\\s+([A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*))?",
+      "captures": {
+        "1": {
+          "name": "keyword.other.directive.pxf"
+        },
+        "2": {
+          "name": "entity.name.type.pxf"
+        }
+      }
+    },
+    "proto-directive": {
+      "match": "(@proto)(?:\\s+([A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*))?",
       "captures": {
         "1": {
           "name": "keyword.other.directive.pxf"

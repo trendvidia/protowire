@@ -64,7 +64,7 @@ nullable_name = "present"
 | YAML | Indentation-fragile, type coercion surprises (`no` -> `false`), complex spec |
 | Protobuf textproto | No list/map literals, repeated fields are ugly, `:` separators feel archaic |
 | HCL | Own type system, designed for config not serialization, expression evaluation adds complexity |
-| CSV | No types, no escaping rules, no nesting, ambiguous nulls (the [`@table`](#table--bulk-rows-the-csv-replacement) directive covers this case) |
+| CSV | No types, no escaping rules, no nesting, ambiguous nulls (the [`@dataset`](#dataset--bulk-rows-the-csv-replacement) directive covers this case) |
 
 PXF uses your existing `.proto` files as the schema. No new schema language. No ambiguity — the parser always knows every field's type.
 
@@ -143,7 +143,7 @@ A PXF document admits one or more `@<name>` directives at the document root, ahe
 | `@type <message-type>` | Names the body's message type | [§3.4.1](docs/draft-trendvidia-protowire-00.txt) |
 | `@<name> *(<prefix-id>) [{ ... }]` | Side-channel metadata interpreted by the consumer, not the body's schema layer | [§3.4.2](docs/draft-trendvidia-protowire-00.txt) |
 | `@entry [<label>] [<type>] { ... }` | Bundle of heterogeneous typed sub-messages — manifest-style documents | [§3.4.3](docs/draft-trendvidia-protowire-00.txt) |
-| `@table <type> ( cols ) ( vals )...` | Many rows of one message type — the protowire-native CSV replacement | [§3.4.4](docs/draft-trendvidia-protowire-00.txt) |
+| `@dataset <type> ( cols ) ( vals )...` | Many rows of one message type — the protowire-native CSV replacement | [§3.4.4](docs/draft-trendvidia-protowire-00.txt) |
 
 ### `@type` — body's message type
 
@@ -211,21 +211,21 @@ The single-prefix form is disambiguated by the presence of a `.` — dotted ⇒ 
 
 **Use cases:** export bundles where each entry is a different proto type, manifest files describing several typed artifacts, anything that would otherwise be modeled as `repeated google.protobuf.Any` plus a name string.
 
-### `@table` — bulk rows (the CSV replacement)
+### `@dataset` — bulk rows (the CSV replacement)
 
 ```
-@table trades.v1.Trade (symbol, price, qty, side, ts)
+@dataset trades.v1.Trade (symbol, price, qty, side, ts)
 ("AAPL", 192.34, 100, BUY,  2026-05-11T10:00:00Z)
 ("MSFT", 410.10, 50,  SELL, 2026-05-11T10:00:01Z)
 ("GOOG", 142.00, 25,  BUY,  2026-05-11T10:00:02Z)
 ```
 
-A header `@table <type> ( cols )` names the row message type and a list of top-level field names; each subsequent `( … )` is a row whose values bind positionally to those columns. The protowire-native CSV replacement: same per-row compactness CSV gives you, but with real types, escape rules, comments, and nullability that CSV famously doesn't.
+A header `@dataset <type> ( cols )` names the row message type and a list of top-level field names; each subsequent `( … )` is a row whose values bind positionally to those columns. The protowire-native CSV replacement: same per-row compactness CSV gives you, but with real types, escape rules, comments, and nullability that CSV famously doesn't.
 
 **Three-state cells** map onto the existing `(pxf.required)` / `(pxf.default)` annotations with zero new spec surface:
 
 ```
-@table users.v1.User (name, email, role)
+@dataset users.v1.User (name, email, role)
 ("alice", "alice@example.com", ADMIN)   # all three set
 ("bob",   null,                 GUEST)   # email explicitly null — clears the wrapper
 ("eve",   ,                     GUEST)   # email cell empty — field absent, (pxf.default) applies
@@ -242,13 +242,13 @@ A header `@table <type> ( cols )` names the row message type and a list of top-l
 - Cells are scalar-shaped — no `[...]` list literals or `{...}` block values inside a cell.
 - Column entries are unqualified top-level field names — no dotted paths like `addr.city`.
 - Row arity MUST equal column count — no trailing-empty shorthand.
-- A document containing `@table` MUST NOT also carry `@type` or top-level field entries. The `@table` header is itself the document's type declaration.
+- A document containing `@dataset` MUST NOT also carry `@type` or top-level field entries. The `@dataset` header is itself the document's type declaration.
 
-A document MAY contain multiple `@table` directives (same or different types). Order is preserved.
+A document MAY contain multiple `@dataset` directives (same or different types). Order is preserved.
 
-**Use cases:** event logs, market-data ticks, audit trails, batch exports — anywhere CSV would otherwise show up. The first-port implementation in [`protowire-go`](https://github.com/trendvidia/protowire-go) ships both a materializing path (`Result.Tables()`, returns the full row list) and a streaming path (`pxf.TableReader` over an `io.Reader`, working-set memory bounded by the largest single row regardless of total row count). The streaming contract is in the spec at [§3.4.4 "Streaming consumption"](docs/draft-trendvidia-protowire-00.txt).
+**Use cases:** event logs, market-data ticks, audit trails, batch exports — anywhere CSV would otherwise show up. The first-port implementation in [`protowire-go`](https://github.com/trendvidia/protowire-go) ships both a materializing path (`Result.Datasets()`, returns the full row list) and a streaming path (`pxf.DatasetReader` over an `io.Reader`, working-set memory bounded by the largest single row regardless of total row count). The streaming contract is in the spec at [§3.4.4 "Streaming consumption"](docs/draft-trendvidia-protowire-00.txt).
 
-**Per-row binding into proto messages** is exposed via `TableReader.Scan(msg)` / `pxf.BindRow(msg, cols, row)` in Go and the analogous `TableReader.scan(builder)` / `BindRow.bindRow(...)` in Java. The cell-state semantics above are honored automatically — empty cells leave fields absent, `null` cells clear wrappers, value cells set fields.
+**Per-row binding into proto messages** is exposed via `DatasetReader.Scan(msg)` / `pxf.BindRow(msg, cols, row)` in Go and the analogous `DatasetReader.scan(builder)` / `BindRow.bindRow(...)` in Java. The cell-state semantics above are honored automatically — empty cells leave fields absent, `null` cells clear wrappers, value cells set fields.
 
 ### Schema constraints
 

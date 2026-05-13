@@ -5,7 +5,8 @@
   "patterns": [
     { "include": "#comments" },
     { "include": "#type-directive" },
-    { "include": "#table-directive" },
+    { "include": "#dataset-directive" },
+    { "include": "#proto-directive" },
     { "include": "#named-directive" },
     { "include": "#triple-quoted-string" },
     { "include": "#bytes-literal" },
@@ -51,8 +52,15 @@
         "2": { "name": "entity.name.type.pxf" }
       }
     },
-    "table-directive": {
-      "match": "(@table)\\s+([A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*)",
+    "dataset-directive": {
+      "match": "(@dataset)(?:\\s+([A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*))?",
+      "captures": {
+        "1": { "name": "keyword.other.directive.pxf" },
+        "2": { "name": "entity.name.type.pxf" }
+      }
+    },
+    "proto-directive": {
+      "match": "(@proto)(?:\\s+([A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*))?",
       "captures": {
         "1": { "name": "keyword.other.directive.pxf" },
         "2": { "name": "entity.name.type.pxf" }
