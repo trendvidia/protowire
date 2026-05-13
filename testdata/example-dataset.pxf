@@ -1,4 +1,4 @@
-# Example of the "@table" directive (draft §3.4.4).
+# Example of the "@dataset" directive (draft §3.4.4).
 #
 # Many instances of a single message type in a single document. Each row
 # binds positionally to the header column list; the three cell states
@@ -7,7 +7,7 @@
 #
 # Schema reference: test.v1.AllTypes (see testdata/test.proto).
 
-@table test.v1.AllTypes (string_field, int32_field, enum_field, ts_field, nullable_int)
+@dataset test.v1.AllTypes (string_field, int32_field, enum_field, ts_field, nullable_int)
 
 ("row-1", 1, STATUS_ACTIVE,   2026-05-11T10:00:00Z, 42)
 ("row-2", 2, STATUS_INACTIVE, 2026-05-11T10:00:01Z, null)
