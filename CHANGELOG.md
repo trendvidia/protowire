@@ -10,6 +10,61 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+## [1.0.0] – 2026-05-13
+
+First major-version cut and spec freeze line. Three one-time spec
+changes ship in lockstep across the whole `protowire-*` stack.
+**Breaking** — there is no alias period; v1.0 is itself the major bump.
+See `STABILITY.md` for the rules-of-engagement after v1.0.
+
+### Spec changes
+
+- **`@table` → `@dataset` rename** (draft §3.4.4). Same semantics; the
+  directive represents the dataset (rows), not the storage container.
+  v1 reserves `@table` for a future storage-definition meaning in the
+  database export/import direction sketched in §3.4.6.
+- **`@proto` directive added** (draft §3.4.5). Four body shapes
+  lexically distinguished: anonymous (`@proto { ... }`), named
+  (`@proto pkg.Type { ... }`), source (`@proto """..."""`), descriptor
+  (`@proto b"..."`). Descriptor form is the MUST-support shape; the
+  other three are QoI. Anonymous `@proto` is consumed one-shot by the
+  next directive that requires a typed binding.
+- **Reserved directive names expanded from 5 to 13** (draft §3.4.6).
+  Adds `dataset`, `proto`, `entry` (promoted from spec-registered),
+  and the future-allocated `table`, `datasource`, `view`, `procedure`,
+  `function`, `permissions`.
+
+### Source switch
+
+The IETF draft authoring source moves from raw `.txt` to
+kramdown-rfc Markdown:
+`docs/draft-trendvidia-protowire.md` is now the source of truth;
+the paginated `.txt` is regenerated via `scripts/build_rfc.sh`.
+
+### Port releases at v1.0 freeze
+
+- `protowire-go` v1.0.0
+- `protowire-java` v1.0.1 (the v1.0.0 tag exists in git but the
+  Maven Central publish failed on two leftover javadoc `Result#tables()`
+  references that survived the rename; v1.0.1 ships the fix)
+- `protowire-typescript` v1.0.0 (published to npm as
+  `@trendvidia/protowire@1.0.0`)
+
+### Editor extensions
+
+Both extensions bump to v1.0.0 in lockstep and pick up the new
+parser bundles:
+
+- **VS Code** `editors/vscode/dist/pxf-1.0.0.vsix` — embeds
+  `@trendvidia/protowire@1.0.0`. TextMate grammar highlights
+  `@dataset` and `@proto`.
+- **JetBrains** `editors/jetbrains/plugin/dist/pxf-jetbrains-1.0.0.zip`
+  — embeds the `protowire-pxf-1.0.1.jar` parser. Same grammar
+  changes as VS Code.
+
+Documents that use `@table` will get red squiggles under v1.0.0
+extensions; rename to `@dataset` to clear them.
+
 ## [0.74.0] – 2026-05-12
 
 Streaming-consumption release. One informational addition to §3.4.4:

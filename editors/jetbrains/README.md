@@ -26,11 +26,11 @@ Two install paths are supported. **Most users want option A.**
 ## Option A — Install the prebuilt plugin (recommended)
 
 A ready-to-install plugin `.zip` ships at
-[`plugin/dist/pxf-jetbrains-0.1.2.zip`](plugin/dist/pxf-jetbrains-0.1.2.zip).
+[`plugin/dist/pxf-jetbrains-1.0.0.zip`](plugin/dist/pxf-jetbrains-1.0.0.zip).
 
 1. In your IDE, open **Settings / Preferences → Plugins**.
 2. Click the **⚙** (gear) icon → **Install Plugin from Disk…**.
-3. Pick `editors/jetbrains/plugin/dist/pxf-jetbrains-0.1.2.zip`.
+3. Pick `editors/jetbrains/plugin/dist/pxf-jetbrains-1.0.0.zip`.
 4. Restart the IDE when prompted.
 
 The plugin bundles the TextMate grammar and registers it on first project
@@ -84,7 +84,7 @@ editors/jetbrains/
     │       ├── fileTemplates/internal/PXF File.pxf.ft
     │       └── pxf.tmbundle/            # bundled grammar copy
     └── dist/
-        └── pxf-jetbrains-0.1.2.zip      # prebuilt plugin
+        └── pxf-jetbrains-1.0.0.zip      # prebuilt plugin
 ```
 
 ## Rebuilding the plugin
@@ -95,7 +95,7 @@ Platform SDK on first run, ~600MB):
 ```bash
 cd editors/jetbrains/plugin
 ./gradlew buildPlugin
-cp build/distributions/pxf-jetbrains-0.1.2.zip dist/
+cp build/distributions/pxf-jetbrains-1.0.0.zip dist/
 ```
 
 ## Refreshing the parser jar (temporary workflow)
