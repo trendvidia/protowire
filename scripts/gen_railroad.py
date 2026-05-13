@@ -54,7 +54,13 @@ add(
 
 add(
     "directive",
-    Choice(0, n("type_directive"), n("table_directive"), n("named_directive")),
+    Choice(
+        0,
+        n("type_directive"),
+        n("dataset_directive"),
+        n("proto_directive"),
+        n("named_directive"),
+    ),
 )
 
 add(
@@ -74,19 +80,60 @@ add(
 
 add(
     "directive_name",
-    Comment("identifier except 'type', 'table', 'null', 'true', 'false'"),
+    Comment("identifier except spec-reserved names (see draft §3.4.6)"),
 )
 
 add(
-    "table_directive",
+    "dataset_directive",
     Sequence(
-        t("@table"),
-        n("identifier"),
+        t("@dataset"),
+        Optional(n("identifier")),
         t("("),
         n("column_list"),
         t(")"),
         ZeroOrMore(n("row")),
     ),
+)
+
+add(
+    "proto_directive",
+    Sequence(t("@proto"), n("proto_body")),
+)
+
+add(
+    "proto_body",
+    Choice(
+        0,
+        n("proto_anonymous_body"),
+        n("proto_named_body"),
+        n("proto_source_body"),
+        n("proto_descriptor_body"),
+    ),
+)
+
+add(
+    "proto_anonymous_body",
+    Sequence(t("{"), Comment("protobuf message body"), t("}")),
+)
+
+add(
+    "proto_named_body",
+    Sequence(
+        n("identifier"),
+        t("{"),
+        Comment("protobuf message body"),
+        t("}"),
+    ),
+)
+
+add(
+    "proto_source_body",
+    n("triple_string"),
+)
+
+add(
+    "proto_descriptor_body",
+    n("bytes"),
 )
 
 add(
