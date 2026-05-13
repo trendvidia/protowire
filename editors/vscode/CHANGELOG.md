@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.0.0
+
+Lockstep major bump alongside the protowire v1.0 spec freeze.
+
+- **Bump `@trendvidia/protowire` to `^1.0.0`** — picks up the three
+  v1.0 spec changes (`@table` → `@dataset` rename, `@proto`
+  embedded-schema directive, expanded reserved-directive-name set).
+  Documents using the new directives now parse without false red
+  squiggles.
+- **TextMate grammar updated** in lockstep: `@dataset` and `@proto`
+  are highlighted as directive keywords with their dotted type
+  identifiers; the legacy `@table` pattern is removed.
+- **Extension version 0.1.2 → 1.0.0** — aligns the marketplace
+  numbering with the rest of the protowire-* stack at v1.0.0.
+
 ## 0.1.2
 
 - **Parser dependency now resolved from npm** instead of a vendored

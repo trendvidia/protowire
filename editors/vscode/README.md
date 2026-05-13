@@ -27,15 +27,15 @@ it locally with one of the options below.
 
 ## Option 1 — Install the shipped `.vsix` (recommended)
 
-A pre-built package lives at [`dist/pxf-0.1.1.vsix`](dist/pxf-0.1.1.vsix).
+A pre-built package lives at [`dist/pxf-1.0.0.vsix`](dist/pxf-1.0.0.vsix).
 No toolchain required to install:
 
 ```bash
-code --install-extension editors/vscode/dist/pxf-0.1.1.vsix
+code --install-extension editors/vscode/dist/pxf-1.0.0.vsix
 ```
 
 Or, in the VS Code UI: open the **Extensions** panel → click **…** →
-**Install from VSIX…** → pick `editors/vscode/dist/pxf-0.1.1.vsix`.
+**Install from VSIX…** → pick `editors/vscode/dist/pxf-1.0.0.vsix`.
 
 ## Option 2 — Rebuild the `.vsix`
 
@@ -45,7 +45,7 @@ Useful after changing the grammar or the parser. Requires Node.js 18+:
 cd editors/vscode
 npm install              # one-time
 npm run package          # bundles extension.js with esbuild + writes dist/pxf-<version>.vsix
-code --install-extension dist/pxf-0.1.1.vsix
+code --install-extension dist/pxf-1.0.0.vsix
 ```
 
 ## Option 3 — Symlink for development
@@ -74,7 +74,7 @@ editors/vscode/
 │   └── pxf.tmLanguage.json         # canonical grammar (mirrored into JetBrains bundle)
 └── dist/
     ├── extension.js                # esbuild bundle (build product, not committed)
-    └── pxf-0.1.2.vsix              # prebuilt extension package (committed)
+    └── pxf-1.0.0.vsix              # prebuilt extension package (committed)
 ```
 
 ## Parser dependency

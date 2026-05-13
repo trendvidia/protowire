@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "com.trendvidia.pxf"
-version = "0.1.2"
+version = "1.0.0"
 
 repositories {
     mavenCentral()
