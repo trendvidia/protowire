@@ -128,7 +128,10 @@ type schema struct {
 // Anonymous (`@proto { body }`) is rejected here for now — its binding
 // rule (consume as the type of the next typeless directive) is a
 // separate piece of logic that lands in a follow-up.
-func loadSchema(protoFiles []string, inDoc []pxf.ProtoDirective) (*schema, error) {
+func loadSchema(protoFiles []string, inDoc []pxf.ProtoDirective, reg registryRef) (*schema, error) {
+	if err := reg.validated(); err != nil {
+		return nil, err
+	}
 	// Synthesize virtual .proto files for the source/named shapes so
 	// protocompile can compile them alongside the user-supplied -p
 	// files in a single pass — that way cross-references between the
@@ -200,6 +203,19 @@ func loadSchema(protoFiles []string, inDoc []pxf.ProtoDirective) (*schema, error
 		}
 	}
 
+	// Resolution-order item #4: fetch the bundle from the named
+	// protoregistry schema and merge every reachable message into
+	// the registry. Active only when -s/-n/--schema are all set.
+	if reg.active() {
+		fds, err := fetchRegistry(reg)
+		if err != nil {
+			return nil, err
+		}
+		if err := registerFileDescriptorSet(s, fds, "protoregistry bundle"); err != nil {
+			return nil, err
+		}
+	}
+
 	return s, nil
 }
 
@@ -248,9 +264,17 @@ func registerDescriptorBlob(s *schema, b []byte) error {
 	if err := proto.Unmarshal(b, &fds); err != nil {
 		return fmt.Errorf("@proto descriptor body: unmarshal FileDescriptorSet: %w", err)
 	}
-	files, err := protodesc.NewFiles(&fds)
+	return registerFileDescriptorSet(s, &fds, "@proto descriptor body")
+}
+
+// registerFileDescriptorSet merges every message reachable from fds
+// into the schema registry. Shared between the descriptor-form @proto
+// path and the protoregistry-fetch path so a single test surface
+// covers both.
+func registerFileDescriptorSet(s *schema, fds *descriptorpb.FileDescriptorSet, context string) error {
+	files, err := protodesc.NewFiles(fds)
 	if err != nil {
-		return fmt.Errorf("@proto descriptor body: %w", err)
+		return fmt.Errorf("%s: %w", context, err)
 	}
 	files.RangeFiles(func(fd protoreflect.FileDescriptor) bool {
 		walkMessages(fd.Messages(), s.byFullName)

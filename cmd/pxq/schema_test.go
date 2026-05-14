@@ -52,7 +52,7 @@ message Trade {
   int64 qty = 3;
 }
 `)
-	sch, err := loadSchema([]string{p}, nil)
+	sch, err := loadSchema([]string{p}, nil, registryRef{})
 	if err != nil {
 		t.Fatalf("loadSchema: %v", err)
 	}
@@ -74,7 +74,7 @@ message Outer {
   Inner inner = 1;
 }
 `)
-	sch, err := loadSchema([]string{p}, nil)
+	sch, err := loadSchema([]string{p}, nil, registryRef{})
 	if err != nil {
 		t.Fatalf("loadSchema: %v", err)
 	}
@@ -88,7 +88,7 @@ func TestSchema_EmptyArgsReturnsBundled(t *testing.T) {
 	// every loadSchema call, even with no -p flag and no in-doc
 	// directives. Confirms one type from each bundled file is
 	// findable.
-	sch, err := loadSchema(nil, nil)
+	sch, err := loadSchema(nil, nil, registryRef{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,7 +108,7 @@ func TestSchema_EmptyArgsReturnsBundled(t *testing.T) {
 
 func TestSchema_CompileErrorPropagates(t *testing.T) {
 	p := writeProto(t, "this is not a valid proto file\n")
-	_, err := loadSchema([]string{p}, nil)
+	_, err := loadSchema([]string{p}, nil, registryRef{})
 	if err == nil {
 		t.Error("expected compile error")
 	}
@@ -202,7 +202,7 @@ message Trade {
   int64 qty = 3;
 }
 `)
-	sch, err := loadSchema([]string{p}, nil)
+	sch, err := loadSchema([]string{p}, nil, registryRef{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -290,7 +290,7 @@ message Trade {
   double price = 2;
 }
 `)
-	sch, err := loadSchema([]string{p}, nil)
+	sch, err := loadSchema([]string{p}, nil, registryRef{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -316,7 +316,7 @@ p = 188.42
 func TestPxfProto_UnregisteredTypeErrors(t *testing.T) {
 	p := writeProto(t, `syntax = "proto3"; package x.v1; message A { }
 `)
-	sch, _ := loadSchema([]string{p}, nil)
+	sch, _ := loadSchema([]string{p}, nil, registryRef{})
 	input := "n = 1\n"
 	got := runE2EWithSchema(t,
 		`pxf_proto("not.a.real.Type"; {}) // "errored"`,
@@ -331,7 +331,7 @@ func TestPxfProto_UnregisteredTypeErrors(t *testing.T) {
 func TestPxfProto_PipeForm(t *testing.T) {
 	p := writeProto(t, `syntax = "proto3"; package x.v1; message A { string s = 1; }
 `)
-	sch, _ := loadSchema([]string{p}, nil)
+	sch, _ := loadSchema([]string{p}, nil, registryRef{})
 	input := "t = \"hello\"\n"
 	got := runE2EWithSchema(t,
 		`{s: .t} | pxf_proto("x.v1.A"; .)`,
