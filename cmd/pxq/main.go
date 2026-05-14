@@ -12,10 +12,15 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
+
+var formatFlag string
 
 func main() {
 	root := &cobra.Command{
@@ -29,6 +34,9 @@ func main() {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
+	root.Flags().StringVar(&formatFlag, "format", "",
+		"override input format detection (pxf|json|yaml|csv); default is "+
+			"inferred from the file extension, with stdin (\"-\") defaulting to pxf")
 
 	if err := root.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, "pxq:", err)
@@ -39,14 +47,19 @@ func main() {
 func run(cmd *cobra.Command, args []string) error {
 	query, path := args[0], args[1]
 
-	data, err := os.ReadFile(path)
+	data, err := readInput(path)
 	if err != nil {
-		return fmt.Errorf("read %s: %w", path, err)
+		return err
 	}
 
-	input, err := loadPXF(data)
+	format, err := detectFormat(path, formatFlag)
 	if err != nil {
-		return fmt.Errorf("parse %s: %w", path, err)
+		return err
+	}
+
+	input, err := loadByFormat(format, data)
+	if err != nil {
+		return fmt.Errorf("parse %s as %s: %w", path, format, err)
 	}
 
 	results, err := runQuery(query, input)
@@ -60,4 +73,62 @@ func run(cmd *cobra.Command, args []string) error {
 		}
 	}
 	return nil
+}
+
+func readInput(path string) ([]byte, error) {
+	if path == "-" {
+		return io.ReadAll(os.Stdin)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", path, err)
+	}
+	return data, nil
+}
+
+// detectFormat picks the input adapter to use. Explicit --format wins;
+// otherwise infer from the file extension. Stdin (`-`) without --format
+// defaults to PXF.
+func detectFormat(path, override string) (string, error) {
+	if override != "" {
+		switch override {
+		case "pxf", "json", "yaml", "csv":
+			return override, nil
+		case "yml":
+			return "yaml", nil
+		default:
+			return "", fmt.Errorf("unknown --format %q (want pxf|json|yaml|csv)", override)
+		}
+	}
+	if path == "-" {
+		return "pxf", nil
+	}
+	ext := strings.TrimPrefix(filepath.Ext(path), ".")
+	switch strings.ToLower(ext) {
+	case "pxf":
+		return "pxf", nil
+	case "json":
+		return "json", nil
+	case "yaml", "yml":
+		return "yaml", nil
+	case "csv":
+		return "csv", nil
+	default:
+		return "", fmt.Errorf("cannot infer format from extension %q; pass --format pxf|json|yaml|csv", ext)
+	}
+}
+
+func loadByFormat(format string, data []byte) (any, error) {
+	switch format {
+	case "pxf":
+		return loadPXF(data)
+	case "json":
+		return loadJSON(data)
+	case "yaml":
+		return loadYAML(data)
+	case "csv":
+		return loadCSV(data)
+	default:
+		return nil, fmt.Errorf("internal: unsupported format %q", format)
+	}
 }

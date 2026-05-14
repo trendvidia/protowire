@@ -117,9 +117,12 @@ func valueToAny(v pxf.Value) (any, error) {
 	case *pxf.StringVal:
 		return n.Value, nil
 	case *pxf.IntVal:
-		// Try int64 first, fall back to *big.Int for very large ints.
-		if x, err := strconv.ParseInt(n.Raw, 10, 64); err == nil {
-			return x, nil
+		// gojq's numeric domain is Go `int`. ParseInt with bitSize=0
+		// validates the value fits the platform's int width — on a
+		// 32-bit build, values > int32-max fail here and fall through
+		// to *big.Int, which is the correct routing per the README.
+		if x, err := strconv.ParseInt(n.Raw, 10, 0); err == nil {
+			return int(x), nil
 		}
 		if x, ok := new(big.Int).SetString(n.Raw, 10); ok {
 			return x, nil
