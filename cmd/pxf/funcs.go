@@ -19,7 +19,7 @@ import (
 // env carries the per-invocation context that the pxf_* functions need
 // at query time: the parsed document (for directive lookups) and the
 // optional schema (for type-aware paths). gojq.WithFunction's closure
-// captures this so each `pxq` invocation gets its own slice.
+// captures this so each `pxf query` invocation gets its own slice.
 type funcEnv struct {
 	doc *loadedDoc
 	sch *schema

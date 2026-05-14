@@ -2,8 +2,8 @@
 // Copyright (c) 2026 TrendVidia, LLC.
 
 // Package schemaresolve is the shared implementation behind the
-// schema-resolution chain that both `cmd/protowire` and `cmd/pxq`
-// surface. The README at cmd/pxq describes the chain as:
+// schema-resolution chain that the `pxf` CLI
+// surface. cmd/pxf/QUERY.md documents the chain as:
 //
 //	1. Bundled canonical schemas      (`pxf/*`, `sbe/*`, `envelope/v1/*`)
 //	2. In-document `@proto` directives (source / named / descriptor shapes)
@@ -232,7 +232,7 @@ func (r RegistryRef) Active() bool {
 // FetchRegistry connects to the named server, asks for the schema
 // bundle, and returns the FileDescriptorSet the server hosts for it.
 // Connection uses insecure credentials with a 10s timeout per call —
-// same configuration cmd/protowire uses today.
+// same configuration the legacy cmd/protowire used.
 func FetchRegistry(ref RegistryRef) (*descriptorpb.FileDescriptorSet, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
