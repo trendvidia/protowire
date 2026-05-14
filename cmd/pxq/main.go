@@ -35,12 +35,14 @@ func main() {
 		Long: "pxq runs jq-style queries against PXF documents. CSV, JSON, and " +
 			"YAML inputs are transparently adapted to PXF before the query runs; " +
 			"output is always PXF. See cmd/pxq/README.md for the full design.",
+		// Two args (query, file) routes to runQuery; subcommands (e.g.
+		// `pxq infer-schema`) are matched by name before falling through.
 		Args:          cobra.ExactArgs(2),
 		RunE:          run,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
-	f := root.Flags()
+	f := root.PersistentFlags()
 	f.StringVar(&formatFlag, "format", "",
 		"override input format detection (pxf|json|yaml|csv); default is "+
 			"inferred from the file extension, with stdin (\"-\") defaulting to pxf")
@@ -54,6 +56,8 @@ func main() {
 		"protoregistry namespace")
 	f.StringVar(&registrySchemaID, "schema", "",
 		"protoregistry schema name (within the namespace)")
+
+	root.AddCommand(inferSchemaCmd())
 
 	if err := root.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, "pxq:", err)
@@ -79,8 +83,14 @@ func run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("parse %s as %s: %w", path, format, err)
 	}
 
-	if err := resolveAnonymousProtos(doc); err != nil {
-		return err
+	// Anonymous @proto binding is a PXF-grammar rule; non-PXF
+	// adapters (CSV/JSON/YAML) synthesize their datasets and have no
+	// @proto directives to bind, so the pass is a no-op-with-error
+	// trap on them.
+	if format == "pxf" {
+		if err := resolveAnonymousProtos(doc); err != nil {
+			return err
+		}
 	}
 
 	sch, err := loadSchema(protoFiles, doc.protos, registryRef{
