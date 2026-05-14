@@ -15,7 +15,7 @@ package protowire
 import "embed"
 
 // BundledProto is the read-only file system carrying every canonical
-// .proto in the proto/ tree. Used by cmd/pxq to seed its descriptor
+// .proto in the proto/ tree. Used by cmd/pxf to seed its descriptor
 // registry without -p, and available to any future tool that wants
 // the same baseline.
 //

@@ -193,7 +193,7 @@ message Container { envelope.v1.AppError err = 1; }
 	}
 }
 
-// --- gRPC test fixtures (shared with cmd/pxq's integration tests) ---
+// --- gRPC test fixtures (shared with cmd/pxf.s integration tests) ---
 
 func fakeFDS() *descriptorpb.FileDescriptorSet {
 	syntax := "proto3"

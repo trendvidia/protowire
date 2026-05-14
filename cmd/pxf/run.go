@@ -78,7 +78,7 @@ func runQuery(query string, doc *loadedDoc, sch *schema, opts strictOpts) ([]any
 		// — Stage A keeps that helper minimal; Stage C will swap it for
 		// the per-file hint the README describes.
 		if e, isErr := v.(error); isErr {
-			fmt.Fprintf(stderr(), "pxq: %s (loose mode → null)\n", e)
+			fmt.Fprintf(stderr(), "pxf: %s (loose mode → null)\n", e)
 			out = append(out, nil)
 			continue
 		}
