@@ -28,7 +28,7 @@ func runE2EWithSchema(t *testing.T, query, input string, sch *schema) string {
 	if err != nil {
 		t.Fatalf("loadPXF: %v", err)
 	}
-	results, err := runQuery(query, doc, sch)
+	results, err := runQuery(query, doc, sch, strictOpts{})
 	if err != nil {
 		t.Fatalf("runQuery: %v", err)
 	}
@@ -180,7 +180,7 @@ func TestPxfFieldnames_NoSchemaErrors(t *testing.T) {
 symbol = "AAPL"
 `
 	doc, _ := loadPXF([]byte(input))
-	_, err := runQuery("pxf_fieldnames", doc, nil)
+	_, err := runQuery("pxf_fieldnames", doc, nil, strictOpts{})
 	if err != nil {
 		// Compile-time error is also acceptable.
 		return

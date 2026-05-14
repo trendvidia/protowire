@@ -28,15 +28,18 @@ Working data lives in CSV, JSON, and YAML. Adopting PXF means either rewriting e
 
 ## Two modes
 
-`pxq` behaves differently depending on whether type information is available. The default is implicit — schema present → strict, no schema → loose — with `--strict` and `--loose` flags available to force the non-default.
+`pxq` behaves differently depending on whether a top-level type is bound to the document — via `-m <fully-qualified>`, an `@type` directive in the input, or one of the four `@proto` shapes. The default is implicit — type bound → strict, none bound → loose — with `--strict` and `--loose` flags available to force the non-default.
 
-### Strict — schema provided
+### Strict — type bound
 
-For data engineers wiring a new pipeline or integration feed. The schema is asserted on every input file, and the query is type-checked against the schema at compile time: unknown field references and incompatible comparisons fail before a single row is scanned. Runtime type mismatches abort with a row/column locator (**errors-as-stop** — consistent with `protowire validate`).
+For data engineers wiring a new pipeline or integration feed. The bound message type is asserted at the document root, and direct field-chain accesses (`.foo`, `.foo.bar`, …) are type-checked against the schema at compile time. Unknown field references surface with a did-you-mean hint and the parent message's fully-qualified name; the query never executes if the field set is wrong:
 
 ```bash
-pxq -p trades.proto -m trades.v1.Trade '.symbol' march.csv
+$ pxq -p trades.proto -m trades.v1.Trade '.symbool' march.csv
+pxq: strict-mode: unknown field "symbool" on trades.v1.Trade (did you mean "symbol"?)
 ```
+
+Dynamic access patterns (array indexing, `pxf_directive(...)`, function calls, object construction) keep gojq's runtime semantics — validation tracks message field chains only.
 
 ### Loose — no schema
 
@@ -53,8 +56,9 @@ Loose mode prints a one-line stderr hint on first use of a file, pointing at `px
 
 | Flag | Effect |
 |---|---|
-| `--strict` | Force strict; errors if no schema is available, pointing at `pxq infer-schema` |
-| `--loose` | Force loose even when `-p` is set; the schema still resolves `@proto` constructors and field-name completions, but type mismatches degrade to `null` instead of aborting |
+| `--strict` | Force strict; errors if no root type is bound, with the prescribed help (`-m`, `@type`, or `pxq infer-schema`) |
+| `--loose` | Force loose even when a root type is bound; the validator is skipped and unknown fields degrade to `null` at runtime per jq |
+| `-m <FQN>` | Bind the document root to a fully-qualified message name when the input doesn't carry `@type` |
 
 ## Schema inference
 

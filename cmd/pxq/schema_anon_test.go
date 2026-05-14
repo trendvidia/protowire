@@ -26,7 +26,7 @@ func runE2EAnonResolved(t *testing.T, query, input string) string {
 	if err != nil {
 		t.Fatalf("loadSchema: %v", err)
 	}
-	results, err := runQuery(query, doc, sch)
+	results, err := runQuery(query, doc, sch, strictOpts{})
 	if err != nil {
 		t.Fatalf("runQuery: %v", err)
 	}

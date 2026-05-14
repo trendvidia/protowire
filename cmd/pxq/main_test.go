@@ -22,7 +22,7 @@ func runE2E(t *testing.T, query, input string) string {
 	if err != nil {
 		t.Fatalf("loadPXF: %v", err)
 	}
-	results, err := runQuery(query, doc, nil)
+	results, err := runQuery(query, doc, nil, strictOpts{})
 	if err != nil {
 		t.Fatalf("runQuery %q: %v", query, err)
 	}

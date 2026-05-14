@@ -8,7 +8,17 @@ import (
 	"os"
 
 	"github.com/itchyny/gojq"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
+
+// strictOpts carries the per-run strict-mode toggle and the
+// descriptor the validator binds field accesses against. Zero-value
+// (enabled=false) disables validation; the runner then behaves
+// identically to loose mode.
+type strictOpts struct {
+	enabled bool
+	root    protoreflect.MessageDescriptor
+}
 
 // stderr is the destination for loose-mode runtime-error hints. Tests
 // override it via `errSink = io.Discard` to keep test output clean;
@@ -33,13 +43,20 @@ func docBody(doc *loadedDoc) any {
 // against `doc` and `sch`, and runs against the document body —
 // returning every result the iterator produces.
 //
-// Loose mode (Stage A): runtime errors degrade to nil (jq's
-// errors-as-null model), matching the README. Compile-time errors in
-// the query itself are returned to the caller.
-func runQuery(query string, doc *loadedDoc, sch *schema) ([]any, error) {
+// When opts.enabled is true and opts.root is non-nil, the parsed gojq
+// AST is validated against the descriptor before compile; unknown
+// field references error before the query runs. Loose mode skips
+// this step entirely; runtime errors degrade to nil (jq's
+// errors-as-null model).
+func runQuery(query string, doc *loadedDoc, sch *schema, opts strictOpts) ([]any, error) {
 	q, err := gojq.Parse(query)
 	if err != nil {
 		return nil, fmt.Errorf("query: %w", err)
+	}
+	if opts.enabled {
+		if err := validateQueryStrict(q, opts.root); err != nil {
+			return nil, err
+		}
 	}
 	env := &funcEnv{doc: doc, sch: sch}
 	code, err := gojq.Compile(q, registerFuncs(env)...)
