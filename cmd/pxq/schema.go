@@ -3,220 +3,92 @@
 package main
 
 import (
-	"bytes"
-	"context"
 	"fmt"
-	"io"
-	"os"
 	"sort"
 	"strings"
 
-	"github.com/bufbuild/protocompile"
-	"github.com/trendvidia/protowire"
 	"github.com/trendvidia/protowire-go/encoding/pxf"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protodesc"
+	"github.com/trendvidia/protowire/internal/schemaresolve"
 	"google.golang.org/protobuf/reflect/protoreflect"
-	"google.golang.org/protobuf/types/descriptorpb"
 )
 
-// bundledFiles is the canonical schema set that ships with pxq —
-// resolution-order item #1 in the README. Each entry is the path a
-// consumer would use in an `import "..."` statement, not the
-// on-disk/embed location (which has a `proto/` prefix that the
-// accessor strips).
-var bundledFiles = []string{
-	"pxf/annotations.proto",
-	"pxf/bignum.proto",
-	"pxf/secret.proto",
-	"sbe/annotations.proto",
-	"envelope/v1/envelope.proto",
-}
-
-// resolveAnonymousProtos applies the v1.0 spec's bind-to-next-typeless
-// rule (draft §3.4.4 / §3.4.5): each anonymous `@proto { body }`
-// directive consumes its right-following typeless `@dataset` in
-// document order, supplying it as the row message type. We synthesise
-// a unique name per pair (`_pxq_anon_N`), rewrite the proto in place
-// from anonymous to named, and copy that name onto the matched
-// dataset. The rest of the pipeline (loadSchema, pxf_directive) then
-// treats the pair as if it had been written with an explicit name.
-//
-// The binding is strict: every anonymous proto must have a matching
-// typeless dataset and vice versa, in lockstep document order. An
-// orphan in either direction is a parse-time error from the user's
-// perspective.
-//
-// Document order is established by Pos.Offset since pxf.Document
-// exposes protos and datasets as separate slices.
-func resolveAnonymousProtos(doc *loadedDoc) error {
-	if doc == nil {
-		return nil
-	}
-	type ent struct {
-		off     int
-		isProto bool
-		idx     int
-	}
-	ents := make([]ent, 0, len(doc.protos)+len(doc.datasets))
-	for i, p := range doc.protos {
-		ents = append(ents, ent{p.Pos.Offset, true, i})
-	}
-	for i, ds := range doc.datasets {
-		ents = append(ents, ent{ds.Pos.Offset, false, i})
-	}
-	sort.Slice(ents, func(i, j int) bool { return ents[i].off < ents[j].off })
-
-	var pending []int // indices into doc.protos with anonymous shape, FIFO
-	counter := 0
-	for _, e := range ents {
-		if e.isProto {
-			if doc.protos[e.idx].Shape == pxf.ProtoAnonymous {
-				pending = append(pending, e.idx)
-			}
-			continue
-		}
-		// Dataset.
-		if doc.datasets[e.idx].Type != "" {
-			continue // already typed; not eligible for anonymous binding
-		}
-		if len(pending) == 0 {
-			return fmt.Errorf("@dataset at %s has no type and no preceding anonymous @proto to bind to (draft §3.4.4)",
-				doc.datasets[e.idx].Pos)
-		}
-		protoIdx := pending[0]
-		pending = pending[1:]
-		name := fmt.Sprintf("_pxq_anon_%d", counter)
-		counter++
-		doc.protos[protoIdx].Shape = pxf.ProtoNamed
-		doc.protos[protoIdx].TypeName = name
-		doc.datasets[e.idx].Type = name
-	}
-	if len(pending) > 0 {
-		return fmt.Errorf("anonymous @proto at %s has no following typeless @dataset to bind to (draft §3.4.5)",
-			doc.protos[pending[0]].Pos)
-	}
-	return nil
-}
-
-// schema is the in-scope descriptor set the query layer can resolve
-// against. Loaded from the README's resolution chain:
-//   1. bundled canonical schemas (deferred)
-//   2. in-document @proto directives (this stage)
-//   3. -p schema.proto                (Stage C)
-//   4. protoregistry server           (deferred)
+// schema is the per-invocation registry the query layer resolves
+// against. The README's 4-step resolution chain lives entirely inside
+// loadSchema; consumers see a single Find(name) accessor.
 //
 // A nil *schema is the loose-mode signal — pxf_proto / pxf_fieldnames
 // raise a query-time error, and pxf_directive / pxf_has fall back to
-// the unbound graph shape (raw cell tuples instead of schema-bound row
-// objects).
+// the unbound graph shape (raw cell tuples instead of schema-bound
+// row objects).
 type schema struct {
-	byFullName map[protoreflect.FullName]protoreflect.MessageDescriptor
+	reg *schemaresolve.Registry
 }
 
-// loadSchema compiles protoFiles and any in-document @proto directives
-// into a single descriptor registry. Returns nil when there's no
-// schema material in scope (the loose-mode signal).
+// find returns the descriptor for name, or nil if not registered.
+func (s *schema) find(name string) protoreflect.MessageDescriptor {
+	if s == nil {
+		return nil
+	}
+	return s.reg.Find(name)
+}
+
+// registryRef is the local alias the CLI plumbs through from flags.
+// It exists so the rest of cmd/pxq doesn't need to import the shared
+// package directly; conversion happens here at the boundary.
+type registryRef = schemaresolve.RegistryRef
+
+// loadSchema runs the README's resolution chain and returns a registry.
+// The protoFiles slice comes from -p; inDoc carries any @proto
+// directives the parser surfaced; reg carries the protoregistry
+// coordinate triple.
 //
-// Three of the four `@proto` body shapes (draft §3.4.5) are supported
-// as schema sources:
-//
-//   - source     (`@proto """ ... """`)   — full .proto source file
-//   - named      (`@proto Name { body }`) — sugar over a single message
-//   - descriptor (`@proto b"..."`)        — base64 FileDescriptorSet
-//
-// Anonymous (`@proto { body }`) is rejected here for now — its binding
-// rule (consume as the type of the next typeless directive) is a
-// separate piece of logic that lands in a follow-up.
+// Three of the four `@proto` body shapes are supported as schema
+// sources here: source, named, and descriptor. Anonymous is the
+// fourth shape; resolveAnonymousProtos rewrites those into named
+// before loadSchema sees them.
 func loadSchema(protoFiles []string, inDoc []pxf.ProtoDirective, reg registryRef) (*schema, error) {
-	if err := reg.validated(); err != nil {
+	opts, err := buildCompileOptions(protoFiles, inDoc)
+	if err != nil {
 		return nil, err
 	}
-	// Synthesize virtual .proto files for the source/named shapes so
-	// protocompile can compile them alongside the user-supplied -p
-	// files in a single pass — that way cross-references between the
-	// two work without extra plumbing.
-	virtual := map[string][]byte{}
-	virtualNames := make([]string, 0, len(inDoc))
-	var descriptorBlobs [][]byte
+	r, err := schemaresolve.Resolve(opts, reg)
+	if err != nil {
+		return nil, err
+	}
+	return &schema{reg: r}, nil
+}
+
+// buildCompileOptions translates the cmd/pxq view of the world
+// (-p paths + in-doc directives) into the shared CompileOptions
+// shape. Synthesises virtual filenames for the named/source shapes
+// and accumulates descriptor blobs for the descriptor shape.
+func buildCompileOptions(protoFiles []string, inDoc []pxf.ProtoDirective) (schemaresolve.CompileOptions, error) {
+	opts := schemaresolve.CompileOptions{
+		UserFiles:    protoFiles,
+		BundledFiles: schemaresolve.CompileBundledAll,
+	}
 	for i, pd := range inDoc {
 		switch pd.Shape {
 		case pxf.ProtoSource:
-			name := fmt.Sprintf("__pxq_indoc_%d.proto", i)
-			virtual[name] = pd.Body
-			virtualNames = append(virtualNames, name)
+			opts.VirtualFiles = append(opts.VirtualFiles, schemaresolve.VirtualFile{
+				Name: fmt.Sprintf("__pxq_indoc_%d.proto", i),
+				Body: pd.Body,
+			})
 		case pxf.ProtoNamed:
-			name := fmt.Sprintf("__pxq_indoc_%d.proto", i)
-			virtual[name] = synthesizeNamedMessageFile(pd.TypeName, pd.Body)
-			virtualNames = append(virtualNames, name)
+			opts.VirtualFiles = append(opts.VirtualFiles, schemaresolve.VirtualFile{
+				Name: fmt.Sprintf("__pxq_indoc_%d.proto", i),
+				Body: synthesizeNamedMessageFile(pd.TypeName, pd.Body),
+			})
 		case pxf.ProtoDescriptor:
-			descriptorBlobs = append(descriptorBlobs, pd.Body)
+			opts.DescriptorSet = append(opts.DescriptorSet, pd.Body)
 		case pxf.ProtoAnonymous:
-			// Anonymous @proto should have been rewritten to named by
-			// resolveAnonymousProtos before this point. If we still see
-			// one here, the caller skipped the binding pass.
-			return nil, fmt.Errorf("pxq: internal — anonymous @proto reached schema loader; " +
+			return opts, fmt.Errorf("pxq: internal — anonymous @proto reached schema loader; " +
 				"call resolveAnonymousProtos on the loadedDoc first")
 		default:
-			return nil, fmt.Errorf("pxq: unknown @proto shape %v", pd.Shape)
+			return opts, fmt.Errorf("pxq: unknown @proto shape %v", pd.Shape)
 		}
 	}
-
-	s := &schema{byFullName: map[protoreflect.FullName]protoreflect.MessageDescriptor{}}
-
-	// Always compile the bundled canonical schemas — these are
-	// resolution-order item #1 in the README and have no setup cost
-	// from the user's perspective. Compiled alongside -p / in-doc so
-	// cross-imports between user code and the canonical schemas work.
-	accessor := func(filename string) (io.ReadCloser, error) {
-		if data, ok := virtual[filename]; ok {
-			return io.NopCloser(bytes.NewReader(data)), nil
-		}
-		// Canonical bundled paths (`pxf/...`, `sbe/...`, `envelope/v1/...`)
-		// live under proto/ in the embed.FS.
-		if data, err := protowire.BundledProto.ReadFile("proto/" + filename); err == nil {
-			return io.NopCloser(bytes.NewReader(data)), nil
-		}
-		// Fall through to disk so user `-p` files still resolve.
-		return os.Open(filename)
-	}
-	comp := protocompile.Compiler{
-		Resolver: protocompile.WithStandardImports(&protocompile.SourceResolver{Accessor: accessor}),
-	}
-	files := append([]string{}, bundledFiles...)
-	files = append(files, protoFiles...)
-	files = append(files, virtualNames...)
-	result, err := comp.Compile(context.Background(), files...)
-	if err != nil {
-		return nil, fmt.Errorf("compile schemas: %w", err)
-	}
-	for _, f := range result {
-		walkMessages(f.Messages(), s.byFullName)
-	}
-
-	// Register descriptor-form in-doc protos. They bypass protocompile
-	// entirely — the body is already a serialised FileDescriptorSet
-	// that protodesc can hydrate directly.
-	for _, blob := range descriptorBlobs {
-		if err := registerDescriptorBlob(s, blob); err != nil {
-			return nil, err
-		}
-	}
-
-	// Resolution-order item #4: fetch the bundle from the named
-	// protoregistry schema and merge every reachable message into
-	// the registry. Active only when -s/-n/--schema are all set.
-	if reg.active() {
-		fds, err := fetchRegistry(reg)
-		if err != nil {
-			return nil, err
-		}
-		if err := registerFileDescriptorSet(s, fds, "protoregistry bundle"); err != nil {
-			return nil, err
-		}
-	}
-
-	return s, nil
+	return opts, nil
 }
 
 // synthesizeNamedMessageFile turns `@proto trades.v1.Trade { body }`
@@ -255,46 +127,67 @@ func splitDottedName(name string) (string, string) {
 	return name[:idx], name[idx+1:]
 }
 
-// registerDescriptorBlob unmarshals a FileDescriptorSet and merges
-// every message reachable from it into the schema registry. Same
-// shape as the source-form path's output — callers can't tell which
-// route a given descriptor came from.
-func registerDescriptorBlob(s *schema, b []byte) error {
-	var fds descriptorpb.FileDescriptorSet
-	if err := proto.Unmarshal(b, &fds); err != nil {
-		return fmt.Errorf("@proto descriptor body: unmarshal FileDescriptorSet: %w", err)
-	}
-	return registerFileDescriptorSet(s, &fds, "@proto descriptor body")
-}
-
-// registerFileDescriptorSet merges every message reachable from fds
-// into the schema registry. Shared between the descriptor-form @proto
-// path and the protoregistry-fetch path so a single test surface
-// covers both.
-func registerFileDescriptorSet(s *schema, fds *descriptorpb.FileDescriptorSet, context string) error {
-	files, err := protodesc.NewFiles(fds)
-	if err != nil {
-		return fmt.Errorf("%s: %w", context, err)
-	}
-	files.RangeFiles(func(fd protoreflect.FileDescriptor) bool {
-		walkMessages(fd.Messages(), s.byFullName)
-		return true
-	})
-	return nil
-}
-
-func walkMessages(msgs protoreflect.MessageDescriptors, out map[protoreflect.FullName]protoreflect.MessageDescriptor) {
-	for i := range msgs.Len() {
-		md := msgs.Get(i)
-		out[md.FullName()] = md
-		walkMessages(md.Messages(), out) // nested types
-	}
-}
-
-// find returns the descriptor for name, or nil if not registered.
-func (s *schema) find(name string) protoreflect.MessageDescriptor {
-	if s == nil {
+// resolveAnonymousProtos applies the v1.0 spec's bind-to-next-typeless
+// rule (draft §3.4.4 / §3.4.5): each anonymous `@proto { body }`
+// directive consumes its right-following typeless `@dataset` in
+// document order, supplying it as the row message type. We synthesise
+// a unique name per pair (`_pxq_anon_N`), rewrite the proto in place
+// from anonymous to named, and copy that name onto the matched
+// dataset. The rest of the pipeline (loadSchema, pxf_directive) then
+// treats the pair as if it had been written with an explicit name.
+//
+// The binding is strict: every anonymous proto must have a matching
+// typeless dataset and vice versa, in lockstep document order. An
+// orphan in either direction is a parse-time error from the user's
+// perspective.
+//
+// Document order is established by Pos.Offset since pxf.Document
+// exposes protos and datasets as separate slices.
+func resolveAnonymousProtos(doc *loadedDoc) error {
+	if doc == nil {
 		return nil
 	}
-	return s.byFullName[protoreflect.FullName(name)]
+	type ent struct {
+		off     int
+		isProto bool
+		idx     int
+	}
+	ents := make([]ent, 0, len(doc.protos)+len(doc.datasets))
+	for i, p := range doc.protos {
+		ents = append(ents, ent{p.Pos.Offset, true, i})
+	}
+	for i, ds := range doc.datasets {
+		ents = append(ents, ent{ds.Pos.Offset, false, i})
+	}
+	sort.Slice(ents, func(i, j int) bool { return ents[i].off < ents[j].off })
+
+	var pending []int
+	counter := 0
+	for _, e := range ents {
+		if e.isProto {
+			if doc.protos[e.idx].Shape == pxf.ProtoAnonymous {
+				pending = append(pending, e.idx)
+			}
+			continue
+		}
+		if doc.datasets[e.idx].Type != "" {
+			continue
+		}
+		if len(pending) == 0 {
+			return fmt.Errorf("@dataset at %s has no type and no preceding anonymous @proto to bind to (draft §3.4.4)",
+				doc.datasets[e.idx].Pos)
+		}
+		protoIdx := pending[0]
+		pending = pending[1:]
+		name := fmt.Sprintf("_pxq_anon_%d", counter)
+		counter++
+		doc.protos[protoIdx].Shape = pxf.ProtoNamed
+		doc.protos[protoIdx].TypeName = name
+		doc.datasets[e.idx].Type = name
+	}
+	if len(pending) > 0 {
+		return fmt.Errorf("anonymous @proto at %s has no following typeless @dataset to bind to (draft §3.4.5)",
+			doc.protos[pending[0]].Pos)
+	}
+	return nil
 }

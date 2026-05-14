@@ -15,15 +15,11 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-
-	registrypb "github.com/trendvidia/protoregistry/proto/protoregistry/v1"
-
 	"github.com/trendvidia/protowire-go/encoding/pxf"
 	"github.com/trendvidia/protowire-go/encoding/sbe"
 
 	"github.com/trendvidia/protowire/internal/pxfschema"
+	"github.com/trendvidia/protowire/internal/schemaresolve"
 )
 
 var (
@@ -57,91 +53,40 @@ func main() {
 	}
 }
 
-// resolveDescriptor resolves the message descriptor from either local proto
-// files (--proto) or a running protoregistry server (--server).
+// resolveDescriptor resolves the message descriptor for the configured
+// schema source (--proto and/or --server) and narrows to --message.
+// Returns an error when neither source is supplied or --message is
+// missing.
 func resolveDescriptor() (protoreflect.MessageDescriptor, error) {
 	if msgName == "" {
 		return nil, fmt.Errorf("--message is required")
 	}
-	if len(protoFiles) > 0 {
-		return resolveFromProto()
+	if len(protoFiles) == 0 && server == "" {
+		return nil, fmt.Errorf("specify --proto or --server to provide a schema")
 	}
-	if server != "" {
-		return resolveFromRegistry()
-	}
-	return nil, fmt.Errorf("specify --proto or --server to provide a schema")
-}
-
-func resolveFromProto() (protoreflect.MessageDescriptor, error) {
-	comp := protocompile.Compiler{
-		Resolver: protocompile.WithStandardImports(&protocompile.SourceResolver{}),
-	}
-	result, err := comp.Compile(context.Background(), protoFiles...)
+	reg, err := schemaresolve.Resolve(
+		schemaresolve.CompileOptions{UserFiles: protoFiles},
+		registryRef(),
+	)
 	if err != nil {
-		return nil, fmt.Errorf("compile: %w", err)
+		return nil, err
 	}
-
-	// Search all compiled files for the message.
-	fullName := protoreflect.FullName(msgName)
-	for _, f := range result {
-		if md := findMessage(f.Messages(), fullName); md != nil {
-			return md, nil
-		}
-	}
-	return nil, fmt.Errorf("message %q not found in compiled files", msgName)
-}
-
-func findMessage(msgs protoreflect.MessageDescriptors, name protoreflect.FullName) protoreflect.MessageDescriptor {
-	for i := range msgs.Len() {
-		md := msgs.Get(i)
-		if md.FullName() == name {
-			return md
-		}
-		if found := findMessage(md.Messages(), name); found != nil {
-			return found
-		}
-	}
-	return nil
-}
-
-func resolveFromRegistry() (protoreflect.MessageDescriptor, error) {
-	if namespace == "" {
-		return nil, fmt.Errorf("--namespace is required with --server")
-	}
-	if schemaName == "" {
-		return nil, fmt.Errorf("--schema is required with --server")
-	}
-
-	conn, err := grpc.NewClient(server, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		return nil, fmt.Errorf("connect: %w", err)
-	}
-	defer conn.Close()
-
-	client := registrypb.NewRegistryServiceClient(conn)
-	resp, err := client.GetDescriptor(context.Background(), &registrypb.GetDescriptorRequest{
-		NamespaceId: namespace,
-		SchemaId:    schemaName,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("GetDescriptor: %w", err)
-	}
-
-	files, err := protodesc.NewFiles(resp.FileDescriptorSet)
-	if err != nil {
-		return nil, fmt.Errorf("build descriptors: %w", err)
-	}
-
-	fullName := protoreflect.FullName(msgName)
-	desc, err := files.FindDescriptorByName(fullName)
-	if err != nil {
-		return nil, fmt.Errorf("message %q not found in registry descriptor", msgName)
-	}
-	md, ok := desc.(protoreflect.MessageDescriptor)
-	if !ok {
-		return nil, fmt.Errorf("%q is not a message type", msgName)
+	md := reg.Find(msgName)
+	if md == nil {
+		return nil, fmt.Errorf("message %q not found in resolved schema", msgName)
 	}
 	return md, nil
+}
+
+// registryRef builds a schemaresolve.RegistryRef from the package
+// flag vars. Lets the top-level helpers keep their original CLI shape
+// while delegating to the shared resolver.
+func registryRef() schemaresolve.RegistryRef {
+	return schemaresolve.RegistryRef{
+		Server:    server,
+		Namespace: namespace,
+		Schema:    schemaName,
+	}
 }
 
 func encodeCmd() *cobra.Command {
@@ -271,10 +216,24 @@ func sbe2protoCmd() *cobra.Command {
 	}
 }
 
-// resolveFiles returns every file descriptor available from the configured
-// schema source (--proto or --server). Used by schema-level commands such
-// as `lint`, which operate on entire files rather than a single message.
+// resolveFiles returns every file descriptor available from the
+// configured schema source (--proto or --server). Used by
+// schema-level commands such as `lint`, which operate on entire
+// files rather than a single message.
+//
+// The lint surface specifically wants file-level descriptors (so
+// nested-message-and-enum traversal stays inside ValidateReflect),
+// not a flat message registry. We run the same compile+fetch pipeline
+// as resolveDescriptor but expose the FileDescriptor list instead.
 func resolveFiles() ([]protoreflect.FileDescriptor, error) {
+	if len(protoFiles) == 0 && server == "" {
+		return nil, fmt.Errorf("specify --proto or --server to provide a schema")
+	}
+	ref := registryRef()
+	if err := ref.Validate(); err != nil {
+		return nil, err
+	}
+	var out []protoreflect.FileDescriptor
 	if len(protoFiles) > 0 {
 		comp := protocompile.Compiler{
 			Resolver: protocompile.WithStandardImports(&protocompile.SourceResolver{}),
@@ -283,44 +242,28 @@ func resolveFiles() ([]protoreflect.FileDescriptor, error) {
 		if err != nil {
 			return nil, fmt.Errorf("compile: %w", err)
 		}
-		out := make([]protoreflect.FileDescriptor, 0, len(result))
 		for _, f := range result {
 			out = append(out, f)
 		}
-		return out, nil
 	}
-	if server != "" {
-		if namespace == "" {
-			return nil, fmt.Errorf("--namespace is required with --server")
-		}
-		if schemaName == "" {
-			return nil, fmt.Errorf("--schema is required with --server")
-		}
-		conn, err := grpc.NewClient(server, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if ref.Active() {
+		fds, err := schemaresolve.FetchRegistry(ref)
 		if err != nil {
-			return nil, fmt.Errorf("connect: %w", err)
+			return nil, err
 		}
-		defer conn.Close()
-		client := registrypb.NewRegistryServiceClient(conn)
-		resp, err := client.GetDescriptor(context.Background(), &registrypb.GetDescriptorRequest{
-			NamespaceId: namespace,
-			SchemaId:    schemaName,
-		})
+		// lint walks file-level descriptors directly, so hydrate via
+		// protodesc here rather than going through Registry (which is
+		// a flat message map by design).
+		files, err := protodesc.NewFiles(fds)
 		if err != nil {
-			return nil, fmt.Errorf("GetDescriptor: %w", err)
+			return nil, fmt.Errorf("protoregistry bundle: %w", err)
 		}
-		files, err := protodesc.NewFiles(resp.FileDescriptorSet)
-		if err != nil {
-			return nil, fmt.Errorf("build descriptors: %w", err)
-		}
-		var out []protoreflect.FileDescriptor
 		files.RangeFiles(func(fd protoreflect.FileDescriptor) bool {
 			out = append(out, fd)
 			return true
 		})
-		return out, nil
 	}
-	return nil, fmt.Errorf("specify --proto or --server to provide a schema")
+	return out, nil
 }
 
 func lintCmd() *cobra.Command {
