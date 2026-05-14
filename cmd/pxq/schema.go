@@ -12,12 +12,26 @@ import (
 	"strings"
 
 	"github.com/bufbuild/protocompile"
+	"github.com/trendvidia/protowire"
 	"github.com/trendvidia/protowire-go/encoding/pxf"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/descriptorpb"
 )
+
+// bundledFiles is the canonical schema set that ships with pxq —
+// resolution-order item #1 in the README. Each entry is the path a
+// consumer would use in an `import "..."` statement, not the
+// on-disk/embed location (which has a `proto/` prefix that the
+// accessor strips).
+var bundledFiles = []string{
+	"pxf/annotations.proto",
+	"pxf/bignum.proto",
+	"pxf/secret.proto",
+	"sbe/annotations.proto",
+	"envelope/v1/envelope.proto",
+}
 
 // resolveAnonymousProtos applies the v1.0 spec's bind-to-next-typeless
 // rule (draft §3.4.4 / §3.4.5): each anonymous `@proto { body }`
@@ -115,10 +129,6 @@ type schema struct {
 // rule (consume as the type of the next typeless directive) is a
 // separate piece of logic that lands in a follow-up.
 func loadSchema(protoFiles []string, inDoc []pxf.ProtoDirective) (*schema, error) {
-	if len(protoFiles) == 0 && len(inDoc) == 0 {
-		return nil, nil
-	}
-
 	// Synthesize virtual .proto files for the source/named shapes so
 	// protocompile can compile them alongside the user-supplied -p
 	// files in a single pass — that way cross-references between the
@@ -151,26 +161,34 @@ func loadSchema(protoFiles []string, inDoc []pxf.ProtoDirective) (*schema, error
 
 	s := &schema{byFullName: map[protoreflect.FullName]protoreflect.MessageDescriptor{}}
 
-	// Compile -p files + virtual in-doc sources together.
-	if len(protoFiles) > 0 || len(virtualNames) > 0 {
-		accessor := func(filename string) (io.ReadCloser, error) {
-			if data, ok := virtual[filename]; ok {
-				return io.NopCloser(bytes.NewReader(data)), nil
-			}
-			return os.Open(filename)
+	// Always compile the bundled canonical schemas — these are
+	// resolution-order item #1 in the README and have no setup cost
+	// from the user's perspective. Compiled alongside -p / in-doc so
+	// cross-imports between user code and the canonical schemas work.
+	accessor := func(filename string) (io.ReadCloser, error) {
+		if data, ok := virtual[filename]; ok {
+			return io.NopCloser(bytes.NewReader(data)), nil
 		}
-		comp := protocompile.Compiler{
-			Resolver: protocompile.WithStandardImports(&protocompile.SourceResolver{Accessor: accessor}),
+		// Canonical bundled paths (`pxf/...`, `sbe/...`, `envelope/v1/...`)
+		// live under proto/ in the embed.FS.
+		if data, err := protowire.BundledProto.ReadFile("proto/" + filename); err == nil {
+			return io.NopCloser(bytes.NewReader(data)), nil
 		}
-		files := append([]string{}, protoFiles...)
-		files = append(files, virtualNames...)
-		result, err := comp.Compile(context.Background(), files...)
-		if err != nil {
-			return nil, fmt.Errorf("compile schemas: %w", err)
-		}
-		for _, f := range result {
-			walkMessages(f.Messages(), s.byFullName)
-		}
+		// Fall through to disk so user `-p` files still resolve.
+		return os.Open(filename)
+	}
+	comp := protocompile.Compiler{
+		Resolver: protocompile.WithStandardImports(&protocompile.SourceResolver{Accessor: accessor}),
+	}
+	files := append([]string{}, bundledFiles...)
+	files = append(files, protoFiles...)
+	files = append(files, virtualNames...)
+	result, err := comp.Compile(context.Background(), files...)
+	if err != nil {
+		return nil, fmt.Errorf("compile schemas: %w", err)
+	}
+	for _, f := range result {
+		walkMessages(f.Messages(), s.byFullName)
 	}
 
 	// Register descriptor-form in-doc protos. They bypass protocompile
