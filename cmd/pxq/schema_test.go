@@ -83,13 +83,26 @@ message Outer {
 	}
 }
 
-func TestSchema_EmptyArgsReturnsNil(t *testing.T) {
+func TestSchema_EmptyArgsReturnsBundled(t *testing.T) {
+	// Resolution-order item #1: the bundled canonical schemas seed
+	// every loadSchema call, even with no -p flag and no in-doc
+	// directives. Confirms one type from each bundled file is
+	// findable.
 	sch, err := loadSchema(nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if sch != nil {
-		t.Error("expected nil schema for empty arg list")
+	if sch == nil {
+		t.Fatal("expected non-nil schema; bundled set should always seed")
+	}
+	for _, want := range []string{
+		"pxf.Decimal",            // proto/pxf/bignum.proto
+		"envelope.v1.Envelope",   // proto/envelope/v1/envelope.proto
+		"envelope.v1.AppError",   // same file, sibling message
+	} {
+		if sch.find(want) == nil {
+			t.Errorf("bundled type %q not registered", want)
+		}
 	}
 }
 
