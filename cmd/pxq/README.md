@@ -11,6 +11,17 @@ pxq '.endpoints[0].path' config.csv      # CSV adapted to PXF
 
 All four invocations emit PXF on stdout. The query language is the same across formats — pipelines that consume PXF stay consistent regardless of where the data started.
 
+### A note on `@proto`
+
+PXF v1.0 introduced `@proto` as a top-of-document directive (draft §3.4.5) that embeds a schema in the data file. `pxq` also exposes `@proto(<dotted-name>)` as a query-language constructor for emitting typed objects. The two share a name on purpose — they're complementary halves of the same primitive:
+
+| Layer | Form | Direction | Use |
+|---|---|---|---|
+| Document (parser) | `@proto Name { ... }` directive | schema **flows in** with the data | Self-describing PXF — no `-p` flag needed |
+| Query (gojq) | `@proto("Name") { ... }` constructor | schema **flows out** with the query result | Typed output binding for downstream consumers |
+
+When both appear in the same pipeline, a document-level `@proto` registers the schema and a query-level `@proto(...)` selects it by name. Throughout this doc, "the `@proto` directive" means the document form; "the `@proto` constructor" means the query form.
+
 ## Why
 
 Working data lives in CSV, JSON, and YAML. Adopting PXF means either rewriting every producer at once or accepting a parallel-tools era where each format keeps its own query stack. `pxq` collapses that surface: one expression language, one output format, four input formats. The tool is also a soft on-ramp — every quirk of the surrounding formats (CSV's typeless columns, JSON's int-vs-float ambiguity, YAML's `no`→`false`) becomes a small reminder that the PXF version of the same document doesn't have that problem.
@@ -84,7 +95,16 @@ Once a schema exists, it applies to any file of the same shape. Columns are matc
 
 No conversion. The document is parsed against `-p schema.proto -m message-type` when provided, or in best-effort schemaless mode otherwise. `@type`, `@dataset`, `@proto`, `@entry`, and `@<name>` directives are all visible to the query.
 
-When the input document carries `@proto` directives (draft §3.4.5), the embedded schema is honoured as if it had been passed via `-p`: anonymous `@proto { ... }` blocks bind to the next typed directive, named `@proto Name { ... }` blocks register `Name` for `@dataset` headers and `@<name>` consumers, source `@proto """ ... """` blocks compile the full `.proto` file, and descriptor `@proto b"..."` blocks consume a serialised `FileDescriptorSet` directly. A self-describing PXF document needs no `-p` flag.
+When the input document carries `@proto` directives (draft §3.4.5), the embedded schema is honoured as if it had been passed via `-p` — a self-describing PXF document needs no flags:
+
+| Directive shape | Body interpretation | Schema effect |
+|---|---|---|
+| `@proto { ... }` | message-body source, anonymous | binds to the next typed directive without an explicit name |
+| `@proto Name { ... }` | message-body source, named | registers `Name` for `@dataset` headers and `@<name>` consumers |
+| `@proto """ ... """` | full `.proto` source file (triple-quoted) | compiled at load time; all declared messages registered |
+| `@proto b"..."` | base64-encoded `FileDescriptorSet` | descriptors loaded directly; no compile step |
+
+Schema resolution order: bundled canonical schemas → `@proto` directives in the input → `-p` flag → protoregistry (`-s/-n/--schema`). Later sources can shadow earlier ones, so a user-supplied `-p` overrides whatever the document carries — useful when a producer's embedded schema lags the latest revision.
 
 ### JSON
 
@@ -131,26 +151,29 @@ Reserved namespace for query-time operations that have no jq equivalent.
 
 | Function | Purpose |
 |---|---|
-| `@pxf.directive(name)` | Returns directives matching `name` from the input document — e.g. `@pxf.directive("dataset")` to address rows of an embedded `@dataset` |
+| `@pxf.directive(name)` | Returns the list of directives matching `name` from the input document, in source order. For `@pxf.directive("dataset")` each entry's `.rows` is an array of schema-bound row objects when a schema is in scope (otherwise an array of cell tuples). For `@pxf.directive("proto")` each entry exposes `.shape`, `.typeName`, and the raw `.body` bytes (draft §3.4.5). |
 | `@pxf.fieldnames` | Declared field names per the bound schema (not just present ones); errors in loose mode |
 | `@pxf.type(.x)` | Returns the proto type of a value as a string |
 | `@pxf.has(.x; "field")` | Schema-aware `has` — distinguishes absent from zero-value, unlike jq's plain `has` |
 
 Anything jq already does (paths, pipes, `select`, `map`, `reduce`, `to_entries`, string interpolation, etc.) works without prefix.
 
-### `@proto` — typed object construction
+### `@proto(...)` — typed object construction
+
+The query-level counterpart to the document-level `@proto` directive (see [terminology note](#a-note-on-proto)). Binds an object-construction expression to a named descriptor:
 
 ```bash
 pxq '@proto("trades.v1.Trade") { symbol: .ticker, price: .last, qty: .size }' raw.json
 ```
 
-`@proto` binds the resulting object to the named descriptor, validates field names, types, oneof exclusivity, and `(pxf.required)`/`(pxf.default)` annotations, and emits a typed PXF document (prefixed with `@type trades.v1.Trade`). Schema resolution sources, in order:
+The constructor validates field names, types, oneof exclusivity, and `(pxf.required)`/`(pxf.default)` annotations, then emits a typed PXF document prefixed with `@type trades.v1.Trade`. Same schema-resolution chain as the document parser:
 
 1. **Bundled canonical schemas** (`pxf/*`, `sbe/*`, `envelope/v1/*`) — available by default with no flags
-2. **`-p schema.proto`** — user-supplied descriptors, same flag as the main `protowire` CLI
-3. **`-s server -n namespace --schema name`** — protoregistry-resident schemas, same flag set as the main CLI
+2. **`@proto` directives in the input** — when present, the embedded schema registers names the constructor can resolve
+3. **`-p schema.proto`** — user-supplied descriptors, same flag as the main `protowire` CLI
+4. **`-s server -n namespace --schema name`** — protoregistry-resident schemas, same flag set as the main CLI
 
-Without `@proto`, object-construction expressions like `{ foo: .x, bar: .y }` produce a free-form PXF map (no schema, no validation).
+Without the `@proto(...)` constructor, object-construction expressions like `{ foo: .x, bar: .y }` produce a free-form PXF map (no schema, no validation).
 
 ### Engine internals
 
@@ -169,6 +192,36 @@ go install github.com/trendvidia/protowire/cmd/pxq@latest
 ```
 
 `pxq` depends on `protowire-go` for PXF parsing and on the canonical `pxf/annotations.proto` for `(pxf.required)` / `(pxf.default)` semantics during schema-bound CSV decoding.
+
+### Quick start — self-describing PXF
+
+A document that embeds its schema via `@proto` runs strict-mode out of the box, no flags:
+
+```bash
+$ cat trades.pxf
+@proto trades.v1.Trade {
+  string symbol = 1;
+  double price  = 2;
+  int64  qty    = 3;
+}
+@dataset trades.v1.Trade ( symbol, price, qty )
+( "AAPL", 188.42, 100 )
+( "MSFT", 415.10,  50 )
+( "AAPL", 188.55,  75 )
+
+$ pxq '@pxf.directive("dataset")[0].rows | map(select(.symbol == "AAPL")) | length' trades.pxf
+2
+```
+
+(`@pxf.directive(name)` returns a list — `[0]` picks the first occurrence; documents with a single `@dataset` are the common case.) Each row in `.rows` is a schema-bound object with field access by name, so `.symbol` works without a separate destructuring step.
+
+Compare with the schema-external form, which needs `-p` and `-m`:
+
+```bash
+$ pxq -p trades.proto -m trades.v1.Trade '.symbol' march.csv
+```
+
+The two produce byte-identical PXF on stdout when fed equivalent inputs — the difference is purely where the schema travels.
 
 ## See also
 
