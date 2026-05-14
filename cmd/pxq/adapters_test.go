@@ -14,7 +14,7 @@ func runE2EWithFormat(t *testing.T, format, query, input string) string {
 	if err != nil {
 		t.Fatalf("loadByFormat(%s): %v", format, err)
 	}
-	results, err := runQuery(query, doc, nil)
+	results, err := runQuery(query, doc, nil, strictOpts{})
 	if err != nil {
 		t.Fatalf("runQuery: %v", err)
 	}

@@ -26,6 +26,9 @@ var (
 	registryServer   string
 	registryNS       string
 	registrySchemaID string
+	messageFlag      string
+	strictFlag       bool
+	looseFlag        bool
 )
 
 func main() {
@@ -56,6 +59,17 @@ func main() {
 		"protoregistry namespace")
 	f.StringVar(&registrySchemaID, "schema", "",
 		"protoregistry schema name (within the namespace)")
+	f.StringVarP(&messageFlag, "message", "m", "",
+		"fully-qualified message name to bind the document root to; "+
+			"required for --strict, optional otherwise (the document's "+
+			"@type directive supplies it when present)")
+	f.BoolVar(&strictFlag, "strict", false,
+		"force strict mode (compile-time field-name validation); errors "+
+			"if no root type is bound. Default: implicit — strict when a "+
+			"root type is in scope, loose otherwise")
+	f.BoolVar(&looseFlag, "loose", false,
+		"force loose mode (skip strict-mode validation) even when a "+
+			"root type is in scope; runtime errors degrade to null per jq")
 
 	root.AddCommand(inferSchemaCmd())
 
@@ -102,7 +116,17 @@ func run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	results, err := runQuery(query, doc, sch)
+	mode, err := pickMode()
+	if err != nil {
+		return err
+	}
+	rootType := resolveRootType(messageFlag, doc, sch)
+	strict, err := effectiveMode(mode, rootType != nil)
+	if err != nil {
+		return err
+	}
+
+	results, err := runQuery(query, doc, sch, strictOpts{enabled: strict, root: rootType})
 	if err != nil {
 		return err
 	}
@@ -155,6 +179,22 @@ func detectFormat(path, override string) (string, error) {
 		return "csv", nil
 	default:
 		return "", fmt.Errorf("cannot infer format from extension %q; pass --format pxf|json|yaml|csv", ext)
+	}
+}
+
+// pickMode reconciles --strict / --loose into a single modeFlag.
+// Mutually exclusive: passing both is a clear user error.
+func pickMode() (modeFlag, error) {
+	if strictFlag && looseFlag {
+		return modeAuto, fmt.Errorf("--strict and --loose are mutually exclusive")
+	}
+	switch {
+	case strictFlag:
+		return modeStrict, nil
+	case looseFlag:
+		return modeLoose, nil
+	default:
+		return modeAuto, nil
 	}
 }
 
