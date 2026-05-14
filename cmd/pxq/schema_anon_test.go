@@ -219,6 +219,23 @@ func TestAnonProto_NoBindingNeeded_Noop(t *testing.T) {
 	}
 }
 
+func TestAnonProto_NotInvokedForCSV(t *testing.T) {
+	// CSV synthesises a typeless DatasetDirective. main()'s run path
+	// guards resolveAnonymousProtos behind format == "pxf" because
+	// CSV/JSON/YAML datasets aren't subject to the spec's @proto
+	// binding rule. Verifies the helper DOES error on the raw CSV
+	// doc — confirming why the guard in main.go is necessary.
+	doc, err := loadCSV([]byte("a,b\n1,2\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := resolveAnonymousProtos(doc); err == nil {
+		t.Fatal("expected resolveAnonymousProtos on raw CSV doc to error " +
+			"(typeless dataset, no anonymous @proto); the run path " +
+			"guards on format==pxf to avoid it")
+	}
+}
+
 func TestAnonProto_PipelineWithPxfProto(t *testing.T) {
 	// End-to-end: anonymous @proto registers the type, the dataset
 	// rows are accessible by name, and pxf_proto can construct a
