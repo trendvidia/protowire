@@ -108,9 +108,9 @@ func run(cmd *cobra.Command, args []string) error {
 	}
 
 	sch, err := loadSchema(protoFiles, doc.protos, registryRef{
-		server:    registryServer,
-		namespace: registryNS,
-		schema:    registrySchemaID,
+		Server:    registryServer,
+		Namespace: registryNS,
+		Schema:    registrySchemaID,
 	})
 	if err != nil {
 		return err
