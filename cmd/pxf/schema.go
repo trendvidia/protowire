@@ -33,7 +33,7 @@ func (s *schema) find(name string) protoreflect.MessageDescriptor {
 }
 
 // registryRef is the local alias the CLI plumbs through from flags.
-// It exists so the rest of cmd/pxq doesn't need to import the shared
+// It exists so the rest of cmd/pxf doesn't need to import the shared
 // package directly; conversion happens here at the boundary.
 type registryRef = schemaresolve.RegistryRef
 
@@ -58,7 +58,7 @@ func loadSchema(protoFiles []string, inDoc []pxf.ProtoDirective, reg registryRef
 	return &schema{reg: r}, nil
 }
 
-// buildCompileOptions translates the cmd/pxq view of the world
+// buildCompileOptions translates the cmd/pxf view of the world
 // (-p paths + in-doc directives) into the shared CompileOptions
 // shape. Synthesises virtual filenames for the named/source shapes
 // and accumulates descriptor blobs for the descriptor shape.
@@ -82,10 +82,10 @@ func buildCompileOptions(protoFiles []string, inDoc []pxf.ProtoDirective) (schem
 		case pxf.ProtoDescriptor:
 			opts.DescriptorSet = append(opts.DescriptorSet, pd.Body)
 		case pxf.ProtoAnonymous:
-			return opts, fmt.Errorf("pxq: internal — anonymous @proto reached schema loader; " +
+			return opts, fmt.Errorf("pxf: internal — anonymous @proto reached schema loader; " +
 				"call resolveAnonymousProtos on the loadedDoc first")
 		default:
-			return opts, fmt.Errorf("pxq: unknown @proto shape %v", pd.Shape)
+			return opts, fmt.Errorf("pxf: unknown @proto shape %v", pd.Shape)
 		}
 	}
 	return opts, nil

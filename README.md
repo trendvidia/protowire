@@ -91,32 +91,32 @@ Each port provides the in-language library only. Command-line operations are han
 
 ## CLI
 
-The `protowire` command-line tool lives in this repo at [`cmd/protowire/`](cmd/protowire/) and is shared across every port. It's written in Go and depends on `protowire-go` internally; users of any other language install it the same way:
+The `protowire` command-line tool lives in this repo at [`cmd/pxf/`](cmd/pxf/) and is shared across every port. It's written in Go and depends on `protowire-go` internally; users of any other language install it the same way:
 
 ```bash
-go install github.com/trendvidia/protowire/cmd/protowire@latest
+go install github.com/trendvidia/protowire/cmd/pxf@latest
 ```
 
 Subcommands:
 
 ```bash
-protowire encode    -p schema.proto -m pkg.Type input.pxf > output.pb
-protowire decode    -p schema.proto -m pkg.Type input.pb  > output.pxf
-protowire validate  -p schema.proto -m pkg.Type input.pxf
-protowire fmt       -p schema.proto -m pkg.Type input.pxf
-protowire lint      -p schema.proto                       # schema reserved-name check
+pxf encode    -p schema.proto -m pkg.Type input.pxf > output.pb
+pxf decode    -p schema.proto -m pkg.Type input.pb  > output.pxf
+pxf validate  -p schema.proto -m pkg.Type input.pxf
+pxf fmt       -p schema.proto -m pkg.Type input.pxf
+pxf lint      -p schema.proto                       # schema reserved-name check
 
 protowire sbe2proto schema.xml > schema.proto    # SBE XML → .proto
 protowire proto2sbe -p schema.proto > schema.xml # .proto → SBE XML
 ```
 
-`protowire lint` walks every message field, oneof, and enum value in the supplied schema(s) and reports any name colliding with a PXF value keyword (`null` / `true` / `false`) — see [Schema constraints](#schema-constraints).
+`pxf lint` walks every message field, oneof, and enum value in the supplied schema(s) and reports any name colliding with a PXF value keyword (`null` / `true` / `false`) — see [Schema constraints](#schema-constraints).
 
 Registry mode (fetch schemas from a [protoregistry](https://github.com/trendvidia/protoregistry) server) is available on every subcommand via `-s <server> -n <namespace> --schema <name>`:
 
 ```bash
-protowire encode   -s localhost:50051 -n myns --schema billing -m billing.v1.Invoice input.pxf
-protowire validate -s localhost:50051 -n myns --schema billing -m billing.v1.Invoice input.pxf
+pxf encode   -s localhost:50051 -n myns --schema billing -m billing.v1.Invoice input.pxf
+pxf validate -s localhost:50051 -n myns --schema billing -m billing.v1.Invoice input.pxf
 ```
 
 PXF subcommands are also available directly inside the protoregistry CLI:
@@ -128,16 +128,14 @@ protoregistry pxf validate [namespace] file.pxf --schema billing -m billing.v1.I
 protoregistry pxf fmt      [namespace] file.pxf --schema billing -m billing.v1.Invoice
 ```
 
-## Query tool — `pxq`
+## Query and schema inference (`pxf query`, `pxf infer-schema`)
 
-`pxq` is a `jq`-style query tool for PXF documents, with transparent input adapters for CSV, JSON, and YAML. Output is always PXF, so downstream pipeline stages stay format-agnostic regardless of where the data started. A schema-inference subcommand produces a `.proto` from a sample file for strict downstream binding; without a schema, `pxq` runs in a loose mode that mirrors jq's ergonomics for quick attribute fetches. See [`cmd/pxq/`](cmd/pxq/) for full documentation.
+The `pxf` binary also includes a `jq`-style query subcommand with transparent input adapters for CSV, JSON, and YAML. Output is always PXF, so downstream pipeline stages stay format-agnostic regardless of where the data started. A schema-inference subcommand produces a `.proto` from a sample file for strict downstream binding; without a schema, the query subcommand runs in a loose mode that mirrors jq's ergonomics for quick attribute fetches. See [`cmd/pxf/QUERY.md`](cmd/pxf/QUERY.md) for full documentation.
 
 ```bash
-go install github.com/trendvidia/protowire/cmd/pxq@latest
-
-pxq '.endpoints[0].path' config.pxf      # native
-pxq '.endpoints[0].path' config.yaml     # YAML adapted to PXF on the way in
-pxq infer-schema -m trades.v1.Trade march.csv > trades.proto
+pxf query '.endpoints[0].path' config.pxf      # native
+pxf query '.endpoints[0].path' config.yaml     # YAML adapted to PXF on the way in
+pxf infer-schema -m trades.v1.Trade march.csv > trades.proto
 ```
 
 ## Schema registry
@@ -268,7 +266,7 @@ A protobuf schema bound for PXF use MUST NOT declare a message field, oneof, or 
 
 Tools enforce this at descriptor-bind time:
 
-- Run [`protowire lint`](#cli) against a `.proto` file or registry-resident schema to surface violations before binding.
+- Run [`pxf lint`](#cli) against a `.proto` file or registry-resident schema to surface violations before binding.
 - The Go / Java decoders run the check by default at the top of every `Unmarshal`-style call and reject non-conformant schemas with a clear error. Opt-out is available via `UnmarshalOptions.SkipValidate` for callers who've already pre-validated.
 
 Schemas that violate the constraint were never round-trippable through PXF; rejecting them at bind time surfaces a pre-existing latent bug rather than introducing one.
@@ -658,8 +656,7 @@ protowire/
 ├── go.mod / go.sum                            # canonical CLI module
 │
 ├── cmd/
-│   ├── protowire/                             # canonical CLI (Go; depends on protowire-go)
-│   ├── pxq/                                   # jq-style query tool with CSV/JSON/YAML adapters
+│   ├── pxf/                                   # canonical CLI (Go; encode/decode/validate/fmt/lint/query/infer-schema)
 │   └── protoc-gen-pxf-java-meta/              # codegen plugin for protowire-java's SBE codec
 │
 ├── proto/

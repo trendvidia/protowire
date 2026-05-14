@@ -27,7 +27,7 @@
 version: 2
 updates:
 
-  # --- Go (cmd/protowire and the protoc-gen-pxf-java-meta codegen plugin) ---
+  # --- Go (cmd/pxf and the protoc-gen-pxf-java-meta codegen plugin) ---
   - package-ecosystem: "gomod"
     directory: "/"
     schedule:

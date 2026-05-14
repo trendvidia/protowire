@@ -9,7 +9,7 @@ import (
 )
 
 // loadYAML parses YAML 1.2 input into gojq's untyped graph per the
-// cmd/pxq/README.md rules:
+// cmd/pxf/QUERY.md rules:
 //
 //   - Explicit `!!` tags are authoritative (`!!str 1` stays string,
 //     `!!int 01` stays int).

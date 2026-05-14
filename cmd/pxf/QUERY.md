@@ -1,19 +1,19 @@
-# pxq — query tool for PXF, CSV, JSON, and YAML
+# `pxf query` — jq-style query tool for PXF, CSV, JSON, and YAML
 
-A `jq`-style command-line query tool whose core operates on PXF documents. CSV, JSON, and YAML inputs are transparently adapted to PXF before the query runs; output is always PXF.
+A `jq`-style command-line query subcommand whose core operates on PXF documents. CSV, JSON, and YAML inputs are transparently adapted to PXF before the query runs; output is always PXF.
 
 ```bash
-pxq '.endpoints[0].path' config.pxf      # native
-pxq '.endpoints[0].path' config.json     # JSON adapted to PXF
-pxq '.endpoints[0].path' config.yaml     # YAML adapted to PXF
-pxq '.endpoints[0].path' config.csv      # CSV adapted to PXF
+pxf query '.endpoints[0].path' config.pxf      # native
+pxf query '.endpoints[0].path' config.json     # JSON adapted to PXF
+pxf query '.endpoints[0].path' config.yaml     # YAML adapted to PXF
+pxf query '.endpoints[0].path' config.csv      # CSV adapted to PXF
 ```
 
-All four invocations emit PXF on stdout. The query language is the same across formats — pipelines that consume PXF stay consistent regardless of where the data started.
+All four invocations emit PXF on stdout. The query language is the same across formats — pipelines that consume PXF stay consistent regardless of where the data started. The tool ships as part of the `protowire` binary alongside `encode`, `decode`, `validate`, `fmt`, `lint`, and `infer-schema`.
 
 ### A note on `@proto` and `pxf_proto`
 
-PXF v1.0 introduced `@proto` as a top-of-document directive (draft §3.4.5) that embeds a schema in the data file. `pxq` exposes the query-language counterpart as `pxf_proto(<name>; <object>)` — a regular gojq function rather than a built-in `@<name>` formatter, because gojq reserves `@<name>` for string-encoding pipelines (`@uri`, `@base64`, …) and doesn't allow third-party `@<name>` extensions. The two are complementary halves of the same primitive:
+PXF v1.0 introduced `@proto` as a top-of-document directive (draft §3.4.5) that embeds a schema in the data file. `pxf query` exposes the query-language counterpart as `pxf_proto(<name>; <object>)` — a regular gojq function rather than a built-in `@<name>` formatter, because gojq reserves `@<name>` for string-encoding pipelines (`@uri`, `@base64`, …) and doesn't allow third-party `@<name>` extensions. The two are complementary halves of the same primitive:
 
 | Layer | Form | Direction | Use |
 |---|---|---|---|
@@ -24,19 +24,19 @@ When both appear in the same pipeline, a document-level `@proto` registers the s
 
 ## Why
 
-Working data lives in CSV, JSON, and YAML. Adopting PXF means either rewriting every producer at once or accepting a parallel-tools era where each format keeps its own query stack. `pxq` collapses that surface: one expression language, one output format, four input formats. The tool is also a soft on-ramp — every quirk of the surrounding formats (CSV's typeless columns, JSON's int-vs-float ambiguity, YAML's `no`→`false`) becomes a small reminder that the PXF version of the same document doesn't have that problem.
+Working data lives in CSV, JSON, and YAML. Adopting PXF means either rewriting every producer at once or accepting a parallel-tools era where each format keeps its own query stack. `pxf query` collapses that surface: one expression language, one output format, four input formats. The tool is also a soft on-ramp — every quirk of the surrounding formats (CSV's typeless columns, JSON's int-vs-float ambiguity, YAML's `no`→`false`) becomes a small reminder that the PXF version of the same document doesn't have that problem.
 
 ## Two modes
 
-`pxq` behaves differently depending on whether a top-level type is bound to the document — via `-m <fully-qualified>`, an `@type` directive in the input, or one of the four `@proto` shapes. The default is implicit — type bound → strict, none bound → loose — with `--strict` and `--loose` flags available to force the non-default.
+`pxf query` behaves differently depending on whether a top-level type is bound to the document — via `-m <fully-qualified>`, an `@type` directive in the input, or one of the four `@proto` shapes. The default is implicit — type bound → strict, none bound → loose — with `--strict` and `--loose` flags available to force the non-default.
 
 ### Strict — type bound
 
 For data engineers wiring a new pipeline or integration feed. The bound message type is asserted at the document root, and direct field-chain accesses (`.foo`, `.foo.bar`, …) are type-checked against the schema at compile time. Unknown field references surface with a did-you-mean hint and the parent message's fully-qualified name; the query never executes if the field set is wrong:
 
 ```bash
-$ pxq -p trades.proto -m trades.v1.Trade '.symbool' march.csv
-pxq: strict-mode: unknown field "symbool" on trades.v1.Trade (did you mean "symbol"?)
+$ pxf query -p trades.proto -m trades.v1.Trade '.symbool' march.csv
+pxf query: strict-mode: unknown field "symbool" on trades.v1.Trade (did you mean "symbol"?)
 ```
 
 Dynamic access patterns (array indexing, `pxf_directive(...)`, function calls, object construction) keep gojq's runtime semantics — validation tracks message field chains only.
@@ -46,26 +46,26 @@ Dynamic access patterns (array indexing, `pxf_directive(...)`, function calls, o
 For one-off scripts and quick attribute fetches against PXF/JSON/YAML/CSV files sitting somewhere. Types are inferred per-value using cheap unambiguous rules; ambiguous cases stay as strings, and runtime type mismatches surface as `null` rather than aborting (**errors-as-null** — jq-compatible).
 
 ```bash
-pxq '.symbol'                march.csv
-pxq '.endpoints | length'    config.yaml
+pxf query '.symbol'                march.csv
+pxf query '.endpoints | length'    config.yaml
 ```
 
-Loose mode prints a one-line stderr hint on first use of a file, pointing at `pxq infer-schema` for users who want the strict path.
+Loose mode prints a one-line stderr hint on first use of a file, pointing at `pxf infer-schema` for users who want the strict path.
 
 ### Forcing a mode
 
 | Flag | Effect |
 |---|---|
-| `--strict` | Force strict; errors if no root type is bound, with the prescribed help (`-m`, `@type`, or `pxq infer-schema`) |
+| `--strict` | Force strict; errors if no root type is bound, with the prescribed help (`-m`, `@type`, or `pxf infer-schema`) |
 | `--loose` | Force loose even when a root type is bound; the validator is skipped and unknown fields degrade to `null` at runtime per jq |
 | `-m <FQN>` | Bind the document root to a fully-qualified message name when the input doesn't carry `@type` |
 
 ## Schema inference
 
-`pxq infer-schema` produces a `.proto` schema from a sample file. The output is an ordinary protobuf schema — usable by every tool in the protowire ecosystem, not just `pxq`.
+`pxf infer-schema` produces a `.proto` schema from a sample file. The output is an ordinary protobuf schema — usable by every tool in the protowire ecosystem, not just `pxf query`.
 
 ```bash
-pxq infer-schema -m trades.v1.Trade march.csv > trades.proto
+pxf infer-schema -m trades.v1.Trade march.csv > trades.proto
 ```
 
 The inference pass picks candidate types from the first `--sample-rows=N` rows (default `N=1000`), then validates the remainder of the file against those candidates. The full file is always walked; the sample size only controls when the candidate is fixed.
@@ -141,15 +141,15 @@ A header row is assumed by default; pass `--no-header` to bind purely positional
 
 ## Output
 
-Output is always PXF. There is no `--output=json` flag — back-conversion to the source format is a separate concern, and forcing PXF on the way out is what makes downstream pipeline composition trivial. When a binary protobuf is needed downstream, pipe through `protowire encode`:
+Output is always PXF. There is no `--output=json` flag — back-conversion to the source format is a separate concern, and forcing PXF on the way out is what makes downstream pipeline composition trivial. When a binary protobuf is needed downstream, pipe through `pxf encode`:
 
 ```bash
-pxq '...' input.csv | protowire encode -p trades.proto -m trades.v1.Trade
+pxf query '...' input.csv | pxf encode -p trades.proto -m trades.v1.Trade
 ```
 
 ## Query language
 
-The query expression is gojq-compatible — `pxq` embeds [`itchyny/gojq`](https://github.com/itchyny/gojq) as its core engine, so anything that runs in jq runs here, with the same operators, the same standard library, and the same runtime semantics. PXF-specific capability is registered as ordinary gojq functions under a `pxf_` prefix (gojq's `@<name>` syntax is reserved for string formatters and isn't user-extensible, so a namespacing prefix on plain identifiers is the next-best convention).
+The query expression is gojq-compatible — `pxf query` embeds [`itchyny/gojq`](https://github.com/itchyny/gojq) as its core engine, so anything that runs in jq runs here, with the same operators, the same standard library, and the same runtime semantics. PXF-specific capability is registered as ordinary gojq functions under a `pxf_` prefix (gojq's `@<name>` syntax is reserved for string formatters and isn't user-extensible, so a namespacing prefix on plain identifiers is the next-best convention).
 
 ### `pxf_*` extensions
 
@@ -170,10 +170,10 @@ The query-level counterpart to the document-level `@proto` directive (see [termi
 
 ```bash
 # Two-argument form — concise when the object is short:
-pxq 'pxf_proto("trades.v1.Trade"; { symbol: .ticker, price: .last, qty: .size })' raw.json
+pxf query 'pxf_proto("trades.v1.Trade"; { symbol: .ticker, price: .last, qty: .size })' raw.json
 
 # Pipe form — easier to read when the object expression is multi-line:
-pxq '{ symbol: .ticker, price: .last, qty: .size } | pxf_proto("trades.v1.Trade")' raw.json
+pxf query '{ symbol: .ticker, price: .last, qty: .size } | pxf_proto("trades.v1.Trade")' raw.json
 ```
 
 Both forms are equivalent. `pxf_proto` validates field names, types, oneof exclusivity, and `(pxf.required)`/`(pxf.default)` annotations, then emits a typed PXF document prefixed with `@type trades.v1.Trade`. Same schema-resolution chain as the document parser:
@@ -198,10 +198,10 @@ Loose mode skips layer 1 entirely; the engine runs jq-identically.
 ## Install
 
 ```bash
-go install github.com/trendvidia/protowire/cmd/pxq@latest
+go install github.com/trendvidia/protowire/cmd/pxf@latest
 ```
 
-`pxq` depends on `protowire-go` for PXF parsing and on the canonical `pxf/annotations.proto` for `(pxf.required)` / `(pxf.default)` semantics during schema-bound CSV decoding.
+`pxf query` depends on `protowire-go` for PXF parsing and on the canonical `pxf/annotations.proto` for `(pxf.required)` / `(pxf.default)` semantics during schema-bound CSV decoding.
 
 ### Quick start — self-describing PXF
 
@@ -219,7 +219,7 @@ $ cat trades.pxf
 ( "MSFT", 415.10,  50 )
 ( "AAPL", 188.55,  75 )
 
-$ pxq 'pxf_directive("dataset")[0].rows | map(select(.symbol == "AAPL")) | length' trades.pxf
+$ pxf query 'pxf_directive("dataset")[0].rows | map(select(.symbol == "AAPL")) | length' trades.pxf
 2
 ```
 
@@ -228,7 +228,7 @@ $ pxq 'pxf_directive("dataset")[0].rows | map(select(.symbol == "AAPL")) | lengt
 Compare with the schema-external form, which needs `-p` and `-m`:
 
 ```bash
-$ pxq -p trades.proto -m trades.v1.Trade '.symbol' march.csv
+$ pxf query -p trades.proto -m trades.v1.Trade '.symbol' march.csv
 ```
 
 The two produce byte-identical PXF on stdout when fed equivalent inputs — the difference is purely where the schema travels.

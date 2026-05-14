@@ -274,7 +274,7 @@ implementation: `protowire-go` v0.73.0.
     used in this repo.
   - `cmd/protoc-gen-pxf-java-meta`: rejects non-conforming
     `FileDescriptorSet`s at the top of `generateFile`.
-  - `cmd/protowire`: new `lint` subcommand that runs the same check
+  - `cmd/pxf`: new `lint` subcommand that runs the same check
     standalone against `--proto` or `--server` schemas.
 
   Ports MUST add the equivalent descriptor-bind check before

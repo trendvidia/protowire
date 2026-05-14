@@ -52,7 +52,7 @@ These ship together — each gates a release across all 9 ports.
 | Dart | pub.dev | `dart pub publish` |
 | Swift | Swift Package Index + CocoaPods | git tag + podspec |
 
-**Pre-built CLI binaries.** The shared CLI in `cmd/protowire` ships as platform-native binaries for linux/macOS/windows × x86_64/arm64 via GoReleaser. Currently non-Go users must either install Go or build from source.
+**Pre-built CLI binaries.** The shared CLI in `cmd/pxf` ships as platform-native binaries for linux/macOS/windows × x86_64/arm64 via GoReleaser. Currently non-Go users must either install Go or build from source.
 
 **Acceptance.** A fresh project can `<install one of: go install / cargo add / pip install / npm install / dotnet add package / pub get / pod install / swift add / mvn / vcpkg install>` and use the library without a build-time toolchain (other than Python's wheel-or-build fallback).
 
@@ -117,7 +117,7 @@ This is distinct from [M6](#m6--security-audit--threat-model) (third-party point
 
 **Problem.** The shared CLI is Go-only. Non-Go users either install a Go toolchain or build from source.
 
-**Plan.** GoReleaser config in `cmd/protowire/`:
+**Plan.** GoReleaser config in `cmd/pxf/`:
 - linux x86_64/aarch64 (musl + glibc)
 - macOS x86_64/arm64 (signed + notarized)
 - windows x86_64
@@ -141,7 +141,7 @@ The reference implementation. Fewest gaps; the focus here is supply-chain hygien
 #### Pending
 
 - **0.71.0** — Pin `trendvidia/protobuf-go` fork to a specific SHA in `go.mod` with a comment explaining (a) why the fork exists, (b) what the diff against upstream is, (c) when we'll attempt upstreaming.
-- **0.72.0** — Reproducible-build verification: `go install github.com/trendvidia/protowire/cmd/protowire@<tag>` produces byte-identical binaries given the same Go toolchain version.
+- **0.72.0** — Reproducible-build verification: `go install github.com/trendvidia/protowire/cmd/pxf@<tag>` produces byte-identical binaries given the same Go toolchain version.
 - **0.74.0** — File the upstream issue against `google.golang.org/protobuf` for `dynamicpb.SetUnsafe` / `AppendUnsafe` / `MapSetUnsafe`. If accepted, drop the fork at 1.0.0; if rejected, document the fork as permanent.
 
 #### Cross-port follow-up

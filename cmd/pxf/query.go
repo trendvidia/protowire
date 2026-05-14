@@ -1,13 +1,5 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 TrendVidia, LLC.
-//
-// pxq is a jq-style query tool whose core operates on PXF documents.
-// See cmd/pxq/README.md for the full design.
-//
-// This file implements Stage A of the rollout: the spine end-to-end
-// for the loose-mode PXF→PXF round-trip. JSON/YAML/CSV adapters,
-// strict mode, the @pxf.* extension namespace, and the @proto(...)
-// constructor land in follow-up PRs.
 package main
 
 import (
@@ -18,51 +10,40 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+
+	"github.com/trendvidia/protowire/internal/schemaresolve"
 )
 
+// query-subcommand-specific flag vars. The shared flags
+// (-p / -m / -s / -n / --schema) live on the root as PersistentFlags
+// and are already declared in main.go; this file owns only what's
+// genuinely query-specific.
 var (
-	formatFlag       string
-	protoFiles       []string
-	registryServer   string
-	registryNS       string
-	registrySchemaID string
-	messageFlag      string
-	strictFlag       bool
-	looseFlag        bool
+	formatFlag string
+	strictFlag bool
+	looseFlag  bool
 )
 
-func main() {
-	root := &cobra.Command{
-		Use:   "pxq <query> <file>",
-		Short: "jq-style query tool for PXF, CSV, JSON, and YAML",
-		Long: "pxq runs jq-style queries against PXF documents. CSV, JSON, and " +
-			"YAML inputs are transparently adapted to PXF before the query runs; " +
-			"output is always PXF. See cmd/pxq/README.md for the full design.",
-		// Two args (query, file) routes to runQuery; subcommands (e.g.
-		// `pxq infer-schema`) are matched by name before falling through.
+// queryCmd registers `pxf query <query> <file>`. The previous
+// formerly shipped as the standalone `pxq` binary; it now lives as a
+// subcommand of `pxf` so the toolchain ships as one executable.
+func queryCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "query <query> <file>",
+		Short: "Run a jq-style query against PXF, CSV, JSON, or YAML input",
+		Long: "Embeds itchyny/gojq with a pxf_* extension namespace that exposes\n" +
+			"PXF directives and schema-bound row binding. Output is always PXF;\n" +
+			"see cmd/pxf/QUERY.md for the full design and the function\n" +
+			"reference.",
 		Args:          cobra.ExactArgs(2),
-		RunE:          run,
+		RunE:          runQueryCmd,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
-	f := root.PersistentFlags()
+	f := cmd.Flags()
 	f.StringVar(&formatFlag, "format", "",
 		"override input format detection (pxf|json|yaml|csv); default is "+
 			"inferred from the file extension, with stdin (\"-\") defaulting to pxf")
-	f.StringSliceVarP(&protoFiles, "proto", "p", nil,
-		".proto file(s) to compile; messages compile into the schema "+
-			"resolver used by pxf_proto(...) and pxf_directive('dataset')")
-	f.StringVarP(&registryServer, "server", "s", os.Getenv("PROTOREGISTRY_SERVER"),
-		"protoregistry gRPC address; together with --namespace and --schema "+
-			"fetches a descriptor bundle the schema resolver consumes")
-	f.StringVarP(&registryNS, "namespace", "n", os.Getenv("PROTOREGISTRY_NAMESPACE"),
-		"protoregistry namespace")
-	f.StringVar(&registrySchemaID, "schema", "",
-		"protoregistry schema name (within the namespace)")
-	f.StringVarP(&messageFlag, "message", "m", "",
-		"fully-qualified message name to bind the document root to; "+
-			"required for --strict, optional otherwise (the document's "+
-			"@type directive supplies it when present)")
 	f.BoolVar(&strictFlag, "strict", false,
 		"force strict mode (compile-time field-name validation); errors "+
 			"if no root type is bound. Default: implicit — strict when a "+
@@ -70,16 +51,15 @@ func main() {
 	f.BoolVar(&looseFlag, "loose", false,
 		"force loose mode (skip strict-mode validation) even when a "+
 			"root type is in scope; runtime errors degrade to null per jq")
-
-	root.AddCommand(inferSchemaCmd())
-
-	if err := root.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, "pxq:", err)
-		os.Exit(1)
-	}
+	return cmd
 }
 
-func run(cmd *cobra.Command, args []string) error {
+// runQueryCmd is the cobra RunE for `pxf query`. Mirrors the
+// previous pxq `run` function — the only changes are flag-var names
+// (msgName/server/namespace/schemaName instead of the prior pxq-local
+// aliases) and the schemaresolve.RegistryRef shape that now lives in
+// the shared internal package.
+func runQueryCmd(_ *cobra.Command, args []string) error {
 	query, path := args[0], args[1]
 
 	data, err := readInput(path)
@@ -107,10 +87,10 @@ func run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	sch, err := loadSchema(protoFiles, doc.protos, registryRef{
-		Server:    registryServer,
-		Namespace: registryNS,
-		Schema:    registrySchemaID,
+	sch, err := loadSchema(protoFiles, doc.protos, schemaresolve.RegistryRef{
+		Server:    server,
+		Namespace: namespace,
+		Schema:    schemaName,
 	})
 	if err != nil {
 		return err
@@ -120,7 +100,7 @@ func run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	rootType := resolveRootType(messageFlag, doc, sch)
+	rootType := resolveRootType(msgName, doc, sch)
 	strict, err := effectiveMode(mode, rootType != nil)
 	if err != nil {
 		return err
@@ -198,6 +178,9 @@ func pickMode() (modeFlag, error) {
 	}
 }
 
+// loadByFormat dispatches the parsed input through the format-
+// specific adapter and returns the unified loadedDoc shape the
+// query / emit layers consume.
 func loadByFormat(format string, data []byte) (*loadedDoc, error) {
 	switch format {
 	case "pxf":
