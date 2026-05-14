@@ -17,23 +17,38 @@ var errSink io.Writer = os.Stderr
 
 func stderr() io.Writer { return errSink }
 
-// runQuery compiles `query` and runs it against `input`, returning every
-// result the iterator produces.
+// docBody returns the gojq-ready body graph from a loadedDoc, falling
+// back to an empty map when the document is body-less (the pxf_* funcs
+// still reach directives via the captured env). Always returns a
+// map[string]any so jq path expressions like `.x` don't hit a nil
+// receiver.
+func docBody(doc *loadedDoc) any {
+	if doc == nil || doc.body == nil {
+		return map[string]any{}
+	}
+	return doc.body
+}
+
+// runQuery compiles `query`, registers the pxf_* extension functions
+// against `doc` and `sch`, and runs against the document body —
+// returning every result the iterator produces.
 //
-// Stage A is loose-mode-only: errors at runtime degrade to nil (jq's
-// "errors-as-null" model), matching the README. Compile-time errors
-// in the query itself are returned to the caller.
-func runQuery(query string, input any) ([]any, error) {
+// Loose mode (Stage A): runtime errors degrade to nil (jq's
+// errors-as-null model), matching the README. Compile-time errors in
+// the query itself are returned to the caller.
+func runQuery(query string, doc *loadedDoc, sch *schema) ([]any, error) {
 	q, err := gojq.Parse(query)
 	if err != nil {
 		return nil, fmt.Errorf("query: %w", err)
 	}
-	code, err := gojq.Compile(q)
+	env := &funcEnv{doc: doc, sch: sch}
+	code, err := gojq.Compile(q, registerFuncs(env)...)
 	if err != nil {
 		return nil, fmt.Errorf("compile query: %w", err)
 	}
 
-	iter := code.Run(input)
+	body := docBody(doc)
+	iter := code.Run(body)
 	var out []any
 	for {
 		v, ok := iter.Next()

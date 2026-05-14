@@ -34,13 +34,21 @@ func emitPXF(w io.Writer, v any) error {
 }
 
 func emitTopMap(w io.Writer, m map[string]any) error {
-	keys := sortedKeys(m)
-	for _, k := range keys {
-		// Top-level synthetic directive keys from loadPXF (Stage A
-		// scaffolding for `@pxf.directive`) aren't legal field names
-		// and would round-trip oddly — drop them on output.
-		if strings.HasPrefix(k, "__pxf_") {
-			continue
+	// `@type` is a directive (draft §3.4.1), not a field assignment.
+	// Emit it first so consumers can parse the type before scanning
+	// the body, matching what pxf.Format produces for typed messages.
+	if v, ok := m["@type"]; ok {
+		s, isStr := v.(string)
+		if !isStr {
+			return fmt.Errorf("@type must be a string, got %T", v)
+		}
+		if _, err := fmt.Fprintf(w, "@type %s\n", s); err != nil {
+			return err
+		}
+	}
+	for _, k := range sortedKeys(m) {
+		if k == "@type" {
+			continue // already emitted as directive
 		}
 		if _, err := fmt.Fprintf(w, "%s = ", k); err != nil {
 			return err

@@ -20,7 +20,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var formatFlag string
+var (
+	formatFlag string
+	protoFiles []string
+)
 
 func main() {
 	root := &cobra.Command{
@@ -34,9 +37,13 @@ func main() {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
-	root.Flags().StringVar(&formatFlag, "format", "",
+	f := root.Flags()
+	f.StringVar(&formatFlag, "format", "",
 		"override input format detection (pxf|json|yaml|csv); default is "+
 			"inferred from the file extension, with stdin (\"-\") defaulting to pxf")
+	f.StringSliceVarP(&protoFiles, "proto", "p", nil,
+		".proto file(s) to compile; messages compile into the schema "+
+			"resolver used by pxf_proto(...) and pxf_directive('dataset')")
 
 	if err := root.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, "pxq:", err)
@@ -57,12 +64,17 @@ func run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	input, err := loadByFormat(format, data)
+	doc, err := loadByFormat(format, data)
 	if err != nil {
 		return fmt.Errorf("parse %s as %s: %w", path, format, err)
 	}
 
-	results, err := runQuery(query, input)
+	sch, err := loadSchema(protoFiles)
+	if err != nil {
+		return err
+	}
+
+	results, err := runQuery(query, doc, sch)
 	if err != nil {
 		return err
 	}
@@ -118,7 +130,7 @@ func detectFormat(path, override string) (string, error) {
 	}
 }
 
-func loadByFormat(format string, data []byte) (any, error) {
+func loadByFormat(format string, data []byte) (*loadedDoc, error) {
 	switch format {
 	case "pxf":
 		return loadPXF(data)
