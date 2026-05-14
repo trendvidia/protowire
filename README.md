@@ -128,6 +128,18 @@ protoregistry pxf validate [namespace] file.pxf --schema billing -m billing.v1.I
 protoregistry pxf fmt      [namespace] file.pxf --schema billing -m billing.v1.Invoice
 ```
 
+## Query tool — `pxq`
+
+`pxq` is a `jq`-style query tool for PXF documents, with transparent input adapters for CSV, JSON, and YAML. Output is always PXF, so downstream pipeline stages stay format-agnostic regardless of where the data started. A schema-inference subcommand produces a `.proto` from a sample file for strict downstream binding; without a schema, `pxq` runs in a loose mode that mirrors jq's ergonomics for quick attribute fetches. See [`cmd/pxq/`](cmd/pxq/) for full documentation.
+
+```bash
+go install github.com/trendvidia/protowire/cmd/pxq@latest
+
+pxq '.endpoints[0].path' config.pxf      # native
+pxq '.endpoints[0].path' config.yaml     # YAML adapted to PXF on the way in
+pxq infer-schema -m trades.v1.Trade march.csv > trades.proto
+```
+
 ## Schema registry
 
 [`trendvidia/protoregistry`](https://github.com/trendvidia/protoregistry) is the companion `.proto` catalog/registry: a multi-namespace schema store with versioning, two-phase staging, backward-compatibility enforcement, and lock-free hot-swap. It compiles `.proto` sources at runtime, deduplicates them by content hash in PostgreSQL, and serves compiled descriptors over gRPC for dynamic message creation and validation.
@@ -647,6 +659,7 @@ protowire/
 │
 ├── cmd/
 │   ├── protowire/                             # canonical CLI (Go; depends on protowire-go)
+│   ├── pxq/                                   # jq-style query tool with CSV/JSON/YAML adapters
 │   └── protoc-gen-pxf-java-meta/              # codegen plugin for protowire-java's SBE codec
 │
 ├── proto/
