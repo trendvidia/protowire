@@ -117,9 +117,10 @@ func valueToAny(v pxf.Value) (any, error) {
 	case *pxf.StringVal:
 		return n.Value, nil
 	case *pxf.IntVal:
-		// Try int64 first, fall back to *big.Int for very large ints.
+		// gojq operates on `int`; on 64-bit platforms this is int64
+		// wide. Larger values fall through to *big.Int.
 		if x, err := strconv.ParseInt(n.Raw, 10, 64); err == nil {
-			return x, nil
+			return int(x), nil
 		}
 		if x, ok := new(big.Int).SetString(n.Raw, 10); ok {
 			return x, nil
