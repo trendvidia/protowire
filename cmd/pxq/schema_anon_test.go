@@ -22,7 +22,7 @@ func runE2EAnonResolved(t *testing.T, query, input string) string {
 	if err := resolveAnonymousProtos(doc); err != nil {
 		t.Fatalf("resolveAnonymousProtos: %v", err)
 	}
-	sch, err := loadSchema(nil, doc.protos)
+	sch, err := loadSchema(nil, doc.protos, registryRef{})
 	if err != nil {
 		t.Fatalf("loadSchema: %v", err)
 	}
@@ -78,7 +78,7 @@ func TestAnonProto_SchemaRegistered(t *testing.T) {
 	if err := resolveAnonymousProtos(doc); err != nil {
 		t.Fatal(err)
 	}
-	sch, err := loadSchema(nil, doc.protos)
+	sch, err := loadSchema(nil, doc.protos, registryRef{})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -21,8 +21,11 @@ import (
 )
 
 var (
-	formatFlag string
-	protoFiles []string
+	formatFlag       string
+	protoFiles       []string
+	registryServer   string
+	registryNS       string
+	registrySchemaID string
 )
 
 func main() {
@@ -44,6 +47,13 @@ func main() {
 	f.StringSliceVarP(&protoFiles, "proto", "p", nil,
 		".proto file(s) to compile; messages compile into the schema "+
 			"resolver used by pxf_proto(...) and pxf_directive('dataset')")
+	f.StringVarP(&registryServer, "server", "s", os.Getenv("PROTOREGISTRY_SERVER"),
+		"protoregistry gRPC address; together with --namespace and --schema "+
+			"fetches a descriptor bundle the schema resolver consumes")
+	f.StringVarP(&registryNS, "namespace", "n", os.Getenv("PROTOREGISTRY_NAMESPACE"),
+		"protoregistry namespace")
+	f.StringVar(&registrySchemaID, "schema", "",
+		"protoregistry schema name (within the namespace)")
 
 	if err := root.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, "pxq:", err)
@@ -73,7 +83,11 @@ func run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	sch, err := loadSchema(protoFiles, doc.protos)
+	sch, err := loadSchema(protoFiles, doc.protos, registryRef{
+		server:    registryServer,
+		namespace: registryNS,
+		schema:    registrySchemaID,
+	})
 	if err != nil {
 		return err
 	}

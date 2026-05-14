@@ -25,7 +25,7 @@ sym = "AAPL"
 	if err != nil {
 		t.Fatalf("loadPXF: %v", err)
 	}
-	sch, err := loadSchema(nil, doc.protos)
+	sch, err := loadSchema(nil, doc.protos, registryRef{})
 	if err != nil {
 		t.Fatalf("loadSchema: %v", err)
 	}
@@ -50,7 +50,7 @@ func TestInDocProto_Named_NoPackage(t *testing.T) {
 x = 1
 `
 	doc, _ := loadPXF([]byte(input))
-	sch, err := loadSchema(nil, doc.protos)
+	sch, err := loadSchema(nil, doc.protos, registryRef{})
 	if err != nil {
 		t.Fatalf("loadSchema: %v", err)
 	}
@@ -88,7 +88,7 @@ func TestInDocProto_Source_RegistersAllMessages(t *testing.T) {
 	if err != nil {
 		t.Fatalf("loadPXF: %v", err)
 	}
-	sch, err := loadSchema(nil, doc.protos)
+	sch, err := loadSchema(nil, doc.protos, registryRef{})
 	if err != nil {
 		t.Fatalf("loadSchema: %v", err)
 	}
@@ -141,7 +141,7 @@ func TestInDocProto_Descriptor_RegistersType(t *testing.T) {
 	if err != nil {
 		t.Fatalf("loadPXF: %v", err)
 	}
-	sch, err := loadSchema(nil, doc.protos)
+	sch, err := loadSchema(nil, doc.protos, registryRef{})
 	if err != nil {
 		t.Fatalf("loadSchema: %v", err)
 	}
@@ -159,7 +159,7 @@ func TestInDocProto_Anonymous_Rejected(t *testing.T) {
 x = 1
 `
 	doc, _ := loadPXF([]byte(input))
-	_, err := loadSchema(nil, doc.protos)
+	_, err := loadSchema(nil, doc.protos, registryRef{})
 	if err == nil {
 		t.Fatal("expected error for anonymous @proto, got nil")
 	}
@@ -181,7 +181,7 @@ message Outside { string s = 1; }
 x = 1
 `
 	doc, _ := loadPXF([]byte(input))
-	sch, err := loadSchema([]string{p}, doc.protos)
+	sch, err := loadSchema([]string{p}, doc.protos, registryRef{})
 	if err != nil {
 		t.Fatalf("loadSchema: %v", err)
 	}
@@ -205,7 +205,7 @@ func runE2EFullPipeline(t *testing.T, input, query string) string {
 	if err != nil {
 		t.Fatalf("loadPXF: %v", err)
 	}
-	sch, err := loadSchema(nil, doc.protos)
+	sch, err := loadSchema(nil, doc.protos, registryRef{})
 	if err != nil {
 		t.Fatalf("loadSchema: %v", err)
 	}

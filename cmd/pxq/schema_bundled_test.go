@@ -26,7 +26,7 @@ func TestBundled_PxfProtoWithoutFlags(t *testing.T) {
 }
 
 func TestBundled_AllCanonicalFilesCompile(t *testing.T) {
-	sch, err := loadSchema(nil, nil)
+	sch, err := loadSchema(nil, nil, registryRef{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,7 +51,7 @@ func TestBundled_CoexistsWithDashP(t *testing.T) {
 package mine.v1;
 message Mine { string s = 1; }
 `)
-	sch, err := loadSchema([]string{p}, nil)
+	sch, err := loadSchema([]string{p}, nil, registryRef{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,7 +72,7 @@ n = 1
 	if err != nil {
 		t.Fatal(err)
 	}
-	sch, err := loadSchema(nil, doc.protos)
+	sch, err := loadSchema(nil, doc.protos, registryRef{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,7 +95,7 @@ message Container {
   envelope.v1.AppError err = 1;
 }
 `)
-	sch, err := loadSchema([]string{p}, nil)
+	sch, err := loadSchema([]string{p}, nil, registryRef{})
 	if err != nil {
 		t.Fatalf("cross-import compile failed: %v", err)
 	}
