@@ -26,14 +26,14 @@ const (
 // --loose toggle and whether the query has a bound top-level type.
 // Returns (strict, error): if the user forced --strict but no type is
 // bound, surfaces the README's prescribed "errors if no schema is
-// available, pointing at pxq infer-schema" message.
+// available, pointing at pxf infer-schema" message.
 func effectiveMode(req modeFlag, bound bool) (bool, error) {
 	switch req {
 	case modeStrict:
 		if !bound {
 			return false, fmt.Errorf("--strict requires a top-level message type " +
 				"(pass -m fully.qualified.Name, set @type in the document, " +
-				"or run `pxq infer-schema` first)")
+				"or run `pxf infer-schema` first)")
 		}
 		return true, nil
 	case modeLoose:
