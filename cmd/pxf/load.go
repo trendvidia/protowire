@@ -27,7 +27,7 @@ type loadedDoc struct {
 
 // loadPXF parses a PXF document and lowers it to a loadedDoc.
 //
-// Loose-mode rules per cmd/pxq/README.md: types are inferred from PXF
+// Loose-mode rules per cmd/pxf/QUERY.md: types are inferred from PXF
 // source-level tokens (INT→int, FLOAT→float64, BYTES→base64 string with
 // "b" prefix, BOOL/NULL/STRING/IDENT→native Go types, TIMESTAMP→RFC3339
 // string, DURATION→Go-duration-string). Values larger than int64-max

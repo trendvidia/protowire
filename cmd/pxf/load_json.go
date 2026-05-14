@@ -12,7 +12,7 @@ import (
 )
 
 // loadJSON parses JSON input into gojq's untyped graph with the
-// disambiguation rules documented in cmd/pxq/README.md. Returns a
+// disambiguation rules documented in cmd/pxf/QUERY.md. Returns a
 // loadedDoc with no directives — JSON inputs are body-only.
 //
 //   - 1 (no decimal)     → int (or *big.Int on overflow)

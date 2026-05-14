@@ -195,7 +195,7 @@ x = 1
 
 // --- end-to-end pipeline helper ---
 
-// runE2EFullPipeline mirrors what cmd/pxq's main() does: parse the
+// runE2EFullPipeline mirrors what cmd/pxf's main() does: parse the
 // input, load the schema from in-doc @proto directives, run the
 // query, emit. Used to test the schema-resolution chain end-to-end
 // without a -p flag.

@@ -13,7 +13,7 @@ import (
 )
 
 // loadCSV parses CSV input into a loadedDoc whose single dataset
-// directive carries the rows. Loose-mode rules per cmd/pxq/README.md:
+// directive carries the rows. Loose-mode rules per cmd/pxf/QUERY.md:
 //
 //   - cell matches ^-?\d+$            → int (or *big.Int on overflow)
 //   - cell matches ^-?\d+\.\d+$       → float64

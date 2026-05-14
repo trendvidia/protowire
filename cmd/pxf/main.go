@@ -32,8 +32,12 @@ var (
 
 func main() {
 	root := &cobra.Command{
-		Use:   "protowire",
-		Short: "PXF encoding tool — human-friendly protobuf text format",
+		Use:   "pxf",
+		Short: "Protowire toolchain — PXF text format, schemas, and queries",
+		Long: "pxf is the unified CLI for the protowire stack. Subcommands cover\n" +
+			"the encode/decode/validate/fmt/lint surface for the PXF text format,\n" +
+			"plus a jq-style `query` subcommand and a `.proto`-emitting\n" +
+			"`infer-schema` subcommand for tabular inputs (CSV, PXF @dataset).",
 	}
 
 	pf := root.PersistentFlags()
@@ -46,6 +50,7 @@ func main() {
 	root.AddCommand(
 		encodeCmd(), decodeCmd(), validateCmd(), fmtCmd(), lintCmd(),
 		sbe2protoCmd(), proto2sbeCmd(),
+		queryCmd(), inferSchemaCmd(),
 	)
 
 	if err := root.Execute(); err != nil {
@@ -53,35 +58,36 @@ func main() {
 	}
 }
 
-// resolveDescriptor resolves the message descriptor for the configured
-// schema source (--proto and/or --server) and narrows to --message.
-// Returns an error when neither source is supplied or --message is
-// missing.
+// resolveDescriptor resolves the message descriptor for --message
+// using the configured schema sources: bundled canonical schemas
+// (always available), --proto files, and protoregistry coordinates
+// when supplied. Errors when --message is missing or the name can't
+// be found in any source.
 func resolveDescriptor() (protoreflect.MessageDescriptor, error) {
 	if msgName == "" {
 		return nil, fmt.Errorf("--message is required")
 	}
-	if len(protoFiles) == 0 && server == "" {
-		return nil, fmt.Errorf("specify --proto or --server to provide a schema")
-	}
 	reg, err := schemaresolve.Resolve(
-		schemaresolve.CompileOptions{UserFiles: protoFiles},
-		registryRef(),
+		schemaresolve.CompileOptions{
+			UserFiles:    protoFiles,
+			BundledFiles: schemaresolve.CompileBundledAll,
+		},
+		registryRefFromFlags(),
 	)
 	if err != nil {
 		return nil, err
 	}
 	md := reg.Find(msgName)
 	if md == nil {
-		return nil, fmt.Errorf("message %q not found in resolved schema", msgName)
+		return nil, fmt.Errorf("message %q not found in resolved schema (bundled canonical types + -p + protoregistry)", msgName)
 	}
 	return md, nil
 }
 
-// registryRef builds a schemaresolve.RegistryRef from the package
-// flag vars. Lets the top-level helpers keep their original CLI shape
-// while delegating to the shared resolver.
-func registryRef() schemaresolve.RegistryRef {
+// registryRefFromFlags builds a schemaresolve.RegistryRef from the
+// package flag vars. Lets the top-level helpers keep their original
+// CLI shape while delegating to the shared resolver.
+func registryRefFromFlags() schemaresolve.RegistryRef {
 	return schemaresolve.RegistryRef{
 		Server:    server,
 		Namespace: namespace,
@@ -229,7 +235,7 @@ func resolveFiles() ([]protoreflect.FileDescriptor, error) {
 	if len(protoFiles) == 0 && server == "" {
 		return nil, fmt.Errorf("specify --proto or --server to provide a schema")
 	}
-	ref := registryRef()
+	ref := registryRefFromFlags()
 	if err := ref.Validate(); err != nil {
 		return nil, err
 	}

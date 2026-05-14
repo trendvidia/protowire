@@ -10,7 +10,7 @@ import (
 // The heavy lifting (FetchRegistry, RegistryRef.Validate, in-process
 // gRPC test fixtures) lives in internal/schemaresolve where the
 // behaviour is implemented. This file keeps a couple of thin sanity
-// checks that exercise the cmd/pxq → schemaresolve wiring — proving
+// checks that exercise the cmd/pxf → schemaresolve wiring — proving
 // the alias and the loadSchema entry point still surface the package's
 // error messages correctly.
 
