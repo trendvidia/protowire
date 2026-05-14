@@ -52,7 +52,7 @@ message Trade {
   int64 qty = 3;
 }
 `)
-	sch, err := loadSchema([]string{p})
+	sch, err := loadSchema([]string{p}, nil)
 	if err != nil {
 		t.Fatalf("loadSchema: %v", err)
 	}
@@ -74,7 +74,7 @@ message Outer {
   Inner inner = 1;
 }
 `)
-	sch, err := loadSchema([]string{p})
+	sch, err := loadSchema([]string{p}, nil)
 	if err != nil {
 		t.Fatalf("loadSchema: %v", err)
 	}
@@ -84,7 +84,7 @@ message Outer {
 }
 
 func TestSchema_EmptyArgsReturnsNil(t *testing.T) {
-	sch, err := loadSchema(nil)
+	sch, err := loadSchema(nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,7 +95,7 @@ func TestSchema_EmptyArgsReturnsNil(t *testing.T) {
 
 func TestSchema_CompileErrorPropagates(t *testing.T) {
 	p := writeProto(t, "this is not a valid proto file\n")
-	_, err := loadSchema([]string{p})
+	_, err := loadSchema([]string{p}, nil)
 	if err == nil {
 		t.Error("expected compile error")
 	}
@@ -189,7 +189,7 @@ message Trade {
   int64 qty = 3;
 }
 `)
-	sch, err := loadSchema([]string{p})
+	sch, err := loadSchema([]string{p}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -277,7 +277,7 @@ message Trade {
   double price = 2;
 }
 `)
-	sch, err := loadSchema([]string{p})
+	sch, err := loadSchema([]string{p}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -303,7 +303,7 @@ p = 188.42
 func TestPxfProto_UnregisteredTypeErrors(t *testing.T) {
 	p := writeProto(t, `syntax = "proto3"; package x.v1; message A { }
 `)
-	sch, _ := loadSchema([]string{p})
+	sch, _ := loadSchema([]string{p}, nil)
 	input := "n = 1\n"
 	got := runE2EWithSchema(t,
 		`pxf_proto("not.a.real.Type"; {}) // "errored"`,
@@ -318,7 +318,7 @@ func TestPxfProto_UnregisteredTypeErrors(t *testing.T) {
 func TestPxfProto_PipeForm(t *testing.T) {
 	p := writeProto(t, `syntax = "proto3"; package x.v1; message A { string s = 1; }
 `)
-	sch, _ := loadSchema([]string{p})
+	sch, _ := loadSchema([]string{p}, nil)
 	input := "t = \"hello\"\n"
 	got := runE2EWithSchema(t,
 		`{s: .t} | pxf_proto("x.v1.A"; .)`,

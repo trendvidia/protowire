@@ -69,7 +69,7 @@ func run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("parse %s as %s: %w", path, format, err)
 	}
 
-	sch, err := loadSchema(protoFiles)
+	sch, err := loadSchema(protoFiles, doc.protos)
 	if err != nil {
 		return err
 	}

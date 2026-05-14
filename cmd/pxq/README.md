@@ -106,6 +106,8 @@ When the input document carries `@proto` directives (draft §3.4.5), the embedde
 
 Schema resolution order: bundled canonical schemas → `@proto` directives in the input → `-p` flag → protoregistry (`-s/-n/--schema`). Later sources can shadow earlier ones, so a user-supplied `-p` overrides whatever the document carries — useful when a producer's embedded schema lags the latest revision.
 
+Three of the four `@proto` body shapes are honoured as schema sources today — **named** (`@proto Name { body }` — sugar over a single-message `.proto`), **source** (`@proto """..."""` — full `.proto` file), and **descriptor** (`@proto b"..."` — base64-encoded `FileDescriptorSet`). The **anonymous** form (`@proto { body }`) is rejected with an actionable error; assigning a name is the workaround for now.
+
 ### JSON
 
 Standard JSON parsing with explicit disambiguation for each known ambiguity:
