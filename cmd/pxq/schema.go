@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/bufbuild/protocompile"
@@ -17,6 +18,72 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/descriptorpb"
 )
+
+// resolveAnonymousProtos applies the v1.0 spec's bind-to-next-typeless
+// rule (draft §3.4.4 / §3.4.5): each anonymous `@proto { body }`
+// directive consumes its right-following typeless `@dataset` in
+// document order, supplying it as the row message type. We synthesise
+// a unique name per pair (`_pxq_anon_N`), rewrite the proto in place
+// from anonymous to named, and copy that name onto the matched
+// dataset. The rest of the pipeline (loadSchema, pxf_directive) then
+// treats the pair as if it had been written with an explicit name.
+//
+// The binding is strict: every anonymous proto must have a matching
+// typeless dataset and vice versa, in lockstep document order. An
+// orphan in either direction is a parse-time error from the user's
+// perspective.
+//
+// Document order is established by Pos.Offset since pxf.Document
+// exposes protos and datasets as separate slices.
+func resolveAnonymousProtos(doc *loadedDoc) error {
+	if doc == nil {
+		return nil
+	}
+	type ent struct {
+		off     int
+		isProto bool
+		idx     int
+	}
+	ents := make([]ent, 0, len(doc.protos)+len(doc.datasets))
+	for i, p := range doc.protos {
+		ents = append(ents, ent{p.Pos.Offset, true, i})
+	}
+	for i, ds := range doc.datasets {
+		ents = append(ents, ent{ds.Pos.Offset, false, i})
+	}
+	sort.Slice(ents, func(i, j int) bool { return ents[i].off < ents[j].off })
+
+	var pending []int // indices into doc.protos with anonymous shape, FIFO
+	counter := 0
+	for _, e := range ents {
+		if e.isProto {
+			if doc.protos[e.idx].Shape == pxf.ProtoAnonymous {
+				pending = append(pending, e.idx)
+			}
+			continue
+		}
+		// Dataset.
+		if doc.datasets[e.idx].Type != "" {
+			continue // already typed; not eligible for anonymous binding
+		}
+		if len(pending) == 0 {
+			return fmt.Errorf("@dataset at %s has no type and no preceding anonymous @proto to bind to (draft §3.4.4)",
+				doc.datasets[e.idx].Pos)
+		}
+		protoIdx := pending[0]
+		pending = pending[1:]
+		name := fmt.Sprintf("_pxq_anon_%d", counter)
+		counter++
+		doc.protos[protoIdx].Shape = pxf.ProtoNamed
+		doc.protos[protoIdx].TypeName = name
+		doc.datasets[e.idx].Type = name
+	}
+	if len(pending) > 0 {
+		return fmt.Errorf("anonymous @proto at %s has no following typeless @dataset to bind to (draft §3.4.5)",
+			doc.protos[pending[0]].Pos)
+	}
+	return nil
+}
 
 // schema is the in-scope descriptor set the query layer can resolve
 // against. Loaded from the README's resolution chain:
@@ -72,8 +139,11 @@ func loadSchema(protoFiles []string, inDoc []pxf.ProtoDirective) (*schema, error
 		case pxf.ProtoDescriptor:
 			descriptorBlobs = append(descriptorBlobs, pd.Body)
 		case pxf.ProtoAnonymous:
-			return nil, fmt.Errorf("pxq: anonymous @proto directives aren't yet supported as schema sources; " +
-				"give the message a name (e.g. `@proto trades.v1.Trade { ... }`)")
+			// Anonymous @proto should have been rewritten to named by
+			// resolveAnonymousProtos before this point. If we still see
+			// one here, the caller skipped the binding pass.
+			return nil, fmt.Errorf("pxq: internal — anonymous @proto reached schema loader; " +
+				"call resolveAnonymousProtos on the loadedDoc first")
 		default:
 			return nil, fmt.Errorf("pxq: unknown @proto shape %v", pd.Shape)
 		}
