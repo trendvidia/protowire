@@ -14,7 +14,7 @@ func runE2EWithFormat(t *testing.T, format, query, input string) string {
 	if err != nil {
 		t.Fatalf("loadByFormat(%s): %v", format, err)
 	}
-	results, err := runQuery(query, doc)
+	results, err := runQuery(query, doc, nil)
 	if err != nil {
 		t.Fatalf("runQuery: %v", err)
 	}
@@ -131,14 +131,13 @@ func TestYAML_NestedSequenceMap(t *testing.T) {
 
 func TestCSV_PerCellClassification(t *testing.T) {
 	input := "name,age,price,active\nAlice,30,1.5,true\nBob,25,2.0,false\n"
-	// CSV rows live under __pxf_datasets[0].rows.
-	if got := runE2EWithFormat(t, "csv", ".__pxf_datasets[0].rows[0].age", input); !strings.Contains(got, "30") {
+	if got := runE2EWithFormat(t, "csv", `pxf_directive("dataset")[0].rows[0].age`, input); !strings.Contains(got, "30") {
 		t.Errorf("age: %s", got)
 	}
-	if got := runE2EWithFormat(t, "csv", ".__pxf_datasets[0].rows[0].active", input); !strings.Contains(got, "true") {
+	if got := runE2EWithFormat(t, "csv", `pxf_directive("dataset")[0].rows[0].active`, input); !strings.Contains(got, "true") {
 		t.Errorf("active: %s", got)
 	}
-	if got := runE2EWithFormat(t, "csv", ".__pxf_datasets[0].rows[0].name", input); !strings.Contains(got, `"Alice"`) {
+	if got := runE2EWithFormat(t, "csv", `pxf_directive("dataset")[0].rows[0].name`, input); !strings.Contains(got, `"Alice"`) {
 		t.Errorf("name: %s", got)
 	}
 }
@@ -147,17 +146,17 @@ func TestCSV_EmptyCellIsAbsent(t *testing.T) {
 	// Row 1 has an empty middle column; `has()` should report false
 	// for it (consistent with @dataset empty-cell semantic).
 	input := "a,b,c\n1,,3\n"
-	if got := runE2EWithFormat(t, "csv", `.__pxf_datasets[0].rows[0] | has("b")`, input); !strings.Contains(got, "false") {
+	if got := runE2EWithFormat(t, "csv", `pxf_directive("dataset")[0].rows[0] | has("b")`, input); !strings.Contains(got, "false") {
 		t.Errorf("empty cell should be absent: %s", got)
 	}
-	if got := runE2EWithFormat(t, "csv", `.__pxf_datasets[0].rows[0] | has("a")`, input); !strings.Contains(got, "true") {
+	if got := runE2EWithFormat(t, "csv", `pxf_directive("dataset")[0].rows[0] | has("a")`, input); !strings.Contains(got, "true") {
 		t.Errorf("present cell should be present: %s", got)
 	}
 }
 
 func TestCSV_HeaderRow_Default(t *testing.T) {
 	input := "symbol,price\nAAPL,188.42\nMSFT,415.10\n"
-	got := runE2EWithFormat(t, "csv", `.__pxf_datasets[0].rows | map(.symbol)`, input)
+	got := runE2EWithFormat(t, "csv", `pxf_directive("dataset")[0].rows | map(.symbol)`, input)
 	if !strings.Contains(got, `["AAPL", "MSFT"]`) {
 		t.Errorf("expected symbol list, got: %s", got)
 	}
@@ -165,10 +164,10 @@ func TestCSV_HeaderRow_Default(t *testing.T) {
 
 func TestCSV_DatasetWrapperShape(t *testing.T) {
 	input := "x,y\n1,2\n"
-	if got := runE2EWithFormat(t, "csv", `.__pxf_datasets[0].columns`, input); !strings.Contains(got, `["x", "y"]`) {
+	if got := runE2EWithFormat(t, "csv", `pxf_directive("dataset")[0].columns`, input); !strings.Contains(got, `["x", "y"]`) {
 		t.Errorf("columns: %s", got)
 	}
-	if got := runE2EWithFormat(t, "csv", `.__pxf_datasets[0].rows | length`, input); !strings.Contains(got, "1") {
+	if got := runE2EWithFormat(t, "csv", `pxf_directive("dataset")[0].rows | length`, input); !strings.Contains(got, "1") {
 		t.Errorf("rows length: %s", got)
 	}
 }

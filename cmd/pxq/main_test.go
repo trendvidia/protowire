@@ -22,7 +22,7 @@ func runE2E(t *testing.T, query, input string) string {
 	if err != nil {
 		t.Fatalf("loadPXF: %v", err)
 	}
-	results, err := runQuery(query, doc)
+	results, err := runQuery(query, doc, nil)
 	if err != nil {
 		t.Fatalf("runQuery %q: %v", query, err)
 	}
@@ -89,7 +89,7 @@ func TestQuery_Dataset_FilterAndCount(t *testing.T) {
 ( "AAPL", 188.55, 75 )
 `
 	got := runE2E(t,
-		`.__pxf_datasets[0].rows | map(select(.symbol == "AAPL")) | length`,
+		`pxf_directive("dataset")[0].rows | map(select(.symbol == "AAPL")) | length`,
 		input)
 	if !strings.Contains(got, "2") {
 		t.Errorf("expected 2 AAPL rows, got: %s", got)
@@ -102,16 +102,16 @@ func TestQuery_Dataset_EmptyAndNullCells(t *testing.T) {
 ( 4, null, 6 )
 `
 	// First row: b is absent (empty cell) → missing key.
-	got := runE2E(t, `.__pxf_datasets[0].rows[0] | has("b")`, input)
+	got := runE2E(t, `pxf_directive("dataset")[0].rows[0] | has("b")`, input)
 	if !strings.Contains(got, "false") {
 		t.Errorf("expected absent b → has() false: %s", got)
 	}
 	// Second row: b is present (null literal) → present-with-null.
-	got = runE2E(t, `.__pxf_datasets[0].rows[1] | has("b")`, input)
+	got = runE2E(t, `pxf_directive("dataset")[0].rows[1] | has("b")`, input)
 	if !strings.Contains(got, "true") {
 		t.Errorf("expected null b → has() true: %s", got)
 	}
-	got = runE2E(t, `.__pxf_datasets[0].rows[1].b`, input)
+	got = runE2E(t, `pxf_directive("dataset")[0].rows[1].b`, input)
 	if !strings.Contains(got, "null") {
 		t.Errorf("expected null b value, got: %s", got)
 	}
@@ -122,11 +122,11 @@ func TestQuery_Proto_Directive_Exposed(t *testing.T) {
 @dataset trades.v1.Trade ( symbol )
 ( "AAPL" )
 `
-	got := runE2E(t, ".__pxf_protos[0].shape", input)
+	got := runE2E(t, `pxf_directive("proto")[0].shape`, input)
 	if !strings.Contains(got, `"named"`) {
 		t.Errorf("expected named proto shape: %s", got)
 	}
-	got = runE2E(t, ".__pxf_protos[0].typeName", input)
+	got = runE2E(t, `pxf_directive("proto")[0].typeName`, input)
 	if !strings.Contains(got, `"trades.v1.Trade"`) {
 		t.Errorf("expected typeName trades.v1.Trade: %s", got)
 	}

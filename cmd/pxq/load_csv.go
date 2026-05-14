@@ -8,95 +8,82 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+
+	"github.com/trendvidia/protowire-go/encoding/pxf"
 )
 
-// loadCSV parses CSV input into gojq's untyped graph. Loose mode
-// (Stage B): per-cell type classification with the README's rules.
+// loadCSV parses CSV input into a loadedDoc whose single dataset
+// directive carries the rows. Loose-mode rules per cmd/pxq/README.md:
 //
-//   - cell matches ^-?\d+$            → int64 (or *big.Int on overflow)
+//   - cell matches ^-?\d+$            → int (or *big.Int on overflow)
 //   - cell matches ^-?\d+\.\d+$       → float64
 //   - cell is "true" or "false"       → bool
 //   - everything else                 → string
-//   - empty cell                      → absent (key omitted from row)
+//   - empty cell                      → absent (omitted from the row map)
 //
-// A header row is assumed by default (matches the README; --no-header
-// flag will land alongside the strict-mode schema layer in Stage C).
-// The output graph mirrors PXF's `@dataset` shape so that
-// `.__pxf_datasets[0].rows | map(...)` queries work identically for
-// CSV and for an equivalent `@dataset`-headed PXF document.
-func loadCSV(data []byte) (any, error) {
+// A header row is assumed (matches the README; --no-header flag lands
+// alongside the strict-mode schema layer). The synthetic
+// DatasetDirective makes `pxf_directive("dataset")` work identically
+// for CSV and for an equivalent `@dataset`-headed PXF document.
+func loadCSV(data []byte) (*loadedDoc, error) {
 	r := csv.NewReader(bytes.NewReader(data))
 	r.FieldsPerRecord = -1 // tolerate ragged rows; rows shorter than
-	// the header surface as absent fields, which matches the @dataset
+	// the header surface as absent fields — matches the @dataset
 	// empty-cell semantic.
 
 	header, err := r.Read()
 	if err == io.EOF {
-		return wrapAsDataset(nil, nil), nil
+		return &loadedDoc{}, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("read CSV header: %w", err)
 	}
 
-	rows := make([]any, 0, 16)
+	ds := pxf.DatasetDirective{Columns: header}
 	for {
 		rec, err := r.Read()
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
-			return nil, fmt.Errorf("read CSV row %d: %w", len(rows)+1, err)
+			return nil, fmt.Errorf("read CSV row %d: %w", len(ds.Rows)+1, err)
 		}
-		row := map[string]any{}
-		for i, col := range header {
+		row := pxf.DatasetRow{Cells: make([]pxf.Value, len(header))}
+		for i := range header {
 			if i >= len(rec) {
-				break // ragged row: trailing columns absent
+				break // ragged row: trailing columns absent (nil cell)
 			}
 			cell := rec[i]
 			if cell == "" {
-				continue // empty → absent
+				continue // empty → absent (nil cell)
 			}
-			row[col] = classifyCell(cell)
+			row.Cells[i] = csvCellToPXFValue(cell)
 		}
-		rows = append(rows, row)
+		ds.Rows = append(ds.Rows, row)
 	}
-	return wrapAsDataset(header, rows), nil
+	return &loadedDoc{datasets: []pxf.DatasetDirective{ds}}, nil
+}
+
+// csvCellToPXFValue applies the per-cell classifier and wraps the
+// result in a pxf.Value so the dataset round-trips through the
+// pxf_directive("dataset") extension uniformly with native PXF
+// datasets.
+func csvCellToPXFValue(s string) pxf.Value {
+	switch {
+	case s == "true":
+		return &pxf.BoolVal{Value: true}
+	case s == "false":
+		return &pxf.BoolVal{Value: false}
+	case intRe.MatchString(s):
+		return &pxf.IntVal{Raw: s}
+	case floatRe.MatchString(s):
+		return &pxf.FloatVal{Raw: s}
+	default:
+		return &pxf.StringVal{Value: s}
+	}
 }
 
 var (
 	intRe   = regexp.MustCompile(`^-?\d+$`)
 	floatRe = regexp.MustCompile(`^-?\d+\.\d+$`)
 )
-
-func classifyCell(s string) any {
-	switch {
-	case s == "true":
-		return true
-	case s == "false":
-		return false
-	case intRe.MatchString(s):
-		return numberFromLexical(s)
-	case floatRe.MatchString(s):
-		return numberFromLexical(s)
-	default:
-		return s
-	}
-}
-
-func wrapAsDataset(header []string, rows []any) any {
-	cols := make([]any, len(header))
-	for i, h := range header {
-		cols[i] = h
-	}
-	if rows == nil {
-		rows = []any{}
-	}
-	ds := map[string]any{
-		"type":    "",
-		"columns": cols,
-		"rows":    rows,
-	}
-	return map[string]any{
-		"__pxf_datasets": []any{ds},
-	}
-}

@@ -12,25 +12,25 @@ import (
 )
 
 // loadJSON parses JSON input into gojq's untyped graph with the
-// disambiguation rules documented in cmd/pxq/README.md:
+// disambiguation rules documented in cmd/pxq/README.md. Returns a
+// loadedDoc with no directives — JSON inputs are body-only.
 //
-//   - 1 (no decimal)     → int64 (or *big.Int on overflow)
+//   - 1 (no decimal)     → int (or *big.Int on overflow)
 //   - 1.0 (decimal)       → float64
 //   - ""                  → "" (empty string, NOT null)
 //   - null                → nil
 //   - [], {}              → empty list / empty map
 //
-// We use UseNumber() so the lexical form of numeric literals survives
-// to our type-routing layer — the stdlib's default would coerce every
-// number to float64 and lose the int-vs-float distinction.
-func loadJSON(data []byte) (any, error) {
+// UseNumber() preserves the lexical form so jsonNormalize can route
+// int-vs-float — the stdlib default coerces every number to float64.
+func loadJSON(data []byte) (*loadedDoc, error) {
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.UseNumber()
 	var raw any
 	if err := dec.Decode(&raw); err != nil {
 		return nil, err
 	}
-	return jsonNormalize(raw), nil
+	return &loadedDoc{body: jsonNormalize(raw)}, nil
 }
 
 func jsonNormalize(v any) any {

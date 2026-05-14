@@ -24,15 +24,19 @@ import (
 // node.Decode(&interface{}) so we can inspect tags and route numeric
 // scalars through numberFromLexical, which preserves PXF's int/float
 // distinction the way the JSON adapter does.
-func loadYAML(data []byte) (any, error) {
+func loadYAML(data []byte) (*loadedDoc, error) {
 	var root yaml.Node
 	if err := yaml.Unmarshal(data, &root); err != nil {
 		return nil, err
 	}
 	if root.Kind != yaml.DocumentNode || len(root.Content) == 0 {
-		return nil, nil
+		return &loadedDoc{}, nil
 	}
-	return yamlNode(root.Content[0])
+	v, err := yamlNode(root.Content[0])
+	if err != nil {
+		return nil, err
+	}
+	return &loadedDoc{body: v}, nil
 }
 
 func yamlNode(n *yaml.Node) (any, error) {
