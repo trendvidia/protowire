@@ -91,7 +91,7 @@ Each port provides the in-language library only. Command-line operations are han
 
 ## CLI
 
-The `protowire` command-line tool lives in this repo at [`cmd/pxf/`](cmd/pxf/) and is shared across every port. It's written in Go and depends on `protowire-go` internally; users of any other language install it the same way:
+The `pxf` command-line tool lives in this repo at [`cmd/pxf/`](cmd/pxf/) and is shared across every port. It's written in Go and depends on `protowire-go` internally; users of any other language install it the same way. See [`cmd/pxf/README.md`](cmd/pxf/README.md) for the comprehensive subcommand reference, schema resolution chain, and exit-code semantics.
 
 ```bash
 go install github.com/trendvidia/protowire/cmd/pxf@latest
@@ -106,8 +106,8 @@ pxf validate  -p schema.proto -m pkg.Type input.pxf
 pxf fmt       -p schema.proto -m pkg.Type input.pxf
 pxf lint      -p schema.proto                       # schema reserved-name check
 
-protowire sbe2proto schema.xml > schema.proto    # SBE XML → .proto
-protowire proto2sbe -p schema.proto > schema.xml # .proto → SBE XML
+pxf sbe2proto schema.xml > schema.proto    # SBE XML → .proto
+pxf proto2sbe -p schema.proto > schema.xml # .proto → SBE XML
 ```
 
 `pxf lint` walks every message field, oneof, and enum value in the supplied schema(s) and reports any name colliding with a PXF value keyword (`null` / `true` / `false`) — see [Schema constraints](#schema-constraints).
