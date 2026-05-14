@@ -71,10 +71,11 @@ func numberFromLexical(s string) any {
 		}
 		return f
 	}
-	if n, err := strconv.ParseInt(s, 10, 64); err == nil {
-		// gojq operates on `int`; on 64-bit platforms this is int64
-		// wide. Values exceeding int64 fall through to the *big.Int
-		// branch below.
+	// gojq's numeric domain is Go `int`. ParseInt with bitSize=0
+	// validates the value fits the platform's int width — on a 32-bit
+	// build, values > int32-max fail here and fall through to *big.Int,
+	// which is the correct routing per the README.
+	if n, err := strconv.ParseInt(s, 10, 0); err == nil {
 		return int(n)
 	}
 	if z, ok := new(big.Int).SetString(s, 10); ok {
