@@ -1,8 +1,8 @@
 {
   "name": "pxf",
   "displayName": "PXF — Proto eXpressive Format",
-  "description": "Syntax highlighting and inline parse-error squiggles for PXF (Proto eXpressive Format) files.",
-  "version": "1.0.0",
+  "description": "Schema-aware authoring of PXF (Proto eXpressive Format) files via the protolsp Language Server: syntax highlighting, parse + schema diagnostics, hover.",
+  "version": "2.0.0",
   "publisher": "trendvidia",
   "license": "MIT",
   "author": {
@@ -22,7 +22,8 @@
     "protowire",
     "protobuf",
     "syntax",
-    "language"
+    "language",
+    "lsp"
   ],
   "engines": {
     "vscode": "^1.75.0"
@@ -55,7 +56,39 @@
         "scopeName": "source.pxf",
         "path": "./syntaxes/pxf.tmLanguage.json"
       }
-    ]
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "PXF Language Server",
+      "properties": {
+        "protolsp.path": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the protolsp binary. Leave empty to find it on PATH (also honors the PROTOLSP_PATH environment variable). Override per-workspace when running against a development build."
+        },
+        "protolsp.logLevel": {
+          "type": "string",
+          "default": "",
+          "enum": ["", "debug", "info", "warn", "error"],
+          "description": "Log level passed to protolsp. Leave empty to use the server's default (info)."
+        },
+        "protolsp.registry.address": {
+          "type": "string",
+          "default": "",
+          "description": "gRPC address of the protoregistry server (e.g. 'registry.example.com:443'). Leave empty to disable schema-aware diagnostics — protolsp will then only report parse errors."
+        },
+        "protolsp.registry.namespace": {
+          "type": "string",
+          "default": "",
+          "description": "Primary namespace for this workspace. protolsp uses GetNamespaceChain to discover and consult ancestor namespaces automatically; do not list them here."
+        },
+        "protolsp.registry.token": {
+          "type": "string",
+          "default": "",
+          "description": "Bearer token for protoregistry authentication. Production deployments should use a secret manager or an OIDC flow — storing the literal token in settings is a development convenience only."
+        }
+      }
+    }
   },
   "scripts": {
     "build": "esbuild ./src/extension.ts --bundle --platform=node --target=node18 --external:vscode --format=cjs --outfile=./dist/extension.js",
@@ -65,11 +98,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@trendvidia/protowire": "^1.0.0"
+    "vscode-languageclient": "^9.0.1"
   },
   "devDependencies": {
     "@types/node": "^25.7.0",
-    "@types/vscode": "^1.120.0",
+    "@types/vscode": "^1.75.0",
     "@vscode/vsce": "^3.0.0",
     "esbuild": "^0.28.0",
     "typescript": "^6.0.3"
