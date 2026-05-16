@@ -10,6 +10,60 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+## [1.1.0] – 2026-05-15
+
+Tooling release on the v1.0 spec line. No grammar, wire-format, or
+envelope changes — the spec is frozen at 1.0. This tag bundles the
+post-freeze CLI consolidation, the new `pxq` query tool, and the
+editor extension's rewrite as a thin LSP client.
+
+### Spec changes
+
+None. Existing v1.0 parsers and ports continue to work without
+modification.
+
+### Tooling
+
+- **`cmd/protowire` and `cmd/pxq` unified into a single `pxf`
+  binary** (#42). The old `protowire` and `pxq` commands are gone;
+  every subcommand now lives under `pxf <subcommand>`. **Breaking
+  for users with scripts that invoke `protowire` or `pxq`
+  directly** — update them to `pxf`. The grammar / wire format /
+  envelope are unchanged, so on-disk documents remain compatible.
+- **`pxq` query subcommand** (now `pxf q`): jq-style transforms
+  over `.pxf` documents with three input adapters (JSON, YAML,
+  CSV) and protoregistry-backed schema resolution. Lands in
+  stages A (#32), B (#33), C (#34), plus follow-ups for in-document
+  `@proto` binding (#35, #36), bundled canonical schemas (#37),
+  protoregistry `-s` / `-n` / `--schema` flags (#38), schema
+  inference (#39), and a strict-mode AST validator (#40). Design
+  doc at `docs/design/pxq.md`.
+
+### Editor extensions
+
+- **VS Code 2.0.0 → 2.1.0** — the extension rewrites as a thin
+  `vscode-languageclient` host spawning the
+  [protolsp](https://github.com/trendvidia/protolsp) Language
+  Server over stdio (#47). 2.1.0 adds a `TextDocumentContentProvider`
+  for the `registry:` URI scheme so go-to-definition can open
+  `.proto` sources fetched from protoregistry when they aren't on
+  disk (#48). The in-extension `@trendvidia/protowire` parser is
+  gone — diagnostics, hover, completion, code actions, and
+  go-to-definition all come from the LSP now.
+- **JetBrains**: gradle-wrapper bump only (#44); plugin version
+  unchanged at 1.0.0.
+
+### Internal
+
+- Schema-resolver helpers extracted to `internal/schemaresolve` so
+  `pxf check` and `pxf q` (and future tools) share one
+  protoregistry-resolution code path (#41).
+
+### Pre-built editor bundles
+
+- `editors/vscode/dist/pxf-2.1.0.vsix` (replaces 2.0.0).
+- `editors/jetbrains/plugin/dist/pxf-jetbrains-1.0.0.zip` (unchanged).
+
 ## [1.0.0] – 2026-05-13
 
 First major-version cut and spec freeze line. Three one-time spec
