@@ -10,6 +10,26 @@ import {
 
 const LANGUAGE_ID = "pxf";
 
+// REGISTRY_URI_SCHEME is the URI scheme protolsp uses for virtual
+// documents backed by registry-fetched .proto sources. When
+// textDocument/definition resolves to a file that isn't on disk under
+// the workspace root, protolsp returns a URI like
+//   registry://<namespace>/<file-path>
+// and we render it via the TextDocumentContentProvider registered
+// below — it sends the URI back to the LSP as a protolsp/sourceContent
+// request and the server replies with bytes fetched through
+// client.Resolver.GetSource.
+const REGISTRY_URI_SCHEME = "registry";
+
+// SOURCE_CONTENT_METHOD is the custom LSP method protolsp implements
+// to fetch bytes for a registry:// URI. Defined in
+// protolsp/internal/server/source_content.go.
+const SOURCE_CONTENT_METHOD = "protolsp/sourceContent";
+
+interface SourceContentResponse {
+  content: string;
+}
+
 let client: LanguageClient | undefined;
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
@@ -73,6 +93,38 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       });
     return;
   }
+
+  // Register a content provider for registry:// URIs so go-to-definition
+  // can open registry-backed .proto sources that don't exist on disk.
+  // VS Code calls provideTextDocumentContent on every fresh open; we
+  // round-trip the URI through the LSP's protolsp/sourceContent custom
+  // request and return the bytes the server fetched via GetSource.
+  //
+  // Errors propagate as thrown exceptions — VS Code surfaces them in
+  // the placeholder document and as a notification, which is what we
+  // want for "registry unreachable" or "file no longer exists" cases.
+  const registryContentProvider: vscode.TextDocumentContentProvider = {
+    async provideTextDocumentContent(
+      uri: vscode.Uri,
+      token: vscode.CancellationToken,
+    ): Promise<string> {
+      if (!client) {
+        throw new Error("PXF language server is not running");
+      }
+      const response = await client.sendRequest<SourceContentResponse>(
+        SOURCE_CONTENT_METHOD,
+        { uri: uri.toString() },
+        token,
+      );
+      return response.content;
+    },
+  };
+  context.subscriptions.push(
+    vscode.workspace.registerTextDocumentContentProvider(
+      REGISTRY_URI_SCHEME,
+      registryContentProvider,
+    ),
+  );
 
   context.subscriptions.push({
     dispose: () => {

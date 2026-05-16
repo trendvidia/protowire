@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.1.0
+
+- **Registry-backed go-to-definition**: when the LSP resolves a
+  definition to a `.proto` file that isn't checked into the
+  workspace, it returns a `registry://<namespace>/<file-path>` URI
+  instead of a dead-end `file://` path. The extension registers a
+  `TextDocumentContentProvider` for the `registry:` scheme that
+  round-trips the URI through the LSP's custom
+  `protolsp/sourceContent` request — the server fetches bytes via
+  `protoregistry/client.Resolver.GetSource` and the editor opens
+  the resulting virtual document read-only. Working copies on disk
+  still win when present.
+
 ## 1.0.0
 
 Lockstep major bump alongside the protowire v1.0 spec freeze.

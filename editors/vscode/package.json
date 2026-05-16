@@ -2,7 +2,7 @@
   "name": "pxf",
   "displayName": "PXF — Proto eXpressive Format",
   "description": "Schema-aware authoring of PXF (Proto eXpressive Format) files via the protolsp Language Server: syntax highlighting, parse + schema diagnostics, hover.",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "publisher": "trendvidia",
   "license": "MIT",
   "author": {
