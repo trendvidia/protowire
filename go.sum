@@ -39,8 +39,8 @@ github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
 github.com/trendvidia/protobuf-go v1.36.12 h1:R9VpHbA6T3UmOLn5j1o15ngpHBtMjYwjOXt1V8BkESs=
 github.com/trendvidia/protobuf-go v1.36.12/go.mod h1:HTf+CrKn2C3g5S8VImy6tdcUvCska2kB7j23XfzDpco=
-github.com/trendvidia/protoregistry v0.71.0 h1:iYgW3KLCNefjax1PUbj6Z67HYqkKf1IEviLEXjs25TY=
-github.com/trendvidia/protoregistry v0.71.0/go.mod h1:7pFkNB/vToykc5b/TGXPx7AzS+jRGGUxwUsPRKL+yVc=
+github.com/trendvidia/protoregistry v0.72.0 h1:vvuVe9O/t6XL5uWVD/DIGJ40pRDY+XEQNOvD3nzZZEY=
+github.com/trendvidia/protoregistry v0.72.0/go.mod h1:7pFkNB/vToykc5b/TGXPx7AzS+jRGGUxwUsPRKL+yVc=
 github.com/trendvidia/protowire-go v1.0.0 h1:bDvhbu2tqNTnJMyxc/AtjYg9C5iwemRpHJmYiFtVR/A=
 github.com/trendvidia/protowire-go v1.0.0/go.mod h1:cZsYUs9O8LxRLIl4qNiKumRBzL+PTQhYNHEKRjC4cs0=
 go.opentelemetry.io/auto/sdk v1.2.1 h1:jXsnJ4Lmnqd11kwkBV2LgLoFMZKizbCi5fNZ/ipaZ64=
