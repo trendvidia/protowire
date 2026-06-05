@@ -24,10 +24,10 @@ reviewable, testable, and revertable. This document scopes **PR 1**.
 
 ### What changes
 
-Two files:
+Three layers, kept as a single atomic PR because they only work together:
 
 1. **`parser/lexer.go`** — extend the `keywords` map (around line 122)
-   with five new entries:
+   with three new entries:
 
    ```go
    var keywords = map[string]int{
@@ -35,63 +35,88 @@ Two files:
        "type":       _TYPE,
        "function":   _FUNCTION,
        "annotation": _ANNOTATION,
-       "expression": _EXPRESSION,
-       "this":       _THIS,
    }
    ```
 
-2. **`parser/proto.y`** — add five token declarations (around line 136,
-   alongside `%token <id> _MESSAGE _SERVICE …`):
+   `expression` and `this` are NOT added — per RFC-001 §5.1, neither is
+   reserved in protobuf namespace. `expression` is recognized only at
+   annotation-parameter-type position by the grammar (PR 4 wires that);
+   `this` lives in engine-language bodies that protocompile captures
+   opaquely.
+
+2. **`parser/proto.y`** — add three token declarations alongside
+   `%token <id> _MESSAGE _SERVICE …` (around line 139):
 
    ```yacc
-   %token <id> _TYPE _FUNCTION _ANNOTATION _EXPRESSION _THIS
+   %token <id> _TYPE _FUNCTION _ANNOTATION
    ```
 
-   Then regenerate `y.go` via the existing `go generate` target.
+3. **`parser/proto.y`** — add the contextual-keyword bridge so existing
+   schemas using these words as identifiers (`oneof type { ... }`,
+   `string function = N`, etc.) continue to parse. Audit current
+   productions for `_NAME` in name-binding positions and either:
 
-   The `@` sigil is **already a token** in `proto.y` (around line 143) —
-   no lexer change needed for it.
+   - extend each one to also accept `_TYPE | _FUNCTION | _ANNOTATION`, or
+   - introduce a single `nameOrKeyword` non-terminal and replace `_NAME`
+     with `nameOrKeyword` at name-binding sites.
+
+   The second is cleaner; expected positions include message names,
+   field names, oneof names, enum-value names, service names, rpc names,
+   option key path segments, qualified-name path segments, and any
+   `identifier` production that already exists.
+
+   Then regenerate `y.go` via the existing `make generate` target. The
+   `@` sigil is **already a token** in `proto.y` (around line 143).
 
 ### What this PR does NOT change
 
-- No grammar productions consuming the new tokens.
+- No grammar productions consuming the new tokens as *keywords* yet
+  (they're available; PRs 2–5 use them).
 - No AST nodes.
 - No linker changes.
 - No descriptor lowering.
-- No fixture changes beyond what's needed for the new keyword tests.
+- No semantic behavior — every existing valid schema continues to parse
+  byte-identically.
 
-After this PR merges, the parser still rejects every `.proto` file
-that uses `type`/`function`/`annotation`/`expression`/`this` in any
-position — those tokens are reserved but not consumed by any production.
-Existing v1.1 files continue to parse identically.
+After this PR merges, the parser remains backward-compatible: existing
+v1.x schemas (including `parser/testdata/largeproto.proto`, which uses
+`oneof type` 8 times) continue to parse unchanged. New top-level
+productions for `type Email = ...`, `function f(...);`, and
+`annotation a(...);` are not yet recognized.
 
 ### Tests to add
 
-- **Lexer unit test**: feed `type` to the lexer, assert `_TYPE` token.
-  Repeat for the other four keywords.
-- **Regression fixture**: pick 3–5 existing valid `.proto` fixtures
-  from `internal/testdata/` (whichever cover the most parser surface)
-  and confirm they continue to parse without change.
-- **Soft-break fixture**: a `.proto` file with `message type { … }`
-  (using one of the new reserved words as a message name) — assert
-  the parser rejects it with a clear error pointing at the reserved
-  word. One such fixture per new keyword.
+- **Lexer unit test**: feed `type`, `function`, `annotation` to the
+  lexer in isolation; assert each yields the corresponding token.
+- **Lexer test update**: `lexer_test.go:124` currently expects `type`
+  to lex as `_NAME`; update to `_TYPE`. Same for any analogous lines.
+- **Grammar regression**: `parser/testdata/largeproto.proto` must
+  continue to parse without errors (it uses `oneof type` 8 times,
+  exercising the contextual-keyword bridge).
+- **Identifier-bridge fixtures**: small `.proto` files exercising
+  `message function { ... }`, `oneof annotation { ... }`,
+  `string type = 1;`, `enum Foo { type = 0; }` — each must parse
+  cleanly under PR 1.
 
 ### Acceptance criteria
 
-- [ ] Five new keywords reserved at the lexer level.
-- [ ] Generated `y.go` rebuilds without warnings.
+- [ ] Three new keyword tokens declared and lexed.
+- [ ] Generated `y.go` rebuilds without warnings (`make generate`).
+- [ ] `make checkgenerate` passes (CI gate).
 - [ ] Lexer unit tests pass for each new keyword.
-- [ ] All existing fixtures in `internal/testdata/` continue to parse
-  byte-identically (no regression).
-- [ ] Soft-break fixtures fail at the lexer/parser boundary with
-  clear error messages identifying the reserved word.
+- [ ] `lexer_test.go:124`-style expectations updated to the new tokens.
+- [ ] `largeproto.proto` and all existing fixtures in
+  `parser/testdata/` and `internal/testdata/` continue to parse
+  without regression.
+- [ ] New identifier-bridge fixtures parse cleanly (verifying contextual
+  behavior).
 - [ ] No new dependencies added to `go.mod`.
 
 ### Estimate
 
-1–2 days for someone familiar with the codebase. The actual lexer
-change is ~5 lines; the rest is tests and `y.go` regeneration.
+2–3 days. The lexer change is ~3 lines; the grammar bridge is the bulk
+of the work (audit existing productions, decide on `nameOrKeyword`
+approach vs. expanding each production, update tests).
 
 ## What comes next — PRs 2–5
 
@@ -163,13 +188,15 @@ Issue #030 closes. Move to #031 (IR), then #032 (linker).
 | Risk | Mitigation |
 |---|---|
 | `y.go` regeneration produces churn unrelated to this PR | Commit `y.go` regenerations in a separate prep PR if any are needed for tooling-version alignment |
-| Soft-break breaks downstream `.proto` files using the new reserved words as identifiers | Pre-flight: `grep` `protocompile`'s consumers (`protolsp`, `protocheck`, etc.) for identifiers matching the new keywords; warn the maintainers before merging |
+| Contextual-keyword bridge missed at some name-binding production | A pre-flight grep finds all `_NAME` occurrences in `proto.y`; verify each is covered by the `nameOrKeyword` non-terminal (or the per-production extension) |
 | New keywords collide with future proto3 evolutions upstream | Low likelihood — upstream proto3 grammar is frozen; tracking is via #69 (upstream fork compatibility) |
 
-## Soft-break audit before merge
+## Identifier audit before merge
 
-Before merging PR 1, run a quick search across the trendvidia
-ecosystem for `.proto` files that would break:
+The contextual-keyword design preserves backward compatibility, so this
+audit is a sanity check (not a soft-break gate). Run the same grep
+commands originally drafted as a hard-break audit to confirm the
+contextual bridge actually covers the patterns it claims to:
 
 ```bash
 # From a workspace containing all trendvidia repos
@@ -185,9 +212,11 @@ grep -rEn '\b(type|function|annotation|expression|this)[[:space:]]*=[[:space:]]*
   ~/projects/src/github.com/trendvidia/ | grep -v node_modules | grep -v vendor
 ```
 
-Findings — if any — get tracked as part of the merge plan: either
-rename the conflicting identifiers (the documented v1.2 migration) or
-delay PR 1 until the renames land.
+Each finding is a concrete fixture for the contextual-keyword test
+suite. Add (or extend) a parser test that confirms the matched
+pattern parses cleanly under PR 1. If anything fails to parse, the
+contextual-keyword bridge is incomplete — fix the grammar, don't
+rename the identifier.
 
 ## Branch strategy
 

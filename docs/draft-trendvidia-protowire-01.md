@@ -285,26 +285,40 @@ range, transparent to consumers that do not import the carrier schemas.
 
 ## Reserved Keywords {#reserved-keywords}
 
-The following identifiers, previously unreserved in `-00`, are reserved
-by `-01`:
+The following identifiers are introduced as **contextual keywords** by
+`-01`:
 
 * `type`
 * `function`
 * `annotation`
-* `expression`
-* `this`
+
+Each MUST be recognized as a keyword only at the start of a top-level
+declaration (file scope). In every other position — message names,
+oneof names, field names, enum-value names, service names, rpc names —
+the parser MUST accept the same word as an identifier. Implementations
+SHOULD use the parser's grammar production to distinguish the two
+contexts; lookahead at the file-scope production is sufficient.
+
+The contextual treatment preserves complete backward compatibility:
+every schema valid under `-00` (protowire v1.0 or v1.1) that uses
+`type`, `function`, or `annotation` as a message, oneof, field, or
+enum-value name remains valid under `-01` without modification. No
+source-level incompatibility is introduced.
 
 The character `@` (U+0040) is reserved as a sigil introducing an
-annotation use site. Outside string literals and comments, an occurrence
-of `@` MUST be followed by an identifier and MAY introduce an annotation
-use site as defined in {{annotation-use-sites}}.
+annotation use site. Outside string literals and comments, an
+occurrence of `@` MUST be followed by an identifier and MAY introduce
+an annotation use site as defined in {{annotation-use-sites}}.
 
-Schemas authored against `-00` (protowire v1.0 or v1.1) that use any of
-the above as a message, oneof, or enum-value name MUST be renamed for
-`-01` acceptance. Implementations MAY emit a deprecation warning at
-parse time when encountering these names in input claiming `-00`
-compliance. This is the only source-level incompatibility introduced in
-`-01`.
+The word `expression` is a parameter-type designator usable only
+inside `annotation X(arg: expression)` declarations
+({{annotation-declarations}}); elsewhere it MUST be treated as a
+regular identifier.
+
+The word `this` is bound only inside engine-language bodies of
+`@validate(...)` and similar annotations. Protobuf parsers capture
+those bodies opaquely (per {{annotation-use-sites}}) and MUST NOT lex
+`this` as a keyword in protobuf source.
 
 ## Type Declarations {#type-declarations}
 
@@ -731,17 +745,18 @@ expression-body = ; engine-specific subgrammar, captured as balanced
 `-00` for fields and enum values respectively, retained for delta
 clarity.
 
-## Reserved Words
+## Contextual Keywords
 
-The reserved identifiers introduced in `-01` are:
+The contextual keywords introduced in `-01` are:
 
 ~~~
-reserved-extension = %s"type" / %s"function" / %s"annotation" /
-                     %s"expression" / %s"this"
+contextual-keyword = %s"type" / %s"function" / %s"annotation"
 ~~~
 
-These augment the reserved set defined in `-00`'s "Schema constraints"
-section.
+These are recognized as keywords only at the start of a top-level
+declaration (file scope) per {{reserved-keywords}}. In every other
+position they MUST be accepted as identifiers, preserving backward
+compatibility with the schema constraints defined in `-00`.
 
 # Acknowledgments
 

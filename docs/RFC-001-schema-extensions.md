@@ -62,7 +62,15 @@ All new constructs lower to `FileDescriptorSet` plus extensions in protowire's r
 
 ### 5.1 Grammar additions (delta to v1.1)
 
-New reserved keywords: `type` · `function` · `annotation` · `expression` · `this` · `@` (sigil).
+Three new **contextual keywords** are introduced: `type`, `function`, `annotation`. Each is recognized as a keyword only at the start of a top-level declaration; in every other position — message names, oneof names, field names, enum-value names, service names, rpc names — the parser MUST accept the same word as an identifier. This preserves complete backward compatibility with v1.1 schemas; no source-level incompatibility is introduced.
+
+The character `@` (U+0040) is reserved as a sigil introducing an annotation use site.
+
+Two identifiers mentioned in earlier drafts are **not** reserved in protobuf namespace:
+- `expression` — a parameter-type designator usable inside `annotation X(arg: expression)` declarations; everywhere else it is a regular identifier.
+- `this` — bound only inside engine-language bodies of `@validate(...)` and similar; protocompile captures those bodies opaquely, so `this` is not lexed specially.
+
+**Why contextual.** Real-world Google APIs (Cloud DLP and others) and many production schemas use `type` as a `oneof` or field name (`oneof type { ... }`). Hard-reserving these words would break all such schemas. Contextual recognition uses the parser's lookahead to distinguish `type Email = ...` at file scope (keyword) from `oneof type { ... }` after `oneof` (identifier). The pattern is well-precedented — Java 9's `module`, `requires`, `exports`, `opens`, `to`, `with` are contextual keywords for exactly this reason.
 
 ```ebnf
 topLevelDecl
