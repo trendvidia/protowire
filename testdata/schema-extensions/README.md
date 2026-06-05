@@ -1,0 +1,69 @@
+# Schema Extensions Test Fixtures
+
+Conformance fixtures for the Protowire Schema Extensions (v1.2.0) specified
+in [`docs/RFC-001-schema-extensions.md`](../../docs/RFC-001-schema-extensions.md)
+and [IETF draft `-01`](../../docs/draft-trendvidia-protowire-01.md).
+
+These fixtures serve three purposes:
+
+1. **Cross-port conformance.** Every port adopting the v1.2 spec runs the
+   same fixtures and asserts identical parse, lowering, and validation
+   behavior. Cross-port equivalence is checked in CI via the existing
+   harness pattern (see `scripts/cross_envelope_check.sh` for the
+   analogous PXF/SBE conformance run).
+2. **Documentation by example.** New users browse the fixtures to learn
+   the syntax in concrete form. Each file is short, self-contained, and
+   illustrates one or two specific constructs.
+3. **Implementation targets.** Issues #030–#035 in
+   [`docs/RFC-001-issues.md`](../../docs/RFC-001-issues.md) reference
+   these fixtures as the round-trip targets for parser, lowering, and
+   source-map work in `protocompile`.
+
+## Layout
+
+```
+testdata/schema-extensions/
+├── README.md                                — this file
+├── 01_basic.proto                           — minimal declarations of each new kind
+├── 02_composition.proto                     — chained type aliases
+├── 03_message_and_field_annotations.proto   — leading vs trailing placement
+├── 04_required_and_default.proto            — @required / @default + bracket coexistence
+├── 05_error_overrides.proto                 — @validate with code + message overrides
+├── 06_cross_file_lib.proto                  — library imported by 06_cross_file_main.proto
+└── 06_cross_file_main.proto                 — uses types/functions from 06_cross_file_lib
+```
+
+Each fixture is the input; a sibling `.expected.txt` (added during M2)
+captures the expected lowered FileDescriptorSet in `protoc --decode_raw`
+form, plus the expected source-map content. The cross-port harness
+diffs every port's output against these expectations.
+
+## Per-fixture coverage
+
+| Fixture | Constructs exercised |
+|---|---|
+| `01_basic.proto` | `type`, `function`, `annotation` (one each), simple `@validate` on a field |
+| `02_composition.proto` | `type` chain (3 levels), AND composition semantics |
+| `03_message_and_field_annotations.proto` | Hybrid placement; stacked annotations on a field |
+| `04_required_and_default.proto` | `@required`, `@default`, coexistence with `[(pxf.required) = true]` / `[(pxf.default) = "..."]` |
+| `05_error_overrides.proto` | `code` and `message` args on `@validate`; `[error_code = "..."]` on `function` |
+| `06_cross_file_*.proto` | Import + cross-file resolution of types and functions |
+
+## Adding new fixtures
+
+Each fixture MUST:
+
+- be self-contained or explicitly note its imports;
+- exercise one specific construct or interaction prominently;
+- be valid `protowire v1.2` schema text per IETF draft `-01`;
+- include a header comment naming the construct it exercises and the
+  expected behavior (in prose).
+
+After adding a fixture, also add the corresponding `.expected.txt` and
+update the table above.
+
+## Status
+
+Initial fixtures committed at M0 as illustration. Full
+`.expected.txt` materialization happens at M2 once issue #034
+(descriptor lowering) lands and the canonical output shape is stable.

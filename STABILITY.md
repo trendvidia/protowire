@@ -30,6 +30,17 @@ v1.0 is the major bump that closes the pre-1.0 spec evolution period. It include
 
 Past v1.0, the wire-stability promise applies as written: additive grammar changes are permitted at minor versions, removals or narrowings require another major bump.
 
+### v1.2 — schema language additions
+
+v1.2 is a strictly additive minor bump introducing the Protowire Schema Extensions described in [`docs/RFC-001-schema-extensions.md`](docs/RFC-001-schema-extensions.md) and IETF draft `-01`. Three new top-level declarations enter the schema language — `type`, `function`, `annotation` — together with a `@annotation(...)` use-site syntax. The additions satisfy the post-v1.0 additive-only contract:
+
+- **Reserved keywords added.** `type`, `function`, `annotation`, `expression`, `this`, and the `@` sigil become reserved at v1.2. Schemas that used any of these as identifiers were already prohibited by [point 3 of the schema constraints](README.md#schema-constraints) covering `null`/`true`/`false`, but the v1.2 reservation extends the set. Application schemas that named a message, oneof, or enum value `type`, `function`, `annotation`, `expression`, or `this` must rename for v1.2 acceptance; this is the only soft-break in v1.2.
+- **Extension number sub-range claimed.** Numbers `50100`–`50199` are reserved for schema-extension carriers in [`proto/schema/v1/descriptor.proto`](proto/schema/v1/descriptor.proto). Allocated in v1.2.0: `50100` (`annotations` on every Options message), `50101` (`functions` on FileOptions), `50102` (`annotation_decls` on FileOptions), `50103` (`type_decls` on FileOptions), `50104` (`source_map` on FileOptions). Numbers `50105`–`50199` are reserved for future schema-extension carriers and follow the same renumbering prohibition as the existing PXF and SBE allocations.
+- **Wire format unchanged.** PXF, `pb`, SBE, and envelope outputs are byte-identical between v1.1 and v1.2 for any schema that does not use the new constructs. The new `@validate(...)`, `@required`, and `@default(...)` annotation forms lower to the same descriptor shape as the existing bracket forms; existing `(pxf.required) = 50000` and `(pxf.default) = 50001` numbers remain authoritative and unchanged. A v1.2 port reading a v1.1 schema produces identical outputs to a v1.1 port reading the same schema.
+- **Backward compatibility with stock tooling.** The carrier extensions at `50100`–`50104` are well-formed proto3. Stock `protoc`, `protobuf-go`, and every existing protowire port treat them as opaque options when `proto/schema/v1/descriptor.proto` is not imported, preserving them byte-identically across decode/re-encode. Tools that opt into the extensions decode them as typed values.
+
+A v1.1 port reading a v1.2 schema rejects the new keywords at parse time. A v1.2 port reading a v1.1 schema accepts it unchanged. Per-port adoption of v1.2 grammar is independent — schemas pin to the highest minor version they use, and consumers must run a v1.2+ port to read v1.2 schemas.
+
 ### CLI surface — evolves
 
 The shared CLI in [`cmd/pxf`](cmd/pxf) follows looser rules. New subcommands and flags can be added at any minor version. Existing flags are deprecated with one minor-version notice before removal at the next major. CLI exit codes are stable (`0` success, `1` user error, `2` internal error), and the JSON output schema produced by `bench-pxf` / `bench-sbe` is stable per [point 6](#promises) below.

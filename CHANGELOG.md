@@ -10,6 +10,29 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+### Spec changes — Protowire Schema Extensions (v1.2.0 target)
+
+First minor on the v1.0 freeze line. Strictly additive — every valid v1.1 schema remains a valid v1.2 schema. Bump driven by [RFC-001 — Protowire Schema Extensions](docs/RFC-001-schema-extensions.md); formal text lands in IETF draft `-01` (in preparation). Issues tracked at [`docs/RFC-001-issues.md`](docs/RFC-001-issues.md).
+
+- **Three new top-level declarations.** `type`, `function`, and `annotation` extend the schema grammar with refinement aliases, validation-function signatures, and user-declarable annotation kinds. See RFC-001 §5 for grammar deltas and worked examples.
+- **`@annotation(...)` use-site syntax.** Unified annotation framework subsuming validation rules, descriptions, examples, deprecation, OpenAPI hints, and future metadata. Hybrid placement: leading on block declarations (`message`, `service`, `rpc`, `enum`, `oneof`); trailing on single-line declarations (`type`, `field`, `function`). Existing `[(option) = value]` brackets coexist permanently — annotations are first-class sugar, brackets remain the raw escape hatch.
+- **PXF presence semantics promoted into the validation layer.** `(pxf.required)` and `(pxf.default)` gain canonical annotation forms `@required` and `@default(value)`. Bracket forms retain their extension numbers (`50000`, `50001`) and behavior unchanged.
+- **New reserved keywords.** `type`, `function`, `annotation`, `expression`, `this`, plus the `@` sigil. Application schemas using these as identifiers must rename for v1.2 acceptance — the only soft-break in v1.2.
+- **New extension number sub-range.** `50100`–`50199` reserved in [`proto/schema/v1/descriptor.proto`](proto/schema/v1/descriptor.proto) for schema-extension carriers. Allocated in this release: `50100` (annotation carrier on every Options message), `50101` (functions), `50102` (annotation declarations), `50103` (type declarations), `50104` (embedded source map). See [`STABILITY.md`](STABILITY.md) for the renumbering prohibition.
+- **Structured error model.** Functions return `(bool, *Violation)` with stable codes, structured parameters, and engine-enriched type-chain provenance. Per-locale message catalogs handle i18n at render time.
+- **Backward compatibility.** Wire format unchanged for v1.1 schemas. Stock `protoc`, `protobuf-go`, and every existing protowire port round-trip the new carrier extensions byte-identically as opaque options. v1.1 ports parse v1.1 schemas as before; v1.2 grammar requires v1.2+ ports.
+
+### New files
+
+- `docs/RFC-001-schema-extensions.md` — design RFC (this release's driving spec).
+- `docs/RFC-001-issues.md` — tracking-issue scaffold for the v1.2.0 work, paste-ready across consuming repos.
+- `proto/schema/v1/descriptor.proto` — descriptor lowering targets (stock-proto3, parseable by any v1.x port).
+- `proto/schema/v1/annotations.proto` — canonical user-facing annotation declarations (requires v1.2 grammar; lands once parser support exists, see [#004](docs/RFC-001-issues.md)).
+
+### Per-port implementation status
+
+Adoption is independent per port. Reference Go implementation lands in `protocompile`/`protocheck`/`protolsp`/`pxfed`/`protowire-go` (M1–M5); other ports adopt on their own schedule (M9+). See RFC-001 Appendix B for tracker.
+
 ## [1.1.0] – 2026-05-15
 
 Tooling release on the v1.0 spec line. No grammar, wire-format, or
