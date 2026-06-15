@@ -2,7 +2,7 @@
 // Copyright (c) 2026 TrendVidia, LLC.
 
 plugins {
-    id("org.jetbrains.kotlin.jvm") version "2.3.21"
+    id("org.jetbrains.kotlin.jvm") version "2.4.0"
     id("org.jetbrains.intellij.platform") version "2.16.0"
 }
 
