@@ -8,6 +8,58 @@
 | **Reviewers** | Anyone familiar with `parser/` |
 | **Reference docs** | [RFC-001](https://github.com/trendvidia/protowire/blob/main/docs/RFC-001-schema-extensions.md), [Issue scaffold](https://github.com/trendvidia/protowire/blob/main/docs/RFC-001-issues.md), [Umbrella #55](https://github.com/trendvidia/protowire/issues/55) |
 
+## Status: ✅ COMPLETE (2026-06-15)
+
+**M1 is done.** The full RFC-001 compiler surface — the three new
+declarations (`type`, `function`, `annotation`) plus the `@name(args)`
+annotation framework — is implemented and landed in the
+`trendvidia/protocompile` fork. Every existing v1.x schema still parses
+unchanged.
+
+The plan below is preserved as a historical record. **Two things turned
+out differently from this kickoff scope:**
+
+1. **The work was not split into the five legacy-parser PRs described
+   below.** Rather than extend the yacc `parser/proto.y` + `y.go` + legacy
+   `ast/` package, the implementation was built on protocompile's
+   **experimental** compiler pipeline, which was promoted to the default
+   (`protocompile#41`, "M1 B4'") and then made the only pipeline by
+   deleting the legacy parser, options, sourceinfo, linker, and `ast/`
+   package (`protocompile#42`–`#44`). The "nameOrKeyword vs. per-production
+   expansion" decision in PR 1 below was therefore moot — the new grammar
+   lives in the experimental parser, not the yacc grammar.
+
+2. **Scope ran past M1's original parser-only goal** straight through IR,
+   linking, and descriptor lowering — i.e. issues #030–#032 in one
+   sustained push rather than stopping after #030.
+
+### What actually landed (in `trendvidia/protocompile`)
+
+| RFC-001 capability | protocompile PR(s) |
+|---|---|
+| New keywords / grammar (experimental parser) | landed with the experimental pipeline (`#41`–`#44`) |
+| `annotation` declarations registered as IR symbols | `#50` |
+| Annotation use sites resolved against the symbol table | `#51` |
+| Annotation parameter types resolved + use-site args validated | `#52` |
+| Annotation use sites lowered into the PSE descriptor carrier | `#53` |
+| `FileAnnotationDecls` emitted on `FileOptions` | `#54` |
+| Default-value expressions lowered on annotation params | `#55` |
+| PSE annotation fixture sweep coverage | `#56` |
+| Enum-typed annotation arguments type-checked | `#57` |
+| `function` declarations registered; `FileFunctions` emitted | `#58` |
+| `type` aliases registered; `FileTypeDecls` emitted | `#60` |
+| Type-alias field types resolved; alias annotations propagated | `#61` |
+| Type-alias annotations propagated across files | `#62` |
+| `TYPE_REFINEMENT` source-map entries with alias chain links | `source-map-type-refinement` branch |
+
+### Next
+
+Issues #030–#032 are effectively closed. Remaining RFC-001 follow-ups
+live downstream of the compiler: language ports (`protowire-*`), the
+`protowire-go` runtime, and editor-grammar support for the new syntax.
+
+---
+
 ## Why a minimal first PR
 
 M1 (parser + IR + linker) is the longest item on the critical path. The
@@ -247,4 +299,4 @@ PR body should include:
 ---
 
 Document owner: TBD
-Last updated: 2026-06-05
+Last updated: 2026-06-15 (marked complete; see Status section at top)
