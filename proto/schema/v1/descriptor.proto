@@ -25,7 +25,11 @@ import "google/protobuf/descriptor.proto";
 
 // AnnotationList carries the schema-extension annotations attached to a
 // single declaration. It is wired in as an extension on every Options
-// message at field number 50100 (see `extend` blocks below).
+// message at field number 50400 (see `extend` blocks below). Each extend
+// block gives the field a per-kind name (`file_annotations`,
+// `message_annotations`, …) so that every extension has a unique
+// fully-qualified name within this package while sharing the single wire
+// number 50400.
 message AnnotationList {
   repeated Annotation entries = 1;
 }
@@ -247,22 +251,33 @@ message SourceLocation {
 // ── Options-message extensions ────────────────────────────────────────────
 //
 // Extension numbers live in protowire's reserved 50000–59999 family range
-// (see STABILITY.md). The schema-extensions sub-range is 50100–50199;
-// 50100–50104 are allocated by this revision.
+// (see STABILITY.md). The schema-extensions sub-range is 50400–50499;
+// 50400–50404 are allocated by this revision.
+//
+// The annotation carrier shares the single wire number 50400 on every
+// Options message it extends (extension numbers are per-extended-message in
+// protobuf, so reusing 50400 across them is legal), but each extension
+// field needs a unique fully-qualified name inside this package's file
+// scope. Convention: prefix the field name with the Options-message kind.
+//
+// The 50100/50101 numbers are deliberately avoided: SBE already claims them
+// on FileOptions (`sbe.schema_id`, `sbe.version` in
+// `proto/sbe/annotations.proto`), and an extension number may be used only
+// once per extended message.
 
 extend google.protobuf.FileOptions {
-  AnnotationList annotations = 50100;
+  AnnotationList file_annotations = 50400;
 
-  FileFunctions       functions        = 50101;
-  FileAnnotationDecls annotation_decls = 50102;
-  FileTypeDecls       type_decls       = 50103;
-  SourceMap           source_map       = 50104;
+  FileFunctions       functions        = 50401;
+  FileAnnotationDecls annotation_decls = 50402;
+  FileTypeDecls       type_decls       = 50403;
+  SourceMap           source_map       = 50404;
 }
 
-extend google.protobuf.MessageOptions   { AnnotationList annotations = 50100; }
-extend google.protobuf.FieldOptions     { AnnotationList annotations = 50100; }
-extend google.protobuf.EnumOptions      { AnnotationList annotations = 50100; }
-extend google.protobuf.EnumValueOptions { AnnotationList annotations = 50100; }
-extend google.protobuf.ServiceOptions   { AnnotationList annotations = 50100; }
-extend google.protobuf.MethodOptions    { AnnotationList annotations = 50100; }
-extend google.protobuf.OneofOptions     { AnnotationList annotations = 50100; }
+extend google.protobuf.MessageOptions   { AnnotationList message_annotations    = 50400; }
+extend google.protobuf.FieldOptions     { AnnotationList field_annotations      = 50400; }
+extend google.protobuf.EnumOptions      { AnnotationList enum_annotations       = 50400; }
+extend google.protobuf.EnumValueOptions { AnnotationList enum_value_annotations = 50400; }
+extend google.protobuf.ServiceOptions   { AnnotationList service_annotations    = 50400; }
+extend google.protobuf.MethodOptions    { AnnotationList method_annotations     = 50400; }
+extend google.protobuf.OneofOptions     { AnnotationList oneof_annotations      = 50400; }

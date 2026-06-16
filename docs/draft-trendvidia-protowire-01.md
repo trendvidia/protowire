@@ -597,18 +597,26 @@ numbers. The schemas for these extensions are specified in
 
 ### Extension Number Allocation
 
-The number range 50100 through 50199 is reserved by `-01` for
+The number range 50400 through 50499 is reserved by `-01` for
 schema-extension carriers. Allocated in this revision:
 
 | Number | Carrier | Target Options Messages |
 |---|---|---|
-| 50100 | `AnnotationList annotations` | FileOptions, MessageOptions, FieldOptions, EnumOptions, EnumValueOptions, ServiceOptions, MethodOptions, OneofOptions |
-| 50101 | `FileFunctions functions` | FileOptions |
-| 50102 | `FileAnnotationDecls annotation_decls` | FileOptions |
-| 50103 | `FileTypeDecls type_decls` | FileOptions |
-| 50104 | `SourceMap source_map` | FileOptions |
+| 50400 | `AnnotationList` (named per kind: `file_annotations`, `message_annotations`, `field_annotations`, `enum_annotations`, `enum_value_annotations`, `service_annotations`, `method_annotations`, `oneof_annotations`) | FileOptions, MessageOptions, FieldOptions, EnumOptions, EnumValueOptions, ServiceOptions, MethodOptions, OneofOptions |
+| 50401 | `FileFunctions functions` | FileOptions |
+| 50402 | `FileAnnotationDecls annotation_decls` | FileOptions |
+| 50403 | `FileTypeDecls type_decls` | FileOptions |
+| 50404 | `SourceMap source_map` | FileOptions |
 
-Numbers 50105 through 50199 are reserved for future schema-extension
+The annotation carrier shares wire number 50400 across all eight target
+messages; each `extend` field carries a per-kind name so that the
+fully-qualified extension names remain unique within the
+`protowire.schema.v1` package. Numbers 50100 and 50101 are intentionally
+not used by this allocation because the SBE annotations
+(`sbe.schema_id`, `sbe.version`) already occupy them on FileOptions, and
+an extension number may be used only once per extended message.
+
+Numbers 50405 through 50499 are reserved for future schema-extension
 carriers and MUST NOT be allocated by user schemas. Renumbering any of
 the above allocations is a wire break per the rules defined in
 `STABILITY.md` of {{PROTOWIRE-RFC-001}}'s source repository.

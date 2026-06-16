@@ -42,7 +42,7 @@ schema concern.
 All additions are **strictly additive**: every schema valid under v1.1
 remains valid under v1.2. Wire formats (PXF, PB, SBE, envelope) are
 unchanged. The new constructs lower to standard `FileDescriptorSet`
-plus custom-option carriers in extension numbers `50100`–`50104`
+plus custom-option carriers in extension numbers `50400`–`50404`
 (reserved in [`STABILITY.md`](STABILITY.md)), so existing tooling
 round-trips them transparently.
 
@@ -157,7 +157,7 @@ proven. Schedule per port.
 ## Maintainer notes
 
 - **Backward compatibility.** v1.2 is strictly additive on the v1.0 spec-freeze line. The only soft-break is the new reserved keywords (`type`, `function`, `annotation`, `expression`, `this`) — application schemas using any of these as message/oneof/enum-value identifiers must rename. Document and search for this in any consumer that lints schemas.
-- **Extension number range.** Reservation is `50100`–`50199` for schema-extension carriers. `50100`–`50104` are allocated. Allocations beyond this range MUST go through an RFC update; renumbering is a wire break.
+- **Extension number range.** Reservation is `50400`–`50499` for schema-extension carriers. `50400`–`50404` are allocated (the `50100`–`50101` block is skipped because SBE already uses it on `FileOptions`). Allocations beyond this range MUST go through an RFC update; renumbering is a wire break.
 - **Per-port adoption is decoupled.** A port at v1.1 reading a v1.2 schema rejects the new keywords at parse time. A port at v1.2 reading a v1.1 schema accepts it unchanged. Schemas pin to the highest minor they use; consumers must match.
 - **Ratification gate.** This issue moves from `Draft` to `Active` once RFC-001 has at least one approving review from spec governance AND all open-question issues are either resolved or filed with a `v1.2 deferred` label.
 
