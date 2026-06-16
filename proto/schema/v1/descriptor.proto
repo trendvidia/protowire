@@ -25,7 +25,11 @@ import "google/protobuf/descriptor.proto";
 
 // AnnotationList carries the schema-extension annotations attached to a
 // single declaration. It is wired in as an extension on every Options
-// message at field number 50100 (see `extend` blocks below).
+// message at field number 50400 (see `extend` blocks below). Each extend
+// block gives the field a per-kind name (`file_annotations`,
+// `message_annotations`, …) so that every extension has a unique
+// fully-qualified name within this package while sharing the single wire
+// number 50400.
 message AnnotationList {
   repeated Annotation entries = 1;
 }
