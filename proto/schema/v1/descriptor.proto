@@ -254,16 +254,14 @@ message SourceLocation {
 // (see STABILITY.md). The schema-extensions sub-range is 50400–50499;
 // 50400–50404 are allocated by this revision.
 //
-// The annotation carrier shares the single wire number 50400 on every
-// Options message it extends (extension numbers are per-extended-message in
-// protobuf, so reusing 50400 across them is legal), but each extension
-// field needs a unique fully-qualified name inside this package's file
-// scope. Convention: prefix the field name with the Options-message kind.
-//
-// The 50100/50101 numbers are deliberately avoided: SBE already claims them
-// on FileOptions (`sbe.schema_id`, `sbe.version` in
-// `proto/sbe/annotations.proto`), and an extension number may be used only
-// once per extended message.
+// The numbers moved from the original 50100-104 draft because 50100 and
+// 50101 are taken by SBE's `schema_id` / `version` on FileOptions
+// (see proto/sbe/annotations.proto). Sharing wire-format number 50400
+// across every Options message kind is legal (extension numbers are
+// per-extended-message in protobuf), but each extension field needs a
+// distinct fully-qualified name in this file's package scope, hence
+// the kind-specific naming (`file_annotations`, `message_annotations`,
+// `field_annotations`, …) instead of a single `annotations` token.
 
 extend google.protobuf.FileOptions {
   AnnotationList file_annotations = 50400;
