@@ -33,6 +33,29 @@ First minor on the v1.0 freeze line. Strictly additive — every valid v1.1 sche
 
 Adoption is independent per port. Reference Go implementation lands in `protocompile`/`protocheck`/`protolsp`/`pxfed`/`protowire-go` (M1–M5); other ports adopt on their own schedule (M9+). See RFC-001 Appendix B for tracker.
 
+## [1.1.1] – 2026-07-15
+
+Tooling patch on the v1.0 spec line. No grammar, wire-format, or
+envelope changes.
+
+### Spec changes
+
+None.
+
+### Tooling
+
+- **`pxf query` binds and emits non-finite floats as the spec's
+  identifiers** (#86). With a schema in scope, a `@dataset` cell
+  holding bare `nan`/`inf` bound as the *string* `"nan"`/`"inf"`
+  instead of a non-finite float (§3.8: the bare forms lex as
+  identifiers, and the schema layer never re-bound them on
+  float/double fields; the signed forms already bound correctly).
+  On output, non-finite floats emitted via Go's `NaN`/`+Inf`/`-Inf`
+  spellings, which are not PXF literals and did not re-parse — they
+  now emit as `nan`/`inf`/`-inf`. Also bumps the CLI's protowire-go
+  pin to v1.2.2, since v1.0.0's lexer rejected the signed forms
+  (`-inf`) in dataset cells outright.
+
 ## [1.1.0] – 2026-05-15
 
 Tooling release on the v1.0 spec line. No grammar, wire-format, or
