@@ -11,7 +11,7 @@
 
 ## Abstract
 
-This RFC proposes three new top-level declarations to the protowire schema language — `type`, `function`, and `annotation` — together with a general-purpose annotation framework (`@name(args)`) and a structured error model. The additions promote validation from a sidecar concern (today fragmented across `protovalidate`, `protocheck`, and ad-hoc proto options) to a first-class language feature. All additions are strictly additive: every existing v1.x schema parses and validates unchanged. Lowering targets standard `FileDescriptorSet` plus custom options in protowire's reserved extension range (`50100`–`50104`), so downstream tooling (stock `protoc`, `protobuf-go`, every existing port) round-trips the new constructs as opaque options without source-level changes.
+This RFC proposes three new top-level declarations to the protowire schema language — `type`, `function`, and `annotation` — together with a general-purpose annotation framework (`@name(args)`) and a structured error model. The additions promote validation from a sidecar concern (today fragmented across `protovalidate`, `protocheck`, and ad-hoc proto options) to a first-class language feature. All additions are strictly additive: every existing v1.x schema parses and validates unchanged. Lowering targets standard `FileDescriptorSet` plus custom options in protowire's reserved extension range (`50400`–`50404`), so downstream tooling (stock `protoc`, `protobuf-go`, every existing port) round-trips the new constructs as opaque options without source-level changes.
 
 ## 1. Motivation
 
@@ -278,23 +278,28 @@ message Expression {
   SourceLocation location = 3;
 }
 
-extend google.protobuf.FileOptions      { AnnotationList annotations = 50100; }
-extend google.protobuf.MessageOptions   { AnnotationList annotations = 50100; }
-extend google.protobuf.FieldOptions     { AnnotationList annotations = 50100; }
-extend google.protobuf.EnumOptions      { AnnotationList annotations = 50100; }
-extend google.protobuf.EnumValueOptions { AnnotationList annotations = 50100; }
-extend google.protobuf.ServiceOptions   { AnnotationList annotations = 50100; }
-extend google.protobuf.MethodOptions    { AnnotationList annotations = 50100; }
-extend google.protobuf.OneofOptions     { AnnotationList annotations = 50100; }
+extend google.protobuf.FileOptions      { AnnotationList file_annotations       = 50400; }
+extend google.protobuf.MessageOptions   { AnnotationList message_annotations    = 50400; }
+extend google.protobuf.FieldOptions     { AnnotationList field_annotations      = 50400; }
+extend google.protobuf.EnumOptions      { AnnotationList enum_annotations       = 50400; }
+extend google.protobuf.EnumValueOptions { AnnotationList enum_value_annotations = 50400; }
+extend google.protobuf.ServiceOptions   { AnnotationList service_annotations    = 50400; }
+extend google.protobuf.MethodOptions    { AnnotationList method_annotations     = 50400; }
+extend google.protobuf.OneofOptions     { AnnotationList oneof_annotations      = 50400; }
 ```
+
+The annotation carrier shares wire number `50400` across all eight Options
+messages, but each `extend` field is named per kind (`file_annotations`,
+`message_annotations`, …) so every extension has a unique fully-qualified
+name within the `protowire.schema.v1` package.
 
 ### 8.2 File-scope declaration carriers
 
 ```proto
 extend google.protobuf.FileOptions {
-  FileFunctions       functions        = 50101;
-  FileAnnotationDecls annotation_decls = 50102;
-  FileTypeDecls       type_decls       = 50103;
+  FileFunctions       functions        = 50401;
+  FileAnnotationDecls annotation_decls = 50402;
+  FileTypeDecls       type_decls       = 50403;
 }
 ```
 
@@ -303,7 +308,7 @@ extend google.protobuf.FileOptions {
 ### 8.3 Embedded source map
 
 ```proto
-extend google.protobuf.FileOptions { SourceMap source_map = 50104; }
+extend google.protobuf.FileOptions { SourceMap source_map = 50404; }
 ```
 
 The `SourceMap` carries entries mapping descriptor positions back to source-file locations and capturing the type-refinement chain that produced each rule. Embedded (not sidecar) — one artifact, no sync-drift between descriptor and map.
@@ -312,13 +317,13 @@ The `SourceMap` carries entries mapping descriptor positions back to source-file
 
 | Number | Carrier | Targets |
 |---|---|---|
-| `50100` | `AnnotationList annotations` | all 8 Options messages |
-| `50101` | `FileFunctions functions` | FileOptions |
-| `50102` | `FileAnnotationDecls annotation_decls` | FileOptions |
-| `50103` | `FileTypeDecls type_decls` | FileOptions |
-| `50104` | `SourceMap source_map` | FileOptions |
+| `50400` | `AnnotationList` (`file_annotations`, `message_annotations`, …) | all 8 Options messages |
+| `50401` | `FileFunctions functions` | FileOptions |
+| `50402` | `FileAnnotationDecls annotation_decls` | FileOptions |
+| `50403` | `FileTypeDecls type_decls` | FileOptions |
+| `50404` | `SourceMap source_map` | FileOptions |
 
-Range `50100`–`50199` is allocated in this revision for future schema-extension carriers, contiguous with existing PXF reservations and within protowire's documented `50000`–`59999` family range (per `STABILITY.md`).
+Range `50400`–`50499` is allocated in this revision for future schema-extension carriers, within protowire's documented `50000`–`59999` family range (per `STABILITY.md`). The `50100`–`50101` numbers are skipped because SBE already claims them on `FileOptions` (`sbe.schema_id`, `sbe.version`), and an extension number may be used only once per extended message.
 
 ### 8.5 Backward compatibility with stock tooling
 

@@ -129,6 +129,55 @@ func TestPxfDirective_Dataset_Unschemaed(t *testing.T) {
 	}
 }
 
+func TestPxfDirective_Dataset_NonFiniteFloats(t *testing.T) {
+	// §3.8: bare `inf`/`nan` lex as identifiers (only the signed forms
+	// are float tokens) — with a double field in scope they must bind
+	// as non-finite floats, not strings, and re-emit as the spec's
+	// identifier literals.
+	input := `@proto """
+syntax = "proto3";
+package t.v1;
+
+message Row {
+  double x = 1;
+}
+"""
+@dataset t.v1.Row (x)
+(1.5)
+(nan)
+(inf)
+(-inf)
+`
+	doc, err := loadPXF([]byte(input))
+	if err != nil {
+		t.Fatalf("loadPXF: %v", err)
+	}
+	sch, err := loadSchema(nil, doc.protos, registryRef{})
+	if err != nil {
+		t.Fatalf("loadSchema: %v", err)
+	}
+	run := func(query string) string {
+		t.Helper()
+		results, err := runQuery(query, doc, sch, strictOpts{})
+		if err != nil {
+			t.Fatalf("runQuery %q: %v", query, err)
+		}
+		var sb strings.Builder
+		for _, r := range results {
+			if err := emitPXF(&sb, r); err != nil {
+				t.Fatalf("emit: %v", err)
+			}
+		}
+		return sb.String()
+	}
+	if got := run(`pxf_directive("dataset")[0].rows | map(.x | pxf_type)`); !strings.Contains(got, `["float", "float", "float", "float"]`) {
+		t.Errorf("expected all cells to bind as float: %s", got)
+	}
+	if got := run(`pxf_directive("dataset")[0].rows | map(.x)`); !strings.Contains(got, `[1.5, nan, inf, -inf]`) {
+		t.Errorf("expected non-finite identifier literals: %s", got)
+	}
+}
+
 func TestPxfDirective_Proto_FromDocument(t *testing.T) {
 	input := `@proto trades.v1.Trade { string symbol = 1; }
 @dataset trades.v1.Trade ( symbol )
