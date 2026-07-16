@@ -19,7 +19,7 @@ First minor on the v1.0 freeze line. Strictly additive — every valid v1.1 sche
 - **PXF presence semantics promoted into the validation layer.** `(pxf.required)` and `(pxf.default)` gain canonical annotation forms `@required` and `@default(value)`. Bracket forms retain their extension numbers (`50000`, `50001`) and behavior unchanged.
 - **New contextual keywords.** `type`, `function`, `annotation` — recognized as keywords only at the start of a top-level declaration; accepted as identifiers everywhere else. Existing schemas that use these words as message/oneof/field/enum-value names (e.g., `oneof type { ... }`, common in Google APIs) remain valid v1.2 schemas without modification. The `@` sigil is reserved as the annotation-use-site marker. No source-level incompatibility is introduced.
 - **New extension number sub-range.** `50400`–`50499` reserved in [`proto/schema/v1/descriptor.proto`](proto/schema/v1/descriptor.proto) for schema-extension carriers. Allocated in this release: `50400` (annotation carrier on every Options message, named per kind — `file_annotations`, `message_annotations`, …), `50401` (functions), `50402` (annotation declarations), `50403` (type declarations), `50404` (embedded source map). The `50100`–`50101` numbers are avoided because SBE already uses them on `FileOptions`. See [`STABILITY.md`](STABILITY.md) for the renumbering prohibition.
-- **Structured error model.** Functions return `(bool, *Violation)` with stable codes, structured parameters, and engine-enriched type-chain provenance. Per-locale message catalogs handle i18n at render time.
+- **Structured error model.** Functions return `(bool, *Violation)` with stable codes, structured parameters, and engine-enriched type-chain provenance. Per-locale message catalogs handle i18n at render time. Report wire shapes (`Report`, `EnrichedViolation`, `Violation`, structured `FieldPath`, typed `Value`) are pinned in [`proto/schema/v1/report.proto`](proto/schema/v1/report.proto) so all 10 ports emit equivalent reports (RFC-001 §7, issue [#65](https://github.com/trendvidia/protowire/issues/65)). Params and captured values use the typed `Value` oneof — never `google.protobuf.Value` — preserving int64/uint64 width, bytes, and the set/null/absent presence distinction.
 - **Backward compatibility.** Wire format unchanged for v1.1 schemas. Stock `protoc`, `protobuf-go`, and every existing protowire port round-trip the new carrier extensions byte-identically as opaque options. v1.1 ports parse v1.1 schemas as before; v1.2 grammar requires v1.2+ ports.
 
 ### New files
@@ -28,6 +28,7 @@ First minor on the v1.0 freeze line. Strictly additive — every valid v1.1 sche
 - `docs/RFC-001-issues.md` — tracking-issue scaffold for the v1.2.0 work, paste-ready across consuming repos.
 - `proto/schema/v1/descriptor.proto` — descriptor lowering targets (stock-proto3, parseable by any v1.x port).
 - `proto/schema/v1/annotations.proto` — canonical user-facing annotation declarations (requires v1.2 grammar; lands once parser support exists, see [#004](docs/RFC-001-issues.md)).
+- `proto/schema/v1/report.proto` — validation report wire shapes (stock-proto3; runtime artifact emitted by engines, allocates no extension numbers).
 
 ### Per-port implementation status
 
