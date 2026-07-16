@@ -1,0 +1,45 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Fixture: 09_wkt_refinements
+// Exercises: type aliases whose base is a well-known type — Timestamp,
+// Duration, and Any — per the §6.2 binding rules (RFC-001, issue #61).
+//
+// Expected behavior:
+//   - `type Future` / `type ShortDelay`: `this` binds to the ENGINE-NATIVE
+//     temporal value (rule 2), so comparisons read naturally. `now()` and
+//     `duration(...)` are engine-stdlib names, opaque to the parser; a
+//     conformant engine evaluates `now()` run-stably (rule 5).
+//   - `type ErrorPayload`: `this` binds to the STRUCTURED Any (rule 3) —
+//     `this.type_url` is accessible; the payload is never auto-unpacked.
+//   - Lowering is unaffected by the binding rules: each alias records its
+//     literal base FQN in `FileTypeDecls` (`google.protobuf.Timestamp`,
+//     `google.protobuf.Duration`, `google.protobuf.Any`).
+
+syntax = "proto3";
+
+package fixtures.wkt;
+
+import "google/protobuf/any.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+import "protowire/schema/v1/annotations.proto";
+
+// Engine-native temporal binding: reads as a time comparison, not as
+// field access on {seconds, nanos}.
+type Future = google.protobuf.Timestamp
+  @validate(this > now(), code = "wkt.not_future");
+
+type ShortDelay = google.protobuf.Duration
+  @validate(this < duration("60s"), code = "wkt.delay_too_long");
+
+// Any never unwraps: refinement is by type_url string comparison.
+type ErrorPayload = google.protobuf.Any
+  @validate(this.type_url == "type.googleapis.com/google.rpc.Status",
+            code = "wkt.wrong_payload_type");
+
+message Job {
+  Future scheduled_at = 1;
+  ShortDelay retry_backoff = 2;
+  ErrorPayload last_error = 3;
+}

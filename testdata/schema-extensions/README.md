@@ -32,7 +32,8 @@ testdata/schema-extensions/
 ├── 06_cross_file_lib.proto                  — library imported by 06_cross_file_main.proto
 ├── 06_cross_file_main.proto                 — uses types/functions from 06_cross_file_lib
 ├── 07_report_golden.textproto               — golden validation Report (§7 wire shape)
-└── 08_engine_config.textproto               — golden EngineConfig (§9.4 project config)
+├── 08_engine_config.textproto               — golden EngineConfig (§9.4 project config)
+└── 09_wkt_refinements.proto                 — WKT-based type aliases (§6.2 binding rules)
 ```
 
 Each fixture is the input; a sibling `.expected.txt` (added during M2)
@@ -52,6 +53,7 @@ diffs every port's output against these expectations.
 | `06_cross_file_*.proto` | Import + cross-file resolution of types and functions |
 | `07_report_golden.textproto` | `Report` / `EnrichedViolation` runtime wire shape (RFC-001 §7); all three `RuleKind`s, typed `Value` params, absent `actual_value` |
 | `08_engine_config.textproto` | `EngineConfig` project configuration (RFC-001 §9.4); every field, discovery/precedence rules in prose |
+| `09_wkt_refinements.proto` | `type` aliases on `Timestamp`/`Duration` (engine-native binding) and `Any` (`type_url` refinement, no auto-unpack) per §6.2 |
 
 Unlike the schema-text fixtures, the `.textproto` fixtures are message
 goldens, not v1.2 schema sources:

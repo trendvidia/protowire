@@ -176,9 +176,49 @@ This RFC inherits protowire's three-state presence model verbatim:
 
 This eliminates the proto3 zero-value ambiguity in the validation layer: validation runs only on values the producer meant to set. `@required` is the separate "must be present" lever, orthogonal from "if present, must match."
 
-### 6.2 Wrapper handling
+### 6.2 Wrapper and well-known type handling
 
-For a field of wrapper type (`google.protobuf.StringValue`, etc.), `this` inside a refinement rule binds to the **unwrapped** scalar value when the wrapper is set. Rule does not execute when null. This matches PXF's wrapper sugar (`nullable_name = "hello"`).
+Five normative rules define what `this` binds to inside a refinement rule,
+by the base type's kind. None of them change descriptor lowering — a type
+alias always records its literal `base_type_fqn` — they pin what the
+already-lowered alias *means* at evaluation time.
+
+1. **Wrappers** (`google.protobuf.StringValue`, `Int64Value`, etc.):
+   `this` binds to the **unwrapped** scalar value when the wrapper is set.
+   The rule does not execute when null. This matches PXF's wrapper sugar
+   (`nullable_name = "hello"`).
+
+2. **`google.protobuf.Timestamp` / `google.protobuf.Duration`**: `this`
+   binds to the **engine-native temporal value** — parallel to wrapper
+   unwrap, so rules read naturally (`type Future = google.protobuf.Timestamp
+   @validate(this > now());`). Engines MUST support the comparison
+   operators (`<`, `<=`, `==`, `>=`, `>`) between temporal values of the
+   same kind. Temporal literals and helpers (`now()`, duration
+   construction) are engine-stdlib concerns, not spec syntax — expressions
+   are opaque engine source (§5.1). As with wrappers, the rule does not
+   execute when the field is unset (§6.1). CEL's native `Timestamp`/
+   `Duration` mapping already satisfies this rule unmodified.
+
+3. **`google.protobuf.Any`** does **not** unwrap. `this` binds to the
+   structured value with `type_url` and `value` accessible;
+   `this.type_url == "..."` string refinement is the canonical pattern.
+   Engines MUST NOT auto-unpack the payload: unpacking requires resolving
+   the payload type against a descriptor pool at evaluation time — exactly
+   the value-scanning inference protowire forbids, and a silent behavior
+   change as pools grow. A rule that needs payload access declares a
+   `function` taking the `Any` and unpacks explicitly in its
+   implementation.
+
+4. **All other message types** — including the remaining WKTs (`Struct`,
+   `FieldMask`, …): `this` binds to the structured message; field access
+   follows the engine's proto integration. No further special cases.
+
+5. **Run-stable `now()`**: any engine-provided current-time builtin MUST
+   return the same instant for every evaluation within a single validation
+   run (one `Report`, §7). Otherwise a `@validate(this > now())` rule
+   evaluated in collect-all mode could pass and fail within the same
+   report for equal values, and function memoization (§6.5) would be
+   unsound.
 
 ### 6.3 Type refinement and composition
 
@@ -469,7 +509,7 @@ between nested configs — nearest wins, full stop (the same model as
 
 Server-side validation is the default and authoritative use case. Java, TypeScript, Python, etc. codegen produces typed messages and skips engine-specific validation by default — the server (a single chosen engine runtime) enforces.
 
-For teams wanting **client-side mirror validation**, a `--strict-portability` codegen mode rejects functions that cannot be expressed identically across runtimes. Practically: rules using only inline engine-standard-library expressions are portable; rules referencing custom `function` declarations require each consuming runtime to register an equivalent implementation.
+For teams wanting **client-side mirror validation**, a `--strict-portability` codegen mode rejects functions that cannot be expressed identically across runtimes. Practically: rules using only inline engine-standard-library expressions are portable — including comparisons on unwrapped temporal values (§6.2 rule 2); rules referencing custom `function` declarations require each consuming runtime to register an equivalent implementation.
 
 Multi-runtime function implementations (a Java impl alongside the Go impl for `is_e164`) are operationally expensive and out of scope for v1.2. v2.x may revisit if demand justifies.
 
@@ -506,7 +546,7 @@ Items deferred for separate resolution. Each becomes a tracked issue.
 |---|---|---|
 | 1 | Container-shaped type aliases (`type Tags = repeated string @validate(...)`) — v2 minor target | spec |
 | 2 | ~~Engine-config file format (`engine: cel`, function-library imports)~~ **Resolved 2026-07-15** (issue #60): `protowire.config.textproto` + `proto/schema/config/v1/config.proto`, see §9.4 | spec |
-| 3 | Well-known types semantics (`Timestamp`, `Duration`, `Any`) — what does refinement on Timestamp mean? | spec |
+| 3 | ~~Well-known types semantics (`Timestamp`, `Duration`, `Any`)~~ **Resolved 2026-07-15** (issue #61): temporal WKTs bind engine-native, `Any` never unwraps, run-stable `now()`, see §6.2 | spec |
 | 4 | Recursive message validation depth limits | spec / engine |
 | 5 | Streaming RPC validation contract | spec |
 | 6 | `Literal` shape detail in `AnnotationArg` (enum names, message literals, lists) | spec |
