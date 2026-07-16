@@ -1,0 +1,46 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Fixture: 10_literal_args
+// Exercises: non-scalar annotation arguments — a resolved enum-value
+// reference and a homogeneous list literal — on `any`-typed annotation
+// params (§8.1 Literal lowering; issue #64).
+//
+// Expected behavior:
+//   - `@sample(OrderStatus.CANCELLED)` lowers to Literal.enum_value with
+//     enum_type "fixtures.literals.OrderStatus", value_name "CANCELLED",
+//     number 3 — resolved by the linker, never carried as a bare string.
+//   - `@allowed(["US", "CA", "GB"])` lowers to Literal.list with three
+//     string_value LiteralValue elements. Elements carry no names and can
+//     never be expressions; heterogeneous lists are compile errors.
+//   - Message literals (Literal.message, google.protobuf.Any) are covered
+//     by the lowered-carrier golden 11_literal_carrier_golden.textproto;
+//     their source spelling is pinned by the IETF draft (#003).
+
+syntax = "proto3";
+
+package fixtures.literals;
+
+import "protowire/schema/v1/annotations.proto";
+
+// User-declared annotations with `any`-typed params, so the argument's
+// type is carried by the literal itself.
+annotation sample(value: any);
+annotation allowed(values: any);
+
+enum OrderStatus {
+  ORDER_STATUS_UNSPECIFIED = 0;
+  PLACED = 1;
+  SHIPPED = 2;
+  CANCELLED = 3;
+}
+
+message Order {
+  // Enum-value reference argument: resolved at link time.
+  OrderStatus status = 1
+    @sample(OrderStatus.CANCELLED);
+
+  // Homogeneous list-literal argument.
+  string country = 2
+    @allowed(["US", "CA", "GB"]);
+}

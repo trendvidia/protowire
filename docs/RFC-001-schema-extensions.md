@@ -427,6 +427,33 @@ message AnnotationArg {
   }
 }
 
+message Literal {
+  oneof kind {
+    EnumLiteral enum_value       = 1;                // linker-resolved enum value reference
+    google.protobuf.Any message  = 2;                // typed message literal, serialized at lowering
+    ListLiteral list             = 3;                // [elem, elem, ...]
+  }
+}
+
+message EnumLiteral {
+  string enum_type = 1;                              // FQN, e.g. "myco.orders.OrderStatus"
+  string value_name = 2;                             // "CANCELLED"
+  int32 number = 3;                                  // resolved numeric value
+}
+
+message ListLiteral { repeated LiteralValue elements = 1; }
+
+message LiteralValue {
+  oneof kind {
+    string string_value  = 10;
+    int64  int_value     = 11;
+    double double_value  = 12;
+    bool   bool_value    = 13;
+    bytes  bytes_value   = 14;
+    Literal literal      = 15;                       // enum value, message, or nested list
+  }
+}
+
 message Expression {
   string source = 1;                                 // raw engine source
   repeated FunctionRef calls = 2;                    // extracted at compile
@@ -447,6 +474,21 @@ The annotation carrier shares wire number `50400` across all eight Options
 messages, but each `extend` field is named per kind (`file_annotations`,
 `message_annotations`, …) so every extension has a unique fully-qualified
 name within the `protowire.schema.v1` package.
+
+Three rules govern `Literal` lowering. **Enum references are lowered
+resolved**: the linker records the enum type FQN, value name, and number
+in `EnumLiteral` — consumers never re-resolve a bare name against a
+descriptor pool. **List literals are homogeneous**: all elements of one
+`ListLiteral` share the same kind (and, for enum elements, the same
+`enum_type`); the compiler rejects heterogeneous lists; elements carry no
+name and can never be expressions (`this in [...]` inside a `@validate`
+rule is one opaque `Expression`, not a list literal). **Message literals
+are explicitly typed**: the type comes from the annotation param's
+declared type, or from an explicit type name at the use site when the
+param is `any` — never inferred from the value's shape; the lowered form
+is a `google.protobuf.Any` serialized at compile time and unpacked against
+the `FileDescriptorSet` the consumer already holds. The source-level
+spelling of message literals is pinned by the IETF draft (#003).
 
 ### 8.2 File-scope declaration carriers
 
@@ -625,7 +667,7 @@ Items deferred for separate resolution. Each becomes a tracked issue.
 | 3 | ~~Well-known types semantics (`Timestamp`, `Duration`, `Any`)~~ **Resolved 2026-07-15** (issue #61): temporal WKTs bind engine-native, `Any` never unwraps, run-stable `now()`, see §6.2 | spec |
 | 4 | ~~Recursive message validation depth limits~~ **Resolved 2026-07-15** (issue #62): normative default 64, `EngineConfig.max_recursion_depth`, fail-closed `protowire.depth_exceeded` violation, see §6.4 | spec / engine |
 | 5 | ~~Streaming RPC validation contract~~ **Resolved 2026-07-15** (issue #63): per-message validation, fail-closed stream termination, direction-asymmetric status mapping, see §6.6 | spec |
-| 6 | `Literal` shape detail in `AnnotationArg` (enum names, message literals, lists) | spec |
+| 6 | ~~`Literal` shape detail in `AnnotationArg` (enum names, message literals, lists)~~ **Resolved 2026-07-15** (issue #64): resolved `EnumLiteral`, `Any` message literals, homogeneous `ListLiteral` of `LiteralValue`, see §8.1 | spec |
 | 7 | ~~Validation report wire shape (`Report` carrying `EnrichedViolation`s)~~ **Resolved 2026-07-15** (issue #65): pinned in `proto/schema/v1/report.proto`, see §7 | spec |
 | 8 | Migration story for existing `protovalidate`-using projects | tooling |
 | 9 | Performance budget + benchmark suite | per-port |

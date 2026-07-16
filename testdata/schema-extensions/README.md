@@ -33,7 +33,9 @@ testdata/schema-extensions/
 ├── 06_cross_file_main.proto                 — uses types/functions from 06_cross_file_lib
 ├── 07_report_golden.textproto               — golden validation Report (§7 wire shape)
 ├── 08_engine_config.textproto               — golden EngineConfig (§9.4 project config)
-└── 09_wkt_refinements.proto                 — WKT-based type aliases (§6.2 binding rules)
+├── 09_wkt_refinements.proto                 — WKT-based type aliases (§6.2 binding rules)
+├── 10_literal_args.proto                    — enum-ref + list-literal annotation args (§8.1)
+└── 11_literal_carrier_golden.textproto      — golden lowered AnnotationList, all Literal kinds
 ```
 
 Each fixture is the input; a sibling `.expected.txt` (added during M2)
@@ -54,6 +56,8 @@ diffs every port's output against these expectations.
 | `07_report_golden.textproto` | `Report` / `EnrichedViolation` runtime wire shape (RFC-001 §7); all three `RuleKind`s, typed `Value` params, absent `actual_value` |
 | `08_engine_config.textproto` | `EngineConfig` project configuration (RFC-001 §9.4); every field, discovery/precedence rules in prose |
 | `09_wkt_refinements.proto` | `type` aliases on `Timestamp`/`Duration` (engine-native binding) and `Any` (`type_url` refinement, no auto-unpack) per §6.2 |
+| `10_literal_args.proto` | Enum-value reference and homogeneous list literal as annotation arguments on `any`-typed params (§8.1) |
+| `11_literal_carrier_golden.textproto` | Lowered `AnnotationList` with all three `Literal` kinds: resolved `EnumLiteral`, `Any` message literal, `ListLiteral` of `LiteralValue`s (§8.1, issue #64) |
 
 Unlike the schema-text fixtures, the `.textproto` fixtures are message
 goldens, not v1.2 schema sources:
@@ -68,6 +72,11 @@ goldens, not v1.2 schema sources:
   ([`proto/schema/config/v1/config.proto`](../../proto/schema/config/v1/config.proto)),
   i.e. the content of a project's `protowire.config.textproto`. Target
   for config-loader implementations (§9.4 discovery/precedence).
+- `11_literal_carrier_golden.textproto` — text-format
+  `protowire.schema.v1.AnnotationList`: the lowered carrier for
+  non-scalar annotation arguments, covering all three `Literal` kinds.
+  Target for the protocompile lowering pass (#034) and every port's
+  carrier reader.
 
 Verify they parse with stock protoc:
 
@@ -76,6 +85,8 @@ protoc -I <root> --encode=protowire.schema.v1.Report \
   protowire/schema/v1/report.proto < 07_report_golden.textproto > /dev/null
 protoc -I <root> --encode=protowire.schema.config.v1.EngineConfig \
   protowire/schema/config/v1/config.proto < 08_engine_config.textproto > /dev/null
+protoc -I <root> --encode=protowire.schema.v1.AnnotationList \
+  protowire/schema/v1/descriptor.proto < 11_literal_carrier_golden.textproto > /dev/null
 ```
 
 ## Adding new fixtures
