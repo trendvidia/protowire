@@ -3,19 +3,22 @@
 //
 // Fixture: 10_literal_args
 // Exercises: non-scalar annotation arguments — a resolved enum-value
-// reference and a homogeneous list literal — on `any`-typed annotation
-// params (§8.1 Literal lowering; issue #64).
+// reference, a typed message literal, and a homogeneous list literal —
+// on `any`-typed annotation params (§8.1 Literal lowering, issue #64;
+// §5.1 source grammar, issue #102).
 //
 // Expected behavior:
 //   - `@sample(OrderStatus.CANCELLED)` lowers to Literal.enum_value with
 //     enum_type "fixtures.literals.OrderStatus", value_name "CANCELLED",
 //     number 3 — resolved by the linker, never carried as a bare string.
+//   - `@sample(Money{currency: "USD", units: 5})` lowers to
+//     Literal.message: a google.protobuf.Any serialized at lowering. The
+//     explicit type name is REQUIRED because `sample`'s param is `any`;
+//     it resolves like any type reference (bare `Money` binds to
+//     fixtures.literals.Money).
 //   - `@allowed(["US", "CA", "GB"])` lowers to Literal.list with three
 //     string_value LiteralValue elements. Elements carry no names and can
 //     never be expressions; heterogeneous lists are compile errors.
-//   - Message literals (Literal.message, google.protobuf.Any) are covered
-//     by the lowered-carrier golden 11_literal_carrier_golden.textproto;
-//     their source spelling is pinned by the IETF draft (#003).
 
 syntax = "proto3";
 
@@ -35,12 +38,22 @@ enum OrderStatus {
   CANCELLED = 3;
 }
 
+message Money {
+  string currency = 1;
+  int64 units = 2;
+}
+
 message Order {
   // Enum-value reference argument: resolved at link time.
   OrderStatus status = 1
     @sample(OrderStatus.CANCELLED);
 
+  // Typed message-literal argument (§5.1): explicit type name plus
+  // braced, colon-separated field initializers.
+  Money total = 2
+    @sample(Money{currency: "USD", units: 5});
+
   // Homogeneous list-literal argument.
-  string country = 2
+  string country = 3
     @allowed(["US", "CA", "GB"]);
 }

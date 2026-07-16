@@ -102,9 +102,49 @@ annotArgList  ::= annotArg ("," annotArg)*
 annotArg      ::= (Ident "=")? annotArgValue        (* positional or named *)
 annotArgValue ::= literal | qualifiedIdent | engineExpression
 annotationList ::= annotation+
+
+literal        ::= scalarLit | listLiteral | messageLiteral
+scalarLit      ::= strLit | intLit | floatLit | boolLit   (* proto lexical forms *)
+literalValue   ::= literal | qualifiedIdent               (* qualifiedIdent = enum-value reference *)
+
+listLiteral    ::= "[" (literalValue ("," literalValue)*)? "]"
+
+messageLiteral ::= qualifiedIdent? "{" (fieldInit ("," fieldInit)*)? "}"
+fieldInit      ::= Ident ":" literalValue
 ```
 
 Placement is by production: trailing on `typeDecl`, `field`, `functionDecl`, `enumValue`; leading on `messageDecl`, `enumDecl`, `serviceDecl`, `rpcDecl`, `oneofDecl`.
+
+**Literal values.** `@example(myco.commons.Money{currency: "USD", units: 5})`
+is the canonical message-literal spelling. Normative rules:
+
+1. **Type name presence follows the §8.1 typing rule.** When the
+   annotation param — or, recursively, the message field being
+   initialized — is `any` / `google.protobuf.Any`, the explicit leading
+   type name is REQUIRED. When a concrete message type is declared, the
+   name is OPTIONAL; if present it MUST resolve to exactly the declared
+   type. The type is never inferred from the value's shape. The name
+   resolves like any type reference (a bare in-scope name binds).
+2. **One way to write field initializers**: `fieldName: value` (the
+   field's proto name), comma-separated, no trailing comma, each field
+   at most once; an unknown field name is a compile error. Textformat
+   freedoms are deliberately NOT adopted: no colon-less nested blocks,
+   no semicolon/newline separators, no repeated-field-by-repetition,
+   no `[type.url]` bracket form.
+3. **Repeated fields** take `listLiteral` values (`tags: ["a", "b"]`).
+   **Map fields are not supported** in v1.2 message literals (compile
+   error; deferred).
+4. **Enum-typed fields and list elements** take a `qualifiedIdent`
+   (bare or qualified value name), linker-resolved into an
+   `EnumLiteral` (§8.1) — same as at the argument level. Lists are
+   homogeneous; nesting is legal; `[]` and `{}` are legal; expressions
+   never appear inside literals.
+5. `strLit` serves `bytes`-typed params (proto's bytes default-value
+   convention); `intLit`/`floatLit` take an optional leading `-`.
+6. Parse note: at `annotArgValue`, a `qualifiedIdent` followed by `{`
+   is a `messageLiteral`; a bare `qualifiedIdent` is an enum-value
+   reference — one-token lookahead. Arguments bound to
+   `expression`-typed params keep the opaque balanced-text capture.
 
 v1.2 explicitly forbids `repeated`/`map<,>` in `typeRef` (collection refinement is deferred — see §13).
 
@@ -530,7 +570,8 @@ declared type, or from an explicit type name at the use site when the
 param is `any` — never inferred from the value's shape; the lowered form
 is a `google.protobuf.Any` serialized at compile time and unpacked against
 the `FileDescriptorSet` the consumer already holds. The source-level
-spelling of message literals is pinned by the IETF draft (#003).
+spelling of message and list literals is defined by the `literal`
+production in §5.1.
 
 ### 8.2 File-scope declaration carriers
 

@@ -34,7 +34,7 @@ testdata/schema-extensions/
 ├── 07_report_golden.textproto               — golden validation Report (§7 wire shape)
 ├── 08_engine_config.textproto               — golden EngineConfig (§9.4 project config)
 ├── 09_wkt_refinements.proto                 — WKT-based type aliases (§6.2 binding rules)
-├── 10_literal_args.proto                    — enum-ref + list-literal annotation args (§8.1)
+├── 10_literal_args.proto                    — enum-ref, message-literal + list-literal args (§5.1/§8.1)
 └── 11_literal_carrier_golden.textproto      — golden lowered AnnotationList, all Literal kinds
 ```
 
