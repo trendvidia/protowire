@@ -327,6 +327,18 @@ arguments. In-place revision of the unreleased carrier; protocompile
 re-vendors `descriptor.pb.go` (protocompile#67). Fixtures:
 `10_literal_args.proto`, `11_literal_carrier_golden.textproto`.
 
+**Resolution — source spelling (2026-07-16, GH #102, PR #108):** RFC-001
+§5.1 `literal` production expanded (mirrored in `docs/grammar.ebnf` and
+draft `-01` ABNF + *Literal Values* section). Canonical form
+`myco.commons.Money{currency: "USD", units: 5}`: optional leading type
+name — REQUIRED when the param (or, recursively, the initialized field)
+is `any`, otherwise OPTIONAL and verified against the declared type;
+colon field-inits, mandatory commas, no trailing comma, each field at
+most once; textformat liberties excluded; repeated fields take list
+literals (`["US", "CA", "GB"]` now in the published EBNF); map fields
+deferred (compile error in v1.2). Fixture 10 gained the message-literal
+use site; golden 11 locations synced.
+
 ---
 
 ## #016 — Validation report wire shape
