@@ -206,7 +206,7 @@ annotation sensitive;
 annotation http(method: string, path: string);
 ```
 
-The existing PXF annotations `(pxf.required)` and `(pxf.default)` retain their bracket forms and extension numbers (`50000`, `50001`) for backward compatibility. `@required` and `@default(value)` are the canonical annotation form going forward; lowering preserves the legacy options where consumers depend on them.
+The existing PXF annotations `(pxf.required)` and `(pxf.default)` retain their bracket forms and extension numbers (`50000`, `50001`): bracket-written options remain valid v1.2 input and lower identically to v1.1. `@required` and `@default(value)` are the canonical annotation form going forward, and they lower **exclusively** to the schema-extension carrier (§8.1) — the annotation forms never emit the legacy options (§8.5). A consumer that reads only `(pxf.required)`/`(pxf.default)` observes bracket-written options and nothing else; enforcing the annotation forms requires a carrier-aware (v1.2) consumer.
 
 ### 5.3 Worked example
 
@@ -709,6 +709,20 @@ The carrier extensions are well-formed proto. Stock `protoc`, `protobuf-go`, and
 
 `protocompile`'s existing option-interpretation pipeline (see `options/options.go:14`) handles arbitrary extension numbers without modification. The lowering pass produces uninterpreted options that the existing interpreter populates into the carrier extensions; no new descriptor pathway is required.
 
+**Legacy PXF options — no dual-emission.** The annotation forms
+`@required` and `@default(value)` lower only to the `50400` carrier;
+the compiler MUST NOT synthesize `(pxf.required)` (`50000`) or
+`(pxf.default)` (`50001`) from them. The two surfaces are disjoint:
+brackets lower to the legacy options exactly as written, annotations
+lower to the carrier, and neither is back-filled from the other. The
+consequence is deliberate: a v1.1 consumer of the legacy options (for
+example, a PXF runtime that enforces `(pxf.required)` at decode time)
+does not see `@required`/`@default` — migrating a schema from brackets
+to annotations transfers enforcement to carrier-aware consumers, so
+runtimes upgrade **before** schemas migrate. Both forms of the same
+semantic MAY coexist on one field during migration; compilers MAY warn
+when the two carry conflicting values, but MUST NOT reconcile them.
+
 ## 9. Engine integration
 
 ### 9.1 Engine SPI
@@ -876,8 +890,8 @@ Items deferred for separate resolution. Each becomes a tracked issue.
 
 | PXF (v1.1) | Schema extension (v1.2 canonical) | Notes |
 |---|---|---|
-| `[(pxf.required) = true]` | `@required` | Both forms valid; bracket retained for backward compat |
-| `[(pxf.default) = "viewer"]` | `@default("viewer")` | Same; bracket retained |
+| `[(pxf.required) = true]` | `@required` | Both forms valid; disjoint lowering (§8.5) — the annotation form is carrier-only, so legacy-option consumers see only the bracket |
+| `[(pxf.default) = "viewer"]` | `@default("viewer")` | Same; migrate consumers to the carrier before migrating schemas |
 | `[(buf.validate.field).cel = "..."]` | `@validate(<expression>)` | Conceptual equivalent; protovalidate-using projects migrate or use `--compat` mode (TBD) |
 | n/a | `@description("...")` | Was prose comments; now structured |
 | n/a | `@example(value)` | New; doubles as test fixture |
