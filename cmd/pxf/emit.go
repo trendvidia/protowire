@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"math"
 	"math/big"
 	"sort"
 	"strconv"
@@ -102,7 +103,21 @@ func writeValue(w io.Writer, v any, indent int) error {
 		_, err := fmt.Fprintf(w, "%d", x)
 		return err
 	case float64:
-		_, err := io.WriteString(w, strconv.FormatFloat(x, 'g', -1, 64))
+		// Non-finite values emit as the spec's identifiers (§3.8) —
+		// FormatFloat's `NaN`/`+Inf`/`-Inf` spellings are not PXF
+		// literals and would not re-parse.
+		var s string
+		switch {
+		case math.IsInf(x, 1):
+			s = "inf"
+		case math.IsInf(x, -1):
+			s = "-inf"
+		case math.IsNaN(x):
+			s = "nan"
+		default:
+			s = strconv.FormatFloat(x, 'g', -1, 64)
+		}
+		_, err := io.WriteString(w, s)
 		return err
 	case *big.Int:
 		_, err := io.WriteString(w, x.String())

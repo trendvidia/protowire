@@ -5,6 +5,7 @@ package main
 import (
 	"bytes"
 	"io"
+	"math"
 	"strings"
 	"testing"
 )
@@ -176,5 +177,18 @@ func TestEmit_NestedBlock(t *testing.T) {
 	}
 	if !strings.Contains(got, "tls = {") {
 		t.Errorf("expected block: %s", got)
+	}
+}
+
+func TestEmitPXF_NonFiniteFloats(t *testing.T) {
+	// FormatFloat's `NaN`/`+Inf`/`-Inf` spellings are not PXF literals
+	// (§3.8 defines the identifiers `nan`, `inf`, `-inf`) — emitted
+	// documents must round-trip through the parser.
+	var buf bytes.Buffer
+	if err := emitPXF(&buf, []any{math.NaN(), math.Inf(1), math.Inf(-1), 1.5}); err != nil {
+		t.Fatal(err)
+	}
+	if got := buf.String(); !strings.Contains(got, "[nan, inf, -inf, 1.5]") {
+		t.Errorf("emit = %q, want [nan, inf, -inf, 1.5]", got)
 	}
 }
