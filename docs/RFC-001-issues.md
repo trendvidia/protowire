@@ -44,6 +44,7 @@ This is the umbrella tracking issue for [RFC-001 — Protowire Schema Extensions
 - [ ] #020 — Upstream `buf/protocompile` compatibility
 - [x] #021 — Secrets annotation story (`@sensitive`) — resolved 2026-07-16 (GH #90, PR #107)
 - [x] #022 — Engine-expression grammar scope (annotation-only v1.2) — resolved 2026-07-16 (GH #91, PR #109)
+- [x] #023 — `@required`/`@default` legacy (pxf.*) dual-emission — resolved 2026-07-16 as carrier-only (GH #92, PR #110)
 
 ### Implementation (M1–M8)
 - [ ] #030 — `protocompile`: extended grammar parser
@@ -490,6 +491,39 @@ catch-up tracked in protocompile#69. Fixture:
 
 ---
 
+## #023 — `@required`/`@default` legacy (pxf.*) dual-emission
+
+**Repo:** `protowire`
+**Milestone:** M0
+**Labels:** `spec`, `schema-extensions`
+
+The #033/#034 acceptance criteria required dual-emission of the legacy
+`(pxf.required)` / `(pxf.default)` bracket options (50000/50001) when
+the `@required` / `@default(...)` annotation forms are used, so v1.1
+consumers keep working against v1.2-compiled descriptors. protocompile
+M1 emits only the new 50400 carriers. Decide: back-compat shim, or
+carrier-only posture — and document either way in STABILITY.md.
+
+**Resolution (2026-07-16, GH #92, PR #110):** **Carrier-only — no
+dual-emission.** RFC-001 §8.5 gains the normative rule: `@required` /
+`@default(value)` lower exclusively to the 50400 carrier; the compiler
+MUST NOT synthesize `(pxf.required)`/`(pxf.default)` from them.
+Brackets and annotations are disjoint surfaces — brackets lower exactly
+as written, annotations to the carrier, neither back-filled from the
+other; both MAY coexist on a field during migration, compilers MAY warn
+on conflicting values and MUST NOT reconcile. STABILITY.md documents
+the consequence: consumers reading only the legacy extension numbers
+(e.g. protowire-go's decode-time `(pxf.required)` enforcement) are
+**not supported against schemas using the annotation forms** —
+runtimes upgrade to carrier-aware versions before schemas migrate
+brackets → annotations. §5.2, Appendix A, draft `-01` *Coexistence*,
+and fixture 04's header updated accordingly; the #033/#034
+dual-emission acceptance boxes above are struck. Shipped protocompile
+M1 carrier-only emission is ratified as-is — nothing reopens, and
+nothing is added to protocompile#69.
+
+---
+
 ## #030 — `protocompile`: extended grammar parser
 
 **Repo:** `protocompile`
@@ -617,7 +651,7 @@ The lowering produces standard `UninterpretedOption` entries that the existing i
 - [ ] Stacked annotations preserve source order in `AnnotationList.entries`
 - [ ] Brackets and annotations coexist on the same field with no interference
 - [ ] Round-trip test: parse → lower → serialize FileDescriptorSet → parse with stock `protobuf-go` → confirm carrier extensions decode to typed values
-- [ ] `@required` and `@default(value)` lower correctly to BOTH the carrier annotation entry AND the legacy `(pxf.required)` / `(pxf.default)` bracket options for backward compat
+- ~~`@required` and `@default(value)` lower correctly to BOTH the carrier annotation entry AND the legacy `(pxf.required)` / `(pxf.default)` bracket options for backward compat~~ — struck per #023 resolution (GH #92, PR #110): carrier-only, no dual-emission
 
 ---
 
@@ -639,7 +673,7 @@ Type-alias use sites expand the refinement chain into the field's annotation lis
 | File-scope decl lowering | extend `options/lower_annotations.go` from #033 (or new `options/lower_file_decls.go`) | Walk the IR `File.Functions()`, `File.AnnotationDecls()`, `File.TypeDecls()` iterators; emit one `UninterpretedOption` per file-scope decl, targeting the corresponding carrier extension (`50401`/`50402`/`50403`) on `FileOptions`. Same uninterpreted-option-feeds-existing-pipeline pattern as #033. |
 | Type-alias expansion at use sites | extend the field-annotation lowering from #033 | For each field whose declared type resolves through one or more `type` aliases, walk the type chain base-to-derived and prepend each alias's `validate`/etc. annotations to the field's annotation list before lowering. |
 | Hook point | `options/options.go:104` `InterpretOptions` | Same pre-loop slot as #033 — these passes run in a defined order before main interpretation. |
-| Backward-compat shim | extend lowering | For each `@required` and `@default(value)` annotation, also emit the legacy `[(pxf.required) = true]` / `[(pxf.default) = "..."]` brackets to preserve v1.1 reader compatibility. |
+| ~~Backward-compat shim~~ | — | Struck per #023 resolution (GH #92, PR #110): no dual-emission; annotations are carrier-only. |
 
 ### Acceptance criteria
 
@@ -650,7 +684,7 @@ Type-alias use sites expand the refinement chain into the field's annotation lis
 - [ ] Descriptor round-trips through stock `protoc --decode_raw` (well-formed proto)
 - [ ] Descriptor round-trips through stock `protobuf-go` Unmarshal/Marshal byte-identically
 - [ ] When `validator/v1/descriptor.proto` is imported, `protobuf-go` decodes carrier extensions as typed values
-- [ ] `@required`/`@default` lower to both annotation carrier AND `(pxf.required)`/`(pxf.default)` brackets
+- ~~`@required`/`@default` lower to both annotation carrier AND `(pxf.required)`/`(pxf.default)` brackets~~ — struck per #023 resolution (GH #92, PR #110): carrier-only, no dual-emission
 
 ---
 

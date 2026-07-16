@@ -569,12 +569,17 @@ in source order.
 The pre-existing `[(qualified-ident) = value]` field-option syntax
 defined in {{PROTOBUF}} and used by `(pxf.required)` / `(pxf.default)`
 in `-00` is preserved unchanged. Annotations and bracket options MAY
-coexist on the same field. The two forms are not interchangeable in
-all cases — bracket options MUST resolve to a declared `extend
-google.protobuf.*Options` extension; annotations MUST resolve to a
-declared `annotation` — but they lower to the same descriptor surface
-where their semantics overlap (notably `@required` lowers to set both
-the annotation carrier entry AND `(pxf.required) = true`).
+coexist on the same field, but the two forms lower to **disjoint**
+descriptor surfaces: bracket options lower to their declared `extend
+google.protobuf.*Options` extensions exactly as written, annotations
+lower only to the schema-extension carrier, and a compiler MUST NOT
+synthesize one surface from the other. In particular, `@required` and
+`@default` do NOT emit `(pxf.required)` / `(pxf.default)`: a consumer
+reading only the `-00` extension numbers observes bracket-written
+options and nothing else, so deployments MUST upgrade carrier-aware
+consumers before migrating schemas from brackets to annotations. When
+both forms of the same semantic appear on one field with conflicting
+values, a compiler MAY warn; it MUST NOT reconcile them.
 
 ## Presence Semantics {#validation-execution}
 

@@ -6,15 +6,17 @@
 // equivalents from protowire v1.0 (`(pxf.required)` / `(pxf.default)`).
 //
 // Expected behavior:
-//   - Lowering MUST emit BOTH the canonical annotation carrier entry AND
-//     the legacy bracket option (`(pxf.required) = true` / `(pxf.default)
-//     = "..."`) on each field that uses the annotation form, so v1.1
-//     readers see the legacy form unchanged.
-//   - Fields declared with the bracket form lower to the legacy form only;
-//     the annotation carrier is NOT also populated (one-way migration).
-//   - At validation time: an absent field with @required produces a
-//     Violation code "required"; an absent field with @default(v) is
-//     replaced by v before rules evaluate.
+//   - The two forms lower to DISJOINT surfaces (no dual-emission; RFC-001
+//     §8.5, issue #92): fields using the annotation form populate only the
+//     50400 carrier — `(pxf.required)`/`(pxf.default)` are NOT synthesized,
+//     so legacy-option readers do not see them.
+//   - Fields declared with the bracket form lower to the legacy options
+//     only, exactly as written; the annotation carrier is NOT populated.
+//   - A compiler MAY warn when both forms of the same semantic carry
+//     conflicting values on one field; it MUST NOT reconcile them.
+//   - At validation time (carrier-aware consumers): an absent field with
+//     @required produces a Violation code "required"; an absent field
+//     with @default(v) is replaced by v before rules evaluate.
 
 syntax = "proto3";
 
