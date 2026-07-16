@@ -30,7 +30,8 @@ testdata/schema-extensions/
 ├── 04_required_and_default.proto            — @required / @default + bracket coexistence
 ├── 05_error_overrides.proto                 — @validate with code + message overrides
 ├── 06_cross_file_lib.proto                  — library imported by 06_cross_file_main.proto
-└── 06_cross_file_main.proto                 — uses types/functions from 06_cross_file_lib
+├── 06_cross_file_main.proto                 — uses types/functions from 06_cross_file_lib
+└── 07_report_golden.textproto               — golden validation Report (§7 wire shape)
 ```
 
 Each fixture is the input; a sibling `.expected.txt` (added during M2)
@@ -48,10 +49,23 @@ diffs every port's output against these expectations.
 | `04_required_and_default.proto` | `@required`, `@default`, coexistence with `[(pxf.required) = true]` / `[(pxf.default) = "..."]` |
 | `05_error_overrides.proto` | `code` and `message` args on `@validate`; `[error_code = "..."]` on `function` |
 | `06_cross_file_*.proto` | Import + cross-file resolution of types and functions |
+| `07_report_golden.textproto` | `Report` / `EnrichedViolation` runtime wire shape (RFC-001 §7); all three `RuleKind`s, typed `Value` params, absent `actual_value` |
+
+Unlike the schema-text fixtures, `07_report_golden.textproto` is a
+**runtime** golden: text-format `protowire.schema.v1.Report`
+([`proto/schema/v1/report.proto`](../../proto/schema/v1/report.proto)).
+It is the target for M4 engine work (issues #040–#043) — a conformant
+engine validating the §5.3 worked-example instance emits a semantically
+equal report. Verify it parses with stock protoc:
+
+```
+protoc -I <root> --encode=protowire.schema.v1.Report \
+  protowire/schema/v1/report.proto < 07_report_golden.textproto > /dev/null
+```
 
 ## Adding new fixtures
 
-Each fixture MUST:
+Each schema-text fixture MUST:
 
 - be self-contained or explicitly note its imports;
 - exercise one specific construct or interaction prominently;

@@ -7,7 +7,7 @@
 | IETF draft | Companion to `draft-trendvidia-protowire-01` (in preparation) |
 | Authors | TBD |
 | Created | 2026-06-04 |
-| Last updated | 2026-06-04 |
+| Last updated | 2026-07-15 |
 
 ## Abstract
 
@@ -213,26 +213,66 @@ Functions are declarations only; bodies are implemented in the engine runtime an
 
 ## 7. Error model
 
-A `Violation` is a structured value:
+The normative wire shapes for the error model live in
+`protowire/proto/schema/v1/report.proto` (stock proto3, parseable by any
+v1.x port; a runtime artifact emitted by engines, never by the compiler —
+it allocates no extension numbers). The definitions below are excerpted
+from that file.
+
+A `Violation` is the engine-independent failure value returned by
+validation functions (§6.5):
 
 ```proto
 message Violation {
-  string code = 1;                                   // stable, machine-readable
-  map<string, google.protobuf.Value> params = 2;     // {value, pattern, min, max, ...}
-  string fallback_message = 3;                       // engine-author default, used on catalog miss
+  string code = 1;                        // stable, machine-readable
+  map<string, Value> params = 2;          // {value, pattern, min, max, ...}
+  string fallback_message = 3;            // engine-author default, used on catalog miss
 }
 ```
 
-The engine enriches each function-returned `Violation` with context the function cannot know:
+`params` values — and every other value slot in the report — use the typed
+`protowire.schema.v1.Value` message: an explicit oneof over string / int64 /
+uint64 / double / bool / bytes / enum name / `Any`-wrapped message / list /
+null. `google.protobuf.Value` is deliberately **not** used: it folds int64
+into double, cannot carry bytes, and erases the set/null/absent
+distinction. A `Value` field left unset means *absent*; `null_value` means
+the producer explicitly set null — carrying protowire's three-state
+presence model (§6.1) through to reports.
+
+The engine enriches each function-returned `Violation` with context the
+function cannot know:
 
 ```proto
 message EnrichedViolation {
   Violation cause = 1;
-  FieldPath path = 2;                                // dotted path into the message
-  repeated string type_chain = 3;                    // ["string", "Email", "CompanyEmail"]
-  google.protobuf.Value actual_value = 4;
-  SourceLocation source = 5;                         // from the embedded source map
-  RuleKind rule_kind = 6;                            // VALIDATE | REQUIRED | DEFAULT | TYPE_REFINEMENT
+  FieldPath path = 2;                     // structured path into the message
+  repeated string type_chain = 3;         // ["string", "Email", "CompanyEmail"], base first
+  Value actual_value = 4;                 // unset = field absent
+  SourceLocation source = 5;              // from the embedded source map (50404)
+  RuleKind rule_kind = 6;                 // RULE_KIND_{VALIDATE,REQUIRED,DEFAULT,TYPE_REFINEMENT}
+}
+```
+
+`FieldPath` is structured — a sequence of segments carrying `field_name`,
+`field_number`, and an optional typed subscript (`index` for repeated
+elements; `string_key` / `int_key` / `uint_key` / `bool_key` for map keys)
+— never a dotted string. Dotted renderings are derived for display and
+never parsed back; map keys are typed, never coerced through strings.
+(`RuleKind` values carry the `RULE_KIND_` prefix because proto enum values
+share package scope and `EntryKind.TYPE_REFINEMENT` in `descriptor.proto`
+already claims the bare name.)
+
+A complete validation run produces a `Report` — the shape all 10 ports
+emit equivalently:
+
+```proto
+message Report {
+  string message_type = 1;                    // FQN of the root message validated
+  repeated EnrichedViolation violations = 2;  // empty + truncated == false ⇒ valid
+  ExecutionMode mode = 3;                     // COLLECT_ALL (default, §6.4) | FAIL_FAST
+  bool truncated = 4;                         // violations not exhaustive (fail-fast stop or engine limit)
+  EngineInfo engine = 5;                      // {name, version}, e.g. "protocheck-go/cel"
+  uint64 wall_time_nanos = 6;                 // 0 = not measured
 }
 ```
 
@@ -428,7 +468,7 @@ Items deferred for separate resolution. Each becomes a tracked issue.
 | 4 | Recursive message validation depth limits | spec / engine |
 | 5 | Streaming RPC validation contract | spec |
 | 6 | `Literal` shape detail in `AnnotationArg` (enum names, message literals, lists) | spec |
-| 7 | Validation report wire shape (`Report` carrying `EnrichedViolation`s) | spec |
+| 7 | ~~Validation report wire shape (`Report` carrying `EnrichedViolation`s)~~ **Resolved 2026-07-15** (issue #65): pinned in `proto/schema/v1/report.proto`, see §7 | spec |
 | 8 | Migration story for existing `protovalidate`-using projects | tooling |
 | 9 | Performance budget + benchmark suite | per-port |
 | 10 | Conformance test fixtures in `protowire/testdata/schema-extensions/` | spec |
@@ -443,6 +483,7 @@ Items deferred for separate resolution. Each becomes a tracked issue.
 - `protowire/proto/pxf/annotations.proto` — existing `(pxf.required)`, `(pxf.default)`
 - `protowire/proto/schema/v1/annotations.proto` — new framework annotation library (to be added)
 - `protowire/proto/schema/v1/descriptor.proto` — new lowering schemas (to be added)
+- `protowire/proto/schema/v1/report.proto` — validation report wire shapes (§7)
 - Buf's `protovalidate` — prior art for proto-native validation
 - gnostic — prior art for OpenAPI-via-proto-annotations
 
