@@ -75,13 +75,19 @@ message EnrichedViolation {
   //   ["string", "myco.commons.Email", "myco.commons.CompanyEmail"]
   repeated string type_chain = 3;
 
-  // The offending value. Unset = field absent (three-state presence).
+  // The offending value. Unset = field absent (three-state presence) —
+  // or redacted; see value_redacted.
   Value actual_value = 4;
 
   // From the embedded source map (50404), when available.
   SourceLocation source = 5;
 
   RuleKind rule_kind = 6;
+
+  // True when the violated field is @sensitive (RFC-001 §6.7): the
+  // engine withheld the offending value, leaving actual_value unset.
+  // Distinguishes redaction from genuine absence.
+  bool value_redacted = 7;
 }
 
 // Values are prefixed: descriptor.proto's EntryKind already claims

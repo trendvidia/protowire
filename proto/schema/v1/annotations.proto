@@ -93,6 +93,24 @@ annotation error_code(code: string);
 // surface (IDE warnings, generated-code comments, doc emit).
 annotation deprecated(reason: string = "");
 
+// sensitive — classify a declaration's value as sensitive material
+// (credentials, tokens, personal data).
+//
+// Classification, not protection: wire encoding, storage, programmatic
+// access, and validation semantics are unaffected. Surfaces that render
+// field values for human or log consumption MUST redact to "[REDACTED]",
+// engines MUST withhold offending values from validation reports, and
+// doc generators MUST NOT emit values or examples (RFC-001 §6.7).
+// Encryption-at-rest and key management remain PXF/chameleon-layer
+// concerns; those layers MAY consume this classification to select
+// fields. Attaches to fields, type aliases (expands to consuming
+// fields), and messages (all fields, transitively through message-typed
+// fields).
+//
+// A classification parameter (e.g. secret vs. PII) is deferred; adding
+// optional defaulted parameters to a canonical annotation is additive.
+annotation sensitive;
+
 // http — attach HTTP routing metadata to an RPC method.
 //
 // Used by OpenAPI / Swagger generators to produce REST-bound surface
