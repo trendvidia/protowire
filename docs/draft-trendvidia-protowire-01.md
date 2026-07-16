@@ -419,14 +419,29 @@ The parameter `type-ref` MUST resolve to a primitive type, an enum
 type, a message type, or a type declaration. This revision does not
 permit `repeated`, `map<K,V>`, or `expression` as parameter types.
 
-### Function References at Validation Sites
+### Function References at Validation Sites {#function-references}
 
 Function calls appear inside `expression`-typed annotation arguments
-(see {{annotation-use-sites}}). The parser SHALL extract every function
-reference (fully-qualified call name and arity) from each expression
-body and emit it into the descriptor's `Expression.calls` field for
-runtime verification. A function reference whose name does not resolve
-to a function declaration in scope MUST be reported as a parse error.
+(see {{annotation-use-sites}}); this revision defines no other
+position at which engine expressions occur. The compiler SHALL scan
+each captured expression body for qualified identifiers and string
+literals under the Protocol Buffers lexical rules — characters that
+cannot begin or extend a Protocol Buffers token, such as engine
+operators, act solely as separators — and treat every maximal
+occurrence of a qualified identifier immediately followed by `(` as a
+call site, with arity equal to its count of top-level commas plus one
+(zero for empty parentheses).
+
+A call site whose name resolves to a `function` declaration in scope
+(same file or imported) MUST be emitted into the descriptor's
+`Expression.calls` field, and its arity MUST match the declaration —
+a mismatch is a compile-time error attributed to the call's source
+span. A call site whose name does not resolve is presumed to be an
+engine builtin: it MUST NOT be emitted into `Expression.calls` and
+MUST NOT be diagnosed at compile time; whether the engine provides it
+is determined by the engine's initialization-time verification (see
+{{validation-conformance}}). Consumers MAY therefore rely on
+`Expression.calls` being complete with respect to declared functions.
 
 ## Annotation Declarations {#annotation-declarations}
 
@@ -496,6 +511,41 @@ repeated-field repetition, bracketed type URLs) are not part of this
 grammar. Repeated fields take list-literal values; map fields are not
 supported in this revision. Lists are homogeneous, MAY nest, and MAY be
 empty; expression bodies never appear inside literals.
+
+### Engine Expressions {#engine-expressions}
+
+An argument bound to an `expression`-typed parameter is not parsed
+under this grammar; its inner syntax belongs to the validation engine.
+Because an argument's parameter binding is not known until annotation
+resolution, argument parsing is capture-then-classify:
+
+1. The parser captures every annotation argument as raw source text.
+   An argument extends to the first `,` or `)` at zero delimiter
+   depth: `()`, `[]`, and `{}` pairs MUST balance, and string literals
+   (Protocol Buffers lexical forms) are opaque to the scan. The scan
+   is character-level, tracking only string-literal boundaries and
+   delimiter depth, so engine operators that are not Protocol Buffers
+   tokens (`||`, `&&`, `<=`, `!`) pass through unexamined. An
+   unbalanced delimiter or an unterminated string literal MUST be
+   reported as an error attributed to the argument. The capture MUST
+   be non-empty.
+
+2. An argument that begins with an identifier followed by `=` — where
+   the token after `=` is not itself `=` — is a named argument; the
+   name and `=` are consumed before capture. Expression fragments
+   beginning with an identifier followed by `==` are unaffected.
+
+3. At resolution time, an argument bound to an `expression`-typed
+   parameter keeps the captured source verbatim, trimmed of leading
+   and trailing whitespace. Quotation marks are NOT stripped: a quoted
+   string bound to an `expression` parameter is a string-literal
+   expression and evaluates as such in the engine. Every other
+   argument MUST re-parse as a literal or qualified identifier
+   ({{literal-values}}); any other shape is an error.
+
+The compiler performs no interpretation of the captured fragment
+beyond the tokenization required for function-reference extraction
+({{function-references}}).
 
 ### Placement
 
@@ -781,9 +831,10 @@ message-literal = [ qualified-ident ws ] "{" ws
                   [ field-init *( ws "," ws field-init ) ] ws "}"
 field-init      = name ws ":" ws literal-value
 
-expression-body = ; engine-specific subgrammar, captured as balanced
-                  ; bracketed text by protowire parsers per the
-                  ; rules in {{function-references}}
+expression-body = ; engine-specific subgrammar; captured verbatim as
+                  ; balanced-delimiter text per {{engine-expressions}},
+                  ; with function references extracted per
+                  ; {{function-references}}
 ~~~
 
 `field-base` and `enum-value-base` denote the productions defined in

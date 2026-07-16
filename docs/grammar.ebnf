@@ -410,3 +410,19 @@ field_init      = proto_ident , ':' , literal_value ;
 
 qualified_ident = proto_ident , { '.' , proto_ident } ;
 proto_ident     = ( letter | '_' ) , { letter | digit | '_' } ;
+
+(* Engine expressions (RFC-001 §5.1 `engineExpression`): an annotation
+ * argument bound to an `expression`-typed parameter is NOT parsed by
+ * this grammar. The compiler captures the argument's source verbatim,
+ * ending at the first ',' or ')' at zero delimiter depth — '()', '[]',
+ * '{}' pairs balance, and proto string literals are opaque to the
+ * scan. The scan is character-level (only string boundaries and
+ * delimiter depth are tracked), so engine operators that are not
+ * proto tokens ('||', '&&', '<=') pass through unexamined. The
+ * capture must be non-empty and balanced. Classification
+ * (expression capture vs. the literal grammar above) happens at link
+ * time from the resolved parameter's declared type; see RFC-001 §5.1
+ * "Engine expressions" for the normative rules, and §8.1 for the
+ * function-call extraction the compiler performs on the fragment.
+ *)
+engine_expression = expr_source_text ;    (* opaque balanced-token capture *)
