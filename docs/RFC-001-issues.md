@@ -32,12 +32,12 @@ This is the umbrella tracking issue for [RFC-001 — Protowire Schema Extensions
 
 ### Open questions (resolved or deferred during M0)
 - [ ] #010 — Container-shaped type aliases (deferred to v1.3+)
-- [ ] #011 — Engine-config file format
-- [ ] #012 — Well-known types semantics (Timestamp, Duration, Any)
-- [ ] #013 — Recursive message validation depth limits
-- [ ] #014 — Streaming RPC validation contract
-- [ ] #015 — `Literal` shape in `AnnotationArg`
-- [ ] #016 — Validation report wire shape
+- [x] #011 — Engine-config file format — resolved 2026-07-15 (GH #60, PR #95)
+- [x] #012 — Well-known types semantics (Timestamp, Duration, Any) — resolved 2026-07-15 (GH #61, PR #96)
+- [x] #013 — Recursive message validation depth limits — resolved 2026-07-15 (GH #62, PR #97)
+- [x] #014 — Streaming RPC validation contract — resolved 2026-07-15 (GH #63, PR #98)
+- [x] #015 — `Literal` shape in `AnnotationArg` — resolved 2026-07-15 (GH #64, PR #99)
+- [x] #016 — Validation report wire shape — resolved 2026-07-15 (GH #65, PR #94)
 - [ ] #017 — protovalidate migration story
 - [ ] #018 — Performance budget + benchmark suite
 - [ ] #019 — Conformance test fixtures
@@ -228,8 +228,18 @@ option (catalog_libraries) = "myco/i18n/en.proto";
 Open: file naming convention (e.g., `protowire.config.proto`), discovery rules, override precedence (CLI > env > config).
 
 **Acceptance criteria:**
-- [ ] Sub-RFC or RFC-001 amendment specifying the schema
-- [ ] Reference Go impl in `protocompile`
+- [x] Sub-RFC or RFC-001 amendment specifying the schema
+- [ ] Reference Go impl in `protocompile` (tracked as protocompile#68)
+
+**Resolution (2026-07-15, GH #60, PR #95):** RFC-001 §9.4. A textproto file
+(`protowire.config.textproto` at the project root) carrying one
+`protowire.schema.config.v1.EngineConfig`
+(`proto/schema/config/v1/config.proto`) — not the sketched options-bearing
+`.proto`, which would burn carrier extension numbers and leak build config
+into descriptor sets. Nearest-config-wins discovery, no merging;
+precedence CLI flags > `--config` > `PROTOWIRE_CONFIG` (file pointer) >
+discovered file > defaults (`cel`, lenient, collect-all). Golden:
+`testdata/schema-extensions/08_engine_config.textproto`.
 
 ---
 
@@ -246,6 +256,14 @@ Pin down what refinement on `google.protobuf.Timestamp`, `Duration`, `Any` means
 
 Likely answer: WKTs unwrap to engine-native types (parallel to wrapper unwrap) so rules look natural.
 
+**Resolution (2026-07-15, GH #61, PR #96):** RFC-001 §6.2 expanded to five
+binding rules: wrappers unwrap (unchanged); `Timestamp`/`Duration` bind
+engine-native temporal values with mandatory comparison operators; `Any`
+never unwraps (`type_url` refinement canonical, auto-unpacking forbidden);
+other messages bind structurally; engine `now()` builtins are run-stable
+within one `Report`. Spec-text only — shipped type-alias lowering keeps
+its literal `base_type_fqn`. Fixture: `09_wkt_refinements.proto`.
+
 ---
 
 ## #013 — Recursive message validation depth limits
@@ -256,6 +274,15 @@ Likely answer: WKTs unwrap to engine-native types (parallel to wrapper unwrap) s
 
 Define a maximum recursion depth for nested-message validation and engine behavior at the limit (error vs. truncate). Likely a `protocheck.Engine` configuration knob with a documented default (e.g., 64).
 
+**Resolution (2026-07-15, GH #62, PR #97):** RFC-001 §6.4. Normative
+default 64, configurable via `EngineConfig.max_recursion_depth` (0 ⇒
+default); root at depth 0, each message-typed value +1. At the limit:
+neither error nor silent truncate — a fail-closed synthetic
+`protowire.depth_exceeded` violation, `Report.truncated = true`, siblings
+continue in collect-all. Depth definition, default, and at-limit behavior
+are normative; enforcement mechanism implementation-defined. The
+`protowire.` violation-code namespace is reserved for spec-defined codes.
+
 ---
 
 ## #014 — Streaming RPC validation contract
@@ -265,6 +292,15 @@ Define a maximum recursion depth for nested-message validation and engine behavi
 **Labels:** `spec`, `schema-extensions`
 
 Per-message vs. per-stream validation; behavior when a mid-stream message fails (close stream? skip? continue?); how server/client semantics differ. Likely: validate each message independently as it crosses the wire; failures surface as gRPC stream errors with the structured `Violation` payload.
+
+**Resolution (2026-07-15, GH #63, PR #98):** new RFC-001 §6.6. Per-message
+validation; receiver MUST validate before delivery, sender MAY pre-send;
+first invalid message terminates the stream with an error carrying the
+`Report` (no lenient-mode knob; no rollback). Direction asymmetry:
+request-direction → `INVALID_ARGUMENT`; server-produced response caught
+pre-send → `INTERNAL`; client-side receiver check → local error. gRPC
+reference mapping: `Report` in `google.rpc.Status.details` as `Any`.
+Stream-level invariants deferred (§13 row 12, GH #103).
 
 ---
 
@@ -277,8 +313,18 @@ Per-message vs. per-stream validation; behavior when a mid-stream message fails 
 Flesh out the `Literal` message used in `AnnotationArg.literal` for enum names, message literals, and list literals. Should accommodate `@example(value: any)` with a message-literal value, `@validate(this in [...])` with a list literal, etc.
 
 **Acceptance criteria:**
-- [ ] `Literal` definition added to `protowire/proto/schema/v1/descriptor.proto` (#005)
-- [ ] Test fixtures in `testdata/schema-extensions/` covering each variant
+- [x] `Literal` definition added to `protowire/proto/schema/v1/descriptor.proto` (#005)
+- [x] Test fixtures in `testdata/schema-extensions/` covering each variant
+
+**Resolution (2026-07-15, GH #64, PR #99):** RFC-001 §8.1. Enum references
+lower resolved (`EnumLiteral {enum_type, value_name, number}`); message
+literals stay `google.protobuf.Any`, always explicitly typed (param type
+or use-site type name, never shape inference; source spelling → IETF
+draft, GH #102); list literals become homogeneous
+`ListLiteral { repeated LiteralValue }` — elements are values, not
+arguments. In-place revision of the unreleased carrier; protocompile
+re-vendors `descriptor.pb.go` (protocompile#67). Fixtures:
+`10_literal_args.proto`, `11_literal_carrier_golden.textproto`.
 
 ---
 
@@ -289,6 +335,16 @@ Flesh out the `Literal` message used in `AnnotationArg.literal` for enum names, 
 **Labels:** `spec`, `proto`, `schema-extensions`
 
 Define the wire shape of a complete validation result (`Report`) containing `repeated EnrichedViolation` and any summary metadata (timing, engine info, etc.). Standardize so all 10 ports emit equivalent reports.
+
+**Resolution (2026-07-15, GH #65, PR #94):** `proto/schema/v1/report.proto`
+(runtime artifact, no extension numbers; RFC-001 §7 rewritten). `Report
+{message_type, violations, mode, truncated, engine, wall_time_nanos}`;
+`Violation {code, params, fallback_message}`; `EnrichedViolation` with
+structured `FieldPath` (typed subscripts, never a dotted string) and typed
+`Value` oneof — deliberately not `google.protobuf.Value` (int64 folding,
+no bytes, null/absent erasure). `RuleKind` values are `RULE_KIND_`-prefixed
+(package enum-value scope collision with `EntryKind`). Golden:
+`07_report_golden.textproto`.
 
 ---
 
