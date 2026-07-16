@@ -42,6 +42,7 @@ This is the umbrella tracking issue for [RFC-001 — Protowire Schema Extensions
 - [ ] #018 — Performance budget + benchmark suite
 - [ ] #019 — Conformance test fixtures
 - [ ] #020 — Upstream `buf/protocompile` compatibility
+- [x] #021 — Secrets annotation story (`@sensitive`) — resolved 2026-07-16 (GH #90, PR #107)
 
 ### Implementation (M1–M8)
 - [ ] #030 — `protocompile`: extended grammar parser
@@ -400,6 +401,36 @@ This fork diverges from upstream `buf/protocompile` once v1.2 grammar lands. Dec
 - Maintain a clean fork point + cherry-pick upstream non-conflicting commits
 
 Outcome shapes how `protocompile`'s long-term maintenance is organized.
+
+---
+
+## #021 — Secrets annotation story (`@sensitive`)
+
+**Repo:** `protowire`
+**Milestone:** M0
+**Labels:** `spec`, `schema-extensions`
+
+Secrets definition is one of RFC-001's three driving use cases but had no
+RFC text or canonical annotation. Decide the schema-level story before
+`annotations.proto` freezes (#004 / GH #58): declaration shape, consumer
+semantics per surface (codegen, query masking, exporters, reports, LSP),
+chameleon interplay, and carrier semantics.
+
+**Resolution (2026-07-16, GH #90, PR #107):** RFC-001 §6.7. One canonical
+marker, `annotation sensitive;` — classification, not protection: wire
+encoding, storage, programmatic access, and validation semantics are
+unaffected. Attaches to fields, type aliases (macro-expands to consuming
+fields), and messages (transitive through message-typed fields).
+Normative consumer minima: rendering surfaces redact to `[REDACTED]`;
+engines withhold offending values from reports
+(`EnrichedViolation.value_redacted = 7` keeps redaction distinguishable
+from three-state absence); doc generators emit no values or examples
+(`@example` on a sensitive declaration is a compile-time warning). Rides
+the standard 50400 carrier. Chameleon stays orthogonal (schema declares
+*what* is sensitive, never *how* it is protected). Deferred additively
+(§13 #13/#14): `class:` taxonomy parameter; schema-level
+`@encrypted(key_ref)`. Conformance fixtures ride the corpus expansion
+(#019 / GH #68).
 
 ---
 
