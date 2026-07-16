@@ -272,6 +272,54 @@ function name(args) → (bool, *Violation)
 
 Functions are declarations only; bodies are implemented in the engine runtime and registered by fully-qualified name at engine init. No engine tag on the declaration: the spec specifies the contract; runtime registration provides the implementation.
 
+### 6.6 Streaming and RPC validation contract
+
+Six rules define how validation applies at RPC boundaries. The normative
+contract is transport-agnostic; the gRPC mapping in rule 6 is the
+reference.
+
+1. **The unit of validation is one message.** Each message is validated
+   independently as it crosses the RPC boundary, exactly as §6.4 defines
+   for a single instance — one message, one (potential) `Report` (§7).
+   Stream-level invariants (aggregate rules across messages, ordering
+   constraints) are out of scope for v1.2 and deferred (§13).
+
+2. **Placement.** The receiver MUST validate a message before delivering
+   it to application code. The sender MAY additionally validate before
+   transmission — recommended where the producer is untrusted or in
+   strict deployments. Server-side validation stays authoritative (§10).
+
+3. **Mid-stream failure terminates the stream** with an error carrying
+   the structured `Report`. Skip-and-continue silently drops data and
+   breaks ordering assumptions; deliver-anyway is validation turned off.
+   There is deliberately no configuration knob for lenient stream
+   behavior: an application wanting custom handling opts out of automatic
+   validation and calls `Validate()` itself.
+
+4. **No rollback.** Messages delivered before the failing one stay
+   delivered; the stream terminates at the first invalid message. Any
+   transactional semantics across a stream are application concerns.
+
+5. **Direction asymmetry.**
+   - A **request-direction** message found invalid at the server: the
+     client sent bad data → terminate with `INVALID_ARGUMENT`, `Report`
+     attached.
+   - A **response-direction** message found invalid at the sender
+     (server pre-send check): the server produced bad data → `INTERNAL`,
+     `Report` attached. The caller is never blamed for the callee's
+     output.
+   - A **response-direction** message found invalid at the client
+     (receiver check): surfaced as a local client-library error carrying
+     the `Report`; the client does not "status" the server.
+   - Unary RPCs are the degenerate case: validate the request before the
+     handler, the response before send. Bidirectional streams apply the
+     rules per direction independently.
+
+6. **Transport mapping is layered.** For gRPC, the status code follows
+   rule 5 and the `Report` is embedded in `google.rpc.Status.details` as
+   an `Any` (`type.googleapis.com/protowire.schema.v1.Report`). Other RPC
+   frameworks map through their adapter, carrying the same `Report`.
+
 ## 7. Error model
 
 The normative wire shapes for the error model live in
@@ -576,13 +624,14 @@ Items deferred for separate resolution. Each becomes a tracked issue.
 | 2 | ~~Engine-config file format (`engine: cel`, function-library imports)~~ **Resolved 2026-07-15** (issue #60): `protowire.config.textproto` + `proto/schema/config/v1/config.proto`, see §9.4 | spec |
 | 3 | ~~Well-known types semantics (`Timestamp`, `Duration`, `Any`)~~ **Resolved 2026-07-15** (issue #61): temporal WKTs bind engine-native, `Any` never unwraps, run-stable `now()`, see §6.2 | spec |
 | 4 | ~~Recursive message validation depth limits~~ **Resolved 2026-07-15** (issue #62): normative default 64, `EngineConfig.max_recursion_depth`, fail-closed `protowire.depth_exceeded` violation, see §6.4 | spec / engine |
-| 5 | Streaming RPC validation contract | spec |
+| 5 | ~~Streaming RPC validation contract~~ **Resolved 2026-07-15** (issue #63): per-message validation, fail-closed stream termination, direction-asymmetric status mapping, see §6.6 | spec |
 | 6 | `Literal` shape detail in `AnnotationArg` (enum names, message literals, lists) | spec |
 | 7 | ~~Validation report wire shape (`Report` carrying `EnrichedViolation`s)~~ **Resolved 2026-07-15** (issue #65): pinned in `proto/schema/v1/report.proto`, see §7 | spec |
 | 8 | Migration story for existing `protovalidate`-using projects | tooling |
 | 9 | Performance budget + benchmark suite | per-port |
 | 10 | Conformance test fixtures in `protowire/testdata/schema-extensions/` | spec |
 | 11 | Upstream `buf/protocompile` compatibility (this codebase is a fork) | protocompile |
+| 12 | Stream-level validation invariants (aggregate rules across a stream's messages, ordering constraints) — deferred from §6.6, needs its own design pass like container-shaped aliases (#1) | spec |
 
 ## 14. References
 
