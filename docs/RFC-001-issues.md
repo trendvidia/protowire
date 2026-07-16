@@ -23,7 +23,7 @@ Issue numbers (`#001` …) are local to this scaffold — replace with tracker-a
 This is the umbrella tracking issue for [RFC-001 — Protowire Schema Extensions](docs/RFC-001-schema-extensions.md), targeting protowire v1.2.0.
 
 ### Spec (M0)
-- [ ] #002 — Ratify RFC-001
+- [x] #002 — Ratify RFC-001 — ratified 2026-07-16 (GH #56, PR #113)
 - [ ] #003 — Draft IETF `draft-trendvidia-protowire-01`
 - [ ] #004 — Add `protowire/proto/schema/v1/annotations.proto`
 - [ ] #005 — Add `protowire/proto/schema/v1/descriptor.proto`
@@ -87,9 +87,26 @@ This is the umbrella tracking issue for [RFC-001 — Protowire Schema Extensions
 Reach approval on [RFC-001](docs/RFC-001-schema-extensions.md). The RFC's open-questions table (§13) lists items intentionally deferred — they don't block ratification but each becomes its own tracked issue (#010–#020).
 
 **Acceptance criteria:**
-- [ ] At least one approving review from spec governance.
-- [ ] All open questions either resolved in the RFC or filed as separate issues with the "v1.2 deferred" label.
-- [ ] No locked decision blocks an existing port's roadmap.
+- [x] At least one approving review from spec governance.
+- [x] All open questions either resolved in the RFC or filed as separate issues with the "v1.2 deferred" label.
+- [x] No locked decision blocks an existing port's roadmap.
+
+**Resolution (2026-07-16, GH #56, PR #113):** RFC-001 ratified — header
+status Draft → **Ratified (2026-07-16)**. Governance approval granted
+in-session by the maintainer (single-maintainer governance, S1–S3
+precedent). Decision trail: S1 resolved §13 rows 2–7 (#011–#016, PRs
+#94–#99); S2 resolved the Literal source grammar (#015/GH #102, PR
+#108), the secrets story (#021/GH #90, PR #107), and the
+descriptor_path scheme (#035/GH #89, PR #106); S3 resolved
+engine-expression scope (#022/GH #91, PR #109) and pxf dual-emission
+(#023/GH #92, PR #110). Every remaining §13 row is tracked: rows 1/8/
+9/10/11 → GH #59/#66/#67/#68/#69, row 12 → GH #103, rows 13/14 → GH
+#111/#112 (filed at ratification). No locked decision blocks a port
+roadmap: the v1.2 surface is strictly additive, per-port adoption is
+M9+ gated on the conformance corpus (#019/GH #68), and #023 constrains
+only migration ordering. Implementation-drift catch-up is tracked in
+protocompile#69 without reopening spec text. IETF `-01`
+generation/submission proceeds as #003 (GH #57).
 
 ---
 
