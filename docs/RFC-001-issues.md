@@ -43,6 +43,7 @@ This is the umbrella tracking issue for [RFC-001 — Protowire Schema Extensions
 - [ ] #019 — Conformance test fixtures
 - [ ] #020 — Upstream `buf/protocompile` compatibility
 - [x] #021 — Secrets annotation story (`@sensitive`) — resolved 2026-07-16 (GH #90, PR #107)
+- [x] #022 — Engine-expression grammar scope (annotation-only v1.2) — resolved 2026-07-16 (GH #91, PR #109)
 
 ### Implementation (M1–M8)
 - [ ] #030 — `protocompile`: extended grammar parser
@@ -443,6 +444,49 @@ the standard 50400 carrier. Chameleon stays orthogonal (schema declares
 (§13 #13/#14): `class:` taxonomy parameter; schema-level
 `@encrypted(key_ref)`. Conformance fixtures ride the corpus expansion
 (#019 / GH #68).
+
+---
+
+## #022 — Engine-expression grammar scope
+
+**Repo:** `protowire`
+**Milestone:** M0
+**Labels:** `spec`, `schema-extensions`
+
+The contextual-keyword amendment (PRs #71/#79) dropped the
+`expression`/`this` reservations, and protocompile M1 shipped without
+engine-expression grammar or linker-side call verification — annotation
+arguments were legalized to a deliberately narrow grammar instead.
+Decide: is v1.2.0 validation annotation-only with expressions deferred,
+or do expressions return to v1.2 scope? Determines whether protocompile
+#030/#032 are complete or reopen, and what protocheck (#040–#042) must
+evaluate.
+
+**Resolution (2026-07-16, GH #91, PR #109):** Annotation-only v1.2 with
+bare expression **arguments** affirmed as normative surface. Engine
+expressions appear exclusively as annotation args bound to
+`expression`-typed params; no standalone `expression { ... }` construct
+exists or is planned. RFC-001 §5.1 defines the previously-dangling
+`engineExpression` production via **capture-then-classify**: every
+annotation argument is captured as raw source text (character-level
+scan to the first `,`/`)` at zero delimiter depth; `()`/`[]`/`{}`
+balance; string literals opaque; non-proto engine operators pass
+through), named args recognized by a leading single-`=` `Ident =`
+peeled before capture, expression-bound args kept verbatim (quotes
+never stripped — a quoted string is a string-literal expression), all
+other args re-parsed as `literal | qualifiedIdent`. §8.1 makes
+`Expression.calls` extraction REQUIRED: names resolving to visible
+`function` declarations are recorded (arity = top-level commas + 1)
+and arity-checked at link time; non-resolving names are presumed
+engine builtins — not recorded, not diagnosed (engine init
+verification §9.2 owns them). Draft `-01` gained an *Engine
+Expressions* section and a rewritten *Function References* section
+(old text made every builtin call a MUST parse-error). Hybrid
+placement and named args stay normative as written — shipped
+protocompile M1 drift (leading-only field annotations, positional-only
+args, narrow arg legalize, empty `calls`) means **#030/#032 reopen**;
+catch-up tracked in protocompile#69. Fixture:
+`12_expression_args.proto`.
 
 ---
 
