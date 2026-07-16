@@ -5,6 +5,7 @@ package main
 import (
 	"encoding/base64"
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/itchyny/gojq"
@@ -195,8 +196,11 @@ func datasetToValueWithSchema(ds pxf.DatasetDirective, sch *schema) (any, error)
 // cellToTypedValue applies schema-aware coercion when a descriptor is
 // in scope. For Stage C this is a thin layer — it routes the cell's
 // raw form through valueToAny but enforces a string→bytes lift for
-// fields declared as bytes, since CSV/JSON adapters can't tell strings
-// from bytes without the descriptor.
+// fields declared as bytes (CSV/JSON adapters can't tell strings from
+// bytes without the descriptor) and re-binds the spec's non-finite
+// identifiers on float/double fields (§3.8: bare `inf`/`nan` lex as
+// IDENT — the signed forms are lexed as floats — and valueToAny keeps
+// identifiers as strings for the enum case).
 func cellToTypedValue(c pxf.Value, md protoreflect.MessageDescriptor, col string) (any, error) {
 	fd := md.Fields().ByName(protoreflect.Name(col))
 	v, err := valueToAny(c)
@@ -208,12 +212,22 @@ func cellToTypedValue(c pxf.Value, md protoreflect.MessageDescriptor, col string
 		// validation in Stage D will catch this at compile time).
 		return v, nil
 	}
-	if fd.Kind() == protoreflect.BytesKind {
+	switch fd.Kind() {
+	case protoreflect.BytesKind:
 		if s, ok := v.(string); ok && !strings.HasPrefix(s, "b") {
 			// Plain string from a CSV/JSON cell bound to a bytes field
 			// — preserve as-is; a later pxf_proto re-bind would surface
 			// the encoding mismatch.
 			return s, nil
+		}
+	case protoreflect.FloatKind, protoreflect.DoubleKind:
+		if id, ok := c.(*pxf.IdentVal); ok {
+			switch id.Name {
+			case "inf":
+				return math.Inf(1), nil
+			case "nan":
+				return math.NaN(), nil
+			}
 		}
 	}
 	return v, nil
