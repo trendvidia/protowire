@@ -449,7 +449,8 @@ as opaque text for the engine to compile.
 
 The `any` parameter type accepts any literal value that the consuming
 target permits; specific compatibility is enforced at the lowering
-layer.
+layer. Message literals bound to `any` parameters require the
+explicit type-name form (see {{literal-values}}).
 
 Annotation declarations are themselves declared in schema; the
 framework-defined annotations listed in
@@ -471,6 +472,30 @@ annotation-list = 1*annotation
 
 Use-site arguments MAY be positional or named. Named arguments MAY
 follow positional ones; positional MUST NOT follow named.
+
+### Literal Values {#literal-values}
+
+Non-scalar argument values take one of three literal forms (see
+{{abnf-grammar}}): a list literal (`["US", "CA", "GB"]`), a message
+literal (`myco.commons.Money{currency: "USD", units: 5}`), or an
+enum-value reference (a qualified identifier, resolved at link time).
+
+A message literal's type comes from the annotation parameter's declared
+type; when the parameter — or, recursively, the message field being
+initialized — is typed `any` (or `google.protobuf.Any`), the explicit
+leading type name is REQUIRED. When a concrete message type is
+declared, the type name is OPTIONAL; if present it MUST resolve to
+exactly the declared type. The type is never inferred from the value's
+shape.
+
+Field initializers use the field's declared name with a mandatory
+colon, separated by commas without a trailing comma; each field appears
+at most once, and an unknown field name is an error. The text-format
+liberties (colon-less nested blocks, semicolon separators,
+repeated-field repetition, bracketed type URLs) are not part of this
+grammar. Repeated fields take list-literal values; map fields are not
+supported in this revision. Lists are homogeneous, MAY nest, and MAY be
+empty; expression bodies never appear inside literals.
 
 ### Placement
 
@@ -744,6 +769,18 @@ annot-arg       = [ name ws "=" ws ] annot-arg-value
 annot-arg-value = literal / qualified-ident / expression-body
 annotation-list = 1*( ws annotation )
 
+literal         = scalar-literal / list-literal / message-literal
+scalar-literal  = string-lit / int-lit / float-lit / bool-lit
+                  ; lexical productions per -00; string-lit also
+                  ; serves bytes-typed params
+literal-value   = literal / qualified-ident
+                  ; qualified-ident = enum-value reference
+list-literal    = "[" ws [ literal-value
+                  *( ws "," ws literal-value ) ] ws "]"
+message-literal = [ qualified-ident ws ] "{" ws
+                  [ field-init *( ws "," ws field-init ) ] ws "}"
+field-init      = name ws ":" ws literal-value
+
 expression-body = ; engine-specific subgrammar, captured as balanced
                   ; bracketed text by protowire parsers per the
                   ; rules in {{function-references}}
@@ -803,9 +840,6 @@ agreed:
 
 * **Streaming RPC validation.** Per-message vs. per-stream evaluation
   semantics.
-
-* **Literal value shape.** The detailed schema of message and list
-  literals appearing in annotation arguments.
 
 * **Validation report wire shape.** The complete serialization of an
   aggregate Report across PXF, PB, SBE, and the envelope.

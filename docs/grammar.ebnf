@@ -367,3 +367,46 @@ oct_lead      = '0' | '1' | '2' | '3' ;   (* keeps \nnn <= 0xFF *)
  * schema at bind time. The check is case-sensitive: 'NULL', 'True',
  * 'FALSE' parse as ordinary identifiers and are unaffected.
  *)
+
+
+(* === Schema-extension annotation literals ===
+ *
+ * The productions below describe the SCHEMA LANGUAGE (v1.2 .proto
+ * source with RFC-001 schema extensions), NOT the PXF document body
+ * grammar above. They expand the `literal` alternative of
+ * `annotArgValue` in RFC-001 §5.1 / IETF draft -01 (`annot-arg-value`)
+ * and are mirrored here so the repository's EBNF is complete in one
+ * place.
+ *
+ * Deliberate divergences from the PXF document grammar:
+ *   - Field initializers use ':' (following proto's own option-
+ *     aggregate convention inside braces), where PXF field_entry
+ *     uses '='. PXF's '='/':' split disambiguates message fields
+ *     from map entries — a constraint absent here, since map fields
+ *     are not supported in v1.2 message literals.
+ *   - Commas are mandatory separators (PXF lists accept newlines).
+ *   - No trailing commas; each field at most once; text-format
+ *     liberties (colon-less nested blocks, semicolon separators,
+ *     repeated-field repetition, '[type.url]' forms) are excluded.
+ *
+ * A message literal's type comes from the annotation param's declared
+ * type; the leading dotted-identifier type name is REQUIRED when the
+ * param (or the field being initialized) is `any`, otherwise OPTIONAL
+ * and verified against the declared type. `qualified_ident` as a
+ * literal_value is an enum-value reference, resolved at link time.
+ * `str_lit` / `int_lit` / `float_lit` / `bool_lit` are the proto
+ * lexical forms; str_lit also serves bytes-typed params.
+ *)
+
+annot_literal   = scalar_lit | list_literal | message_literal ;
+scalar_lit      = str_lit | int_lit | float_lit | bool_lit ;
+literal_value   = annot_literal | qualified_ident ;
+
+list_literal    = '[' , [ literal_value , { ',' , literal_value } ] , ']' ;
+
+message_literal = [ qualified_ident ] , '{' ,
+                  [ field_init , { ',' , field_init } ] , '}' ;
+field_init      = proto_ident , ':' , literal_value ;
+
+qualified_ident = proto_ident , { '.' , proto_ident } ;
+proto_ident     = ( letter | '_' ) , { letter | digit | '_' } ;

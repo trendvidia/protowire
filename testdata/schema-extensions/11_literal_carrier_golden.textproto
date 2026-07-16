@@ -9,9 +9,9 @@
 #     whose wire bytes are "\n\003USD\020\005"),
 #   - a homogeneous list literal (LiteralValue elements — values, not
 #     arguments: no names, no expressions).
-# Cross-port conformance: lowering the corresponding use sites (see
-# 10_literal_args.proto for the enum and list source forms) must produce
-# a semantically equal carrier.
+# Cross-port conformance: lowering the use sites in 10_literal_args.proto
+# (all three source forms, per the §5.1 literal grammar / issue #102)
+# must produce a semantically equal carrier.
 
 entries {
   name: "fixtures.literals.sample"
@@ -25,7 +25,7 @@ entries {
       }
     }
   }
-  location { file: "fixtures/literals.proto" line: 41 column: 5 }
+  location { file: "fixtures/literals.proto" line: 49 column: 5 }
 }
 entries {
   name: "fixtures.literals.sample"
@@ -38,7 +38,7 @@ entries {
       }
     }
   }
-  location { file: "fixtures/literals.proto" line: 44 column: 5 }
+  location { file: "fixtures/literals.proto" line: 54 column: 5 }
 }
 entries {
   name: "fixtures.literals.allowed"
@@ -52,5 +52,5 @@ entries {
       }
     }
   }
-  location { file: "fixtures/literals.proto" line: 45 column: 5 }
+  location { file: "fixtures/literals.proto" line: 58 column: 5 }
 }
