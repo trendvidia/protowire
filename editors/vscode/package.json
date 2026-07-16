@@ -98,13 +98,13 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "vscode-languageclient": "^9.0.1"
+    "vscode-languageclient": "^10.0.0"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",
-    "@types/vscode": "^1.75.0",
-    "@vscode/vsce": "^3.0.0",
-    "esbuild": "^0.28.0",
+    "@types/vscode": "^1.125.0",
+    "@vscode/vsce": "^3.9.2",
+    "esbuild": "^0.28.1",
     "typescript": "^6.0.3"
   }
 }
