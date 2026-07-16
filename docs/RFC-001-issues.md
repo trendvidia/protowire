@@ -24,7 +24,7 @@ This is the umbrella tracking issue for [RFC-001 — Protowire Schema Extensions
 
 ### Spec (M0)
 - [x] #002 — Ratify RFC-001 — ratified 2026-07-16 (GH #56, PR #113)
-- [ ] #003 — Draft IETF `draft-trendvidia-protowire-01`
+- [x] #003 — Draft IETF `draft-trendvidia-protowire-01` — document complete 2026-07-16 (GH #57, PR #114); Datatracker submission pending
 - [ ] #004 — Add `protowire/proto/schema/v1/annotations.proto`
 - [ ] #005 — Add `protowire/proto/schema/v1/descriptor.proto`
 - [ ] #006 — Update `STABILITY.md` for v1.2 additive surface
@@ -129,9 +129,23 @@ Scope:
 - Compatibility / version transition (§11)
 
 **Acceptance criteria:**
-- [ ] xml2rfc passes
-- [ ] Generated `.txt` differs from `-00` only in schema-extension additions
-- [ ] PR review by IETF-draft maintainer
+- [x] xml2rfc passes
+- [x] Generated `.txt` differs from `-00` only in schema-extension additions
+- [x] PR review by IETF-draft maintainer
+
+**Resolution (2026-07-16, GH #57, PR #114):** `-01` completed and
+generated. The draft body gained the ratified content it lacked — the
+five S1 resolutions its Open Issues section still listed as open (WKT
+binding, recursion depth, streaming validation, Report wire shape
+incl. structured `FieldPath`/typed `Value`, engine configuration) and
+S2's `@sensitive` — and every `[Unchanged from -00]` placeholder was
+merged with the verbatim `-00` sections. Editor's note became a
+kramdown-rfc note block (pre-abstract sections are silently dropped);
+the back-matter ABNF appendix was renamed `{#abnf-additions}` to
+avoid `-00`'s `{#abnf-grammar}` anchor. Built with kramdown-rfc +
+xml2rfc 3.34 (`scripts/build_rfc.sh 01`); structure diff vs `-00.txt`
+shows exactly the schema-extension additions (new 6.3, section 7,
+9.6). Datatracker submission is the remaining step of GH #57.
 
 ---
 
