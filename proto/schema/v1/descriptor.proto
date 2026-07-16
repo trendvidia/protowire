@@ -61,19 +61,54 @@ message AnnotationArg {
   }
 }
 
-// Literal carries non-scalar argument values: enum names, message literals,
-// list literals. Detailed shape is tracked separately (RFC-001 open
-// question §13 #6).
+// Literal carries non-scalar annotation-argument values: resolved enum
+// value references, typed message literals, and list literals. Scalar
+// argument values live directly in AnnotationArg's oneof (fields 10–14).
+//
+// A message literal's type comes from the annotation param's declared
+// type, or from an explicit type name at the use site when the param is
+// `any` — never inferred from the value's shape. The lowering pass
+// serializes the literal into the Any; consumers unpack it against the
+// FileDescriptorSet they already hold.
 message Literal {
   oneof kind {
-    string enum_name             = 1; // "OrderStatus.UNKNOWN"
-    google.protobuf.Any message  = 2; // typed message literal
-    ListLiteral list             = 3; // [..., ..., ...]
+    EnumLiteral enum_value       = 1; // linker-resolved enum value reference
+    google.protobuf.Any message  = 2; // typed message literal, serialized at lowering
+    ListLiteral list             = 3; // [elem, elem, ...]
   }
 }
 
+// EnumLiteral is a linker-RESOLVED enum value reference. The lowering
+// pass records the resolution; consumers never re-resolve a bare name
+// against a descriptor pool.
+message EnumLiteral {
+  // FQN of the enum type, e.g. "myco.orders.OrderStatus".
+  string enum_type = 1;
+  // Value name as resolved, e.g. "CANCELLED".
+  string value_name = 2;
+  // Resolved numeric value.
+  int32 number = 3;
+}
+
+// ListLiteral elements are values, not arguments: they carry no name and
+// can never be expressions. All elements of one list MUST be the same
+// kind (and for enum_value elements, the same enum_type); the compiler
+// rejects heterogeneous lists. Nesting (lists of lists) is legal.
 message ListLiteral {
-  repeated AnnotationArg elements = 1;
+  repeated LiteralValue elements = 1;
+}
+
+// LiteralValue is one list element: a scalar or a nested Literal kind.
+// Field numbers mirror AnnotationArg's value oneof for parity.
+message LiteralValue {
+  oneof kind {
+    string string_value  = 10;
+    int64  int_value     = 11;
+    double double_value  = 12;
+    bool   bool_value    = 13;
+    bytes  bytes_value   = 14;
+    Literal literal      = 15; // enum value, message, or nested list
+  }
 }
 
 // Expression carries a verbatim engine-language fragment together with

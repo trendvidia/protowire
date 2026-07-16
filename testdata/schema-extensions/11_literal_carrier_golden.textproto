@@ -1,0 +1,56 @@
+# proto-file: protowire/schema/v1/descriptor.proto
+# proto-message: protowire.schema.v1.AnnotationList
+#
+# Golden lowered annotation carrier (RFC-001 §8.1) covering all three
+# Literal variants (issue #64):
+#   - a linker-RESOLVED enum-value reference (EnumLiteral),
+#   - a typed message literal (google.protobuf.Any, serialized at
+#     lowering; here fixtures.literals.Money{currency: "USD", units: 5},
+#     whose wire bytes are "\n\003USD\020\005"),
+#   - a homogeneous list literal (LiteralValue elements — values, not
+#     arguments: no names, no expressions).
+# Cross-port conformance: lowering the corresponding use sites (see
+# 10_literal_args.proto for the enum and list source forms) must produce
+# a semantically equal carrier.
+
+entries {
+  name: "fixtures.literals.sample"
+  args {
+    name: "value"
+    literal {
+      enum_value {
+        enum_type: "fixtures.literals.OrderStatus"
+        value_name: "CANCELLED"
+        number: 3
+      }
+    }
+  }
+  location { file: "fixtures/literals.proto" line: 41 column: 5 }
+}
+entries {
+  name: "fixtures.literals.sample"
+  args {
+    name: "value"
+    literal {
+      message {
+        type_url: "type.googleapis.com/fixtures.literals.Money"
+        value: "\n\003USD\020\005"
+      }
+    }
+  }
+  location { file: "fixtures/literals.proto" line: 44 column: 5 }
+}
+entries {
+  name: "fixtures.literals.allowed"
+  args {
+    name: "values"
+    literal {
+      list {
+        elements { string_value: "US" }
+        elements { string_value: "CA" }
+        elements { string_value: "GB" }
+      }
+    }
+  }
+  location { file: "fixtures/literals.proto" line: 45 column: 5 }
+}
