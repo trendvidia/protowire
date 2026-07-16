@@ -31,7 +31,8 @@ testdata/schema-extensions/
 ├── 05_error_overrides.proto                 — @validate with code + message overrides
 ├── 06_cross_file_lib.proto                  — library imported by 06_cross_file_main.proto
 ├── 06_cross_file_main.proto                 — uses types/functions from 06_cross_file_lib
-└── 07_report_golden.textproto               — golden validation Report (§7 wire shape)
+├── 07_report_golden.textproto               — golden validation Report (§7 wire shape)
+└── 08_engine_config.textproto               — golden EngineConfig (§9.4 project config)
 ```
 
 Each fixture is the input; a sibling `.expected.txt` (added during M2)
@@ -50,17 +51,29 @@ diffs every port's output against these expectations.
 | `05_error_overrides.proto` | `code` and `message` args on `@validate`; `[error_code = "..."]` on `function` |
 | `06_cross_file_*.proto` | Import + cross-file resolution of types and functions |
 | `07_report_golden.textproto` | `Report` / `EnrichedViolation` runtime wire shape (RFC-001 §7); all three `RuleKind`s, typed `Value` params, absent `actual_value` |
+| `08_engine_config.textproto` | `EngineConfig` project configuration (RFC-001 §9.4); every field, discovery/precedence rules in prose |
 
-Unlike the schema-text fixtures, `07_report_golden.textproto` is a
-**runtime** golden: text-format `protowire.schema.v1.Report`
-([`proto/schema/v1/report.proto`](../../proto/schema/v1/report.proto)).
-It is the target for M4 engine work (issues #040–#043) — a conformant
-engine validating the §5.3 worked-example instance emits a semantically
-equal report. Verify it parses with stock protoc:
+Unlike the schema-text fixtures, the `.textproto` fixtures are message
+goldens, not v1.2 schema sources:
+
+- `07_report_golden.textproto` — text-format `protowire.schema.v1.Report`
+  ([`proto/schema/v1/report.proto`](../../proto/schema/v1/report.proto)).
+  Target for M4 engine work (issues #040–#043): a conformant engine
+  validating the §5.3 worked-example instance emits a semantically equal
+  report.
+- `08_engine_config.textproto` — text-format
+  `protowire.schema.config.v1.EngineConfig`
+  ([`proto/schema/config/v1/config.proto`](../../proto/schema/config/v1/config.proto)),
+  i.e. the content of a project's `protowire.config.textproto`. Target
+  for config-loader implementations (§9.4 discovery/precedence).
+
+Verify they parse with stock protoc:
 
 ```
 protoc -I <root> --encode=protowire.schema.v1.Report \
   protowire/schema/v1/report.proto < 07_report_golden.textproto > /dev/null
+protoc -I <root> --encode=protowire.schema.config.v1.EngineConfig \
+  protowire/schema/config/v1/config.proto < 08_engine_config.textproto > /dev/null
 ```
 
 ## Adding new fixtures

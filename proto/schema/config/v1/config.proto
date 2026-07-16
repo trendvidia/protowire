@@ -1,0 +1,55 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Protowire Schema Extensions — project-level engine configuration
+// (RFC-001 §9.4). Loaded from `protowire.config.textproto` at the project
+// root; a build-time artifact consumed by validator binaries and tooling,
+// never embedded in descriptors. Allocates no extension numbers.
+
+syntax = "proto3";
+
+package protowire.schema.config.v1;
+
+import "protowire/schema/v1/report.proto"; // ExecutionMode
+
+// EngineConfig selects and parameterizes the single validation engine a
+// project uses (RFC-001 §9.1: one engine per project, chosen at
+// validator-binary build time).
+//
+// Discovery: tools walk upward from the working directory (or an explicit
+// schema root) to the filesystem root; the nearest
+// `protowire.config.textproto` wins. No merging or cascading between
+// nested configs — nearest wins, full stop.
+//
+// Precedence (highest first): per-setting CLI flags override individual
+// fields; `--config <path>` selects the file explicitly; the
+// PROTOWIRE_CONFIG environment variable points at a file (never inline
+// settings); otherwise discovery; otherwise built-in defaults
+// (engine "cel", lenient registration, collect-all).
+message EngineConfig {
+  // Registered engine identifier, e.g. "cel", "starlark", "go".
+  // Resolved against the runtime's engine registry at init. An unknown
+  // name is a startup error — never a silent fallback.
+  string engine = 1;
+
+  // Import paths (resolved like proto imports) of schema files whose
+  // `function` declarations this project's engine must implement.
+  // Used by init-time verification (§9.2) and codegen (§9.3).
+  repeated string function_libraries = 2;
+
+  // Locale catalog sources registered with the engine for i18n
+  // message rendering (§7).
+  repeated string catalog_libraries = 3;
+
+  // When true, missing function implementations fail engine startup
+  // instead of failing at first call (§9.2).
+  bool strict_validation = 4;
+
+  // Default execution mode for Validate() when the caller does not
+  // choose one. UNSPECIFIED means COLLECT_ALL (§6.4).
+  protowire.schema.v1.ExecutionMode default_mode = 5;
+
+  // Field 6 is earmarked for the recursion-depth limit pending RFC-001
+  // open question §13 #4 (issue #62); it is added there if resolved as
+  // a config knob.
+}

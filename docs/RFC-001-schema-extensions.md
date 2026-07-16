@@ -423,6 +423,48 @@ func RegisterFunctions(eng Engine, impl Functions) {
 }
 ```
 
+### 9.4 Engine configuration
+
+The normative schema lives in `protowire/proto/schema/config/v1/config.proto`
+(stock proto3; a build-time artifact consumed by validator binaries and
+tooling, never embedded in descriptors — it allocates no extension numbers).
+
+A project's engine selection and engine-level knobs live in a single
+**`protowire.config.textproto`** file at the project root: a text-format
+`protowire.schema.config.v1.EngineConfig` message. Text-format proto keeps
+the no-JSON/YAML principle while avoiding the alternative of a schema-less
+`.proto` file carrying configuration as file options — which would burn
+carrier extension numbers and leak build configuration into
+`FileDescriptorSet` artifacts.
+
+```proto
+message EngineConfig {
+  string engine = 1;                       // registered identifier: "cel", "starlark", "go";
+                                           //   unknown name = startup error, never a fallback
+  repeated string function_libraries = 2;  // proto import paths of function-declaration files (§9.2, §9.3)
+  repeated string catalog_libraries = 3;   // locale catalog sources (§7)
+  bool strict_validation = 4;              // missing impls fail startup instead of first call (§9.2)
+  protowire.schema.v1.ExecutionMode default_mode = 5;  // UNSPECIFIED ⇒ COLLECT_ALL (§6.4)
+}
+```
+
+**Discovery.** Tools walk upward from the working directory (or an
+explicitly given schema root) to the filesystem root; the *nearest*
+`protowire.config.textproto` wins. There is no merging or cascading
+between nested configs — nearest wins, full stop (the same model as
+`go.mod`; merge semantics would reintroduce implicit inheritance).
+
+**Precedence** (highest first):
+
+1. Per-setting CLI flags (`--engine`, `--strict-validation`, …) override
+   individual fields of the loaded config;
+2. `--config <path>` selects the file explicitly, skipping discovery;
+3. the `PROTOWIRE_CONFIG` environment variable — a pointer to a file
+   only, never inline settings (there are no per-setting env vars);
+4. the discovered `protowire.config.textproto`;
+5. built-in defaults: `engine: "cel"`, lenient registration (§9.2),
+   collect-all (§6.4).
+
 ## 10. Cross-language story
 
 Server-side validation is the default and authoritative use case. Java, TypeScript, Python, etc. codegen produces typed messages and skips engine-specific validation by default — the server (a single chosen engine runtime) enforces.
@@ -463,7 +505,7 @@ Items deferred for separate resolution. Each becomes a tracked issue.
 | # | Topic | Owner |
 |---|---|---|
 | 1 | Container-shaped type aliases (`type Tags = repeated string @validate(...)`) — v2 minor target | spec |
-| 2 | Engine-config file format (`engine: cel`, function-library imports) — likely a project-level `.proto` | spec |
+| 2 | ~~Engine-config file format (`engine: cel`, function-library imports)~~ **Resolved 2026-07-15** (issue #60): `protowire.config.textproto` + `proto/schema/config/v1/config.proto`, see §9.4 | spec |
 | 3 | Well-known types semantics (`Timestamp`, `Duration`, `Any`) — what does refinement on Timestamp mean? | spec |
 | 4 | Recursive message validation depth limits | spec / engine |
 | 5 | Streaming RPC validation contract | spec |
@@ -484,6 +526,7 @@ Items deferred for separate resolution. Each becomes a tracked issue.
 - `protowire/proto/schema/v1/annotations.proto` — new framework annotation library (to be added)
 - `protowire/proto/schema/v1/descriptor.proto` — new lowering schemas (to be added)
 - `protowire/proto/schema/v1/report.proto` — validation report wire shapes (§7)
+- `protowire/proto/schema/config/v1/config.proto` — project-level engine configuration (§9.4)
 - Buf's `protovalidate` — prior art for proto-native validation
 - gnostic — prior art for OpenAPI-via-proto-annotations
 
