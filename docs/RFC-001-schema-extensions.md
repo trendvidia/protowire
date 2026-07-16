@@ -2,12 +2,12 @@
 
 | Field | Value |
 |---|---|
-| Status | Draft |
+| Status | **Ratified** (2026-07-16, issue #56) |
 | Target spec version | protowire v1.2.0 (minor, strictly additive) |
 | IETF draft | Companion to `draft-trendvidia-protowire-01` (in preparation) |
-| Authors | TBD |
+| Authors | TrendVidia |
 | Created | 2026-06-04 |
-| Last updated | 2026-07-15 |
+| Last updated | 2026-07-16 |
 
 ## Abstract
 
@@ -869,8 +869,8 @@ Items deferred for separate resolution. Each becomes a tracked issue.
 | 10 | Conformance test fixtures in `protowire/testdata/schema-extensions/` | spec |
 | 11 | Upstream `buf/protocompile` compatibility (this codebase is a fork) | protocompile |
 | 12 | Stream-level validation invariants (aggregate rules across a stream's messages, ordering constraints) — deferred from §6.6, needs its own design pass like container-shaped aliases (#1) | spec |
-| 13 | Sensitivity-class taxonomy (`@sensitive(class: ...)` — secret / PII / confidential) — deferred from §6.7 until a consumer needs to distinguish classes; additive parameter | spec |
-| 14 | Schema-level encryption / key-reference annotation (e.g. `@encrypted(key_ref)`) and chameleon interplay — deferred from §6.7; today the schema stays orthogonal to key management | spec / chameleon |
+| 13 | Sensitivity-class taxonomy (`@sensitive(class: ...)` — secret / PII / confidential) — deferred from §6.7 until a consumer needs to distinguish classes; additive parameter (tracked: GH #111) | spec |
+| 14 | Schema-level encryption / key-reference annotation (e.g. `@encrypted(key_ref)`) and chameleon interplay — deferred from §6.7; today the schema stays orthogonal to key management (tracked: GH #112) | spec / chameleon |
 
 ## 14. References
 
