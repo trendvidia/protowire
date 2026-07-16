@@ -240,11 +240,17 @@ message SourceMap {
 message SourceEntry {
   EntryKind kind = 1;
 
-  // Descriptor location, expressed as a dotted path:
-  //   "User.email[validate#1]"   — second @validate on the email field
-  //   "User#message_validate#0"  — first message-level @validate on User
-  // Specific path syntax is implementation-defined and matched by
-  // protolsp / pxfed.
+  // Descriptor location in the canonical descriptor-path grammar
+  // (RFC-001 §8.3.1):
+  //   "myco.User.email[protowire.schema.v1.validate#1]"
+  //       — second @validate on the email field
+  //   "myco.User.email"
+  //       — the field's TYPE_REFINEMENT entry (bare element path)
+  //   "myco.User[myco.check#0]/arg#0/call#1"
+  //       — second function-call site in the first argument's expression
+  // Unique within this SourceMap; cross-file indexes key by
+  // (SourceMap.file, descriptor_path). Produced and parsed only via the
+  // exported helper in protocompile fdp/descriptor_path.go.
   string descriptor_path = 2;
 
   SourceLocation source_location = 3;

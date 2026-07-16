@@ -510,6 +510,47 @@ extend google.protobuf.FileOptions { SourceMap source_map = 50404; }
 
 The `SourceMap` carries entries mapping descriptor positions back to source-file locations and capturing the type-refinement chain that produced each rule. Embedded (not sidecar) — one artifact, no sync-drift between descriptor and map.
 
+#### 8.3.1 `descriptor_path` grammar (normative)
+
+Every `SourceEntry.descriptor_path` is produced and parsed by this grammar.
+The delimiters `[`, `]`, `#`, and `/` are not legal in proto identifiers, so
+paths never require escaping.
+
+```ebnf
+descriptorPath   = elementPath , [ annotationAnchor , [ callAnchor ] ] ;
+elementPath      = [ fqn ] ;                (* canonical FullName, no leading dot *)
+annotationAnchor = "[" , fqn , "#" , ordinal , "]" ;
+callAnchor       = "/arg#" , index , "/call#" , index ;
+fqn              = ident , { "." , ident } ;
+ordinal          = decimal ;                (* zero-based, no leading zeros *)
+index            = decimal ;
+```
+
+- `elementPath` is the carrier element's canonical fully-qualified name, as
+  `protoreflect.FullName` renders it. Enum values use their parent-scoped name
+  (`pkg.OK`, not `pkg.Status.OK`). For file-level annotations it is the file's
+  package name — empty for packageless files, so the path begins with `[`.
+- `annotationAnchor` selects one `Annotation` in the carrier's
+  `AnnotationList`: the annotation's fully-qualified `name` plus a zero-based
+  ordinal counting only same-named annotations on that carrier, in list order
+  (including rules macro-expanded from type aliases).
+  `myco.User.email[protowire.schema.v1.validate#1]` is the second `@validate`
+  on the field.
+- `callAnchor` (kind `FUNCTION_CALL` only) descends into the anchored
+  annotation: `arg#i` indexes `Annotation.args`; `call#j` indexes that
+  argument's `Expression.calls`.
+
+Shape by kind: `TYPE_REFINEMENT` entries use a bare `elementPath` (at most one
+per field or extension); `ANNOTATION_USE`, `FIELD_VALIDATE`, and
+`MESSAGE_VALIDATE` use `elementPath annotationAnchor`; `FUNCTION_CALL` appends
+the `callAnchor`.
+
+A `descriptor_path` is unique within its enclosing `SourceMap`; cross-file
+indexes key by `(SourceMap.file, descriptor_path)`, since package names are
+shared across files. Producers and consumers use one shared formatter/parser
+(protocompile `fdp/descriptor_path.go`, exported); consumers never hand-split
+the string.
+
 ### 8.4 Extension number allocation
 
 | Number | Carrier | Targets |

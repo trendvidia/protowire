@@ -593,6 +593,21 @@ Populate the embedded `SourceMap` (`50404` on `FileOptions`) during the lowering
 - [ ] Round-trip test: descriptor → re-marshal → source-map preserved byte-identically
 - [ ] `protolsp` (issue #051) can resolve `descriptor_path` back to source location
 
+**Resolution — path scheme (2026-07-16, GH #89, PR #106):** RFC-001 §8.3.1.
+Canonical grammar `elementPath [annotationAnchor [callAnchor]]`:
+`elementPath` is the carrier's `protoreflect.FullName` (package-qualified,
+enum values parent-scoped, file-level = package name);
+`annotationAnchor` is `[<annotation FQN>#<per-name ordinal>]` in
+`AnnotationList` order counting alias-expanded rules; `callAnchor` is
+`/arg#i/call#j` for `FUNCTION_CALL`; `TYPE_REFINEMENT` uses the bare
+`elementPath`. Unique within a `SourceMap`; cross-file key is
+`(SourceMap.file, descriptor_path)`. Single formatter/parser lives in
+protocompile `fdp/descriptor_path.go` (exported; not the
+`options/descriptor_path.go` sketched above) — protolsp consumes the
+helper, never string-splits. The sketch's `User#message_validate#0` hash
+form is dropped. Emission re-key + remaining entry kinds stay tracked in
+protocompile#66.
+
 ---
 
 ## #040 — `protocheck`: engine SPI (Go interface)
