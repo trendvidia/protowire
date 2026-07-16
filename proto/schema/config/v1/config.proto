@@ -49,7 +49,11 @@ message EngineConfig {
   // choose one. UNSPECIFIED means COLLECT_ALL (§6.4).
   protowire.schema.v1.ExecutionMode default_mode = 5;
 
-  // Field 6 is earmarked for the recursion-depth limit pending RFC-001
-  // open question §13 #4 (issue #62); it is added there if resolved as
-  // a config knob.
+  // Maximum message-nesting depth validated (§6.4): the root instance is
+  // depth 0; entering any message-typed value increments by 1. 0 means
+  // the normative default, 64. At the limit the engine does not descend:
+  // it records a `protowire.depth_exceeded` violation for the subtree,
+  // sets Report.truncated, and continues with siblings — the instance
+  // fails closed, never silently accepted.
+  uint32 max_recursion_depth = 6;
 }

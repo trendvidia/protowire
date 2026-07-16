@@ -16,3 +16,4 @@ catalog_libraries: "myco/i18n/en.proto"
 catalog_libraries: "myco/i18n/de.proto"
 strict_validation: true
 default_mode: EXECUTION_MODE_COLLECT_ALL
+max_recursion_depth: 64

@@ -241,6 +241,27 @@ Per-field validation runs in source-order through the type chain (base → deriv
 
 `repeated` and `map<K,V>` validate per-element (using the element's type rules) plus any field-level `@validate` against the collection as a whole.
 
+**Recursion depth.** Nested-message validation is depth-limited. The root
+instance is at depth 0; entering any message-typed value (a nested field,
+a repeated element, a map value) increments the depth by 1 — scalars and
+scalar-collection elements do not. The limit is
+`EngineConfig.max_recursion_depth` (§9.4); `0` means the **normative
+default of 64**. When a value at depth greater than the limit would need
+validating, the engine does **not** descend: it records one synthetic
+violation for the subtree — `code: "protowire.depth_exceeded"`, `path` at
+the field where descent stopped, `params: {limit: <the effective limit>}`,
+`rule_kind: RULE_KIND_VALIDATE` — sets `Report.truncated = true` (§7), and
+continues with siblings in collect-all mode. The instance therefore fails
+**closed**: an unvalidatable subtree is never silently accepted, and one
+pathological subtree does not hide the rest of the report (as a hard error
+would). The depth definition, the default, and the at-limit behavior are
+normative — identical deep instances MUST yield equivalent reports across
+ports — while the enforcement mechanism (call stack vs. explicit counter)
+is implementation-defined. Engines MAY offer a per-call override in their
+SPI; the config file is the canonical project-level setting. The limit
+also bounds worst-case stack use on attacker-controlled deep messages —
+relevant for the public-API driving use case.
+
 ### 6.5 Function contract
 
 ```
@@ -319,6 +340,12 @@ message Report {
 Localized messages are produced at format time from `code` + `params` through a registered catalog (one per locale, registered with the engine alongside function impls). Catalog miss falls back to `fallback_message`. Programmatic clients consume `code` + `params` directly; human consumers receive the localized rendering.
 
 `@validate(...)` accepts optional `code` and `message` to override defaults at use sites.
+
+Violation codes beginning with **`protowire.`** are reserved for
+spec-defined violations; user rules and function implementations MUST NOT
+mint codes in that namespace. This revision defines two:
+`protowire.required` (a `@required` field is absent, §6.1) and
+`protowire.depth_exceeded` (recursion depth limit reached, §6.4).
 
 ## 8. Descriptor lowering
 
@@ -485,6 +512,7 @@ message EngineConfig {
   repeated string catalog_libraries = 3;   // locale catalog sources (§7)
   bool strict_validation = 4;              // missing impls fail startup instead of first call (§9.2)
   protowire.schema.v1.ExecutionMode default_mode = 5;  // UNSPECIFIED ⇒ COLLECT_ALL (§6.4)
+  uint32 max_recursion_depth = 6;          // 0 ⇒ normative default 64 (§6.4)
 }
 ```
 
@@ -547,7 +575,7 @@ Items deferred for separate resolution. Each becomes a tracked issue.
 | 1 | Container-shaped type aliases (`type Tags = repeated string @validate(...)`) — v2 minor target | spec |
 | 2 | ~~Engine-config file format (`engine: cel`, function-library imports)~~ **Resolved 2026-07-15** (issue #60): `protowire.config.textproto` + `proto/schema/config/v1/config.proto`, see §9.4 | spec |
 | 3 | ~~Well-known types semantics (`Timestamp`, `Duration`, `Any`)~~ **Resolved 2026-07-15** (issue #61): temporal WKTs bind engine-native, `Any` never unwraps, run-stable `now()`, see §6.2 | spec |
-| 4 | Recursive message validation depth limits | spec / engine |
+| 4 | ~~Recursive message validation depth limits~~ **Resolved 2026-07-15** (issue #62): normative default 64, `EngineConfig.max_recursion_depth`, fail-closed `protowire.depth_exceeded` violation, see §6.4 | spec / engine |
 | 5 | Streaming RPC validation contract | spec |
 | 6 | `Literal` shape detail in `AnnotationArg` (enum names, message literals, lists) | spec |
 | 7 | ~~Validation report wire shape (`Report` carrying `EnrichedViolation`s)~~ **Resolved 2026-07-15** (issue #65): pinned in `proto/schema/v1/report.proto`, see §7 | spec |
