@@ -123,6 +123,7 @@ annotation description(text: string);
 annotation example(value: any);
 annotation error_code(code: string);
 annotation deprecated(reason: string = "");
+annotation sensitive;
 annotation http(method: string, path: string);
 ```
 
@@ -320,6 +321,46 @@ reference.
    an `Any` (`type.googleapis.com/protowire.schema.v1.Report`). Other RPC
    frameworks map through their adapter, carrying the same `Report`.
 
+### 6.7 Sensitivity classification (`@sensitive`)
+
+`@sensitive` classifies the value carried by a declaration as sensitive
+material — credentials, tokens, personal data. It attaches to fields, to
+`type` aliases (macro-expanding to every consuming field, like refinement
+rules, §6.3), and to messages (every field of the message is sensitive; a
+field whose type is a sensitive message is itself sensitive).
+
+**Classification, not protection.** `@sensitive` does not alter wire
+encoding, storage, programmatic access, or validation semantics.
+Encryption-at-rest, key management, and access control remain
+runtime-layer concerns (PXF / chameleon), which MAY consume the
+classification to select fields for protection. The schema declares
+*what* is sensitive, never *how* it is protected.
+
+Normative consumer minima:
+
+1. **Rendering surfaces.** Any surface that renders field values for
+   human or log consumption — generated `String()`/debug formatters,
+   structured-logging integrations, IDE hover, exporter and query-tool
+   default output — MUST replace a sensitive field's value with the
+   fixed placeholder `[REDACTED]`.
+2. **Validation reports.** Engines MUST NOT populate
+   `EnrichedViolation.actual_value` for a violation on a sensitive
+   field; they set `value_redacted = true` instead, keeping redaction
+   distinguishable from genuine absence (§6.1). Function implementations
+   SHOULD NOT copy the offending value into `Violation.params`; engines
+   cannot enforce this mechanically.
+3. **Documentation emit.** Generated documentation (OpenAPI, JSON
+   Schema, doc comments) MUST NOT include values or examples for
+   sensitive fields; `@example` on a sensitive declaration is a
+   compile-time warning.
+
+The annotation lowers through the standard `50400` `AnnotationList`
+carrier like every other annotation; no dedicated extension number or
+descriptor surface exists. A classification parameter (e.g. a
+secret / PII / confidential taxonomy) and a schema-level key-reference
+annotation are deferred (§13); adding optional parameters with defaults
+to a canonical annotation is an additive, minor-version change.
+
 ## 7. Error model
 
 The normative wire shapes for the error model live in
@@ -356,9 +397,10 @@ message EnrichedViolation {
   Violation cause = 1;
   FieldPath path = 2;                     // structured path into the message
   repeated string type_chain = 3;         // ["string", "Email", "CompanyEmail"], base first
-  Value actual_value = 4;                 // unset = field absent
+  Value actual_value = 4;                 // unset = field absent — or redacted
   SourceLocation source = 5;              // from the embedded source map (50404)
   RuleKind rule_kind = 6;                 // RULE_KIND_{VALIDATE,REQUIRED,DEFAULT,TYPE_REFINEMENT}
+  bool value_redacted = 7;                // @sensitive field: value withheld (§6.7)
 }
 ```
 
@@ -715,6 +757,8 @@ Items deferred for separate resolution. Each becomes a tracked issue.
 | 10 | Conformance test fixtures in `protowire/testdata/schema-extensions/` | spec |
 | 11 | Upstream `buf/protocompile` compatibility (this codebase is a fork) | protocompile |
 | 12 | Stream-level validation invariants (aggregate rules across a stream's messages, ordering constraints) — deferred from §6.6, needs its own design pass like container-shaped aliases (#1) | spec |
+| 13 | Sensitivity-class taxonomy (`@sensitive(class: ...)` — secret / PII / confidential) — deferred from §6.7 until a consumer needs to distinguish classes; additive parameter | spec |
+| 14 | Schema-level encryption / key-reference annotation (e.g. `@encrypted(key_ref)`) and chameleon interplay — deferred from §6.7; today the schema stays orthogonal to key management | spec / chameleon |
 
 ## 14. References
 
