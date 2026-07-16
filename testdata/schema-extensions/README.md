@@ -35,7 +35,8 @@ testdata/schema-extensions/
 ├── 08_engine_config.textproto               — golden EngineConfig (§9.4 project config)
 ├── 09_wkt_refinements.proto                 — WKT-based type aliases (§6.2 binding rules)
 ├── 10_literal_args.proto                    — enum-ref, message-literal + list-literal args (§5.1/§8.1)
-└── 11_literal_carrier_golden.textproto      — golden lowered AnnotationList, all Literal kinds
+├── 11_literal_carrier_golden.textproto      — golden lowered AnnotationList, all Literal kinds
+└── 12_expression_args.proto                 — engine-expression args: capture edges + call extraction (§5.1/§8.1)
 ```
 
 Each fixture is the input; a sibling `.expected.txt` (added during M2)
@@ -58,6 +59,7 @@ diffs every port's output against these expectations.
 | `09_wkt_refinements.proto` | `type` aliases on `Timestamp`/`Duration` (engine-native binding) and `Any` (`type_url` refinement, no auto-unpack) per §6.2 |
 | `10_literal_args.proto` | Enum-value reference and homogeneous list literal as annotation arguments on `any`-typed params (§8.1) |
 | `11_literal_carrier_golden.textproto` | Lowered `AnnotationList` with all three `Literal` kinds: resolved `EnumLiteral`, `Any` message literal, `ListLiteral` of `LiteralValue`s (§8.1, issue #64) |
+| `12_expression_args.proto` | Engine-expression arguments (§5.1 capture-then-classify, issue #91): balanced-delimiter capture with opaque string literals, named args after an expression arg, declared-function call extraction into `Expression.calls` vs. undiagnosed engine builtins (§8.1) |
 
 Unlike the schema-text fixtures, the `.textproto` fixtures are message
 goldens, not v1.2 schema sources:

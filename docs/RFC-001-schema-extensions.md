@@ -103,6 +103,9 @@ annotArg      ::= (Ident "=")? annotArgValue        (* positional or named *)
 annotArgValue ::= literal | qualifiedIdent | engineExpression
 annotationList ::= annotation+
 
+engineExpression
+    ::= exprSourceText    (* opaque balanced-token capture; see "Engine expressions" below *)
+
 literal        ::= scalarLit | listLiteral | messageLiteral
 scalarLit      ::= strLit | intLit | floatLit | boolLit   (* proto lexical forms *)
 literalValue   ::= literal | qualifiedIdent               (* qualifiedIdent = enum-value reference *)
@@ -144,7 +147,43 @@ is the canonical message-literal spelling. Normative rules:
 6. Parse note: at `annotArgValue`, a `qualifiedIdent` followed by `{`
    is a `messageLiteral`; a bare `qualifiedIdent` is an enum-value
    reference — one-token lookahead. Arguments bound to
-   `expression`-typed params keep the opaque balanced-text capture.
+   `expression`-typed params keep the opaque balanced-text capture
+   (see *Engine expressions* below).
+
+**Engine expressions.** v1.2 validation is **annotation-only**: engine
+expressions appear exclusively as annotation arguments bound to
+`expression`-typed parameters (`@validate(this in ["US", "CA"])`). There
+is no standalone expression construct at any other position in the
+grammar. Because an argument's parameter binding is not known until the
+linker resolves the annotation declaration, argument parsing is
+**capture-then-classify**:
+
+1. **Capture.** The compiler captures every annotation argument as raw
+   source text. An argument extends to the first `,` or `)` at zero
+   delimiter depth — `()`, `[]`, and `{}` pairs must balance, and string
+   literals (proto lexical forms) are opaque to the scan, so delimiters
+   and commas inside them do not count. The scan is character-level: it
+   tracks only string-literal boundaries and delimiter depth, so engine
+   operators that are not protobuf tokens (`||`, `&&`, `<=`, `!`) pass
+   through unexamined. An unbalanced delimiter or an unterminated
+   string literal is a compile error reported at the argument. The
+   capture must be non-empty.
+2. **Named-argument recognition.** An argument that begins
+   `Ident "="` — where the token after `=` is not itself `=` — is a
+   named argument; the name and `=` are consumed before capture.
+   Expression fragments are unaffected: `code == "x"` begins with a
+   `==` and stays a positional capture.
+3. **Classify.** At link time, an argument bound to an
+   `expression`-typed parameter keeps the captured source **verbatim**
+   (leading/trailing whitespace trimmed; quotes are NOT stripped — a
+   quoted string is a string-literal expression and evaluates as such
+   in the engine, which is almost certainly a type error there). Every
+   other argument MUST re-parse under `literal | qualifiedIdent`; any
+   other shape is a compile error.
+
+The fragment's inner syntax belongs to the engine (§9): the compiler
+never interprets it beyond the tokenization used for function-call
+extraction (§8.1).
 
 v1.2 explicitly forbids `repeated`/`map<,>` in `typeRef` (collection refinement is deferred — see §13).
 
@@ -572,6 +611,24 @@ is a `google.protobuf.Any` serialized at compile time and unpacked against
 the `FileDescriptorSet` the consumer already holds. The source-level
 spelling of message and list literals is defined by the `literal`
 production in §5.1.
+
+**Expression lowering.** `Expression.source` is the §5.1 capture,
+verbatim. `Expression.calls` is populated by the compiler — extraction
+is REQUIRED, not best-effort: the captured fragment is scanned for
+qualified identifiers and string literals under the proto lexical
+rules (characters that cannot begin or extend a proto token — engine
+operators like `||` or `<=` — act solely as separators), and every
+maximal `qualifiedIdent "("` occurrence is a call site whose arity is
+its count of top-level commas plus one (zero for empty parentheses). Call sites whose name resolves to a
+visible `function` declaration (same file or imported) are recorded in
+`calls`, and the linker verifies the arity against the declaration —
+a mismatch is a compile error with the call's source span. Names that
+do not resolve are presumed engine builtins (`now()`, `this.size()` —
+`this.`-prefixed paths can never resolve to a declaration): they are
+not recorded and not diagnosed; missing-implementation handling for
+them stays with the engine's init-time verification (§9.2). Consumers
+(engine init walks, source-map `callAnchor`s in §8.3.1) may therefore
+rely on `calls` being complete with respect to declared functions.
 
 ### 8.2 File-scope declaration carriers
 
