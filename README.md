@@ -663,13 +663,18 @@ protowire/
 │   ├── pxf/annotations.proto                  # (pxf.required), (pxf.default) field options
 │   ├── pxf/bignum.proto                       # arbitrary-precision number wrapper types
 │   ├── sbe/annotations.proto                  # (sbe.schema_id), (sbe.template_id), (sbe.length), (sbe.encoding)
+│   ├── schema/v1/annotations.proto            # v1.2 framework annotation library (@validate, @required, …; v1.2 grammar)
+│   ├── schema/v1/descriptor.proto             # v1.2 carrier extensions 50400–50404 (parses with stock protoc)
+│   ├── schema/v1/report.proto                 # validation Report / EnrichedViolation wire shape (runtime artifact)
+│   ├── schema/config/v1/config.proto          # EngineConfig for protowire.config.textproto
 │   └── envelope/v1/envelope.proto             # canonical response envelope
 │
 ├── docs/
 │   ├── grammar.ebnf                           # PXF concrete syntax (source of truth)
 │   ├── grammar.svg                            # railroad diagram, generated from grammar.ebnf
 │   ├── HARDENING.md                           # adversarial-input invariants every port must honour
-│   └── draft-trendvidia-protowire-00.txt      # IETF draft of the wire format
+│   ├── draft-trendvidia-protowire-00.txt      # IETF draft of the wire format
+│   └── draft-trendvidia-protowire-01.{md,xml,txt}  # IETF draft -01: + v1.2 schema extensions (RFC-001)
 │
 ├── editors/
 │   ├── vscode/                                # VS Code extension; prebuilt .vsix in dist/
