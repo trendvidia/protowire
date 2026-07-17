@@ -47,12 +47,12 @@ This is the umbrella tracking issue for [RFC-001 — Protowire Schema Extensions
 - [x] #023 — `@required`/`@default` legacy (pxf.*) dual-emission — resolved 2026-07-16 as carrier-only (GH #92, PR #110)
 
 ### Implementation (M1–M8)
-- [ ] #030 — `protocompile`: extended grammar parser
-- [ ] #031 — `protocompile`: IR for type/function/annotation
-- [ ] #032 — `protocompile`: linker symbol resolution
-- [ ] #033 — `protocompile`: option-interpretation hook for `@annot` → carrier
-- [ ] #034 — `protocompile`: descriptor lowering pass
-- [ ] #035 — `protocompile`: source-map emission
+- [x] #030 — `protocompile`: extended grammar parser — done 2026-07-17 (M1 + spec-#91 catch-up, protocompile#69/PR#71, #76/PR#80)
+- [x] #031 — `protocompile`: IR for type/function/annotation — done (M1, experimental pipeline)
+- [x] #032 — `protocompile`: linker symbol resolution — done 2026-07-17 (M1 + call-arity verification, protocompile#69/PR#71)
+- [x] #033 — `protocompile`: option-interpretation hook for `@annot` → carrier — done (M1 direct emission in `fdp/annotations.go`; dual-emission box struck per #023)
+- [x] #034 — `protocompile`: descriptor lowering pass — done 2026-07-17 (M1 + finalized Literal carrier, protocompile#67/PR#70, #73/PR#77)
+- [x] #035 — `protocompile`: source-map emission — done 2026-07-17 (all entry kinds + canonical descriptor_path, protocompile#66/PR#72)
 - [ ] #040 — `protocheck`: engine SPI (Go interface)
 - [ ] #041 — `protocheck`: function registration + runtime-init verification
 - [ ] #042 — `protocheck`: validation execution (collect-all / fail-fast)
@@ -175,9 +175,9 @@ annotation http(method: string, path: string);
 Note: this file uses v1.2 grammar (the `annotation` keyword), so it can only be parsed by v1.2+ ports. It's the canonical declaration file that every schema using `@validate`, `@required`, etc. imports.
 
 **Acceptance criteria:**
-- [ ] File added at `protowire/proto/schema/v1/annotations.proto`
-- [ ] Listed in `README.md` repository-layout section
-- [ ] Round-trips through `protocompile` (once parser support lands, see #030)
+- [x] File added at `protowire/proto/schema/v1/annotations.proto`
+- [x] Listed in `README.md` repository-layout section
+- [x] Round-trips through `protocompile` (once parser support lands, see #030) — verified 2026-07-17 against protocompile @ 03ef9d8 (GH #58): parses clean, all 9 declarations lower into `FileAnnotationDecls` (50402)
 
 ---
 
@@ -193,10 +193,10 @@ Add the descriptor lowering schemas as specified in RFC-001 §8 — `AnnotationL
 This file is parseable by stock `protoc` — it does not use v1.2 grammar. It is the lowering target, not a user-facing surface.
 
 **Acceptance criteria:**
-- [ ] File added at `protowire/proto/schema/v1/descriptor.proto`
-- [ ] All 5 extension numbers (`50400`–`50404`) reserved per spec
-- [ ] Parses with stock `protoc`
-- [ ] Listed in `README.md` repository-layout section
+- [x] File added at `protowire/proto/schema/v1/descriptor.proto`
+- [x] All 5 extension numbers (`50400`–`50404`) reserved per spec
+- [x] Parses with stock `protoc` (verified in the 2026-07-15 audit)
+- [x] Listed in `README.md` repository-layout section (added 2026-07-17)
 
 ---
 
