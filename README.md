@@ -500,6 +500,27 @@ Validation rules:
 
 Annotation field numbers are reserved in [`proto/pxf/annotations.proto`](proto/pxf/annotations.proto).
 
+### Keyed repeated fields
+
+A third PXF annotation, `(pxf.key)`, designates a key field on a repeated message field, letting the collection be written as a block of named blocks — entry name = key value, entry order = list order:
+
+```proto
+message Node {
+  string id = 1;
+  string type = 2;
+  repeated Node children = 5 [(pxf.key) = "id"];
+}
+```
+
+```
+children {
+  greeting    { type = "Label" }
+  counter_row { type = "HBox"  }
+}
+```
+
+Keys that aren't identifier-shaped are quoted (`"us-east-1" { replicas = 3 }`). Duplicate entry names in a block, an empty key, or an explicit key-field assignment that disagrees with the entry name are decode errors; the anonymous list form (`= [ { id = "greeting" ... } ]`) remains valid and is required when keys are absent or duplicated. The binary wire formats are unchanged — the key travels as an ordinary field of the element message. Spec: IETF draft `-01` §3.13; fixtures: [`testdata/keyed/`](testdata/keyed/).
+
 ### Null survival across protobuf binary
 
 Protobuf binary only has two states per field: present or not present. Both "null" and "absent" map to "not present" in binary. To preserve nulls across a protobuf binary round-trip, add a field named `_null` of type `google.protobuf.FieldMask` to your message:

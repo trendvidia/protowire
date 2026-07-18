@@ -188,9 +188,25 @@ proto_descriptor_body = bytes ;
  * submessage on a message, or a key/value pair inside a map<K,V>. The
  * two forms intentionally use different keys:
  *
- *   field_entry — '=' value, or '{' … '}' submessage. The key MUST be
- *                 an identifier because it names a field on a proto
- *                 message, and proto field names are identifiers.
+ *   field_entry — '=' value, or '{' … '}' submessage. The key is
+ *                 normally an identifier because it names a field on a
+ *                 proto message, and proto field names are identifiers.
+ *                 The string alternative is the quoted-entry-name form
+ *                 for KEYED REPEATED FIELDS (draft, "Keyed Repeated
+ *                 Fields"): inside the block of a repeated field
+ *                 annotated '(pxf.key)', each entry's name supplies the
+ *                 element's key-field value, and quoting keeps
+ *                 non-identifier keys expressible ('"us-east-1" {...}').
+ *                 The grammar accepts a quoted entry name everywhere —
+ *                 parsers are schema-independent — and the schema layer
+ *                 rejects it anywhere other than a keyed repeated
+ *                 field's block. Key rules (schema layer): duplicate
+ *                 detection compares unquoted values ('"foo"' and 'foo'
+ *                 are the same key); the empty string is never a valid
+ *                 key; fmt canonicalizes to the unquoted spelling
+ *                 whenever the key is identifier-safe. Entry names are
+ *                 atoms: ident_part permits dots, so 'user.name { }' is
+ *                 one opaque key, never a path.
  *
  *   map_entry   — ':' value. The key may be identifier | string |
  *                 integer because protobuf map keys can be any of the
@@ -200,7 +216,7 @@ proto_descriptor_body = bytes ;
  *)
 entry         = field_entry | map_entry ;
 
-field_entry   = identifier , ( assignment_tail | block_tail ) ;
+field_entry   = ( identifier | string ) , ( assignment_tail | block_tail ) ;
 map_entry     = map_key , map_tail ;
 
 assignment_tail = '=' , value ;
