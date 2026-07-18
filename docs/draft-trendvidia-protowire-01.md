@@ -4,7 +4,7 @@ docname: draft-trendvidia-protowire-01
 title: The Proto eXpressive Format (PXF) and the protowire Encoding Family
 abbrev: protowire
 category: info
-date: 2026-07-16
+date: 2026-07-17
 ipr: trust200902
 stream: IETF
 area: Applications
@@ -131,7 +131,10 @@ This revision (`-01`) introduces a set of strictly-additive schema
 language extensions — `type`, `function`, and `annotation` declarations,
 a unified annotation use-site syntax, and a structured validation error
 model — that promote message validation to a first-class schema concern.
-The additions do not change the PB, SBE, or envelope wire formats.
+It also introduces keyed repeated fields: a schema annotation and a
+strictly-additive PXF surface form for ordered collections of named
+elements. The additions do not change the PB, SBE, or envelope wire
+formats.
 
 --- middle
 
@@ -346,7 +349,11 @@ proto-message-body
                 ; ({{the-proto-directive}})
 
 entry           = field-entry / map-entry
-field-entry     = identifier ( assignment-tail / block-tail )
+field-entry     = ( identifier / string )
+                  ( assignment-tail / block-tail )
+                ; string form: quoted entry name, valid only
+                ; inside keyed repeated fields
+                ; ({{keyed-repeated-fields}})
 map-entry       = map-key map-tail
 
 assignment-tail = "=" value
@@ -644,15 +651,17 @@ An entry binds a key to a value. The key is a field name within the surrounding 
 
 * An identifier key matches a field by its proto field name (the lowerCamelCase or snake_case name in the schema, as written; both forms are accepted, and emitters SHOULD use whichever the schema declares).
 
-* A string or integer key is permitted only inside a map\<K,V\> literal (i.e. the *map-entry* production of {{abnf-grammar}}). A string key MUST be a UTF-8 string; for map\<K,V\> fields with non-string K, the string is parsed as a literal of K's type. An integer key matches a map\<K,V\> field whose K is one of the protobuf scalar integer types (int32, int64, sint32, sint64, uint32, uint64, fixed32, fixed64, sfixed32, sfixed64, bool encoded as 0/1).
+* A string key is permitted in two positions: inside a map\<K,V\> literal (the *map-entry* production of {{abnf-grammar}}), and as the quoted entry name of a *field-entry* — the latter is meaningful only inside a keyed repeated field's block ({{keyed-repeated-fields}}), where it supplies the element's key-field value rather than naming a field. A string key MUST be a UTF-8 string; for map\<K,V\> fields with non-string K, the string is parsed as a literal of K's type.
+
+* An integer key is permitted only inside a map\<K,V\> literal, and matches a map\<K,V\> field whose K is one of the protobuf scalar integer types (int32, int64, sint32, sint64, uint32, uint64, fixed32, fixed64, sfixed32, sfixed64, bool encoded as 0/1).
 
 The three entry tails are NOT interchangeable; the grammar in {{abnf-grammar}} splits them across two productions:
 
-* An assignment-tail "=" binds a scalar, list, or block to a field of an enclosing *message* type. It is the right-hand side of *field-entry* and REQUIRES an identifier key (= proto field name). Parsers MUST reject "=" with a non-identifier key (string or integer) at parse time.
+* An assignment-tail "=" binds a scalar, list, or block to a field of an enclosing *message* type. It is the right-hand side of *field-entry* and takes an identifier key (= proto field name) or a string key (a quoted entry name, valid only in keyed repeated fields per {{keyed-repeated-fields}}; the schema layer rejects it everywhere else). Parsers MUST reject "=" with an integer key at parse time.
 
 * A map-tail ":" binds a value to a key of an enclosing *map* type. It is the right-hand side of *map-entry*. *map-entry* MUST NOT appear at document top level (the document represents a proto message, never a map\<K,V\>); parsers MUST reject ":" at the top level with an error indicating that field assignments use "=".
 
-* A block-tail "{ ... }" with no preceding "=" or ":" is permitted only in message context, where the bound field is message-typed; it is equivalent to "= { ... }". Like assignment-tail, it REQUIRES an identifier key, and parsers MUST reject a block-tail with a non-identifier key. Map values that are themselves messages MUST use the explicit form "key: { ... }"; the bare-block form is not accepted in map context.
+* A block-tail "{ ... }" with no preceding "=" or ":" is permitted only in message context, where the bound field is message-typed; it is equivalent to "= { ... }". Like assignment-tail, it takes an identifier key or a string key (quoted entry name, keyed repeated fields only), and parsers MUST reject a block-tail with an integer key at parse time. Map values that are themselves messages MUST use the explicit form "key: { ... }"; the bare-block form is not accepted in map context.
 
 Inside a "{ ... }" block the parser cannot statically tell whether the surrounding field is message-typed or map-typed; both *field-entry* and *map-entry* are accepted in that position and the message-vs-map disambiguation is performed by the schema-resolution step that runs after parsing.
 
@@ -818,6 +827,93 @@ Decoders MUST reject "=" inside a map block and ":" inside a message block ({{en
 
 Within either kind of block, entries MAY be separated by ";" or by newlines or by both; this is consistent with the ABNF in {{abnf-grammar}}, where entries are juxtaposed without an explicit separator and the optional ";" is consumed as whitespace.
 
+## Keyed Repeated Fields {#keyed-repeated-fields}
+
+A keyed repeated field is a repeated message-typed field for which the schema designates a scalar key field of the element message, via the pxf.key annotation ({{pxf-annotations}}):
+
+~~~
+message Node {
+  string id = 1;
+  repeated Node children = 5 [(pxf.key) = "id"];
+}
+~~~
+
+The annotation makes the field's collection-of-named-elements semantics visible to the schema layer: entry order is list order, and each element's identity is the value of its key field.
+
+### Schema Placement {#keyed-schema-placement}
+
+pxf.key is subject to bind-time checks in the sense of {{schema-constraints}}; tools that bind a descriptor for PXF use MUST reject a schema in which:
+
+* pxf.key is set on a field that is not a repeated field of message type (scalar fields, map fields, and singular message fields do not accept it);
+
+* the annotation value does not name a field of the element message; or
+
+* the named key field is not a singular field of type string.
+
+This revision restricts the key field to type string. A future revision may extend the key-field type set (for example to the integer map-key types); such an extension would be additive.
+
+### Keyed Surface Form {#keyed-surface-form}
+
+A keyed repeated field MAY be written as a block whose entries are named blocks — one *field-entry* per element, in list order:
+
+~~~
+children {
+  greeting    { type = "Label" }
+  counter_row { type = "HBox"  }
+}
+~~~
+
+Each entry's name supplies the element's key-field value; the entry's block is the element message body. An entry name MAY be a string literal (the string alternative of *field-entry* in {{abnf-grammar}}), which keeps keys that are not identifier-shaped expressible:
+
+~~~
+regions {
+  "us-east-1" { replicas = 3 }
+  "eu-west-2" { replicas = 1 }
+}
+~~~
+
+Because a block-tail is an abbreviation of "= { ... }" ({{entries-and-keys}}), an entry MAY equivalently be written "name = { ... }"; any non-block value on a named entry is an error, since the element type is a message.
+
+The existing anonymous list form remains valid for the same field, with the key field written explicitly:
+
+~~~
+children = [ { id = "greeting", type = "Label" } ]
+~~~
+
+The general repeated-field concatenation rule ({{entries-and-keys}}) applies unchanged: a document may bind the same keyed field more than once (in either form), and elements concatenate in document order.
+
+Entry names are atoms. The *ident-part* production permits ".", so "user.name { }" is a legal unquoted entry name; tools that build symbol paths from entry names MUST treat each name as one opaque key, never as path segments.
+
+### Decoding {#keyed-decoding}
+
+When decoding a keyed block:
+
+* The entry name (unquoted value, for string-literal names) populates the element's key field.
+
+* Two entries in the same block whose names are equal after unquoting are duplicate keys, and decoders MUST reject the block. The comparison is on the denoted string value: "foo" quoted and foo bare are the same key.
+
+* The empty string is not a valid key value. A quoted entry name "" is a decode error, and so is an explicit empty-string assignment to the key field of any element of a keyed repeated field, in either surface form.
+
+* An explicit assignment to the key field inside a named entry's block that disagrees with the entry name is a decode error. An assignment that agrees is redundant but legal.
+
+A quoted entry name anywhere other than inside a keyed repeated field's block is grammatically well-formed but MUST be rejected by the schema layer: a string entry name never names a field, so it is only meaningful as a key.
+
+Schema-tolerant parsers (parsers that operate without a bound schema) carry entry names through unchanged, along with whether the name was quoted, so that formatting round-trips; the checks above that require schema knowledge are then diagnostics of whatever later stage binds the schema. In tolerant decode modes, the duplicate-key, empty-key, and key-conflict errors above SHOULD be surfaced as diagnostics rather than hard failures.
+
+### Encoding and Canonical Form {#keyed-encoding}
+
+Emitters MUST use the keyed block form for a keyed repeated field whenever every element's key field is present, non-empty, and distinct within the emitted collection, and MUST use the anonymous list form otherwise (elements with absent keys, or duplicate keys where the schema layer tolerates them, can only be represented anonymously).
+
+In keyed form:
+
+* An entry name is emitted unquoted whenever the key is identifier-safe — it matches the *identifier* production of {{abnf-grammar}} and is not one of the value keywords "null", "true", "false" — and quoted otherwise. Formatters MUST canonicalize a quoted identifier-safe name to its unquoted spelling.
+
+* The key field is not additionally emitted inside the entry's block; formatters MUST drop a redundant (agreeing) explicit key-field assignment when canonicalizing.
+
+Formatters with schema access MUST canonicalize an eligible anonymous-form binding to the keyed form under the same rules.
+
+The pb and SBE binary encodings ({{pb-binary-encoding}}, {{sbe-binary-encoding}}) are unaffected: a keyed repeated field is a plain repeated field on the wire, and the key travels as an ordinary field of the element message.
+
 ## Schema Constraints {#schema-constraints}
 
 The PXF lexer reserves "true", "false", and "null" as value keywords ({{booleans-null-and-identifier-values}}), and "type" as the type-directive name ({{the-type-directive}}). A protobuf schema whose declared names collide with any of these keywords produces fields, oneofs, enum values, or named-directive registrations that are unreachable from PXF surface syntax: the keyword wins in the tokenizer, so an assignment such as "field = null" always resolves to the null-literal branch, and an enum value literally named "null" can never be selected by name. PXF therefore constrains schemas as follows.
@@ -896,12 +992,15 @@ The PXF annotations apply to FieldOptions:
 extend google.protobuf.FieldOptions {
   bool   required = 50000;
   string default  = 50001;
+  string key      = 50002;
 }
 ~~~
 
 pxf.required: when true, decoders MUST reject a PXF document in which the annotated field is absent. A field bound to "null" is considered present for the purpose of this check; null-rejection for non-nullable types is governed by {{booleans-null-and-identifier-values}}.
 
 pxf.default: when set, the value is a PXF literal (parsed by the same rules as a value in any entry). Decoders MUST treat an absent annotated field as if the document had supplied the default literal. The default applies only to absent fields, not to fields explicitly set to "null" or to the proto3 zero value.
+
+pxf.key: names the key field of a keyed repeated field. The value is the proto field name of a singular string-typed field of the element message. The annotation is valid only on repeated message-typed fields; placement constraints and the decode, encode, and canonicalization semantics it enables are specified in {{keyed-repeated-fields}}. The annotation affects only the PXF text surface — pb and SBE wire outputs are unchanged.
 
 The schema-level constraints of {{schema-constraints}} apply independently of these annotations: a field, oneof, or enum value whose name collides with a reserved PXF keyword is non-conforming regardless of whether pxf.required or pxf.default is set.
 
@@ -1816,6 +1915,7 @@ This document allocates Protocol Buffers extension field numbers in the range 50
 ~~~
 pxf.required          50000
 pxf.default           50001
+pxf.key               50002
 sbe.schema_id         50100
 sbe.version           50101
 sbe.template_id       50200
@@ -1850,9 +1950,19 @@ Application-level error metadata. AppError.metadata ({{response-envelope}}) is a
 # ABNF Additions in -01 {#abnf-additions}
 
 The ABNF productions of `-00` ({{abnf-grammar}}) remain authoritative
-for the PXF document body. The productions below are additions to the
-**schema language** grammar: they extend the file-body and
-declaration-body productions and define the new constructs.
+for the PXF document body, with one strictly-additive change made in
+`-01`: the *field-entry* production gains a string alternative for its
+key (already reflected in {{abnf-grammar}}), in support of keyed
+repeated fields ({{keyed-repeated-fields}}):
+
+~~~
+field-entry     = ( identifier / string )
+                  ( assignment-tail / block-tail )
+~~~
+
+The remaining productions below are additions to the **schema
+language** grammar: they extend the file-body and declaration-body
+productions and define the new constructs.
 
 ## New Productions
 

@@ -10,6 +10,16 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+### Spec changes — Keyed repeated fields (v1.3.0 target)
+
+Grammar minor driven by [#116](https://github.com/trendvidia/protowire/issues/116). Strictly additive per [`STABILITY.md`](STABILITY.md) — the parser accepts strictly more input than before; every valid earlier document remains valid and means the same thing.
+
+- **`field_entry` accepts a quoted entry name.** The production becomes `field_entry = (identifier | string), (assignment_tail | block_tail)`, mirroring `map_key`. The grammar accepts quoted entry names everywhere (parsers are schema-independent); the schema layer rejects them outside keyed repeated fields. Updated in [`docs/grammar.ebnf`](docs/grammar.ebnf), the railroad diagram, and IETF draft `-01` (§3.3 ABNF, §3.5 entries, new §3.13, appendix ABNF-additions note).
+- **`(pxf.key) = 50002`.** New `FieldOptions` extension in [`proto/pxf/annotations.proto`](proto/pxf/annotations.proto). Valid only on repeated message-typed fields; the value names a singular **string** field of the element message (bind-time errors otherwise; non-string key types are a possible future additive extension). Standard renumbering prohibition applies.
+- **Keyed surface form and semantics** (draft `-01` §3.13). A keyed repeated field MAY be written as a block of named blocks: entry name = key-field value (unquoted value for string-literal names), entry order = list order. Decode errors: duplicate entry names in one block (compared by unquoted value — `"foo"` ≡ `foo`), the empty string as a key (either surface form), and an explicit key-field assignment disagreeing with its entry name (agreeing is redundant but legal). Encode/fmt: keyed form whenever all keys are present, non-empty, and distinct — quoted only when not identifier-safe, key field not re-emitted inside the entry — anonymous list form otherwise. Entry names are atoms (dots are not path separators). `pb`/SBE wire outputs are untouched.
+- **Cross-port fixtures.** New [`testdata/keyed/`](testdata/keyed/) corpus: keyed and quoted round-trips, fmt canonicalization pairs (unquote + anonymous→keyed), anonymous-form equivalence, redundant-key and anonymous-duplicate accepts, and the duplicate-key / spelling-equivalence / key-conflict / empty-key / quoted-name-outside-keyed rejects.
+- **Port reach.** As a syntax change this lands in every from-scratch parser: reference implementation in `protowire-go#50`, per-port issues cross-linked from #116 (cpp, rust, java, typescript, csharp, swift, dart; kotlin and python inherit). `cmd/pxf` encode/decode/validate/fmt support follows once the reference implementation lands.
+
 ### Spec changes — Protowire Schema Extensions (v1.2.0 target)
 
 First minor on the v1.0 freeze line. Strictly additive — every valid v1.1 schema remains a valid v1.2 schema. Bump driven by [RFC-001 — Protowire Schema Extensions](docs/RFC-001-schema-extensions.md); formal text lands in IETF draft `-01` (in preparation). Issues tracked at [`docs/RFC-001-issues.md`](docs/RFC-001-issues.md).

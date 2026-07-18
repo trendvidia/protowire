@@ -173,7 +173,7 @@ add(
 add(
     "field_entry",
     Sequence(
-        n("identifier"),
+        Choice(0, n("identifier"), n("string")),
         Choice(
             0,
             Sequence(t("="), n("value")),
