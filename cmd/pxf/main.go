@@ -31,6 +31,15 @@ var (
 )
 
 func main() {
+	if err := newRootCmd().Execute(); err != nil {
+		os.Exit(1)
+	}
+}
+
+// newRootCmd builds the pxf command tree with all persistent flags and
+// subcommands wired. Split from main so tests can construct a fresh
+// command tree and drive it through Execute.
+func newRootCmd() *cobra.Command {
 	root := &cobra.Command{
 		Use:   "pxf",
 		Short: "Protowire toolchain — PXF text format, schemas, and queries",
@@ -52,10 +61,7 @@ func main() {
 		sbe2protoCmd(), proto2sbeCmd(),
 		queryCmd(), inferSchemaCmd(),
 	)
-
-	if err := root.Execute(); err != nil {
-		os.Exit(1)
-	}
+	return root
 }
 
 // resolveDescriptor resolves the message descriptor for --message
@@ -64,7 +70,16 @@ func main() {
 // when supplied. Errors when --message is missing or the name can't
 // be found in any source.
 func resolveDescriptor() (protoreflect.MessageDescriptor, error) {
-	if msgName == "" {
+	return resolveMessage(msgName)
+}
+
+// resolveMessage resolves a fully-qualified message name against the
+// configured schema sources (bundled canonical schemas, --proto files,
+// protoregistry). Split from resolveDescriptor so callers that derive
+// the name from somewhere other than --message (e.g. fmt, from the
+// document's @type directive) can share the same resolution pipeline.
+func resolveMessage(name string) (protoreflect.MessageDescriptor, error) {
+	if name == "" {
 		return nil, fmt.Errorf("--message is required")
 	}
 	reg, err := schemaresolve.Resolve(
@@ -77,9 +92,9 @@ func resolveDescriptor() (protoreflect.MessageDescriptor, error) {
 	if err != nil {
 		return nil, err
 	}
-	md := reg.Find(msgName)
+	md := reg.Find(name)
 	if md == nil {
-		return nil, fmt.Errorf("message %q not found in resolved schema (bundled canonical types + -p + protoregistry)", msgName)
+		return nil, fmt.Errorf("message %q not found in resolved schema (bundled canonical types + -p + protoregistry)", name)
 	}
 	return md, nil
 }
@@ -113,7 +128,11 @@ func encodeCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			out, err := proto.Marshal(msg)
+			// Deterministic so the same document always yields the same
+			// bytes: proto.Marshal over a dynamicpb message otherwise
+			// ranges fields in Go-map order, and the cross-port wire
+			// checks (STABILITY.md) compare bytes.
+			out, err := proto.MarshalOptions{Deterministic: true}.Marshal(msg)
 			if err != nil {
 				return err
 			}
@@ -177,26 +196,42 @@ func validateCmd() *cobra.Command {
 func fmtCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "fmt <file.pxf>",
-		Short: "Format PXF file (stdout)",
-		Args:  cobra.ExactArgs(1),
+		Short: "Format a PXF document, canonicalizing keyed repeated fields",
+		Long: "Reformat a PXF document losslessly (comments and structure are\n" +
+			"preserved). When a schema can be bound — via --message, or the\n" +
+			"document's @type directive — keyed repeated fields are canonicalized\n" +
+			"per draft §3.13: eligible collections are rewritten to the keyed\n" +
+			"block form, entry names are unquoted where identifier-safe, and\n" +
+			"redundant key-field assignments are dropped. Formatting itself needs\n" +
+			"no schema; only the keyed canonicalization does, and a document that\n" +
+			"cannot be typed is still formatted.",
+		Args: cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
-			desc, err := resolveDescriptor()
-			if err != nil {
-				return err
-			}
 			data, err := os.ReadFile(args[0])
 			if err != nil {
 				return err
 			}
-			msg, err := pxf.UnmarshalDescriptor(data, desc)
+			doc, err := pxf.Parse(data)
 			if err != nil {
 				return err
 			}
-			out, err := pxf.MarshalOptions{TypeURL: msgName}.Marshal(msg)
-			if err != nil {
-				return err
+			// Keyed canonicalization needs a schema; plain formatting does
+			// not. Prefer --message, then the document's own @type. If no
+			// name is available we format without canonicalizing; if a name
+			// is available but fails to resolve, that is a real error the
+			// user asked for and we surface it.
+			name := msgName
+			if name == "" {
+				name = doc.TypeURL
 			}
-			_, err = os.Stdout.Write(out)
+			if name != "" {
+				desc, err := resolveMessage(name)
+				if err != nil {
+					return err
+				}
+				pxf.CanonicalizeKeyed(doc, desc)
+			}
+			_, err = os.Stdout.Write(pxf.FormatDocument(doc))
 			return err
 		},
 	}
@@ -275,7 +310,7 @@ func resolveFiles() ([]protoreflect.FileDescriptor, error) {
 func lintCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "lint",
-		Short: "Check schema(s) for PXF reserved-name violations (draft §3.13)",
+		Short: "Check schema(s) for PXF reserved-name violations (draft §3.14)",
 		Args:  cobra.NoArgs,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			files, err := resolveFiles()
