@@ -42,14 +42,14 @@ v1.2 is a strictly additive minor bump introducing the Protowire Schema Extensio
 
 A v1.1 port reading a v1.2 schema rejects the new keywords at parse time. A v1.2 port reading a v1.1 schema accepts it unchanged. Per-port adoption of v1.2 grammar is independent — schemas pin to the highest minor version they use, and consumers must run a v1.2+ port to read v1.2 schemas.
 
-### v1.3 — keyed repeated fields
+### v1.2 — keyed repeated fields
 
-v1.3 is a strictly additive minor bump introducing keyed repeated fields (issue [#116](https://github.com/trendvidia/protowire/issues/116); IETF draft `-01` §3.13). It is a **text-grammar** addition of the kind promise 1 explicitly permits — the parser accepts strictly more input than before:
+v1.2 also carries keyed repeated fields (issue [#116](https://github.com/trendvidia/protowire/issues/116); IETF draft `-01` §3.13) — a **text-grammar** addition of the kind promise 1 explicitly permits, where the parser accepts strictly more input than before:
 
-- **Grammar.** `field_entry` gains a string alternative for its key (`(identifier | string), (assignment_tail | block_tail)`), so `"us-east-1" { ... }` parses. Both quoted forms were parse errors before v1.3, so no existing document changes meaning. The schema layer confines quoted entry names to keyed repeated fields.
+- **Grammar.** `field_entry` gains a string alternative for its key (`(identifier | string), (assignment_tail | block_tail)`), so `"us-east-1" { ... }` parses. Both quoted forms were parse errors before v1.2, so no existing document changes meaning. The schema layer confines quoted entry names to keyed repeated fields.
 - **Extension number claimed.** `(pxf.key) = 50002` on `FieldOptions` in [`proto/pxf/annotations.proto`](proto/pxf/annotations.proto). The renumbering prohibition of promise 3 applies.
-- **Wire format unchanged.** A keyed repeated field is a plain repeated field in `pb` and SBE; the key is an ordinary field of the element message. PXF, `pb`, SBE, and envelope outputs are byte-identical between v1.2 and v1.3 for any document/schema that does not use the keyed form.
-- **Version gating.** A document that uses quoted entry names requires a v1.3+ parser (earlier ports reject at parse time). A document in unquoted keyed form parses on any port, but binding it needs a v1.3+ schema layer — an earlier port sees unknown field names inside the block and rejects at bind time. The anonymous list form remains valid on every port, so schemas can adopt `(pxf.key)` before all their consumers upgrade: pre-v1.3 consumers treat the option as opaque and keep reading anonymous-form documents unchanged.
+- **Wire format unchanged.** A keyed repeated field is a plain repeated field in `pb` and SBE; the key is an ordinary field of the element message. PXF, `pb`, SBE, and envelope outputs are byte-identical between v1.1 and v1.2 for any document/schema that does not use the keyed form.
+- **Version gating.** A document that uses quoted entry names requires a v1.2+ parser (earlier ports reject at parse time). A document in unquoted keyed form parses on any port, but binding it needs a v1.2+ schema layer — an earlier port sees unknown field names inside the block and rejects at bind time. The anonymous list form remains valid on every port, so schemas can adopt `(pxf.key)` before all their consumers upgrade: pre-v1.2 consumers treat the option as opaque and keep reading anonymous-form documents unchanged.
 
 ### CLI surface — evolves
 
