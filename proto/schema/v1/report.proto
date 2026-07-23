@@ -88,6 +88,13 @@ message EnrichedViolation {
   // engine withheld the offending value, leaving actual_value unset.
   // Distinguishes redaction from genuine absence.
   bool value_redacted = 7;
+
+  // True when the violated rule applies to the map key itself rather than
+  // the value the final path segment's subscript addresses. A subscripted
+  // map segment always addresses the entry's *value*; without this flag a
+  // key violation and a value violation on the same entry would serialize
+  // to identical paths.
+  bool for_key = 8;
 }
 
 // Values are prefixed: descriptor.proto's EntryKind already claims
@@ -113,6 +120,8 @@ message FieldPathSegment {
 
   // Set when the segment addresses one element of a repeated field or map.
   // Map keys are typed — protowire never coerces keys through strings.
+  // A map subscript addresses the entry's *value*; a violation against the
+  // key itself is flagged by EnrichedViolation.for_key.
   oneof subscript {
     uint64 index      = 3; // repeated element
     string string_key = 4; // map<string, V>
