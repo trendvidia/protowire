@@ -4,7 +4,7 @@ docname: draft-trendvidia-protowire-01
 title: The Proto eXpressive Format (PXF) and the protowire Encoding Family
 abbrev: protowire
 category: info
-date: 2026-07-17
+date: 2026-07-23
 ipr: trust200902
 stream: IETF
 area: Applications
@@ -1556,6 +1556,13 @@ each emitted Violation with at least the following context:
 | `actual_value` | typed value | The value the rule was evaluated against, in a typed representation (see below). Absent when the value is withheld under {{sensitivity}}, in which case `value_redacted` is set. |
 | `source` | source-location | The position in the originating `.proto` source. |
 | `rule_kind` | enum | One of `VALIDATE`, `REQUIRED`, `DEFAULT`, `TYPE_REFINEMENT`. |
+| `for_key` | boolean | True when the violated rule applies to the map key itself rather than the value addressed by the final path segment's subscript. |
+
+A subscripted map segment in a field path addresses the entry's
+*value*. When a rule is evaluated against the map key itself, the
+engine MUST set `for_key`: a key violation and a value violation on
+the same entry otherwise carry identical paths, and neither the rule
+kind nor the violation code is required to disambiguate them.
 
 ### Report Wire Shape {#report-wire-shape}
 
@@ -1574,8 +1581,8 @@ reports across PXF, PB, and the envelope. Summary of the shape:
   `params`, `fallback_message`) plus the enrichment fields of the
   table above: the structured `FieldPath` (typed subscripts), the
   `type_chain`, the typed `actual_value`, the `value_redacted` flag,
-  the source location, and the rule kind. Rule-kind enum values are
-  `RULE_KIND_`-prefixed on the wire.
+  the source location, the rule kind, and the `for_key` flag. Rule-kind
+  enum values are `RULE_KIND_`-prefixed on the wire.
 
 * Values (`actual_value` and `params` entries) use a dedicated typed
   `Value` oneof — null, string, int64, uint64, double, bool, bytes,
