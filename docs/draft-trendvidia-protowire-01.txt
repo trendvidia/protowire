@@ -4,8 +4,8 @@
 
 Network Working Group                                      B. Franco Jr.
 Internet-Draft                                           TrendVidia, LLC
-Intended status: Informational                              17 July 2026
-Expires: 18 January 2027
+Intended status: Informational                              23 July 2026
+Expires: 24 January 2027
 
 
   The Proto eXpressive Format (PXF) and the protowire Encoding Family
@@ -53,7 +53,7 @@ Editorial Note
 
 
 
-Franco Jr.               Expires 18 January 2027                [Page 1]
+Franco Jr.               Expires 24 January 2027                [Page 1]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -73,7 +73,7 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on 18 January 2027.
+   This Internet-Draft will expire on 24 January 2027.
 
 Copyright Notice
 
@@ -109,7 +109,7 @@ Table of Contents
 
 
 
-Franco Jr.               Expires 18 January 2027                [Page 2]
+Franco Jr.               Expires 24 January 2027                [Page 2]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -165,17 +165,17 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027                [Page 3]
+Franco Jr.               Expires 24 January 2027                [Page 3]
 
 Internet-Draft                  protowire                      July 2026
 
 
-       7.10.1.  Report Wire Shape  . . . . . . . . . . . . . . . . .  47
+       7.10.1.  Report Wire Shape  . . . . . . . . . . . . . . . . .  48
        7.10.2.  Localization . . . . . . . . . . . . . . . . . . . .  48
      7.11. Lowering to FileDescriptorSet . . . . . . . . . . . . . .  48
-       7.11.1.  Extension Number Allocation  . . . . . . . . . . . .  48
+       7.11.1.  Extension Number Allocation  . . . . . . . . . . . .  49
        7.11.2.  Backward Compatibility with Stock Protocol Buffers
-               Tooling . . . . . . . . . . . . . . . . . . . . . . .  49
+               Tooling . . . . . . . . . . . . . . . . . . . . . . .  50
      7.12. Cross-Runtime Considerations  . . . . . . . . . . . . . .  50
        7.12.1.  Engine Configuration . . . . . . . . . . . . . . . .  50
        7.12.2.  Multi-Runtime Schemas  . . . . . . . . . . . . . . .  51
@@ -221,7 +221,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027                [Page 4]
+Franco Jr.               Expires 24 January 2027                [Page 4]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -277,7 +277,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027                [Page 5]
+Franco Jr.               Expires 24 January 2027                [Page 5]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -333,7 +333,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027                [Page 6]
+Franco Jr.               Expires 24 January 2027                [Page 6]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -389,7 +389,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027                [Page 7]
+Franco Jr.               Expires 24 January 2027                [Page 7]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -445,7 +445,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027                [Page 8]
+Franco Jr.               Expires 24 January 2027                [Page 8]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -501,7 +501,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027                [Page 9]
+Franco Jr.               Expires 24 January 2027                [Page 9]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -557,7 +557,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 10]
+Franco Jr.               Expires 24 January 2027               [Page 10]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -613,7 +613,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 11]
+Franco Jr.               Expires 24 January 2027               [Page 11]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -669,7 +669,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 12]
+Franco Jr.               Expires 24 January 2027               [Page 12]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -725,7 +725,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 13]
+Franco Jr.               Expires 24 January 2027               [Page 13]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -781,7 +781,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 14]
+Franco Jr.               Expires 24 January 2027               [Page 14]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -837,7 +837,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 15]
+Franco Jr.               Expires 24 January 2027               [Page 15]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -893,7 +893,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 16]
+Franco Jr.               Expires 24 January 2027               [Page 16]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -949,7 +949,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 17]
+Franco Jr.               Expires 24 January 2027               [Page 17]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -1005,7 +1005,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 18]
+Franco Jr.               Expires 24 January 2027               [Page 18]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -1061,7 +1061,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 19]
+Franco Jr.               Expires 24 January 2027               [Page 19]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -1117,7 +1117,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 20]
+Franco Jr.               Expires 24 January 2027               [Page 20]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -1173,7 +1173,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 21]
+Franco Jr.               Expires 24 January 2027               [Page 21]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -1229,7 +1229,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 22]
+Franco Jr.               Expires 24 January 2027               [Page 22]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -1285,7 +1285,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 23]
+Franco Jr.               Expires 24 January 2027               [Page 23]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -1341,7 +1341,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 24]
+Franco Jr.               Expires 24 January 2027               [Page 24]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -1397,7 +1397,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 25]
+Franco Jr.               Expires 24 January 2027               [Page 25]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -1453,7 +1453,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 26]
+Franco Jr.               Expires 24 January 2027               [Page 26]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -1509,7 +1509,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 27]
+Franco Jr.               Expires 24 January 2027               [Page 27]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -1565,7 +1565,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 28]
+Franco Jr.               Expires 24 January 2027               [Page 28]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -1621,7 +1621,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 29]
+Franco Jr.               Expires 24 January 2027               [Page 29]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -1677,7 +1677,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 30]
+Franco Jr.               Expires 24 January 2027               [Page 30]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -1733,7 +1733,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 31]
+Franco Jr.               Expires 24 January 2027               [Page 31]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -1789,7 +1789,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 32]
+Franco Jr.               Expires 24 January 2027               [Page 32]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -1845,7 +1845,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 33]
+Franco Jr.               Expires 24 January 2027               [Page 33]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -1901,7 +1901,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 34]
+Franco Jr.               Expires 24 January 2027               [Page 34]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -1957,7 +1957,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 35]
+Franco Jr.               Expires 24 January 2027               [Page 35]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -2013,7 +2013,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 36]
+Franco Jr.               Expires 24 January 2027               [Page 36]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -2069,7 +2069,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 37]
+Franco Jr.               Expires 24 January 2027               [Page 37]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -2125,7 +2125,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 38]
+Franco Jr.               Expires 24 January 2027               [Page 38]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -2181,7 +2181,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 39]
+Franco Jr.               Expires 24 January 2027               [Page 39]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -2237,7 +2237,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 40]
+Franco Jr.               Expires 24 January 2027               [Page 40]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -2293,7 +2293,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 41]
+Franco Jr.               Expires 24 January 2027               [Page 41]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -2349,7 +2349,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 42]
+Franco Jr.               Expires 24 January 2027               [Page 42]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -2405,7 +2405,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 43]
+Franco Jr.               Expires 24 January 2027               [Page 43]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -2461,7 +2461,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 44]
+Franco Jr.               Expires 24 January 2027               [Page 44]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -2517,7 +2517,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 45]
+Franco Jr.               Expires 24 January 2027               [Page 45]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -2573,7 +2573,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 46]
+Franco Jr.               Expires 24 January 2027               [Page 46]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -2609,8 +2609,30 @@ Internet-Draft                  protowire                      July 2026
    | rule_kind    | enum            | One of VALIDATE, REQUIRED,      |
    |              |                 | DEFAULT, TYPE_REFINEMENT.       |
    +--------------+-----------------+---------------------------------+
+   | for_key      | boolean         | True when the violated rule     |
+   |              |                 | applies to the map key itself   |
+   |              |                 | rather than the value addressed |
+   |              |                 | by the final path segment's     |
+   |              |                 | subscript.                      |
+   +--------------+-----------------+---------------------------------+
 
                                  Table 4
+
+   A subscripted map segment in a field path addresses the entry's
+   _value_. When a rule is evaluated against the map key itself, the
+   engine MUST set for_key: a key violation and a value violation on the
+   same entry otherwise carry identical paths, and neither the rule kind
+   nor the violation code is required to disambiguate them.
+
+
+
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 47]
+
+Internet-Draft                  protowire                      July 2026
+
 
 7.10.1.  Report Wire Shape
 
@@ -2626,20 +2648,12 @@ Internet-Draft                  protowire                      July 2026
       the truncated flag (Section 7.7.3), engine name/version, and wall-
       clock evaluation time.
 
-
-
-
-Franco Jr.               Expires 18 January 2027               [Page 47]
-
-Internet-Draft                  protowire                      July 2026
-
-
    *  EnrichedViolation carries the causal Violation (code, params,
       fallback_message) plus the enrichment fields of the table above:
       the structured FieldPath (typed subscripts), the type_chain, the
       typed actual_value, the value_redacted flag, the source location,
-      and the rule kind.  Rule-kind enum values are RULE_KIND_-prefixed
-      on the wire.
+      the rule kind, and the for_key flag.  Rule-kind enum values are
+      RULE_KIND_-prefixed on the wire.
 
    *  Values (actual_value and params entries) use a dedicated typed
       Value oneof — null, string, int64, uint64, double, bool, bytes,
@@ -2669,26 +2683,17 @@ Internet-Draft                  protowire                      July 2026
    numbers.  The schemas for these extensions are specified in
    protowire/proto/schema/v1/descriptor.proto and summarized below.
 
+
+
+Franco Jr.               Expires 24 January 2027               [Page 48]
+
+Internet-Draft                  protowire                      July 2026
+
+
 7.11.1.  Extension Number Allocation
 
    The number range 50400 through 50499 is reserved by -01 for schema-
    extension carriers.  Allocated in this revision:
-
-
-
-
-
-
-
-
-
-
-
-
-Franco Jr.               Expires 18 January 2027               [Page 48]
-
-Internet-Draft                  protowire                      July 2026
-
 
    +========+======================================+===================+
    | Number | Carrier                              | Target Options    |
@@ -2729,6 +2734,18 @@ Internet-Draft                  protowire                      July 2026
    of the above allocations is a wire break per the rules defined in
    STABILITY.md of [PROTOWIRE-RFC-001]'s source repository.
 
+
+
+
+
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 49]
+
+Internet-Draft                  protowire                      July 2026
+
+
 7.11.2.  Backward Compatibility with Stock Protocol Buffers Tooling
 
    The carrier extensions are well-formed Protocol Buffers extensions
@@ -2736,15 +2753,6 @@ Internet-Draft                  protowire                      July 2026
    protowire/proto/schema/v1/descriptor.proto MUST preserve the carrier
    options as opaque unknown-field bytes across decode/re-encode cycles,
    in accordance with the standard Protocol Buffers extension semantics.
-
-
-
-
-
-Franco Jr.               Expires 18 January 2027               [Page 49]
-
-Internet-Draft                  protowire                      July 2026
-
 
    Implementations that DO import the descriptor file decode the
    carriers as typed messages.
@@ -2781,26 +2789,25 @@ Internet-Draft                  protowire                      July 2026
    (Section 7.12), the default execution mode (Section 7.7), and
    max_recursion_depth (Section 7.7.3).
 
+
+
+
+
+
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 50]
+
+Internet-Draft                  protowire                      July 2026
+
+
    Discovery is nearest-config-wins, walking from the compilation's
    working directory upward; configurations are never merged.
    Precedence, highest first: explicit command-line flags; a --config
    file argument; a config file named by the PROTOWIRE_CONFIG
    environment variable; the discovered file; built-in defaults (engine
    cel, lenient verification, collect-all mode).
-
-
-
-
-
-
-
-
-
-
-Franco Jr.               Expires 18 January 2027               [Page 50]
-
-Internet-Draft                  protowire                      July 2026
-
 
 7.12.2.  Multi-Runtime Schemas
 
@@ -2844,19 +2851,17 @@ Internet-Draft                  protowire                      July 2026
 
    *  status carries an HTTP [RFC9110] or gRPC [GRPC] status code.
 
+
+
+Franco Jr.               Expires 24 January 2027               [Page 51]
+
+Internet-Draft                  protowire                      July 2026
+
+
    *  transport_error is set when no application-layer response was
       produced (network error, timeout, connection refused).
       Implementations MUST NOT set transport_error and error
       simultaneously.
-
-
-
-
-
-Franco Jr.               Expires 18 January 2027               [Page 51]
-
-Internet-Draft                  protowire                      July 2026
-
 
    *  data is the success payload, encoded in whichever wire form the
       surrounding transport selects (PXF, PB, JSON).  Decoders MUST
@@ -2904,12 +2909,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-
-
-
-
-
-Franco Jr.               Expires 18 January 2027               [Page 52]
+Franco Jr.               Expires 24 January 2027               [Page 52]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -2965,7 +2965,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 53]
+Franco Jr.               Expires 24 January 2027               [Page 53]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -3021,7 +3021,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 54]
+Franco Jr.               Expires 24 January 2027               [Page 54]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -3077,7 +3077,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 55]
+Franco Jr.               Expires 24 January 2027               [Page 55]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -3133,7 +3133,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 56]
+Franco Jr.               Expires 24 January 2027               [Page 56]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -3189,7 +3189,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 57]
+Franco Jr.               Expires 24 January 2027               [Page 57]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -3245,7 +3245,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 58]
+Franco Jr.               Expires 24 January 2027               [Page 58]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -3301,7 +3301,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 59]
+Franco Jr.               Expires 24 January 2027               [Page 59]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -3357,7 +3357,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 60]
+Franco Jr.               Expires 24 January 2027               [Page 60]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -3413,7 +3413,7 @@ Appendix A.  ABNF Additions in -01
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 61]
+Franco Jr.               Expires 24 January 2027               [Page 61]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -3469,7 +3469,7 @@ A.1.  New Productions
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 62]
+Franco Jr.               Expires 24 January 2027               [Page 62]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -3525,7 +3525,7 @@ Appendix C.  Implementation Status
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 63]
+Franco Jr.               Expires 24 January 2027               [Page 63]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -3581,4 +3581,4 @@ Author's Address
 
 
 
-Franco Jr.               Expires 18 January 2027               [Page 64]
+Franco Jr.               Expires 24 January 2027               [Page 64]

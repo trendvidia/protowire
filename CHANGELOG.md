@@ -10,6 +10,10 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+### Added
+
+- **`EnrichedViolation.for_key` (field 8).** A subscripted map segment in a `FieldPath` addresses the entry's *value*, so a map-key violation (e.g. a length rule on `map<string, V>` keys) and a value violation on the same entry serialized to identical paths. The new bool flags violations whose rule applied to the key itself (RFC-001 §7, issue [#125](https://github.com/trendvidia/protowire/issues/125)). Strictly additive to the runtime report shape; existing reports are unaffected.
+
 ## [1.2.0] – 2026-07-20
 
 First minor on the v1.0 freeze line, shipping two strictly-additive spec trains together: the **Protowire Schema Extensions** (RFC-001) and **keyed repeated fields** ([#116](https://github.com/trendvidia/protowire/issues/116)). Every valid v1.1 schema and document remains valid with unchanged meaning; PXF, `pb`, SBE, and envelope outputs are byte-identical for anything that does not use the new constructs. See [`STABILITY.md`](STABILITY.md) for the compatibility contract.
