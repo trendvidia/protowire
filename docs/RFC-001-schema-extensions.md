@@ -480,6 +480,7 @@ message EnrichedViolation {
   SourceLocation source = 5;              // from the embedded source map (50404)
   RuleKind rule_kind = 6;                 // RULE_KIND_{VALIDATE,REQUIRED,DEFAULT,TYPE_REFINEMENT}
   bool value_redacted = 7;                // @sensitive field: value withheld (§6.7)
+  bool for_key = 8;                       // rule violated by the map key, not the entry's value
 }
 ```
 
@@ -491,6 +492,16 @@ never parsed back; map keys are typed, never coerced through strings.
 (`RuleKind` values carry the `RULE_KIND_` prefix because proto enum values
 share package scope and `EntryKind.TYPE_REFINEMENT` in `descriptor.proto`
 already claims the bare name.)
+
+A subscripted map segment addresses the entry's **value**. When a rule is
+evaluated against the map key itself, the engine MUST set
+`for_key = true` on the enriched violation: a key violation and a value
+violation on the same entry otherwise serialize to identical paths, and
+neither `RuleKind` nor `code` is required to disambiguate them. The
+alternative — appending a pseudo-segment for the entry's synthetic
+`key = 1` field — is rejected: the preceding subscripted segment already
+addresses the value, so `labels[k].key` would collide with a genuine
+`key` field on a message-typed map value.
 
 A complete validation run produces a `Report` — the shape all 10 ports
 emit equivalently:

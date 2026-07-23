@@ -392,6 +392,18 @@ no bytes, null/absent erasure). `RuleKind` values are `RULE_KIND_`-prefixed
 (package enum-value scope collision with `EntryKind`). Golden:
 `07_report_golden.textproto`.
 
+**Resolution — map-key violations (2026-07-23, GH #125, PR #126):**
+`bool for_key = 8` added to `EnrichedViolation`. A subscripted map
+segment in `FieldPath` addresses the entry's *value*, so key and value
+violations on one entry serialized to identical paths; engines MUST set
+`for_key` when the rule was evaluated against the key itself. The
+pseudo-segment alternative (entry's synthetic `key = 1`) was rejected —
+`labels[k].key` collides with a genuine `key` field on message-typed
+map values. Mirrors protovalidate's `for_key`; protocheck's Go-side
+`ForKey` (trendvidia/protocheck#24) becomes this field's mirror. RFC-001
+§7 and IETF draft `-01` (Error Model + Report Wire Shape) updated;
+golden fixture unchanged (worked example has no map field).
+
 ---
 
 ## #017 — protovalidate migration story
