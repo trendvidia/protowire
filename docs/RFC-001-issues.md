@@ -452,6 +452,21 @@ exercises plumbing). Golden `source` lines synced to the committed
 commons type references; `GetUserRequest` defined. Ports compile with
 protocompile ≥ 0.15 (trendvidia/protocheck#34 gap 2).
 
+**Resolution — country fallback_message schema-authored (2026-07-24,
+GH #140, PR #150):** the golden pinned
+`fallback_message: "country not supported"` on `user.invalid_country`,
+but the fixture (and §5.3 prose) authored the rule with only a `code`
+override — underivable by any engine, since fallback-message synthesis
+for inline expressions is engine-specific and non-normative. Use-site
+`message = "country not supported"` added on the same line in
+`user.proto` and the §5.3 prose (golden and cited source lines 32/36/38
+unchanged; fixture stays delta-free). Found by protocheck's
+golden-equality run (trendvidia/protocheck#34), which vendored the
+fixture with exactly this delta — now droppable. Open follow-up: pin
+`"field is required"` as the normative `protowire.required` fallback
+message in §6.1/§7, or golden equality on that string rests on
+convention.
+
 ---
 
 ## #017 — protovalidate migration story
