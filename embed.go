@@ -21,3 +21,13 @@ import "embed"
 //
 //go:embed proto
 var BundledProto embed.FS
+
+// ConformanceFixtures is the read-only file system carrying the canonical
+// RFC-001 schema-extensions conformance corpus (testdata/schema-extensions,
+// fixtures plus goldens). Exported so downstream harnesses — the protocheck
+// end-to-end round trip (#144) and, eventually, every port's conformance
+// suite — consume the fixtures at a pinned module version instead of
+// carrying drifting copies.
+//
+//go:embed testdata/schema-extensions
+var ConformanceFixtures embed.FS

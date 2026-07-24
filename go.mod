@@ -27,9 +27,4 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260427160629-7cedc36a6bc4 // indirect
 )
 
-// The fork carries the RFC-001 §9.3 function-stub codegen in
-// cmd/protoc-gen-go (trendvidia/protobuf-go#4), exercised end to end by
-// the nested test-only module internal/schemaext (kept out of this module
-// so its private deps — protocompile, protocheck — stay off the public
-// module graph).
 replace google.golang.org/protobuf => github.com/trendvidia/protobuf-go v1.36.14
