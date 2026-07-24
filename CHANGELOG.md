@@ -10,6 +10,10 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+## [1.3.0] – 2026-07-23
+
+Single-train minor on the v1.0 freeze line: one strictly-additive extension to the validation report wire shape (RFC-001 §7, issue [#125](https://github.com/trendvidia/protowire/issues/125)). No grammar, descriptor, or wire-format changes — PXF, `pb`, SBE, and envelope outputs are byte-identical to v1.2.0 for every schema and document. See [`STABILITY.md`](STABILITY.md) for the compatibility contract.
+
 ### Added
 
 - **`EnrichedViolation.for_key` (field 8).** A subscripted map segment in a `FieldPath` addresses the entry's *value*, so a map-key violation (e.g. a length rule on `map<string, V>` keys) and a value violation on the same entry serialized to identical paths. The new bool flags violations whose rule applied to the key itself (RFC-001 §7, issue [#125](https://github.com/trendvidia/protowire/issues/125)). Strictly additive to the runtime report shape; existing reports are unaffected.
