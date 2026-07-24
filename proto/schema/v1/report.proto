@@ -58,7 +58,10 @@ message Violation {
   string code = 1;
 
   // Structured parameters for locale-catalog interpolation
-  // ({pattern, min, max, ...}).
+  // ({pattern, min, max, ...}). Populated only by function
+  // implementations (RFC-001 §6.5) and spec-defined synthetic
+  // violations; violations from inline expression rules carry no
+  // params (RFC-001 §7, params provenance).
   map<string, Value> params = 2;
 
   // Engine-author default message, used on catalog miss.

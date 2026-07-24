@@ -2546,19 +2546,19 @@ Internet-Draft                  protowire                      July 2026
 
                                  Table 3
 
-   Functions emit Violations on failure.  The engine MUST further enrich
-   each emitted Violation with at least the following context:
+   Functions emit Violations on failure. params is populated from
+   exactly two sources: the Violation returned by a declared function
+   (Section 7.4), whose implementation authors its params, and
+   specification-defined synthetic Violations (protowire.depth_exceeded
+   carries limit; see Section 7.7.3).  For Violations produced by inline
+   expression rules, engines MUST leave params empty: expressions are
+   opaque engine source (Section 7.6.2), and no mapping from expression
+   shapes to parameter names is defined.  A rule that requires
+   structured parameters for catalog interpolation is declared as a
+   function.
 
-
-
-
-
-
-
-
-
-
-
+   The engine MUST further enrich each emitted Violation with at least
+   the following context:
 
 
 

@@ -540,6 +540,19 @@ Localized messages are produced at format time from `code` + `params` through a 
 
 `@validate(...)` accepts optional `code` and `message` to override defaults at use sites.
 
+**Params provenance.** `cause.params` is populated from exactly two
+sources: the `Violation` returned by a declared function (§6.5) — the
+function implementation authors its params — and spec-defined synthetic
+violations (`protowire.depth_exceeded` carries `{limit}`, §6.4). For
+violations produced by **inline expression rules**, engines MUST leave
+`params` empty: expressions are opaque engine source (§5.1), and no
+mapping from operator shapes to parameter names could be normative
+across engine languages. A rule that needs structured params for
+catalog interpolation declares a `function`. (`@validate`'s use-site
+`code`/`message` overrides are author-supplied and unaffected.) With
+provenance pinned, `params` participates in cross-port report equality
+(goal 5) with no carve-out.
+
 Violation codes beginning with **`protowire.`** are reserved for
 spec-defined violations; user rules and function implementations MUST NOT
 mint codes in that namespace. This revision defines two:

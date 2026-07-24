@@ -54,7 +54,7 @@ diffs every port's output against these expectations.
 | `04_required_and_default.proto` | `@required`, `@default`, coexistence with `[(pxf.required) = true]` / `[(pxf.default) = "..."]` |
 | `05_error_overrides.proto` | `code` and `message` args on `@validate`; `[error_code = "..."]` on `function` |
 | `06_cross_file_*.proto` | Import + cross-file resolution of types and functions |
-| `07_report_golden.textproto` | `Report` / `EnrichedViolation` runtime wire shape (RFC-001 §7); all three `RuleKind`s, typed `Value` params, absent `actual_value` |
+| `07_report_golden.textproto` | `Report` / `EnrichedViolation` runtime wire shape (RFC-001 §7); all three `RuleKind`s, params provenance (inline rules ⇒ empty `params`), absent `actual_value` |
 | `08_engine_config.textproto` | `EngineConfig` project configuration (RFC-001 §9.4); every field, discovery/precedence rules in prose |
 | `09_wkt_refinements.proto` | `type` aliases on `Timestamp`/`Duration` (engine-native binding) and `Any` (`type_url` refinement, no auto-unpack) per §6.2 |
 | `10_literal_args.proto` | Enum-value reference and homogeneous list literal as annotation arguments on `any`-typed params (§8.1) |
