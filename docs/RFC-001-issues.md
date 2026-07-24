@@ -40,7 +40,7 @@ This is the umbrella tracking issue for [RFC-001 — Protowire Schema Extensions
 - [x] #016 — Validation report wire shape — resolved 2026-07-15 (GH #65, PR #94)
 - [ ] #017 — protovalidate migration story — spec story open (GH #66); a protovalidate adapter already ships as a nested module in protowire-go v1.3.1 (protowire-go#49/PR#60)
 - [ ] #018 — Performance budget + benchmark suite
-- [ ] #019 — Conformance test fixtures — corpus expansion open (GH #68); §5.3 worked-example executable fixtures shipped 2026-07-23 (GH #135, PR #138)
+- [x] #019 — Conformance test fixtures — corpus expansion shipped 2026-07-24 (GH #68); §5.3 worked-example executable fixtures shipped 2026-07-23 (GH #135, PR #138)
 - [ ] #020 — Upstream `buf/protocompile` compatibility
 - [x] #021 — Secrets annotation story (`@sensitive`) — resolved 2026-07-16 (GH #90, PR #107)
 - [x] #022 — Engine-expression grammar scope (annotation-only v1.2) — resolved 2026-07-16 (GH #91, PR #109)
@@ -541,6 +541,26 @@ Build a corpus in `testdata/schema-extensions/` covering:
 - Round-trip through `protocompile` → stock `protoc` → re-marshal
 
 Cross-port adoption (M9+) gates on this suite passing in each port.
+
+**Resolution (2026-07-24, GH #68).** Corpus expanded to comprehensive
+coverage: `13_declaration_shapes` (every remaining declaration shape,
+all annotation param types with defaults), `14_refinement_kinds`
+(enum/wrapper/message refinement + field-level stacking), report
+goldens `15`–`19` (collection/key validation with `for_key`,
+`@sensitive` redaction, `protowire.function.unimplemented`,
+`RULE_KIND_DEFAULT`, locale-catalog miss with a rendering golden), and
+`invalid/` (eight must-not-compile fixtures with an error-class
+manifest — arity mismatch is the "invalid signature" state). All
+positive fixtures compile and lower through the reference
+`protocompile` pipeline; the lowered FileDescriptorSet round-trips
+through stock `protoc` byte-identically (§8.5); runtime goldens were
+computed with `protocheck` and hand-audited against the spec (the
+`15` map-key violation is spec-authored: engine-side key validation
+is a tracked protocheck gap, trendvidia/protocheck#53; the
+`base_type_fqn` qualification drift the `14` fixture pins is
+trendvidia/protocompile#121). Executable-harness expansion over the
+new fixtures rides protocheck's `roundtrip/` package at the next
+protowire pin bump.
 
 ---
 

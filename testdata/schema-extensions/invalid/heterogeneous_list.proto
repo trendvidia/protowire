@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Invalid fixture: heterogeneous_list.
+// MUST NOT compile (RFC-001 §8.1): list literals are homogeneous — all
+// elements of one ListLiteral share the same kind. ["US", 2] mixes a
+// string element and an integer element.
+
+syntax = "proto3";
+
+package fixtures.invalid.hetlist;
+
+import "protowire/schema/v1/annotations.proto";
+
+annotation allowed(values: any);
+
+message Account {
+  string country = 1 @allowed(["US", 2]);
+}

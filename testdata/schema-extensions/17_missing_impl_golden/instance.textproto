@@ -1,0 +1,8 @@
+# proto-file: 17_missing_impl_golden/signup.proto
+# proto-message: fixtures.missingimpl.Signup
+#
+# The username is SET so the type rule runs and invokes the
+# unregistered function's placeholder (§6.1: rules run only on set
+# values; §9.2: the placeholder fails at first call).
+
+username: "newuser"

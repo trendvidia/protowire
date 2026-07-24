@@ -1,0 +1,47 @@
+# proto-file: protowire/schema/v1/report.proto
+# proto-message: protowire.schema.v1.Report
+#
+# Golden validation report (RFC-001 §9.2, §7) for the missing-
+# implementation error state: the declared function
+# fixtures.missingimpl.is_username is deliberately NOT registered, the
+# engine is constructed LENIENTLY (the §9.2 default), and the
+# Unimplemented placeholder fails at first call.
+#
+#   schema:   17_missing_impl_golden/signup.proto
+#   instance: 17_missing_impl_golden/instance.textproto
+#
+# engine and wall_time_nanos are excluded from cross-port equality and
+# omitted here.
+#
+# Pins: the reserved code `protowire.function.unimplemented` with its
+# spec-pinned fallback template "<function>: not implemented" (§7 —
+# <function> is the declared FQN); cause.params empty (the placeholder
+# is spec machinery, not a user impl); actual_value is the value the
+# rule ran against. A strict_validation engine never reaches this
+# report: it MUST fail at startup naming the unregistered FQN.
+
+message_type: "fixtures.missingimpl.Signup"
+violations: {
+  cause: {
+    code: "protowire.function.unimplemented"
+    fallback_message: "fixtures.missingimpl.is_username: not implemented"
+  }
+  path: {
+    segments: {
+      field_name: "username"
+      field_number: 1
+    }
+  }
+  type_chain: "string"
+  type_chain: "fixtures.missingimpl.Username"
+  actual_value: {
+    string_value: "newuser"
+  }
+  source: {
+    file: "17_missing_impl_golden/signup.proto"
+    line: 31
+    column: 24
+  }
+  rule_kind: RULE_KIND_TYPE_REFINEMENT
+}
+mode: EXECUTION_MODE_COLLECT_ALL

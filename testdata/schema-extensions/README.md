@@ -40,13 +40,28 @@ testdata/schema-extensions/
 ├── 09_wkt_refinements.proto                 — WKT-based type aliases (§6.2 binding rules)
 ├── 10_literal_args.proto                    — enum-ref, message-literal + list-literal args (§5.1/§8.1)
 ├── 11_literal_carrier_golden.textproto      — golden lowered AnnotationList, all Literal kinds
-└── 12_expression_args.proto                 — engine-expression args: capture edges + call extraction (§5.1/§8.1)
+├── 12_expression_args.proto                 — engine-expression args: capture edges + call extraction (§5.1/§8.1)
+├── 13_declaration_shapes.proto              — every remaining declaration shape (issue #68)
+├── 14_refinement_kinds.proto                — enum/wrapper/message refinement + field-level stacking (§6.3)
+├── 15_collections_golden.textproto          — golden Report: per-element repeated/map incl. keys + for_key (§6.4)
+├── 15_collections_golden/                   — schema + instance the golden was computed from
+├── 16_sensitive_golden.textproto            — golden Report: @sensitive redaction at all three sites (§6.7)
+├── 16_sensitive_golden/                     — schema + instance
+├── 17_missing_impl_golden.textproto         — golden Report: protowire.function.unimplemented (§9.2/§7)
+├── 17_missing_impl_golden/                  — schema + instance
+├── 18_default_unsatisfiable_golden.textproto — golden Report: RULE_KIND_DEFAULT (§6.4)
+├── 18_default_unsatisfiable_golden/         — schema + instance
+├── 19_catalog_miss.textproto                — golden Report for the i18n catalog-miss fixture (§7)
+├── 19_catalog_miss/                         — schema + instance + messages_de.txt rendering golden
+└── invalid/                                 — MUST-NOT-COMPILE fixtures + manifest (see invalid/README.md)
 ```
 
-Each fixture is the input; a sibling `.expected.txt` (added during M2)
-captures the expected lowered FileDescriptorSet in `protoc --decode_raw`
-form, plus the expected source-map content. The cross-port harness
-diffs every port's output against these expectations.
+The lowered-descriptor expectations for the schema-text fixtures are
+exercised by the reference round-trip harness (see *Round trip* below)
+rather than per-fixture `.expected.txt` files: the harness compiles the
+corpus with the reference `protocompile` pipeline and asserts on the
+carrier contents, and the `.textproto` goldens pin the runtime surfaces
+(reports, config, lowered literals).
 
 ## Per-fixture coverage
 
@@ -65,6 +80,14 @@ diffs every port's output against these expectations.
 | `10_literal_args.proto` | Enum-value reference and homogeneous list literal as annotation arguments on `any`-typed params (§8.1) |
 | `11_literal_carrier_golden.textproto` | Lowered `AnnotationList` with all three `Literal` kinds: resolved `EnumLiteral`, `Any` message literal, `ListLiteral` of `LiteralValue`s (§8.1, issue #64) |
 | `12_expression_args.proto` | Engine-expression arguments (§5.1 capture-then-classify, issue #91): balanced-delimiter capture with opaque string literals, named args after an expression arg, declared-function call extraction into `Expression.calls` vs. undiagnosed engine builtins (§8.1) |
+| `13_declaration_shapes.proto` | Every remaining declaration shape (issue #68): paren-less + empty-paren annotation declarations; params of every §5.1 type (incl. enum-typed, message-typed, bytes, expression) with defaults and negative literals; zero-param and multi-param functions; a function with both an option list and trailing annotations; a bare type alias; use sites with no parens, empty parens, all-defaulted args, positional-then-named args, and message literals with and without the optional leading type name |
+| `14_refinement_kinds.proto` | Refinement over every value-shaped base kind (§6.3): enum, wrapper (with a chained derived alias), and message bases; a field-level rule stacked atop the chain; an alias consumed as a repeated element type |
+| `15_collections_golden{,.textproto}/` | Per-element validation on repeated and map fields (§6.4, issues #141/#153): element rules, map KEY rules with `for_key = true` on the same subscripted path as the entry's value violation, and a field-level collection rule |
+| `16_sensitive_golden{,.textproto}/` | `@sensitive` report redaction (§6.7): type-alias, field, and transitive message-level sensitivity — `actual_value` unset + `value_redacted = true` — with a non-sensitive control field |
+| `17_missing_impl_golden{,.textproto}/` | The missing-implementation error state (§9.2): lenient engine + unregistered declared function ⇒ reserved `protowire.function.unimplemented` with its spec-pinned fallback template; strict engines fail startup instead |
+| `18_default_unsatisfiable_golden{,.textproto}/` | The unsatisfiable-rule error state (§6.4, issue #133): a `@default` failing the field's own rules ⇒ `RULE_KIND_DEFAULT` with the substituted default as `actual_value` |
+| `19_catalog_miss{,.textproto}/` | The locale-catalog-miss error state (§7): function-authored params feeding catalog interpolation on a hit, `fallback_message` verbatim on a miss; rendering golden `messages_de.txt`, pinned stub + catalog in the schema header |
+| `invalid/` | Eight MUST-NOT-COMPILE fixtures — arity mismatch ("invalid signature"), positional-after-named, heterogeneous list, unknown literal field, map field in literal, container alias, unbalanced capture, undeclared annotation — with the error-class manifest in `invalid/README.md` |
 
 Unlike the schema-text fixtures, the `.textproto` fixtures are message
 goldens, not v1.2 schema sources:
@@ -102,16 +125,60 @@ goldens, not v1.2 schema sources:
   Target for the protocompile lowering pass (#034) and every port's
   carrier reader.
 
-Verify they parse with stock protoc:
+The report goldens added by the corpus expansion (issue #68) follow the
+07 pattern — a schema + instance directory beside a top-level golden —
+with two differences, stated in each golden's header: `engine` and
+`wall_time_nanos` are omitted entirely (they are excluded from
+cross-port equality), and any pinned conformance stubs or catalogs live
+in the schema's header comment. `19_catalog_miss/` additionally pins the
+format-time rendering contract (§7): `messages_de.txt` lists the
+localized message text per violation — catalog hit interpolates the
+pinned template from `cause.params`, catalog miss falls back to
+`fallback_message` verbatim.
+
+Verify the goldens parse with stock protoc:
 
 ```
-protoc -I <root> --encode=protowire.schema.v1.Report \
-  protowire/schema/v1/report.proto < 07_report_golden.textproto > /dev/null
+for g in 07_report_golden 15_collections_golden 16_sensitive_golden \
+         17_missing_impl_golden 18_default_unsatisfiable_golden \
+         19_catalog_miss; do
+  protoc -I <root> --encode=protowire.schema.v1.Report \
+    protowire/schema/v1/report.proto < $g.textproto > /dev/null
+done
 protoc -I <root> --encode=protowire.schema.config.v1.EngineConfig \
   protowire/schema/config/v1/config.proto < 08_engine_config.textproto > /dev/null
 protoc -I <root> --encode=protowire.schema.v1.AnnotationList \
   protowire/schema/v1/descriptor.proto < 11_literal_carrier_golden.textproto > /dev/null
 ```
+
+## Round trip
+
+The corpus's descriptor-level contract (issue #68) is a three-stage
+round trip:
+
+1. **`protocompile`** (reference v1.2 toolchain) parses and lowers the
+   positive corpus to a `FileDescriptorSet` carrying the `50400`–`50404`
+   extensions.
+2. **Stock `protoc`** — with `google/protobuf/descriptor.proto`,
+   `protowire/schema/v1/descriptor.proto`, and `pxf/annotations.proto`
+   in scope — decodes that set to text format and **re-marshals** it.
+3. The re-marshaled bytes MUST equal the input byte-for-byte (§8.5:
+   carriers are well-formed proto; stock tooling round-trips them
+   transparently — as typed extensions when the carrier schema is
+   imported, as unknown fields when it is not).
+
+The executable harness lives in `protocheck`'s `roundtrip/` package
+(trendvidia/protowire#144), which consumes this corpus through the
+module's `ConformanceFixtures` embed at a pinned version, drives the
+real protocompile pipeline and the forked `protoc-gen-go` §9.3 stub
+generator over it, and compiles + invokes the generated stubs. It
+cannot live here: protowire is public and the reference toolchain
+modules are not. Ports replicate the same three stages with their own
+toolchain plus a stock `protoc`.
+
+Compile-error conformance for `invalid/` is the complement: each file
+there MUST fail stage 1 — see `invalid/README.md` for the per-file
+error classes.
 
 ## Adding new fixtures
 
@@ -119,15 +186,19 @@ Each schema-text fixture MUST:
 
 - be self-contained or explicitly note its imports;
 - exercise one specific construct or interaction prominently;
-- be valid `protowire v1.2` schema text per IETF draft `-01`;
+- be valid `protowire v1.2` schema text per IETF draft `-01` (or live
+  in `invalid/` with a manifest row naming its error class);
 - include a header comment naming the construct it exercises and the
   expected behavior (in prose).
 
-After adding a fixture, also add the corresponding `.expected.txt` and
-update the table above.
+After adding a fixture, update the table above; for runtime-behavior
+fixtures add the schema + instance directory and the top-level report
+golden; keep the protocheck round-trip harness's fixture list in sync.
 
 ## Status
 
-Initial fixtures committed at M0 as illustration. Full
-`.expected.txt` materialization happens at M2 once issue #034
-(descriptor lowering) lands and the canonical output shape is stable.
+Initial fixtures committed at M0 as illustration; corpus expanded to
+comprehensive coverage per issue #68 (declaration shapes, all
+refinement kinds, collection/key validation, `@sensitive` redaction,
+the four runtime/compile error states, and the `invalid/` suite).
+Cross-port adoption (M9+) gates on this suite passing in each port.

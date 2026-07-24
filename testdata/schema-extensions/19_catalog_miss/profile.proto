@@ -1,0 +1,56 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Fixture: 19_catalog_miss
+// Exercises: the locale-catalog-miss error state (§7). Localized
+// messages are produced at FORMAT time from code + params through the
+// catalog registered for a locale; a miss — no catalog for the locale,
+// or no entry for a code — falls back to the violation's
+// fallback_message. The Report itself is locale-independent
+// (../19_catalog_miss.textproto); the rendering golden is
+// messages_de.txt in this directory.
+//
+// Pinned conformance stub (function bodies are engine-runtime
+// concerns, §6.5 — the pin makes the golden deterministic):
+//
+//   fixtures.catalog.matches(value, pattern) — always fails with
+//     code:             "profile.username.format"
+//     params:           {pattern: <the pattern argument, as a string>}
+//     fallback_message: "username format invalid"
+//
+// Pinned conformance catalog, registered for locale "de" only:
+//
+//   "profile.username.format" ->
+//     "Benutzername muss dem Muster {pattern} entsprechen"
+//
+// Expected rendering (messages_de.txt, one line per violation in
+// Report order):
+//   - violation 0 (username): catalog HIT — the template renders with
+//     {pattern} interpolated from cause.params.
+//   - violation 1 (display_name): catalog MISS — no entry for
+//     "profile.display_name.length" — the violation's
+//     fallback_message renders verbatim.
+// Formatting in any locale with NO registered catalog falls back to
+// fallback_message for every violation.
+
+syntax = "proto3";
+
+package fixtures.catalog;
+
+import "protowire/schema/v1/annotations.proto";
+
+function matches(value: string, pattern: string);
+
+message Profile {
+  // Function-produced violation: params authored by the pinned stub
+  // feed catalog interpolation.
+  string username = 1
+    @validate(matches(this, "^[a-z0-9_]{3,16}$"));
+
+  // Inline rule: params empty (§7 provenance); its code has no "de"
+  // catalog entry, so rendering falls back.
+  string display_name = 2
+    @validate(this.size() <= 4,
+              code = "profile.display_name.length",
+              message = "display name too long");
+}

@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Fixture: 17_missing_impl_golden
+// Exercises: the missing-implementation error state (§9.2). The schema
+// declares a function that the conformance run deliberately does NOT
+// register.
+//
+// Expected behavior:
+//   - Lenient engine construction (the §9.2 default) MUST succeed: the
+//     engine installs an Unimplemented placeholder for is_username.
+//   - Validating an instance whose rules invoke the placeholder yields
+//     the reserved violation `protowire.function.unimplemented` with
+//     the spec-pinned fallback message
+//     "fixtures.missingimpl.is_username: not implemented" (§7) — see
+//     ../17_missing_impl_golden.textproto.
+//   - A strict_validation engine (§9.2 / §9.4) MUST instead fail at
+//     startup, naming fixtures.missingimpl.is_username; no Report is
+//     produced. (Startup-failure shape is host-language-specific and
+//     not part of the golden.)
+
+syntax = "proto3";
+
+package fixtures.missingimpl;
+
+import "protowire/schema/v1/annotations.proto";
+
+function is_username(value: string);
+
+// No use-site `code` override: the reserved code must surface as-is.
+type Username = string @validate(is_username(this));
+
+message Signup {
+  Username username = 1;
+}
