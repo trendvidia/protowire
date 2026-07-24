@@ -649,6 +649,32 @@ annotation-aware plugin.
 
 ---
 
+## #025 — Stub code `"unimplemented"` vs the §7 reserved namespace
+
+**Repo:** `protowire`
+**Milestone:** M0
+**Labels:** `spec`, `schema-extensions`
+
+Surfaced while resolving #024/GH #145: the §9.2 lenient missing-impl
+placeholders and §9.3 `UnimplementedFunctions` stubs return
+`Code: "unimplemented"` — minted by spec-mandated machinery, yet
+sitting in user codespace, collidable, and unpinned for cross-port
+report equality (goal 5). Decide: reserve, or record why not.
+
+**Resolution (2026-07-24, GH #148, PR #149):** reserved as
+**`protowire.function.unimplemented`** — the fourth §7 spec-defined
+code, spelled in the `protowire.function.*` family alongside
+`invalid_argument` since both are generated function machinery (the
+flat `protowire.unimplemented` spelling was rejected as reading like
+whole-validator state). §9.2 pins the code for lenient-mode
+placeholder failures; the §9.3 stub example references the
+`CodeFunctionUnimplemented` typed constant per the §7 constants
+mandate. Fan-out folded into existing downstream issues:
+protocheck#48 (fourth constant), protobuf-go#6 (stub-emission rename
+alongside the guard rename).
+
+---
+
 ## #030 — `protocompile`: extended grammar parser
 
 **Repo:** `protocompile`
