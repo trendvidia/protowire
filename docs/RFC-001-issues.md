@@ -970,6 +970,23 @@ helper, never string-splits. The sketch's `User#message_validate#0` hash
 form is dropped. Emission re-key + remaining entry kinds stay tracked in
 protocompile#66.
 
+**Resolution — EntryKind deprecation rejected (2026-07-24, GH #76, PR
+#160):** protowire#76 proposed deprecating/removing `FIELD_VALIDATE`,
+`MESSAGE_VALIDATE`, and `FUNCTION_CALL` on the grounds that emitting
+them would couple the compiler to one validator's annotation-name
+conventions. The concern was resolved by redefinition, not removal,
+when protocompile#66 landed the remaining kinds: classification is
+**placement-based** (field/extension carriers → `FIELD_VALIDATE`,
+message carriers → `MESSAGE_VALIDATE`, every other carrier →
+`ANNOTATION_USE`) — pure structure, no annotation-name knowledge — and
+`FUNCTION_CALL` entries derive from the compiler-extracted
+`Expression.calls` (§8.1), requiring no engine-language parsing. All
+five variants are emitted by the reference lowering, consumed by
+protolsp navigation, and normative in the §8.3.1 descriptor-path
+grammar (entry shape is keyed by kind; `FUNCTION_CALL` carries the
+`callAnchor`). Removal would break ratified surface; the enum stands
+as specified. Issue closed as obsolete.
+
 ---
 
 ## #040 — `protocheck`: engine SPI (Go interface)
