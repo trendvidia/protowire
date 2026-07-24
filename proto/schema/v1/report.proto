@@ -103,6 +103,11 @@ enum RuleKind {
   RULE_KIND_UNSPECIFIED     = 0;
   RULE_KIND_VALIDATE        = 1;
   RULE_KIND_REQUIRED        = 2;
+  // A rule failed against a @default-substituted value (RFC-001 §6.4):
+  // the schema's declared default itself violates the field's rules — a
+  // schema-authoring error, not an instance error. Supersedes VALIDATE /
+  // TYPE_REFINEMENT whenever the validated value came from @default
+  // substitution; actual_value carries the substituted default.
   RULE_KIND_DEFAULT         = 3;
   RULE_KIND_TYPE_REFINEMENT = 4;
 }

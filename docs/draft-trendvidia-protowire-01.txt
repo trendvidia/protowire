@@ -159,9 +159,9 @@ Internet-Draft                  protowire                      July 2026
        7.7.1.  Well-Known Type Binding . . . . . . . . . . . . . . .  43
        7.7.2.  Evaluation Order and Result Aggregation . . . . . . .  44
        7.7.3.  Recursion Depth . . . . . . . . . . . . . . . . . . .  44
-     7.8.  Streaming RPC Validation  . . . . . . . . . . . . . . . .  44
+     7.8.  Streaming RPC Validation  . . . . . . . . . . . . . . . .  45
      7.9.  Sensitivity Classification  . . . . . . . . . . . . . . .  45
-     7.10. Error Model . . . . . . . . . . . . . . . . . . . . . . .  45
+     7.10. Error Model . . . . . . . . . . . . . . . . . . . . . . .  46
 
 
 
@@ -2422,6 +2422,17 @@ Internet-Draft                  protowire                      July 2026
    provide a fail-fast mode that terminates at the first violation; the
    collect-all mode is the conformance-mandated default.
 
+   When rules are evaluated against a @default-substituted value (the
+   absent-with-default row of the presence table above), every resulting
+   Violation MUST carry rule kind DEFAULT, superseding the VALIDATE or
+   TYPE_REFINEMENT kind the same rule would carry for a producer-set
+   value, and actual_value MUST carry the substituted default.  Such a
+   Violation reports a schema-authoring error — the declared default
+   fails the field's own rules, so no producer input can trigger it and
+   no producer change can fix it.  Tooling MAY reject such defaults at
+   schema-compile time; a schema that passes that check never yields a
+   DEFAULT Violation at runtime.
+
 7.7.3.  Recursion Depth
 
    Nested-message validation is depth-limited.  The root message is at
@@ -2442,6 +2453,19 @@ Internet-Draft                  protowire                      July 2026
    specification-defined codes; user schemas and engines MUST NOT mint
    codes in it.
 
+
+
+
+
+
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 44]
+
+Internet-Draft                  protowire                      July 2026
+
+
 7.8.  Streaming RPC Validation
 
    Validation over streaming RPCs is *per-message*: each message is
@@ -2458,14 +2482,6 @@ Internet-Draft                  protowire                      July 2026
    asymmetric.  For gRPC transports, the reference mapping is: a
    request-direction violation maps to INVALID_ARGUMENT; a server-
    produced response caught by the sender's pre-send check maps to
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 44]
-
-Internet-Draft                  protowire                      July 2026
-
-
    INTERNAL; a client-side receiver check surfaces as a local error
    without a wire status.  The Report travels in
    google.rpc.Status.details as a google.protobuf.Any.
@@ -2498,22 +2514,6 @@ Internet-Draft                  protowire                      July 2026
       sensitive declarations; an @example on a sensitive declaration is
       a compile-time warning.
 
-   @sensitive lowers through the standard annotation carrier
-   (Section 7.11); it has no dedicated descriptor surface.
-
-7.10.  Error Model
-
-   A Violation is a structured value with the following abstract shape:
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -2521,6 +2521,13 @@ Franco Jr.               Expires 24 January 2027               [Page 45]
 
 Internet-Draft                  protowire                      July 2026
 
+
+   @sensitive lowers through the standard annotation carrier
+   (Section 7.11); it has no dedicated descriptor surface.
+
+7.10.  Error Model
+
+   A Violation is a structured value with the following abstract shape:
 
      +==================+========+==================================+
      | Field            | Type   | Description                      |
@@ -2541,13 +2548,6 @@ Internet-Draft                  protowire                      July 2026
 
    Functions emit Violations on failure.  The engine MUST further enrich
    each emitted Violation with at least the following context:
-
-
-
-
-
-
-
 
 
 
@@ -2607,7 +2607,10 @@ Internet-Draft                  protowire                      July 2026
    |              |                 | .proto source.                  |
    +--------------+-----------------+---------------------------------+
    | rule_kind    | enum            | One of VALIDATE, REQUIRED,      |
-   |              |                 | DEFAULT, TYPE_REFINEMENT.       |
+   |              |                 | DEFAULT (rule evaluated against |
+   |              |                 | a @default-substituted value;   |
+   |              |                 | see Section 7.7),               |
+   |              |                 | TYPE_REFINEMENT.                |
    +--------------+-----------------+---------------------------------+
    | for_key      | boolean         | True when the violated rule     |
    |              |                 | applies to the map key itself   |
@@ -2623,9 +2626,6 @@ Internet-Draft                  protowire                      July 2026
    engine MUST set for_key: a key violation and a value violation on the
    same entry otherwise carry identical paths, and neither the rule kind
    nor the violation code is required to disambiguate them.
-
-
-
 
 
 

@@ -321,6 +321,20 @@ Per-field validation runs in source-order through the type chain (base → deriv
 
 `repeated` and `map<K,V>` validate per-element (using the element's type rules) plus any field-level `@validate` against the collection as a whole.
 
+**Default substitution.** When an absent field carries `@default(value)`,
+the default substitutes and the field's rules run against the substituted
+value (§6.1). Every violation those rules produce MUST carry
+`rule_kind: RULE_KIND_DEFAULT` — superseding the `VALIDATE` or
+`TYPE_REFINEMENT` kind the same rule would carry for a producer-set value
+— and `actual_value` MUST be the substituted default. The distinct kind
+marks the failure as a **schema-authoring error**: the declared default
+itself fails the field's rules, so no producer input can trigger it and
+no producer change can fix it. Rule origin stays recoverable from
+`cause.code` and `type_chain`. Tooling MAY additionally reject such
+defaults at compile time (the §5.2 annotation library documents the best
+practice); a schema that passes that check never yields
+`RULE_KIND_DEFAULT` at runtime.
+
 **Recursion depth.** Nested-message validation is depth-limited. The root
 instance is at depth 0; entering any message-typed value (a nested field,
 a repeated element, a map value) increments the depth by 1 — scalars and
@@ -492,6 +506,11 @@ never parsed back; map keys are typed, never coerced through strings.
 (`RuleKind` values carry the `RULE_KIND_` prefix because proto enum values
 share package scope and `EntryKind.TYPE_REFINEMENT` in `descriptor.proto`
 already claims the bare name.)
+
+`RULE_KIND_DEFAULT` marks violations whose rule was evaluated against a
+`@default`-substituted value (§6.4): a schema-authoring error — the
+declared default fails the field's own rules — rather than an instance
+error.
 
 A subscripted map segment addresses the entry's **value**. When a rule is
 evaluated against the map key itself, the engine MUST set

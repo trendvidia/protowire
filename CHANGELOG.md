@@ -10,6 +10,10 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+### Changed
+
+- **`RULE_KIND_DEFAULT` semantics pinned.** A rule evaluated against a `@default`-substituted value (RFC-001 §6.1 absent-with-default) reports its violations with `rule_kind: RULE_KIND_DEFAULT`, superseding the `VALIDATE`/`TYPE_REFINEMENT` kind the same rule would carry for a producer-set value; `actual_value` carries the substituted default (RFC-001 §6.4, issue [#133](https://github.com/trendvidia/protowire/issues/133)). The distinct kind marks a schema-authoring error — the declared default fails the field's own rules — not an instance error. Spec text and proto comments only; no wire change.
+
 ## [1.3.0] – 2026-07-23
 
 Single-train minor on the v1.0 freeze line: one strictly-additive extension to the validation report wire shape (RFC-001 §7, issue [#125](https://github.com/trendvidia/protowire/issues/125)). No grammar, descriptor, or wire-format changes — PXF, `pb`, SBE, and envelope outputs are byte-identical to v1.2.0 for every schema and document. See [`STABILITY.md`](STABILITY.md) for the compatibility contract.

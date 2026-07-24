@@ -61,6 +61,9 @@ annotation required;
 // After substitution, the field's validation rules are evaluated against
 // the substituted value. Best practice: the default should itself pass
 // the field's validation rules; tooling MAY check this at compile time.
+// A rule that fails against the substituted value is reported with
+// rule_kind RULE_KIND_DEFAULT — a schema-authoring error, not an
+// instance error (RFC-001 §6.4).
 //
 // Equivalent in effect to the bracket-form `[(pxf.default) = "..."]`
 // retained from protowire v1.0.

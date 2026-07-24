@@ -404,6 +404,21 @@ map values. Mirrors protovalidate's `for_key`; protocheck's Go-side
 §7 and IETF draft `-01` (Error Model + Report Wire Shape) updated;
 golden fixture unchanged (worked example has no map field).
 
+**Resolution — RULE_KIND_DEFAULT semantics (2026-07-23, GH #133, PR #136):**
+Reading (a): rules evaluated against a `@default`-substituted value
+(§6.1 absent-with-default) report their violations with
+`rule_kind: RULE_KIND_DEFAULT`, superseding `VALIDATE`/`TYPE_REFINEMENT`;
+`actual_value` MUST be the substituted default. Marks a schema-authoring
+error — the declared default fails the field's own rules; no producer
+input triggers it, none fixes it — not an instance error. Rule origin
+stays recoverable via `cause.code`/`type_chain`. Compile-time rejection
+remains a MAY (annotation library); reserving the kind for compile-time
+tooling was rejected — report.proto is chartered runtime-only. New
+RFC-001 §6.4 **Default substitution** paragraph; draft `-01` mirrored.
+protocheck switches from emitting `VALIDATE`/`TYPE_REFINEMENT` on
+substituted defaults (trendvidia/protocheck#32/#34). Fixture-07 golden
+unchanged (its instance sets `country`; no substitution occurs).
+
 ---
 
 ## #017 — protovalidate migration story

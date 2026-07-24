@@ -1465,6 +1465,17 @@ into a single Report (see {{error-model}}). An engine-level option MAY
 provide a fail-fast mode that terminates at the first violation; the
 collect-all mode is the conformance-mandated default.
 
+When rules are evaluated against a `@default`-substituted value (the
+absent-with-default row of the presence table above), every resulting
+Violation MUST carry rule kind `DEFAULT`, superseding the `VALIDATE`
+or `TYPE_REFINEMENT` kind the same rule would carry for a producer-set
+value, and `actual_value` MUST carry the substituted default. Such a
+Violation reports a schema-authoring error — the declared default
+fails the field's own rules, so no producer input can trigger it and
+no producer change can fix it. Tooling MAY reject such defaults at
+schema-compile time; a schema that passes that check never yields a
+`DEFAULT` Violation at runtime.
+
 ### Recursion Depth {#recursion-depth}
 
 Nested-message validation is depth-limited. The root message is at
@@ -1555,7 +1566,7 @@ each emitted Violation with at least the following context:
 | `type_chain` | list of string | Type-alias chain from base to derived, when the Violation was produced by a `TYPE_REFINEMENT` rule. |
 | `actual_value` | typed value | The value the rule was evaluated against, in a typed representation (see below). Absent when the value is withheld under {{sensitivity}}, in which case `value_redacted` is set. |
 | `source` | source-location | The position in the originating `.proto` source. |
-| `rule_kind` | enum | One of `VALIDATE`, `REQUIRED`, `DEFAULT`, `TYPE_REFINEMENT`. |
+| `rule_kind` | enum | One of `VALIDATE`, `REQUIRED`, `DEFAULT` (rule evaluated against a `@default`-substituted value; see {{validation-execution}}), `TYPE_REFINEMENT`. |
 | `for_key` | boolean | True when the violated rule applies to the map key itself rather than the value addressed by the final path segment's subscript. |
 
 A subscripted map segment in a field path addresses the entry's
