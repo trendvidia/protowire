@@ -425,7 +425,7 @@ protocheck switches from emitting `VALIDATE`/`TYPE_REFINEMENT` on
 substituted defaults (trendvidia/protocheck#32/#34). Fixture-07 golden
 unchanged (its instance sets `country`; no substitution occurs).
 
-**Resolution — source_ref (2026-07-24, GH #142, PR #TBD):** wire
+**Resolution — source_ref (2026-07-24, GH #142, PR #161):** wire
 `EnrichedViolation` gains `SourceRef source_ref = 9`
 (`{file, descriptor_path}`) — the §8.3.1 rule-identity join key, so wire
 consumers (protolsp's runtime-violation overlay via gRPC status details,
