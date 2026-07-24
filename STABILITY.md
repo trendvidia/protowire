@@ -51,6 +51,13 @@ v1.2 also carries keyed repeated fields (issue [#116](https://github.com/trendvi
 - **Wire format unchanged.** A keyed repeated field is a plain repeated field in `pb` and SBE; the key is an ordinary field of the element message. PXF, `pb`, SBE, and envelope outputs are byte-identical between v1.1 and v1.2 for any document/schema that does not use the keyed form.
 - **Version gating.** A document that uses quoted entry names requires a v1.2+ parser (earlier ports reject at parse time). A document in unquoted keyed form parses on any port, but binding it needs a v1.2+ schema layer — an earlier port sees unknown field names inside the block and rejects at bind time. The anonymous list form remains valid on every port, so schemas can adopt `(pxf.key)` before all their consumers upgrade: pre-v1.2 consumers treat the option as opaque and keep reading anonymous-form documents unchanged.
 
+### v1.3 — map-key violation flag
+
+v1.3 is a strictly additive minor bump touching only the runtime validation-report shape ([`proto/schema/v1/report.proto`](proto/schema/v1/report.proto)):
+
+- **New report field.** `EnrichedViolation.for_key` (field 8, `bool`) flags violations whose rule was evaluated against a map entry's *key* rather than the value the path's final subscript addresses (RFC-001 §7, issue [#125](https://github.com/trendvidia/protowire/issues/125)). Engines MUST set it on key violations; a v1.2 report consumer reading a v1.3 report ignores the unknown field, and a report without map-key violations is byte-identical to its v1.2 form.
+- **No grammar or descriptor change.** The schema language, extension-number allocations, and descriptor lowering are untouched — schemas and documents need no version gating, and every v1.2 port parses v1.3 schemas unchanged. The version bump exists because the report shape is part of the cross-port conformance surface (all 10 ports emit equivalent reports): engines claiming v1.3 report conformance must implement the `for_key` semantics.
+
 ### CLI surface — evolves
 
 The shared CLI in [`cmd/pxf`](cmd/pxf) follows looser rules. New subcommands and flags can be added at any minor version. Existing flags are deprecated with one minor-version notice before removal at the next major. CLI exit codes are stable (`0` success, `1` user error, `2` internal error), and the JSON output schema produced by `bench-pxf` / `bench-sbe` is stable per [point 6](#promises) below.
