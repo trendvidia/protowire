@@ -336,6 +336,12 @@ pre-send → `INTERNAL`; client-side receiver check → local error. gRPC
 reference mapping: `Report` in `google.rpc.Status.details` as `Any`.
 Stream-level invariants deferred (§13 row 12, GH #103).
 
+**Resolution (2026-07-24, GH #103, PR #TBD):** deferral re-affirmed.
+Stream-level invariants remain out of v1.2 — no design work, no spec
+commitment beyond the existing §13 row 12 pointer; the issue stays open
+with the `deferred` label (off the v1.2 board) and is revisited no
+earlier than v1.3 planning.
+
 ---
 
 ## #015 — `Literal` shape in `AnnotationArg`
@@ -576,6 +582,20 @@ This fork diverges from upstream `buf/protocompile` once v1.2 grammar lands. Dec
 - Maintain a clean fork point + cherry-pick upstream non-conflicting commits
 
 Outcome shapes how `protocompile`'s long-term maintenance is organized.
+
+**Resolution (2026-07-24, GH #69, PR #TBD):** **Stay forked** through
+stack stabilization. `trendvidia/protocompile` owns its divergence from
+upstream `buf/protocompile` while the RFC-001 stack (compiler → engine →
+codegen → ports) is still being validated end to end; no upstreaming
+attempts, and no obligation to track upstream releases. Opportunistic
+cherry-picks of non-conflicting upstream fixes are permitted but not
+required — a clean fork point is not maintained as a discipline.
+Re-evaluate once the v1.2 stack is stable and conformance-verified
+across ports; until then, fork maintenance cost is accepted as the price
+of grammar ownership. Consumers needing stock parsing behavior keep
+using upstream `bufbuild/protocompile` — the two modules coexist (e.g.
+protowire's `cmd/pxf` pins upstream; the schema-extensions pipeline pins
+the fork).
 
 ---
 
