@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 TrendVidia, LLC.
+
+name: Editors — JetBrains
+
+# Compile the PXF JetBrains plugin. Until this job existed, the only
+# thing compiling the plugin in CI was CodeQL's java-kotlin analysis —
+# so a scanner/toolchain incompatibility (e.g. a Kotlin version CodeQL's
+# extractor doesn't support yet, #129) was indistinguishable from a real
+# build break. This job answers "does it compile" on its own (#128).
+#
+# Mirrors the CodeQL job's build step (`gradlew classes`); the IntelliJ
+# platform download is cached by setup-gradle.
+
+on:
+  pull_request:
+    paths:
+      - "editors/jetbrains/**"
+      - ".github/workflows/editors-jetbrains.yml"
+  push:
+    branches: [main]
+    paths:
+      - "editors/jetbrains/**"
+      - ".github/workflows/editors-jetbrains.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  jetbrains:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      - run: ./gradlew --quiet classes
+        working-directory: editors/jetbrains/plugin

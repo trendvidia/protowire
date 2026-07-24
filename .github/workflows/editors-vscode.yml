@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 TrendVidia, LLC.
+
+name: Editors — VS Code
+
+# Typecheck + bundle the PXF VS Code extension. The base CI workflow
+# only covers the Go module; without this job, editors/vscode changes
+# (including dependency bumps) merge unverified (#128).
+
+on:
+  pull_request:
+    paths:
+      - "editors/vscode/**"
+      - ".github/workflows/editors-vscode.yml"
+  push:
+    branches: [main]
+    paths:
+      - "editors/vscode/**"
+      - ".github/workflows/editors-vscode.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  vscode:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: editors/vscode
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: editors/vscode/package-lock.json
+
+      - run: npm ci
+
+      - run: npm run typecheck
+
+      - run: npm run build
