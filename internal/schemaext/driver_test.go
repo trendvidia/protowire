@@ -241,7 +241,7 @@ func driverGoMod(t *testing.T, h *harness) string {
 	b.WriteString("module " + driverModule + "\n\ngo 1.26\n\n")
 	for _, mod := range []string{"google.golang.org/protobuf", "github.com/trendvidia/protocheck/v2"} {
 		cmd := exec.Command("go", "list", "-m", "-f", "{{.Dir}}", mod)
-		cmd.Dir = h.repoRoot
+		cmd.Dir = h.moduleDir
 		out, err := cmd.Output()
 		if err != nil {
 			t.Fatalf("go list -m %s: %v", mod, err)

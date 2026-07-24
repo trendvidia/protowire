@@ -74,6 +74,11 @@ var goPackages = map[string]string{
 // and the output of the forked protoc-gen-go over it.
 type harness struct {
 	repoRoot string
+	// moduleDir is this nested test module's root — go commands (plugin
+	// build, module resolution for the driver) run here so they see this
+	// module's private-dep requires and protobuf replace, not the public
+	// parent module's graph.
+	moduleDir string
 	// fds is the lowered FileDescriptorSet, marshal→unmarshal
 	// round-tripped so the carrier options are readable through the
 	// generated protowire.schema.v1 extension types (the fdp package
@@ -103,11 +108,15 @@ func getHarness(t *testing.T) *harness {
 }
 
 func buildHarness() (*harness, error) {
+	moduleDir, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
 	repoRoot, err := filepath.Abs(filepath.Join("..", ".."))
 	if err != nil {
 		return nil, err
 	}
-	h := &harness{repoRoot: repoRoot}
+	h := &harness{repoRoot: repoRoot, moduleDir: moduleDir}
 	if err := h.compile(); err != nil {
 		return nil, err
 	}
@@ -197,7 +206,7 @@ func (h *harness) generate() error {
 	bin := filepath.Join(binDir, "protoc-gen-go")
 
 	build := exec.Command("go", "build", "-o", bin, "google.golang.org/protobuf/cmd/protoc-gen-go")
-	build.Dir = h.repoRoot
+	build.Dir = h.moduleDir
 	if out, err := build.CombinedOutput(); err != nil {
 		return fmt.Errorf("building protoc-gen-go: %v\n%s", err, out)
 	}
