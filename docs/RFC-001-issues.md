@@ -60,8 +60,8 @@ This is the umbrella tracking issue for [RFC-001 — Protowire Schema Extensions
 - [x] #050 — `protolsp`: extended grammar parsing — done 2026-07-16 (semantic tokens + malformed-construct pins, completion/navigation, protolsp#218 Phases A/B)
 - [x] #051 — `protolsp`: source-map consumption + go-to-definition — done 2026-07-17 (type/function navigation + descriptor fallback, protolsp#219 Phase C; opaque-fragment navigation protolsp#220)
 - [x] #052 — `protolsp`: annotation-aware diagnostics — done 2026-07-17 (M7, protolsp#220; completion parity protolsp#228, runtime-violation overlay protolsp#231)
-- [ ] #060 — `protobuf-go`: function-stub codegen plugin (Go)
-- [ ] #061 — `protobuf-go`: annotation-aware codegen
+- [x] #060 — `protobuf-go`: function-stub codegen plugin (Go) — done 2026-07-24 (§9.3 Functions/UnimplementedFunctions/RegisterFunctions onto a protocheck Engine; carriers decoded from unknown fields, protobuf-go#2/PR#4)
+- [x] #061 — `protobuf-go`: annotation-aware codegen — done 2026-07-24 (@description doc comments + @deprecated notices on enums/values/messages/fields/getters, function-level bracket options; example-as-test emission stays optional, protobuf-go#3/PR#4)
 - [x] #070 — `protowire-go`: M5 runtime wiring through `protocheck` — done 2026-07-23 (Validator seam through pxf/pb/sbe decoders, protowire-go#49/PR#59; protocheck-side adapter protocheck PR#38; protovalidate adapter PR#60; shipped v1.3.1)
 - [ ] #080 — OpenAPI generator (M8) — separate tool consuming descriptors
 
