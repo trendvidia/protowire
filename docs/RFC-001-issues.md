@@ -425,6 +425,20 @@ protocheck switches from emitting `VALIDATE`/`TYPE_REFINEMENT` on
 substituted defaults (trendvidia/protocheck#32/#34). Fixture-07 golden
 unchanged (its instance sets `country`; no substitution occurs).
 
+**Resolution — source_ref (2026-07-24, GH #142, PR #161):** wire
+`EnrichedViolation` gains `SourceRef source_ref = 9`
+(`{file, descriptor_path}`) — the §8.3.1 rule-identity join key, so wire
+consumers (protolsp's runtime-violation overlay via gRPC status details,
+registry report joins) recover the lowered rule without fuzzy
+source-location matching. Engines MUST populate it when the rule
+resolved through an embedded source map (50404), MUST leave it unset
+otherwise; the path comes from the shared §8.3.1 formatter, never
+hand-assembled. Deterministic from the descriptor → participates in
+cross-port equality with no carve-out. Rollout: protocompile re-vendors
+report.pb.go, then protocheck emits it in the wire conversion
+(dropping its documented lossy edge) and the fixture-07 golden gains
+the fields — tracked by follow-up issues cross-linked on GH #142.
+
 **Resolution — params provenance (2026-07-23, GH #134, PR #137):**
 Option (c): `Violation.params` is populated from exactly two sources —
 function-returned `Violation`s (§6.5, the implementation authors its

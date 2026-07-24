@@ -496,6 +496,12 @@ message EnrichedViolation {
   RuleKind rule_kind = 6;                 // RULE_KIND_{VALIDATE,REQUIRED,DEFAULT,TYPE_REFINEMENT}
   bool value_redacted = 7;                // @sensitive field: value withheld (§6.7)
   bool for_key = 8;                       // rule violated by the map key, not the entry's value
+  SourceRef source_ref = 9;               // §8.3.1 rule join key, when a source map resolved the rule
+}
+
+message SourceRef {
+  string file = 1;                        // SourceMap.file of the resolving map
+  string descriptor_path = 2;             // canonical §8.3.1 descriptor path
 }
 ```
 
@@ -522,6 +528,19 @@ alternative — appending a pseudo-segment for the entry's synthetic
 `key = 1` field — is rejected: the preceding subscripted segment already
 addresses the value, so `labels[k].key` would collide with a genuine
 `key` field on a message-typed map value.
+
+`source` and `source_ref` carry complementary provenance: `source` is a
+resolved position for display; `source_ref` is the rule's **identity** —
+the §8.3.1 join key `(SourceMap.file, descriptor_path)`, rendered by the
+single shared formatter, never hand-assembled. Engines MUST populate
+`source_ref` whenever the violated rule was resolved through an embedded
+source map (extension 50404) and MUST leave it unset otherwise.
+Consumers correlating a wire Report with lowered rules — an editor
+overlay mapping runtime violations onto source ranges, a registry
+joining reports to stored descriptors — join on `source_ref` rather than
+fuzzy-matching `source` positions. Both fields are deterministic from
+the descriptor, so they participate in cross-port report equality
+(goal 5) with no carve-out.
 
 A complete validation run produces a `Report` — the shape all 10 ports
 emit equivalently:
