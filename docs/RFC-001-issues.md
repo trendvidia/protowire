@@ -436,6 +436,22 @@ worked-example rules are inline expressions. Report equality keeps
 `params` with no carve-out; protocheck already synthesizes nothing
 (trendvidia/protocheck#34 gap 3).
 
+**Resolution — executable worked-example fixtures (2026-07-23, GH #135,
+PR #138):** `testdata/schema-extensions/07_report_golden/` ships the
+§5.3 schema (`myco/users/user.proto`, `myco/commons/types.proto` +
+`validator.proto`) and `instance.textproto` (email
+`alice@example.org`, phone absent, country `DE`) — the exact inputs the
+report golden was computed from. CompanyEmail keeps the literal inline
+`ends_with` rule (§6.3 style) with use-site code/message overrides;
+`matches`/`ends_with` are engine builtins, so all golden violations
+carry empty `params` per the #134 provenance rule. Conformance stubs
+pinned in the fixture README: `same_domain` and `valid_phone` register
+always-pass (§6.5 — bodies are engine-runtime concerns; the golden
+exercises plumbing). Golden `source` lines synced to the committed
+`user.proto` (32/36/38, col 3). Documented deltas from prose: qualified
+commons type references; `GetUserRequest` defined. Ports compile with
+protocompile ≥ 0.15 (trendvidia/protocheck#34 gap 2).
+
 ---
 
 ## #017 — protovalidate migration story
