@@ -3,10 +3,11 @@
 
 name: CodeQL
 
-# Static-analysis SAST for Go (the canonical CLI) and Kotlin (the
-# JetBrains plugin's startup activity / annotator). The protowire-java
-# parser jar bundled by the JetBrains plugin is owned by protowire-java;
-# CodeQL there is run in that repo, not here.
+# Static-analysis SAST for Go (the canonical CLI), Kotlin (the
+# JetBrains plugin's startup activity / annotator), and TypeScript (the
+# VS Code extension). The protowire-java parser jar bundled by the
+# JetBrains plugin is owned by protowire-java; CodeQL there is run in
+# that repo, not here.
 
 on:
   push:
@@ -29,7 +30,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [go, java-kotlin]
+        language: [go, java-kotlin, javascript-typescript]
     steps:
       - uses: actions/checkout@v7
 
