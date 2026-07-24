@@ -231,7 +231,7 @@ message User {
 
   string country = 3
     @default("US")
-    @validate(this in ["US", "CA", "GB"], code = "user.invalid_country");
+    @validate(this in ["US", "CA", "GB"], code = "user.invalid_country", message = "country not supported");
 }
 
 @description("user management operations")
