@@ -100,6 +100,24 @@ message EnrichedViolation {
   // key violation and a value violation on the same entry would serialize
   // to identical paths.
   bool for_key = 8;
+
+  // The violated rule's source-map join key (RFC-001 §8.3.1): the
+  // originating file plus the canonical descriptor path, exactly as the
+  // shared formatter renders it. Engines populate it whenever the rule
+  // resolved through an embedded source map (50404) and leave it unset
+  // otherwise. Wire consumers join violations back to lowered rules —
+  // and through the source map to editor ranges — by this key instead of
+  // fuzzy-matching `source` positions.
+  SourceRef source_ref = 9;
+}
+
+// The §8.3.1 rule identity: unique within a SourceMap; the cross-file
+// key is (file, descriptor_path).
+message SourceRef {
+  // SourceMap.file of the map that resolved the rule.
+  string file = 1;
+  // Canonical §8.3.1 grammar: elementPath [annotationAnchor [callAnchor]].
+  string descriptor_path = 2;
 }
 
 // Values are prefixed: descriptor.proto's EntryKind already claims
