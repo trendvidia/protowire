@@ -465,7 +465,28 @@ golden-equality run (trendvidia/protocheck#34), which vendored the
 fixture with exactly this delta — now droppable. Open follow-up: pin
 `"field is required"` as the normative `protowire.required` fallback
 message in §6.1/§7, or golden equality on that string rests on
-convention.
+convention. (Resolved: GH #151, PR #152, next record.)
+
+**Resolution — reserved-code fallback messages pinned (2026-07-24,
+GH #151, PR #152):** new §7 "Reserved-code fallback messages"
+paragraph — spec-defined violations have no schema author, so their
+`fallback_message` must come from the spec for cross-port equality
+(goal 5). Pinned: `protowire.required` → `field is required` (golden +
+protocheck already verbatim); `protowire.depth_exceeded` →
+`recursion depth limit exceeded` (static — limit travels in
+`params.limit`, §6.4); `protowire.function.unimplemented` →
+`<function>: not implemented`; `protowire.function.invalid_argument` →
+`<function>: expected <n> argument(s)` / `<function>: argument <i> is
+not <type>`. `<function>` = declared FQN; `<type>` = schema-declared
+parameter type (§6.5), never host-language — refined from the issue
+text after auditing protobuf-go's adapters (Go type names would break
+equality). Runtimes MUST expose strings/template helpers alongside the
+code constants. §9.3 reference shape reworked onto the helpers (old
+example used bare `is_e164` + ad-hoc `want …` wording). Pin-only for
+protowire alternatives rejected: required-only (leaves three codes to
+drift), equality carve-out (weakens goal 5, per #134). Port fan-out
+rides the pre-#147/#148 reserved-namespace rename pass in protocheck /
+protobuf-go.
 
 ---
 
