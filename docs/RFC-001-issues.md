@@ -971,7 +971,7 @@ form is dropped. Emission re-key + remaining entry kinds stay tracked in
 protocompile#66.
 
 **Resolution — EntryKind deprecation rejected (2026-07-24, GH #76, PR
-#TBD):** protowire#76 proposed deprecating/removing `FIELD_VALIDATE`,
+#160):** protowire#76 proposed deprecating/removing `FIELD_VALIDATE`,
 `MESSAGE_VALIDATE`, and `FUNCTION_CALL` on the grounds that emitting
 them would couple the compiler to one validator's annotation-name
 conventions. The concern was resolved by redefinition, not removal,
