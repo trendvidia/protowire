@@ -10,6 +10,10 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+## [1.4.0] – 2026-07-24
+
+Semantics-only minor on the v1.0 freeze line: two normative pins on validation-report semantics (RFC-001 §6.4 and §7, issues [#133](https://github.com/trendvidia/protowire/issues/133)/[#134](https://github.com/trendvidia/protowire/issues/134)) plus the executable §5.3 worked-example conformance fixtures ([#135](https://github.com/trendvidia/protowire/issues/135)). No grammar, descriptor, wire-format, or report-shape changes — `report.proto` is byte-compatible with v1.3.0 (comment-only edits) and PXF, `pb`, SBE, and envelope outputs are byte-identical for every schema and document. The bump exists because the cross-port conformance surface tightened: engines claiming v1.4 conformance emit `RULE_KIND_DEFAULT` on substituted-default failures and empty `params` on inline-expression violations. See [`STABILITY.md`](STABILITY.md) for the compatibility contract.
+
 ### Added
 
 - **Executable §5.3 worked-example fixtures.** The `07_report_golden.textproto` report golden was keyed to the RFC-001 §5.3 worked example (`myco.users.User`), but the schema existed only as RFC prose — no engine could execute the golden without reconstructing it, and per-port reconstructions would drift (issue [#135](https://github.com/trendvidia/protowire/issues/135)). New `testdata/schema-extensions/07_report_golden/` ships the schema (`myco/users/user.proto` + the `myco/commons` type library and declared functions) and `instance.textproto`, the invalid instance the golden was computed from; the golden's source locations now cite the committed files, and the fixture README pins the always-pass conformance stubs for the declared functions. Ports diff their emitted `Report` against the golden (trendvidia/protocheck#34).
