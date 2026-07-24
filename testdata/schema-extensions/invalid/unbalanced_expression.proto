@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Invalid fixture: unbalanced_expression.
+// MUST NOT compile (RFC-001 §5.1 engine expressions, capture step): an
+// annotation argument extends to the first `,` or `)` at zero delimiter
+// depth, with `()`, `[]`, `{}` required to balance. The rule below
+// opens a `[` that never closes, so the capture is unbalanced — a
+// compile error reported at the argument.
+
+syntax = "proto3";
+
+package fixtures.invalid.unbalanced;
+
+import "protowire/schema/v1/annotations.proto";
+
+message Account {
+  string country = 1
+    @validate(this in ["US", "CA", code = "account.bad_region");
+}

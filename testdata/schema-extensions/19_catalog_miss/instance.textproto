@@ -1,0 +1,9 @@
+# proto-file: 19_catalog_miss/profile.proto
+# proto-message: fixtures.catalog.Profile
+#
+# Both fields are set and both rules fail: one function-produced
+# violation (catalog hit in "de") and one inline violation (catalog
+# miss, falls back).
+
+username: "Bad!"
+display_name: "toolong!"

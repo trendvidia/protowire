@@ -1,0 +1,109 @@
+# proto-file: protowire/schema/v1/report.proto
+# proto-message: protowire.schema.v1.Report
+#
+# Golden validation report (RFC-001 §6.7, issue #90) for the @sensitive
+# redaction fixture.
+#
+#   schema:   16_sensitive_golden/credentials.proto
+#   instance: 16_sensitive_golden/instance.textproto
+#
+# engine and wall_time_nanos are excluded from cross-port equality and
+# omitted here. Violation order (§6.4): fields in declaration order,
+# nested-message descent at the field's position.
+#
+# Pins: every violation on a sensitive path — via the type alias
+# (api_key), the field annotation (password), and the message-level
+# annotation reached transitively (token.access) — has actual_value
+# UNSET and value_redacted = true, keeping redaction distinguishable
+# from three-state absence (§6.7 rule 2). The non-sensitive control
+# (username) carries its actual_value verbatim.
+
+message_type: "fixtures.sensitive.Credentials"
+violations: {
+  cause: {
+    code: "auth.key.length"
+    fallback_message: "API key must be 32 characters"
+  }
+  path: {
+    segments: {
+      field_name: "api_key"
+      field_number: 1
+    }
+  }
+  type_chain: "string"
+  type_chain: "fixtures.sensitive.ApiKey"
+  source: {
+    file: "16_sensitive_golden/credentials.proto"
+    line: 25
+    column: 3
+  }
+  rule_kind: RULE_KIND_TYPE_REFINEMENT
+  value_redacted: true
+}
+violations: {
+  cause: {
+    code: "auth.password.short"
+    fallback_message: "password too short"
+  }
+  path: {
+    segments: {
+      field_name: "password"
+      field_number: 2
+    }
+  }
+  type_chain: "string"
+  source: {
+    file: "16_sensitive_golden/credentials.proto"
+    line: 45
+    column: 5
+  }
+  rule_kind: RULE_KIND_VALIDATE
+  value_redacted: true
+}
+violations: {
+  cause: {
+    code: "auth.username.short"
+    fallback_message: "username too short"
+  }
+  path: {
+    segments: {
+      field_name: "username"
+      field_number: 3
+    }
+  }
+  type_chain: "string"
+  actual_value: {
+    string_value: "bob"
+  }
+  source: {
+    file: "16_sensitive_golden/credentials.proto"
+    line: 51
+    column: 5
+  }
+  rule_kind: RULE_KIND_VALIDATE
+}
+violations: {
+  cause: {
+    code: "auth.token.short"
+    fallback_message: "access token too short"
+  }
+  path: {
+    segments: {
+      field_name: "token"
+      field_number: 4
+    }
+    segments: {
+      field_name: "access"
+      field_number: 1
+    }
+  }
+  type_chain: "string"
+  source: {
+    file: "16_sensitive_golden/credentials.proto"
+    line: 34
+    column: 5
+  }
+  rule_kind: RULE_KIND_VALIDATE
+  value_redacted: true
+}
+mode: EXECUTION_MODE_COLLECT_ALL

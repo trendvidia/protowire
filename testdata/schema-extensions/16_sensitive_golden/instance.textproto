@@ -1,0 +1,13 @@
+# proto-file: 16_sensitive_golden/credentials.proto
+# proto-message: fixtures.sensitive.Credentials
+#
+# Invalid Credentials instance the sibling golden Report was computed
+# from. Every field is set and every rule fails; the three sensitive
+# paths must be redacted in the Report, the control field must not be.
+
+api_key: "short-key"
+password: "hunter2"
+token {
+  access: "abc"
+}
+username: "bob"

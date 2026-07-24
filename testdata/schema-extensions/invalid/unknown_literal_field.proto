@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Invalid fixture: unknown_literal_field.
+// MUST NOT compile (RFC-001 §5.1 literal rule 2): a message-literal
+// field initializer whose name does not resolve to a field of the
+// literal's type is a compile error. `Money` has `currency` and
+// `units`; `currencyy` is unknown.
+
+syntax = "proto3";
+
+package fixtures.invalid.litfield;
+
+import "protowire/schema/v1/annotations.proto";
+
+annotation sample(value: any);
+
+message Money {
+  string currency = 1;
+  int64 units = 2;
+}
+
+message Order {
+  string total = 1 @sample(Money{currencyy: "USD", units: 5});
+}

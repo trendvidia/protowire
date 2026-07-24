@@ -1,0 +1,34 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Fixture: 18_default_unsatisfiable_golden
+// Exercises: the unsatisfiable-rule error state — a @default value that
+// fails the field's own rules (§6.4 default substitution, issue #133).
+//
+// Expected behavior: see ../18_default_unsatisfiable_golden.textproto.
+// With `region` ABSENT, the default "ZZ" substitutes and the field's
+// rule runs against it and fails. The violation MUST carry
+// rule_kind: RULE_KIND_DEFAULT (superseding the VALIDATE kind the same
+// rule would carry for a producer-set value) and actual_value = the
+// substituted default — marking a schema-authoring error no producer
+// input can trigger. cause.params stays empty (inline rule, §7 params
+// provenance). Tooling MAY additionally reject such defaults at compile
+// time; a schema passing that check never yields RULE_KIND_DEFAULT at
+// runtime.
+
+syntax = "proto3";
+
+package fixtures.defaults;
+
+import "protowire/schema/v1/annotations.proto";
+
+message Listing {
+  string title = 1;
+
+  // The declared default itself fails the membership rule.
+  string region = 2
+    @default("ZZ")
+    @validate(this in ["US", "CA", "GB"],
+              code = "listing.region.invalid",
+              message = "region not supported");
+}

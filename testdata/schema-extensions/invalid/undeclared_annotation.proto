@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Invalid fixture: undeclared_annotation.
+// MUST NOT compile: an annotation use site must resolve to a visible
+// `annotation` declaration (same file or imported). `@no_such` resolves
+// to nothing.
+
+syntax = "proto3";
+
+package fixtures.invalid.undeclared;
+
+import "protowire/schema/v1/annotations.proto";
+
+message Account {
+  string country = 1 @no_such("US");
+}

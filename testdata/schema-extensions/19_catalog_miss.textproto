@@ -1,0 +1,70 @@
+# proto-file: protowire/schema/v1/report.proto
+# proto-message: protowire.schema.v1.Report
+#
+# Golden validation report (RFC-001 §7) for the locale-catalog-miss
+# fixture. The Report is LOCALE-INDEPENDENT — localization happens at
+# format time; the rendering golden is 19_catalog_miss/messages_de.txt.
+#
+#   schema:   19_catalog_miss/profile.proto
+#   instance: 19_catalog_miss/instance.textproto
+#   stub + catalog pins: header of 19_catalog_miss/profile.proto
+#
+# engine and wall_time_nanos are excluded from cross-port equality and
+# omitted here.
+#
+# Pins: params provenance (§7) — the function-produced violation
+# carries the params its pinned stub authored ({pattern}); the inline
+# rule's params are empty.
+
+message_type: "fixtures.catalog.Profile"
+violations: {
+  cause: {
+    code: "profile.username.format"
+    params: {
+      key: "pattern"
+      value: {
+        string_value: "^[a-z0-9_]{3,16}$"
+      }
+    }
+    fallback_message: "username format invalid"
+  }
+  path: {
+    segments: {
+      field_name: "username"
+      field_number: 1
+    }
+  }
+  type_chain: "string"
+  actual_value: {
+    string_value: "Bad!"
+  }
+  source: {
+    file: "19_catalog_miss/profile.proto"
+    line: 48
+    column: 5
+  }
+  rule_kind: RULE_KIND_VALIDATE
+}
+violations: {
+  cause: {
+    code: "profile.display_name.length"
+    fallback_message: "display name too long"
+  }
+  path: {
+    segments: {
+      field_name: "display_name"
+      field_number: 2
+    }
+  }
+  type_chain: "string"
+  actual_value: {
+    string_value: "toolong!"
+  }
+  source: {
+    file: "19_catalog_miss/profile.proto"
+    line: 53
+    column: 5
+  }
+  rule_kind: RULE_KIND_VALIDATE
+}
+mode: EXECUTION_MODE_COLLECT_ALL

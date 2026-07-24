@@ -1,0 +1,43 @@
+# proto-file: protowire/schema/v1/report.proto
+# proto-message: protowire.schema.v1.Report
+#
+# Golden validation report (RFC-001 §6.4, issue #133) for the
+# unsatisfiable-rule error state: the field is ABSENT, its @default
+# substitutes, and the field's own rule fails against the substituted
+# value — a schema-authoring error no producer input can trigger.
+#
+#   schema:   18_default_unsatisfiable_golden/listing.proto
+#   instance: 18_default_unsatisfiable_golden/instance.textproto
+#
+# engine and wall_time_nanos are excluded from cross-port equality and
+# omitted here.
+#
+# Pins: rule_kind RULE_KIND_DEFAULT (superseding the VALIDATE kind the
+# same rule carries for a producer-set value); actual_value = the
+# substituted default; cause.params empty (inline rule, §7 params
+# provenance); rule origin recoverable from cause.code.
+
+message_type: "fixtures.defaults.Listing"
+violations: {
+  cause: {
+    code: "listing.region.invalid"
+    fallback_message: "region not supported"
+  }
+  path: {
+    segments: {
+      field_name: "region"
+      field_number: 2
+    }
+  }
+  type_chain: "string"
+  actual_value: {
+    string_value: "ZZ"
+  }
+  source: {
+    file: "18_default_unsatisfiable_golden/listing.proto"
+    line: 31
+    column: 5
+  }
+  rule_kind: RULE_KIND_DEFAULT
+}
+mode: EXECUTION_MODE_COLLECT_ALL

@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Invalid fixture: map_field_in_literal.
+// MUST NOT compile (RFC-001 §5.1 literal rule 3): map fields are not
+// supported in v1.2 message literals (deferred); initializing one is a
+// compile error regardless of the value's spelling.
+
+syntax = "proto3";
+
+package fixtures.invalid.maplit;
+
+import "protowire/schema/v1/annotations.proto";
+
+annotation sample(value: any);
+
+message Tagged {
+  map<string, string> labels = 1;
+}
+
+message Order {
+  string note = 1 @sample(Tagged{labels: ["a"]});
+}

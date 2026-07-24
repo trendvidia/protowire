@@ -1,0 +1,8 @@
+# proto-file: 18_default_unsatisfiable_golden/listing.proto
+# proto-message: fixtures.defaults.Listing
+#
+# `region` is deliberately ABSENT: the @default("ZZ") substitutes, the
+# membership rule evaluates against "ZZ" and fails with
+# RULE_KIND_DEFAULT (§6.4).
+
+title: "vintage lamp"

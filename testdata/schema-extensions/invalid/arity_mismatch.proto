@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Invalid fixture: arity_mismatch — the "invalid signature" error state.
+// MUST NOT compile (RFC-001 §8.1 expression lowering): the call to the
+// declared function `in_region` inside the expression argument has
+// arity 1, but the declaration takes 2 parameters. Call extraction is
+// REQUIRED and the linker verifies arity against the declaration; the
+// error is reported at the call's source span.
+
+syntax = "proto3";
+
+package fixtures.invalid.arity;
+
+import "protowire/schema/v1/annotations.proto";
+
+function in_region(value: string, regions: string);
+
+message Account {
+  string country = 1
+    @validate(in_region(this), code = "account.bad_region");
+}
