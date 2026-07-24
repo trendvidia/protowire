@@ -336,7 +336,7 @@ pre-send → `INTERNAL`; client-side receiver check → local error. gRPC
 reference mapping: `Report` in `google.rpc.Status.details` as `Any`.
 Stream-level invariants deferred (§13 row 12, GH #103).
 
-**Resolution (2026-07-24, GH #103, PR #TBD):** deferral re-affirmed.
+**Resolution (2026-07-24, GH #103, PR #159):** deferral re-affirmed.
 Stream-level invariants remain out of v1.2 — no design work, no spec
 commitment beyond the existing §13 row 12 pointer; the issue stays open
 with the `deferred` label (off the v1.2 board) and is revisited no
@@ -583,7 +583,7 @@ This fork diverges from upstream `buf/protocompile` once v1.2 grammar lands. Dec
 
 Outcome shapes how `protocompile`'s long-term maintenance is organized.
 
-**Resolution (2026-07-24, GH #69, PR #TBD):** **Stay forked** through
+**Resolution (2026-07-24, GH #69, PR #159):** **Stay forked** through
 stack stabilization. `trendvidia/protocompile` owns its divergence from
 upstream `buf/protocompile` while the RFC-001 stack (compiler → engine →
 codegen → ports) is still being validated end to end; no upstreaming
