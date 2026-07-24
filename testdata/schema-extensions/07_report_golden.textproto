@@ -20,7 +20,7 @@
 #   - RULE_KIND_TYPE_REFINEMENT with a 3-link type_chain (CompanyEmail)
 #   - RULE_KIND_REQUIRED with actual_value UNSET (three-state presence:
 #     absence is the violation, so there is no value to capture)
-#   - RULE_KIND_VALIDATE with a use-site code override
+#   - RULE_KIND_VALIDATE with use-site code and message overrides
 #
 # cause.params is empty on every violation: all three rules are inline
 # expressions, and params are populated only by function implementations

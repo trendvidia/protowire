@@ -10,7 +10,9 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
-## [1.4.0] – 2026-07-24
+### Fixed
+
+- **Worked-example fixture: `country` rule now authors its `fallback_message`.** The `07_report_golden.textproto` golden pins `fallback_message: "country not supported"` on the `user.invalid_country` violation, but the fixture schema authored the rule with only a `code` override — no engine could produce that string, since fallback-message synthesis for inline expressions is engine-specific and non-normative (issue [#140](https://github.com/trendvidia/protowire/issues/140), found by trendvidia/protocheck#34's golden-equality run). `07_report_golden/myco/users/user.proto` and the RFC-001 §5.3 prose now add `message = "country not supported"` at the use site, making the pinned string schema-authored. Golden and cited source lines unchanged; ports that vendored the fixture with this one-line delta can drop it.
 
 Semantics-only minor on the v1.0 freeze line: two normative pins on validation-report semantics (RFC-001 §6.4 and §7, issues [#133](https://github.com/trendvidia/protowire/issues/133)/[#134](https://github.com/trendvidia/protowire/issues/134)) plus the executable §5.3 worked-example conformance fixtures ([#135](https://github.com/trendvidia/protowire/issues/135)). No grammar, descriptor, wire-format, or report-shape changes — `report.proto` is byte-compatible with v1.3.0 (comment-only edits) and PXF, `pb`, SBE, and envelope outputs are byte-identical for every schema and document. The bump exists because the cross-port conformance surface tightened: engines claiming v1.4 conformance emit `RULE_KIND_DEFAULT` on substituted-default failures and empty `params` on inline-expression violations. See [`STABILITY.md`](STABILITY.md) for the compatibility contract.
 
