@@ -25,10 +25,10 @@ This is the umbrella tracking issue for [RFC-001 — Protowire Schema Extensions
 ### Spec (M0)
 - [x] #002 — Ratify RFC-001 — ratified 2026-07-16 (GH #56, PR #113)
 - [x] #003 — Draft IETF `draft-trendvidia-protowire-01` — document complete 2026-07-16 (GH #57, PR #114); Datatracker submission pending
-- [ ] #004 — Add `protowire/proto/schema/v1/annotations.proto`
-- [ ] #005 — Add `protowire/proto/schema/v1/descriptor.proto`
-- [ ] #006 — Update `STABILITY.md` for v1.2 additive surface
-- [ ] #007 — Add v1.2.0 `CHANGELOG.md` entry
+- [x] #004 — Add `protowire/proto/schema/v1/annotations.proto` — done (GH #54; round-trip verified 2026-07-17 against protocompile, GH #58)
+- [x] #005 — Add `protowire/proto/schema/v1/descriptor.proto` — done (GH #54; README layout listing added 2026-07-17, PR #115)
+- [x] #006 — Update `STABILITY.md` for v1.2 additive surface — done (GH #54; carriers renumbered to 50400–50499 by PR #78)
+- [x] #007 — Add v1.2.0 `CHANGELOG.md` entry — done (GH #54; v1.2.0 released 2026-07-20, PR #119)
 
 ### Open questions (resolved or deferred during M0)
 - [ ] #010 — Container-shaped type aliases (deferred to v1.3+)
@@ -38,9 +38,9 @@ This is the umbrella tracking issue for [RFC-001 — Protowire Schema Extensions
 - [x] #014 — Streaming RPC validation contract — resolved 2026-07-15 (GH #63, PR #98)
 - [x] #015 — `Literal` shape in `AnnotationArg` — resolved 2026-07-15 (GH #64, PR #99)
 - [x] #016 — Validation report wire shape — resolved 2026-07-15 (GH #65, PR #94)
-- [ ] #017 — protovalidate migration story
+- [ ] #017 — protovalidate migration story — spec story open (GH #66); a protovalidate adapter already ships as a nested module in protowire-go v1.3.1 (protowire-go#49/PR#60)
 - [ ] #018 — Performance budget + benchmark suite
-- [ ] #019 — Conformance test fixtures
+- [ ] #019 — Conformance test fixtures — corpus expansion open (GH #68); §5.3 worked-example executable fixtures shipped 2026-07-23 (GH #135, PR #138)
 - [ ] #020 — Upstream `buf/protocompile` compatibility
 - [x] #021 — Secrets annotation story (`@sensitive`) — resolved 2026-07-16 (GH #90, PR #107)
 - [x] #022 — Engine-expression grammar scope (annotation-only v1.2) — resolved 2026-07-16 (GH #91, PR #109)
@@ -53,16 +53,16 @@ This is the umbrella tracking issue for [RFC-001 — Protowire Schema Extensions
 - [x] #033 — `protocompile`: option-interpretation hook for `@annot` → carrier — done (M1 direct emission in `fdp/annotations.go`; dual-emission box struck per #023)
 - [x] #034 — `protocompile`: descriptor lowering pass — done 2026-07-17 (M1 + finalized Literal carrier, protocompile#67/PR#70, #73/PR#77)
 - [x] #035 — `protocompile`: source-map emission — done 2026-07-17 (all entry kinds + canonical descriptor_path, protocompile#66/PR#72)
-- [ ] #040 — `protocheck`: engine SPI (Go interface)
-- [ ] #041 — `protocheck`: function registration + runtime-init verification
-- [ ] #042 — `protocheck`: validation execution (collect-all / fail-fast)
-- [ ] #043 — `protocheck`: catalog support + i18n
-- [ ] #050 — `protolsp`: extended grammar parsing
-- [ ] #051 — `protolsp`: source-map consumption + go-to-definition
-- [ ] #052 — `protolsp`: annotation-aware diagnostics
+- [x] #040 — `protocheck`: engine SPI (Go interface) — done 2026-07-23 (M4 v2 module: Engine/Function/Catalog/Report per §9.1, protocheck PR#22, v2.0.0)
+- [x] #041 — `protocheck`: function registration + runtime-init verification — done 2026-07-23 (§9.2, protocheck PR#23)
+- [x] #042 — `protocheck`: validation execution (collect-all / fail-fast) — done 2026-07-23 (WithFailFast PR#21, wire-aligned EnrichedViolation model PR#24, carrier-rule dispatch + source-map enrichment PR#26; per-element repeated/map dispatch PR#35 in v2.1.0)
+- [x] #043 — `protocheck`: catalog support + i18n — done 2026-07-23 (M6: NewMapCatalog/WithCatalog per §7, protocheck PR#28, v2.0.0)
+- [x] #050 — `protolsp`: extended grammar parsing — done 2026-07-16 (semantic tokens + malformed-construct pins, completion/navigation, protolsp#218 Phases A/B)
+- [x] #051 — `protolsp`: source-map consumption + go-to-definition — done 2026-07-17 (type/function navigation + descriptor fallback, protolsp#219 Phase C; opaque-fragment navigation protolsp#220)
+- [x] #052 — `protolsp`: annotation-aware diagnostics — done 2026-07-17 (M7, protolsp#220; completion parity protolsp#228, runtime-violation overlay protolsp#231)
 - [ ] #060 — `protobuf-go`: function-stub codegen plugin (Go)
 - [ ] #061 — `protobuf-go`: annotation-aware codegen
-- [ ] #070 — `protowire-go`: M5 runtime wiring through `protocheck`
+- [x] #070 — `protowire-go`: M5 runtime wiring through `protocheck` — done 2026-07-23 (Validator seam through pxf/pb/sbe decoders, protowire-go#49/PR#59; protocheck-side adapter protocheck PR#38; protovalidate adapter PR#60; shipped v1.3.1)
 - [ ] #080 — OpenAPI generator (M8) — separate tool consuming descriptors
 
 ### Per-port adoption (M9+)
@@ -213,8 +213,8 @@ Update `STABILITY.md` to document the v1.2 additive surface:
 - v1.2 schemas not back-compatible with v1.1 parsers; v1.1 schemas remain valid in v1.2 parsers
 
 **Acceptance criteria:**
-- [ ] Stability section added for "Schema language additions" mirroring the existing "Wire format" structure
-- [ ] Cross-link to RFC-001 and IETF draft `-01`
+- [x] Stability section added for "Schema language additions" mirroring the existing "Wire format" structure ("v1.2 — schema language additions" in `STABILITY.md`)
+- [x] Cross-link to RFC-001 and IETF draft `-01`
 
 ---
 
