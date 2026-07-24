@@ -10,6 +10,10 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+### Changed
+
+- **Reserved-code `fallback_message` strings pinned.** The four reserved `protowire.*` violation codes now carry spec-pinned fallback messages (RFC-001 §7, issue [#151](https://github.com/trendvidia/protowire/issues/151)): `protowire.required` → `field is required` (already pinned de facto by the report golden), `protowire.depth_exceeded` → `recursion depth limit exceeded`, and templates `<function>: not implemented` / `<function>: expected <n> argument(s)` / `<function>: argument <i> is not <type>` for the `protowire.function.*` pair, with `<function>` the declared function's FQN and `<type>` the schema-declared parameter type (never a host-language type name). Spec-defined violations have no schema author, so cross-port equality on their messages must come from the spec — the same argument that made #140's golden string schema-authored. Runtimes MUST expose the strings and template helpers alongside the existing code constants; ports' current emissions (bare declaration names, host-language type names) align in the reserved-namespace fan-out. Spec text and a `report.proto` comment only; no wire change.
+
 ### Fixed
 
 - **Worked-example fixture: `country` rule now authors its `fallback_message`.** The `07_report_golden.textproto` golden pins `fallback_message: "country not supported"` on the `user.invalid_country` violation, but the fixture schema authored the rule with only a `code` override — no engine could produce that string, since fallback-message synthesis for inline expressions is engine-specific and non-normative (issue [#140](https://github.com/trendvidia/protowire/issues/140), found by trendvidia/protocheck#34's golden-equality run). `07_report_golden/myco/users/user.proto` and the RFC-001 §5.3 prose now add `message = "country not supported"` at the use site, making the pinned string schema-authored. Golden and cited source lines unchanged; ports that vendored the fixture with this one-line delta can drop it.

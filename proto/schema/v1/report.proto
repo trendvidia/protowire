@@ -64,7 +64,9 @@ message Violation {
   // params (RFC-001 §7, params provenance).
   map<string, Value> params = 2;
 
-  // Engine-author default message, used on catalog miss.
+  // Engine-author default message, used on catalog miss. For the
+  // reserved protowire.* codes the string is spec-pinned, not
+  // engine-authored (RFC-001 §7, reserved-code fallback messages).
   string fallback_message = 3;
 }
 

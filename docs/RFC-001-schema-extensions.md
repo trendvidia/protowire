@@ -254,7 +254,7 @@ This RFC inherits protowire's three-state presence model verbatim:
 | **Null** | Validation skipped; null is explicit "no value." The field already opted into nullability via wrapper / `optional`. |
 | **Absent** | Validation skipped; if `@required`, absence itself is the error (prior layer). If `@default(value)`, the default substitutes and validation runs on the default. |
 
-This eliminates the proto3 zero-value ambiguity in the validation layer: validation runs only on values the producer meant to set. `@required` is the separate "must be present" lever, orthogonal from "if present, must match."
+This eliminates the proto3 zero-value ambiguity in the validation layer: validation runs only on values the producer meant to set. `@required` is the separate "must be present" lever, orthogonal from "if present, must match." Absence of a `@required` field reports `code: "protowire.required"` with the spec-pinned fallback message (§7).
 
 ### 6.2 Wrapper and well-known type handling
 
@@ -342,7 +342,8 @@ scalar-collection elements do not. The limit is
 `EngineConfig.max_recursion_depth` (§9.4); `0` means the **normative
 default of 64**. When a value at depth greater than the limit would need
 validating, the engine does **not** descend: it records one synthetic
-violation for the subtree — `code: "protowire.depth_exceeded"`, `path` at
+violation for the subtree — `code: "protowire.depth_exceeded"`, the
+spec-pinned fallback message (§7), `path` at
 the field where descent stopped, `params: {limit: <the effective limit>}`,
 `rule_kind: RULE_KIND_VALIDATE` — sets `Report.truncated = true` (§7), and
 continues with siblings in collect-all mode. The instance therefore fails
@@ -570,6 +571,31 @@ argument returns its own code. Runtimes MUST
 expose the reserved codes as typed constants in their host language,
 and spec-mandated codegen MUST reference those constants rather than
 string literals.
+
+**Reserved-code fallback messages.** A spec-defined violation has no
+schema author, so cross-port report equality (goal 5) on its
+`fallback_message` requires the string to come from the spec itself —
+the same argument that makes engine-synthesized messages for inline
+rules non-normative. Each reserved code therefore carries a
+spec-pinned `fallback_message`:
+
+| Code | `fallback_message` |
+|---|---|
+| `protowire.required` | `field is required` |
+| `protowire.depth_exceeded` | `recursion depth limit exceeded` |
+| `protowire.function.unimplemented` | `<function>: not implemented` |
+| `protowire.function.invalid_argument` | `<function>: expected <n> argument(s)` (arity guard) or `<function>: argument <i> is not <type>` (argument-type guard, §9.3) |
+
+The first two are static — the effective limit already travels in
+`params.limit` (§6.4); where a param carries the datum, the fallback
+string stays static. In the templates, `<function>` is the declared
+function's fully-qualified name, `<n>` and `<i>` are decimal integers
+(`<i>` zero-based), and `<type>` is the parameter type **as declared
+in the schema** (§6.5 signature types, e.g. `string`, `int64`, a
+message FQN) — never a host-language type name, which would break
+cross-port equality. Runtimes MUST expose the static strings (and
+template helpers for the `protowire.function.*` pair) alongside the
+code constants, and spec-mandated codegen MUST reference them.
 
 ## 8. Descriptor lowering
 
@@ -820,7 +846,7 @@ Functions referenced in the descriptor must be registered with the engine at sta
 Per-language codegen plugins emit, for each function declaration:
 
 1. An interface (`Functions`) with one method per declared function;
-2. A default struct (`UnimplementedFunctions`) returning `(false, "not implemented")` for every method;
+2. A default struct (`UnimplementedFunctions`) returning `(false, <the pinned protowire.function.unimplemented violation, §7>)` for every method;
 3. A registration helper (`RegisterFunctions(engine, impl)`) binding methods to FQNs.
 
 Users implement the interface (typically by embedding `UnimplementedFunctions` and overriding what they use) and call the helper at startup.
@@ -840,19 +866,20 @@ type Functions interface {
 
 type UnimplementedFunctions struct{}
 func (UnimplementedFunctions) IsE164(string) (bool, *Violation) {
-    return false, &Violation{Code: CodeFunctionUnimplemented, FallbackMessage: "is_e164: not implemented"}
+    return false, &Violation{Code: CodeFunctionUnimplemented,
+        FallbackMessage: MsgFunctionUnimplemented("myco.commons.is_e164")} // "myco.commons.is_e164: not implemented"
 }
 
 func RegisterFunctions(eng Engine, impl Functions) error {
     if err := eng.Register("myco.commons.is_e164", func(args []any) (bool, *Violation) {
         if len(args) != 1 {
             return false, &Violation{Code: CodeFunctionInvalidArgument,
-                FallbackMessage: "is_e164: want 1 argument"}
+                FallbackMessage: MsgFunctionArity("myco.commons.is_e164", 1)} // "myco.commons.is_e164: expected 1 argument(s)"
         }
         a0, ok := args[0].(string)
         if !ok {
             return false, &Violation{Code: CodeFunctionInvalidArgument,
-                FallbackMessage: "is_e164: argument 0: want string"}
+                FallbackMessage: MsgFunctionArgType("myco.commons.is_e164", 0, "string")} // "myco.commons.is_e164: argument 0 is not string"
         }
         return impl.IsE164(a0)
     }); err != nil {
