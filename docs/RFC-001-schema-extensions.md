@@ -555,14 +555,18 @@ provenance pinned, `params` participates in cross-port report equality
 
 Violation codes beginning with **`protowire.`** are reserved for
 spec-defined violations; user rules and function implementations MUST NOT
-mint codes in that namespace. This revision defines three:
+mint codes in that namespace. This revision defines four:
 `protowire.required` (a `@required` field is absent, §6.1),
-`protowire.depth_exceeded` (recursion depth limit reached, §6.4), and
+`protowire.depth_exceeded` (recursion depth limit reached, §6.4),
 `protowire.function.invalid_argument` (a generated registration
 adapter's arity or argument-type guard failed before the user's
-function implementation was invoked, §9.3). The third is minted by
-spec-mandated codegen, never by user code — a function implementation
-that wants to reject an argument returns its own code. Runtimes MUST
+function implementation was invoked, §9.3), and
+`protowire.function.unimplemented` (a declared function was invoked
+with no registered implementation: the §9.2 lenient placeholders and
+the §9.3 `UnimplementedFunctions` stubs). The `protowire.function.*`
+pair is minted by spec-mandated codegen and engine machinery, never
+by user code — a function implementation that wants to reject an
+argument returns its own code. Runtimes MUST
 expose the reserved codes as typed constants in their host language,
 and spec-mandated codegen MUST reference those constants rather than
 string literals.
@@ -809,7 +813,7 @@ A project selects one engine at validator-binary build time (CEL, Starlark, Go, 
 
 ### 9.2 Function registration model
 
-Functions referenced in the descriptor must be registered with the engine at startup. The engine walks the descriptor on init and verifies each FQN is present in its registry. Missing-impl default behavior is **lenient**: the engine starts with `Unimplemented` placeholders that fail at first call with a clear error. A `strict_validation=true` engine option turns missing impls into startup failures.
+Functions referenced in the descriptor must be registered with the engine at startup. The engine walks the descriptor on init and verifies each FQN is present in its registry. Missing-impl default behavior is **lenient**: the engine starts with `Unimplemented` placeholders that fail at first call with `protowire.function.unimplemented` (§7). A `strict_validation=true` engine option turns missing impls into startup failures.
 
 ### 9.3 Codegen contract
 
@@ -836,7 +840,7 @@ type Functions interface {
 
 type UnimplementedFunctions struct{}
 func (UnimplementedFunctions) IsE164(string) (bool, *Violation) {
-    return false, &Violation{Code: "unimplemented", FallbackMessage: "is_e164: not implemented"}
+    return false, &Violation{Code: CodeFunctionUnimplemented, FallbackMessage: "is_e164: not implemented"}
 }
 
 func RegisterFunctions(eng Engine, impl Functions) error {
