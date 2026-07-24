@@ -615,6 +615,40 @@ nothing is added to protocompile#69.
 
 ---
 
+## #024 — §9.3 codegen contract vs §9.1 SPI; documentation layer
+
+**Repo:** `protowire`
+**Milestone:** M0
+**Labels:** `spec`, `schema-extensions`
+
+Surfaced by the #060/#061 protobuf-go codegen work (protobuf-go PR#4)
+and protocompile#117 service/RPC decoration scoping: the §9.3
+reference `RegisterFunctions` shape did not compile against the
+ratified §9.1 `Register(fqn string, impl Function) error` SPI; the
+generated guard code `function.invalid_argument` sat in user
+codespace despite being minted by spec-mandated tooling; and the RFC
+was silent on whether lowering may inject `@description` into
+`SourceCodeInfo` comments.
+
+**Resolution (2026-07-24, GH #145, PR #147):** three pins. (1) §9.3
+reference shape amended to the error-returning adapter form matching
+the §9.1 SPI: generated arity/type guards wrap the typed `Functions`
+methods, `Register` errors propagate. (2) §7 reserves
+`protowire.function.invalid_argument` as the third spec-defined code,
+minted only by generated adapters; runtimes MUST expose reserved
+codes as typed host-language constants and spec-mandated codegen MUST
+reference them — `Violation.code` stays a wire string (open
+namespace, catalog keying, forward compat), so no proto enum.
+protobuf-go's shipped `function.invalid_argument` spelling rename is
+tracked downstream. (3) §8.5 gains the normative rule: `SourceCodeInfo`
+is authorial — lowering MUST NOT synthesize comments from annotations;
+annotation-aware codegen reading the 50400 carrier is the canonical
+— and only — documentation-emission layer, so stock plugins do not
+surface `@description` and ports wanting generated-code docs need an
+annotation-aware plugin.
+
+---
+
 ## #030 — `protocompile`: extended grammar parser
 
 **Repo:** `protocompile`
