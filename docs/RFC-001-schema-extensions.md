@@ -555,9 +555,17 @@ provenance pinned, `params` participates in cross-port report equality
 
 Violation codes beginning with **`protowire.`** are reserved for
 spec-defined violations; user rules and function implementations MUST NOT
-mint codes in that namespace. This revision defines two:
-`protowire.required` (a `@required` field is absent, §6.1) and
-`protowire.depth_exceeded` (recursion depth limit reached, §6.4).
+mint codes in that namespace. This revision defines three:
+`protowire.required` (a `@required` field is absent, §6.1),
+`protowire.depth_exceeded` (recursion depth limit reached, §6.4), and
+`protowire.function.invalid_argument` (a generated registration
+adapter's arity or argument-type guard failed before the user's
+function implementation was invoked, §9.3). The third is minted by
+spec-mandated codegen, never by user code — a function implementation
+that wants to reject an argument returns its own code. Runtimes MUST
+expose the reserved codes as typed constants in their host language,
+and spec-mandated codegen MUST reference those constants rather than
+string literals.
 
 ## 8. Descriptor lowering
 
@@ -766,6 +774,20 @@ runtimes upgrade **before** schemas migrate. Both forms of the same
 semantic MAY coexist on one field during migration; compilers MAY warn
 when the two carry conflicting values, but MUST NOT reconcile them.
 
+**`SourceCodeInfo` is authorial — no synthesized comments.** The
+lowering pass MUST NOT inject annotation-derived text (for example
+`@description`) into `SourceCodeInfo` leading or trailing comments,
+nor otherwise synthesize `SourceCodeInfo` entries: `SourceCodeInfo`
+carries exactly what the user wrote. Annotation-derived documentation
+is surfaced by annotation-aware codegen reading the `50400` carrier
+(the §9.3 plugins and per-port equivalents), which is the canonical
+— and only — layer for documentation emission. The consequence is
+deliberate: stock plugins and documentation generators that render
+only `SourceCodeInfo` comments do not surface `@description`; a port
+that wants annotation-derived documentation in generated code
+requires an annotation-aware plugin, not a compiler that rewrites
+the source record.
+
 ## 9. Engine integration
 
 ### 9.1 Engine SPI
@@ -799,7 +821,12 @@ Per-language codegen plugins emit, for each function declaration:
 
 Users implement the interface (typically by embedding `UnimplementedFunctions` and overriding what they use) and call the helper at startup.
 
-This mirrors the gRPC server-stub pattern. Reference Go shape:
+This mirrors the gRPC server-stub pattern. The helper adapts each
+typed method to the untyped §9.1 `Function` signature: generated
+guards check arity and argument types before invoking the
+implementation, emitting `protowire.function.invalid_argument` (§7,
+via the runtime's typed constant) on mismatch, and `Register` errors
+are propagated. Reference Go shape:
 
 ```go
 type Functions interface {
@@ -812,9 +839,23 @@ func (UnimplementedFunctions) IsE164(string) (bool, *Violation) {
     return false, &Violation{Code: "unimplemented", FallbackMessage: "is_e164: not implemented"}
 }
 
-func RegisterFunctions(eng Engine, impl Functions) {
-    eng.Register("myco.commons.is_e164", impl.IsE164)
-    eng.Register("myco.commons.matches", impl.Matches)
+func RegisterFunctions(eng Engine, impl Functions) error {
+    if err := eng.Register("myco.commons.is_e164", func(args []any) (bool, *Violation) {
+        if len(args) != 1 {
+            return false, &Violation{Code: CodeFunctionInvalidArgument,
+                FallbackMessage: "is_e164: want 1 argument"}
+        }
+        a0, ok := args[0].(string)
+        if !ok {
+            return false, &Violation{Code: CodeFunctionInvalidArgument,
+                FallbackMessage: "is_e164: argument 0: want string"}
+        }
+        return impl.IsE164(a0)
+    }); err != nil {
+        return err
+    }
+    // matches: same adapter shape
+    return nil
 }
 ```
 
