@@ -32,6 +32,10 @@ testdata/schema-extensions/
 ├── 06_cross_file_lib.proto                  — library imported by 06_cross_file_main.proto
 ├── 06_cross_file_main.proto                 — uses types/functions from 06_cross_file_lib
 ├── 07_report_golden.textproto               — golden validation Report (§7 wire shape)
+├── 07_report_golden/                        — executable §5.3 worked-example schema + instance (issue #135)
+│   ├── instance.textproto                   — the invalid User instance the golden Report was computed from
+│   ├── myco/users/user.proto                — the §5.3 User message (v1.2 grammar)
+│   └── myco/commons/…                       — types.proto (Email/CompanyEmail/PhoneNumber) + validator.proto (declared functions)
 ├── 08_engine_config.textproto               — golden EngineConfig (§9.4 project config)
 ├── 09_wkt_refinements.proto                 — WKT-based type aliases (§6.2 binding rules)
 ├── 10_literal_args.proto                    — enum-ref, message-literal + list-literal args (§5.1/§8.1)
@@ -55,6 +59,7 @@ diffs every port's output against these expectations.
 | `05_error_overrides.proto` | `code` and `message` args on `@validate`; `[error_code = "..."]` on `function` |
 | `06_cross_file_*.proto` | Import + cross-file resolution of types and functions |
 | `07_report_golden.textproto` | `Report` / `EnrichedViolation` runtime wire shape (RFC-001 §7); all three `RuleKind`s, params provenance (inline rules ⇒ empty `params`), absent `actual_value` |
+| `07_report_golden/` | Executable form of the §5.3 worked example (issue #135): the schema (`myco/users/user.proto` + `myco/commons` imports) and the invalid instance the golden was computed from — engines validate `instance.textproto` and diff against the golden |
 | `08_engine_config.textproto` | `EngineConfig` project configuration (RFC-001 §9.4); every field, discovery/precedence rules in prose |
 | `09_wkt_refinements.proto` | `type` aliases on `Timestamp`/`Duration` (engine-native binding) and `Any` (`type_url` refinement, no auto-unpack) per §6.2 |
 | `10_literal_args.proto` | Enum-value reference and homogeneous list literal as annotation arguments on `any`-typed params (§8.1) |
@@ -68,7 +73,24 @@ goldens, not v1.2 schema sources:
   ([`proto/schema/v1/report.proto`](../../proto/schema/v1/report.proto)).
   Target for M4 engine work (issues #040–#043): a conformant engine
   validating the §5.3 worked-example instance emits a semantically equal
-  report.
+  report. The worked example is executable: compile
+  `07_report_golden/myco/users/user.proto` (import roots:
+  `07_report_golden/` for the `myco/…` imports, plus a root mapping
+  `protowire/` to the repo's [`proto/`](../../proto) for
+  `annotations.proto`), validate `07_report_golden/instance.textproto`,
+  and diff the emitted Report against the golden (violation order per
+  §6.4; `wall_time_nanos` and `engine` excluded).
+
+  **Pinned conformance stubs.** Function bodies are engine-runtime
+  concerns (§6.5), so cross-port determinism requires pinning the
+  implementations a conformance run registers for the worked example's
+  declared functions. Both are always-pass stubs — the golden exercises
+  declaration, registration, and enrichment plumbing, not stub logic:
+
+  | Function | Registered stub |
+  |---|---|
+  | `myco.users.same_domain(User)` | always `(true, nil)` — the message-level rule passes, contributing no violation |
+  | `myco.commons.valid_phone(string)` | always `(true, nil)` — never invoked for the golden instance (`phone` is absent), but runtime-init verification requires every declared function to be registered |
 - `08_engine_config.textproto` — text-format
   `protowire.schema.config.v1.EngineConfig`
   ([`proto/schema/config/v1/config.proto`](../../proto/schema/config/v1/config.proto)),

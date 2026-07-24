@@ -10,6 +10,10 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+### Added
+
+- **Executable §5.3 worked-example fixtures.** The `07_report_golden.textproto` report golden was keyed to the RFC-001 §5.3 worked example (`myco.users.User`), but the schema existed only as RFC prose — no engine could execute the golden without reconstructing it, and per-port reconstructions would drift (issue [#135](https://github.com/trendvidia/protowire/issues/135)). New `testdata/schema-extensions/07_report_golden/` ships the schema (`myco/users/user.proto` + the `myco/commons` type library and declared functions) and `instance.textproto`, the invalid instance the golden was computed from; the golden's source locations now cite the committed files, and the fixture README pins the always-pass conformance stubs for the declared functions. Ports diff their emitted `Report` against the golden (trendvidia/protocheck#34).
+
 ### Changed
 
 - **`RULE_KIND_DEFAULT` semantics pinned.** A rule evaluated against a `@default`-substituted value (RFC-001 §6.1 absent-with-default) reports its violations with `rule_kind: RULE_KIND_DEFAULT`, superseding the `VALIDATE`/`TYPE_REFINEMENT` kind the same rule would carry for a producer-set value; `actual_value` carries the substituted default (RFC-001 §6.4, issue [#133](https://github.com/trendvidia/protowire/issues/133)). The distinct kind marks a schema-authoring error — the declared default fails the field's own rules — not an instance error. Spec text and proto comments only; no wire change.
