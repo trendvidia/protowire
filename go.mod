@@ -6,7 +6,7 @@ require (
 	github.com/bufbuild/protocompile v0.14.1
 	github.com/itchyny/gojq v0.12.19
 	github.com/spf13/cobra v1.10.2
-	github.com/trendvidia/protocheck/v2 v2.1.0
+	github.com/trendvidia/protocheck/v2 v2.2.0
 	github.com/trendvidia/protocompile v0.19.0
 	github.com/trendvidia/protoregistry v0.72.0
 	github.com/trendvidia/protowire-go v1.3.1
@@ -40,4 +40,4 @@ require (
 // The fork carries the RFC-001 §9.3 function-stub codegen in
 // cmd/protoc-gen-go (trendvidia/protobuf-go#4), exercised end to end by
 // internal/schemaext.
-replace google.golang.org/protobuf => github.com/trendvidia/protobuf-go v1.36.13
+replace google.golang.org/protobuf => github.com/trendvidia/protobuf-go v1.36.14
