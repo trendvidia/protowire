@@ -13,6 +13,7 @@ loosely; the project follows [SemVer](https://semver.org/) per
 ### Changed
 
 - **`RULE_KIND_DEFAULT` semantics pinned.** A rule evaluated against a `@default`-substituted value (RFC-001 §6.1 absent-with-default) reports its violations with `rule_kind: RULE_KIND_DEFAULT`, superseding the `VALIDATE`/`TYPE_REFINEMENT` kind the same rule would carry for a producer-set value; `actual_value` carries the substituted default (RFC-001 §6.4, issue [#133](https://github.com/trendvidia/protowire/issues/133)). The distinct kind marks a schema-authoring error — the declared default fails the field's own rules — not an instance error. Spec text and proto comments only; no wire change.
+- **`Violation.params` provenance pinned.** `params` is populated from exactly two sources — function-returned `Violation`s (RFC-001 §6.5) and spec-defined synthetic violations (`protowire.depth_exceeded`); engines MUST leave `params` empty on violations from inline expression rules (RFC-001 §7, issue [#134](https://github.com/trendvidia/protowire/issues/134)). Engine-synthesized params from expression pattern-matching are ruled out — expressions are opaque engine source (§5.1) — so `params` participates in cross-port report equality with no carve-out. The `07_report_golden.textproto` fixture drops its two synthesized params blocks accordingly. Spec text, fixture, and proto comments only; no wire change.
 
 ## [1.3.0] – 2026-07-23
 

@@ -419,6 +419,23 @@ protocheck switches from emitting `VALIDATE`/`TYPE_REFINEMENT` on
 substituted defaults (trendvidia/protocheck#32/#34). Fixture-07 golden
 unchanged (its instance sets `country`; no substitution occurs).
 
+**Resolution — params provenance (2026-07-23, GH #134, PR #137):**
+Option (c): `Violation.params` is populated from exactly two sources —
+function-returned `Violation`s (§6.5, the implementation authors its
+params) and spec-defined synthetic violations
+(`protowire.depth_exceeded`'s `{limit}`). Engines MUST leave `params`
+empty on violations from inline expression rules. A normative
+operator→param table (option a) was rejected as contradicting §5.1
+expression opacity — unclosable over project-configurable engine
+languages; equality-carve-out discretionary params (option b) was
+rejected as weakening goal 5. Rules needing interpolable params declare
+a `function`. New RFC-001 §7 **Params provenance** paragraph; draft
+`-01` mirrored. Fixture-07 golden drops both engine-synthesized params
+blocks (`{suffix: "@acme.com"}`, `{allowed: [US, CA, GB]}`) — all three
+worked-example rules are inline expressions. Report equality keeps
+`params` with no carve-out; protocheck already synthesizes nothing
+(trendvidia/protocheck#34 gap 3).
+
 ---
 
 ## #017 — protovalidate migration story

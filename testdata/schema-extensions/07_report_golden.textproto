@@ -12,7 +12,11 @@
 #   - RULE_KIND_TYPE_REFINEMENT with a 3-link type_chain (CompanyEmail)
 #   - RULE_KIND_REQUIRED with actual_value UNSET (three-state presence:
 #     absence is the violation, so there is no value to capture)
-#   - RULE_KIND_VALIDATE with typed params and a use-site code override
+#   - RULE_KIND_VALIDATE with a use-site code override
+#
+# cause.params is empty on every violation: all three rules are inline
+# expressions, and params are populated only by function implementations
+# and spec-defined synthetic violations (§7, params provenance).
 
 message_type: "myco.users.User"
 mode: EXECUTION_MODE_COLLECT_ALL
@@ -25,10 +29,6 @@ wall_time_nanos: 41250
 violations {
   cause {
     code: "myco.commons.email.company_domain"
-    params {
-      key: "suffix"
-      value { string_value: "@acme.com" }
-    }
     fallback_message: "must be an @acme.com address"
   }
   path {
@@ -56,16 +56,6 @@ violations {
 violations {
   cause {
     code: "user.invalid_country"
-    params {
-      key: "allowed"
-      value {
-        list_value {
-          values { string_value: "US" }
-          values { string_value: "CA" }
-          values { string_value: "GB" }
-        }
-      }
-    }
     fallback_message: "country not supported"
   }
   path {

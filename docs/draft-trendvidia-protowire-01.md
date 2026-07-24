@@ -1557,7 +1557,18 @@ A Violation is a structured value with the following abstract shape:
 | `params` | map of string to any | Structured parameters relevant to the failure. |
 | `fallback_message` | string | A human-readable message used when no locale catalog entry matches `code`. |
 
-Functions emit Violations on failure. The engine MUST further enrich
+Functions emit Violations on failure. `params` is populated from
+exactly two sources: the Violation returned by a declared function
+({{function-declarations}}), whose implementation authors its params,
+and specification-defined synthetic Violations
+(`protowire.depth_exceeded` carries `limit`; see {{recursion-depth}}).
+For Violations produced by inline expression rules, engines MUST leave
+`params` empty: expressions are opaque engine source
+({{engine-expressions}}), and no mapping from expression shapes to
+parameter names is defined. A rule that requires structured parameters
+for catalog interpolation is declared as a function.
+
+The engine MUST further enrich
 each emitted Violation with at least the following context:
 
 | Field | Type | Description |
