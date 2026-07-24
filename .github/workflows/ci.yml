@@ -35,3 +35,26 @@ jobs:
 
       - name: go test
         run: go test -race ./...
+
+  # The RFC-001 §9.3 round-trip test (#144) lives in a nested test-only
+  # module so its heavyweight test-only deps (protocompile, protocheck)
+  # stay off the public protowire module graph. All of them are public —
+  # no credentials, no GOPRIVATE.
+  roundtrip:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: internal/schemaext
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: internal/schemaext/go.mod
+          cache-dependency-path: internal/schemaext/go.sum
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: go test
+        run: go test -race ./...
