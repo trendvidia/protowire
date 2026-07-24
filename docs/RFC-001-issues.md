@@ -488,6 +488,20 @@ drift), equality carve-out (weakens goal 5, per #134). Port fan-out
 rides the pre-#147/#148 reserved-namespace rename pass in protocheck /
 protobuf-go.
 
+**Resolution — map per-element covers the key dimension (2026-07-24,
+GH #141, PR #153):** §6.4's "per-element" for `map<K,V>` now explicitly
+covers both dimensions — entry values against the value type's rules,
+entry keys against the key type's rules (carried on the synthetic
+entry's `key` field by the §8 lowering); key violations set
+`EnrichedViolation.for_key` (§7, #125) with the map subscript
+addressing the entry as usual. Ratifies positions the machinery had
+already taken: `for_key` shipped in v1.3.0 specifically for key
+violations, and protocompile pins key-type alias rule preservation on
+the entry's key field (`TestTypeAliasFieldMapKeyStaysOnEntryField`).
+Keys-out-of-scope alternative rejected — it would orphan both. Raised
+by protocheck's per-key dispatch work (trendvidia/protocheck#37),
+which implements behind this ruling.
+
 ---
 
 ## #017 — protovalidate migration story
