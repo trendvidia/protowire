@@ -319,7 +319,7 @@ Per-field validation runs in source-order through the type chain (base → deriv
 
 `oneof` validates only the active variant.
 
-`repeated` and `map<K,V>` validate per-element (using the element's type rules) plus any field-level `@validate` against the collection as a whole.
+`repeated` and `map<K,V>` validate per-element (using the element's type rules) plus any field-level `@validate` against the collection as a whole. For `map<K,V>`, per-element covers **both dimensions**: entry values validate against the value type's rules, and entry keys against the key type's rules (carried on the synthetic entry's `key` field by the §8 lowering). Key violations set `EnrichedViolation.for_key` (§7), with the path's map subscript addressing the entry as usual.
 
 **Default substitution.** When an absent field carries `@default(value)`,
 the default substitutes and the field's rules run against the substituted
