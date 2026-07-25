@@ -45,8 +45,10 @@ func newRootCmd() *cobra.Command {
 		Short: "Protowire toolchain — PXF text format, schemas, and queries",
 		Long: "pxf is the unified CLI for the protowire stack. Subcommands cover\n" +
 			"the encode/decode/validate/fmt/lint surface for the PXF text format,\n" +
-			"plus a jq-style `query` subcommand and a `.proto`-emitting\n" +
-			"`infer-schema` subcommand for tabular inputs (CSV, PXF @dataset).",
+			"plus a jq-style `query` subcommand, a `.proto`-emitting\n" +
+			"`infer-schema` subcommand for tabular inputs (CSV, PXF @dataset),\n" +
+			"and a `build` subcommand compiling v1.2 (RFC-001) schema sources\n" +
+			"to a lowered FileDescriptorSet image for stock buf/protoc.",
 	}
 
 	pf := root.PersistentFlags()
