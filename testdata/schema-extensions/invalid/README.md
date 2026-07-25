@@ -18,6 +18,7 @@ NOT include this directory when compiling the positive corpus.
 | `positional_after_named.proto` | `positional-after-named` | Use-site arguments: named may follow positional; positional MUST NOT follow named (IETF draft `-01`, *Annotation Use Sites*). |
 | `heterogeneous_list.proto` | `heterogeneous-list` | List literals are homogeneous — all elements share one kind (RFC-001 §8.1). |
 | `unknown_literal_field.proto` | `unknown-literal-field` | A message-literal field initializer must name a field of the literal's type (RFC-001 §5.1 literal rule 2). |
+| `untyped_list_element.proto` | `untyped-list-element` | A message-literal list element under an `any`-typed parameter must carry an explicit type name — no declared type is implied for it to inherit (RFC-001 §5.1 literal rule 1, issue #176). |
 | `map_field_in_literal.proto` | `map-field-in-literal` | Map fields are not supported in v1.2 message literals (RFC-001 §5.1 literal rule 3, deferred). |
 | `container_alias.proto` | `container-alias` | `repeated` / `map<,>` are forbidden in `typeRef`; container-shaped alias targets are deferred (RFC-001 §5.1, §6.3). |
 | `unbalanced_expression.proto` | `unbalanced-capture` | Expression-argument capture requires `()`/`[]`/`{}` to balance at the argument boundary (RFC-001 §5.1, capture step). |

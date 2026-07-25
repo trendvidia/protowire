@@ -22,9 +22,7 @@ const fixtureDir = "../../testdata/schema-extensions"
 // yet reject to the upstream issue tracking the gap. Entries here are
 // asserted to still pass --check so a fork upgrade that closes the gap
 // flips the test and forces the entry's removal.
-var checkKnownGaps = map[string]string{
-	"reserved_sensitive_class.proto": "trendvidia/protocompile#123 (@sensitive reserved-prefix classes not rejected)",
-}
+var checkKnownGaps = map[string]string{}
 
 // runPxf drives a fresh command tree exactly like the shell would. The
 // PROTOWIRE_CONFIG tier is neutralized (empty means unset to the

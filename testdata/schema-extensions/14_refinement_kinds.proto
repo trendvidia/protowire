@@ -14,7 +14,7 @@
 //     (TypeDecl.base_type_fqn is normatively FULLY QUALIFIED — the
 //     descriptor.proto contract — for every non-primitive base,
 //     including in-package references written bare in source;
-//     reference-toolchain drift tracked in trendvidia/protocompile#121.)
+//     trendvidia/protocompile#121, fixed in v0.21.0.)
 //   - `DisplayName` (wrapper base): base_type_fqn
 //     "google.protobuf.StringValue"; `this` binds to the UNWRAPPED
 //     string when set (§6.2 rule 1); rules do not run when null.
