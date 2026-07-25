@@ -10,6 +10,10 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+### Added
+
+- **protovalidate migration story (RFC-001 Appendix C).** The last "TBD" from ratification — how `buf.validate`-using projects reach `@validate` — is resolved adapter-first (issue [#66](https://github.com/trendvidia/protowire/issues/66)): Phase 0 validates unchanged schemas at the protowire seam via `github.com/trendvidia/protocheck/protovalidate`; Phase 1 rewrites per-file (custom CEL rules carry over verbatim under the default `cel` engine; the appendix pins the mapping table, including the `required`-vs-`@required` presence delta); Phase 2 retires the `buf.validate` imports. The `--compat` compiler flag is rejected — `buf.validate` options are ordinary custom options that already round-trip opaquely (§8.5) — and no in-place rewriter ships (revisit on demand). One normative pin: protowire engines MUST NOT interpret `buf.validate` options, so mixed-form schemas during transition are well-defined — both validators may run at the same seam with reports disjoint by rule-ID namespace. Docs plus that single coexistence sentence; no grammar, wire, or report change.
+
 ### Changed
 
 - **Map per-element validation covers the key dimension.** §6.4 said `map<K,V>` validates "per-element" without saying whether *element* includes the entry **key** — while the machinery had already taken the position twice: `EnrichedViolation.for_key` (v1.3.0, [#125](https://github.com/trendvidia/protowire/issues/125)) exists specifically to express key violations, and protocompile deliberately preserves key-type alias rules on the synthetic entry's `key` field. One clarifying sentence now ratifies it (RFC-001 §6.4, issue [#141](https://github.com/trendvidia/protowire/issues/141)): entry values validate against the value type's rules, entry keys against the key type's rules, key violations set `for_key` with the map subscript addressing the entry as usual. Engines skipping key validation were silently non-conformant before; now it's explicit. Spec text only; no wire change.
