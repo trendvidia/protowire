@@ -998,7 +998,7 @@ Items deferred for separate resolution. Each becomes a tracked issue.
 | 5 | ~~Streaming RPC validation contract~~ **Resolved 2026-07-15** (issue #63): per-message validation, fail-closed stream termination, direction-asymmetric status mapping, see §6.6 | spec |
 | 6 | ~~`Literal` shape detail in `AnnotationArg` (enum names, message literals, lists)~~ **Resolved 2026-07-15** (issue #64): resolved `EnumLiteral`, `Any` message literals, homogeneous `ListLiteral` of `LiteralValue`, see §8.1 | spec |
 | 7 | ~~Validation report wire shape (`Report` carrying `EnrichedViolation`s)~~ **Resolved 2026-07-15** (issue #65): pinned in `proto/schema/v1/report.proto`, see §7 | spec |
-| 8 | Migration story for existing `protovalidate`-using projects | tooling |
+| 8 | ~~Migration story for existing `protovalidate`-using projects~~ **Resolved 2026-07-24** (issue #66): adapter-first migration, see Appendix C; no compiler compat mode, no in-place rewriter | tooling |
 | 9 | Performance budget + benchmark suite | per-port |
 | 10 | Conformance test fixtures in `protowire/testdata/schema-extensions/` | spec |
 | 11 | Upstream `buf/protocompile` compatibility (this codebase is a fork) | protocompile |
@@ -1026,7 +1026,7 @@ Items deferred for separate resolution. Each becomes a tracked issue.
 |---|---|---|
 | `[(pxf.required) = true]` | `@required` | Both forms valid; disjoint lowering (§8.5) — the annotation form is carrier-only, so legacy-option consumers see only the bracket |
 | `[(pxf.default) = "viewer"]` | `@default("viewer")` | Same; migrate consumers to the carrier before migrating schemas |
-| `[(buf.validate.field).cel = "..."]` | `@validate(<expression>)` | Conceptual equivalent; protovalidate-using projects migrate or use `--compat` mode (TBD) |
+| `[(buf.validate.field).cel = "..."]` | `@validate(<expression>)` | Conceptual equivalent; migration path in Appendix C — a `--compat` compiler mode was rejected (#66) |
 | n/a | `@description("...")` | Was prose comments; now structured |
 | n/a | `@example(value)` | New; doubles as test fixture |
 | n/a | `@error_code("...")` | New; structured error attribution |
@@ -1043,3 +1043,46 @@ Items deferred for separate resolution. Each becomes a tracked issue.
 | `protowire-java` | M9+ — per-port adoption schedule TBD |
 | `protowire-typescript` | M9+ |
 | `protowire-python` / `cpp` / `rust` / `csharp` / `kotlin` / `swift` / `dart` | M9+ |
+
+## Appendix C — Migrating from protovalidate
+
+Projects using `buf.validate` options migrate in three phases; each
+phase is independently shippable and per-file incremental. (Resolved
+2026-07-24, issue #66. The `--compat` compiler flag contemplated at
+ratification was rejected — `buf.validate` options are ordinary custom
+options in stock proto3, which protowire tooling already parses and
+round-trips opaquely per §8.5, so there is no parse-level
+incompatibility to bridge; compatibility during transition is a
+runtime concern and the Phase 0 adapter is that answer. An in-place
+rewriter (`pxf migrate-validate`) is not built: Phase 0 removes
+migration urgency, and the Phase 1 mapping below is mechanical enough
+that a rewriter can be added later without spec change if demand
+appears.)
+
+**Phase 0 — adapter, zero schema change.** Keep `buf.validate` schemas
+as-is and validate at the protowire seam via
+`github.com/trendvidia/protocheck/protovalidate`
+(`pxf.UnmarshalOptions{Validator: v}`). Violation rule IDs are
+namespaced `buf.validate.*`.
+
+**Phase 1 — per-file rewrite.** Under the default `cel` engine (§9.4),
+expressions carry over verbatim:
+
+| protovalidate form | protowire v1.2 form | Notes |
+|---|---|---|
+| `(buf.validate.field).cel = {id, message, expression}` | `@validate(<expression>, code = <id>, message = <message>)` | Same `this` binding: field value, wrapper unwrap, native temporals (§6.2). `id` must not use the reserved `protowire.` prefix (§7). |
+| `(buf.validate.message).cel` | leading `@validate` on the message | `this` binds to the message in both systems. |
+| `(buf.validate.field).required = true` | `@required` | **Semantic delta:** protovalidate rejects zero values on implicit-presence scalars; protowire `@required` checks *presence* only (§6.1) and null counts as present. Fields relying on zero-rejection need an explicit rule (e.g. `@validate(this != "")`) or explicit presence. |
+| Standard rules (`string.min_len`, `int32.gt`, …) | `@validate` with the equivalent stdlib expression; shared shapes become `type` aliases (`type NonEmptyString = string @validate(this.size() >= 1)`) | Type aliases (§6.3) are the idiomatic replacement for rule sets repeated across fields. |
+| `ignore` / zero-value knobs | none needed | protowire never evaluates rules on unset fields (§6.1); the knob's job disappears. |
+
+**Phase 2 — retire.** Drop `buf/validate/validate.proto` imports and
+the adapter dependency; the protocheck engine is the single validator.
+
+**Coexistence (normative).** protowire engines MUST NOT interpret
+`buf.validate` options; they are foreign custom options preserved
+opaquely (§8.5). During transition both validators MAY run at the same
+seam; a field carrying both forms is validated by both, and reports
+remain distinguishable by rule-ID namespace (`buf.validate.*` never
+collides with `protowire.*` or schema-authored codes). Migrate
+file-at-a-time rather than rule-at-a-time to avoid double-maintenance.
