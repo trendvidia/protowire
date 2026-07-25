@@ -38,7 +38,7 @@ testdata/schema-extensions/
 │   └── myco/commons/…                       — types.proto (Email/CompanyEmail/PhoneNumber) + validator.proto (declared functions)
 ├── 08_engine_config.textproto               — golden EngineConfig (§9.4 project config)
 ├── 09_wkt_refinements.proto                 — WKT-based type aliases (§6.2 binding rules)
-├── 10_literal_args.proto                    — enum-ref, message-literal + list-literal args (§5.1/§8.1)
+├── 10_literal_args.proto                    — enum-ref, message-literal + list-literal args, incl. message-literal list elements (§5.1/§8.1, issue #176)
 ├── 11_literal_carrier_golden.textproto      — golden lowered AnnotationList, all Literal kinds
 ├── 12_expression_args.proto                 — engine-expression args: capture edges + call extraction (§5.1/§8.1)
 ├── 13_declaration_shapes.proto              — every remaining declaration shape (issue #68)
