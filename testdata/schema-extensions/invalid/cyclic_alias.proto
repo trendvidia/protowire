@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Invalid fixture: cyclic_alias.
+// MUST NOT compile (RFC-001 §6.3): type-alias composition is a chain
+// over a value-shaped base kind — "base sets the data type; derived
+// only narrows" — so a cyclic alias never reaches a base and has no
+// data type at all. The aliases are deliberately UNREFERENCED: the
+// cycle must be diagnosed at the declaration site, not discovered
+// through a field that uses it (protowire#181,
+// trendvidia/protocompile#129/#130).
+
+syntax = "proto3";
+
+package fixtures.invalid.cyclicalias;
+
+import "protowire/schema/v1/annotations.proto";
+
+type Loop = Chain;
+type Chain = Loop;
+
+// A valid message, so the only diagnosable defect in the file is the
+// cycle itself — no field references either alias.
+message Account {
+  string name = 1;
+}

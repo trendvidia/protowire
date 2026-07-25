@@ -21,6 +21,7 @@ NOT include this directory when compiling the positive corpus.
 | `untyped_list_element.proto` | `untyped-list-element` | A message-literal list element under an `any`-typed parameter must carry an explicit type name — no declared type is implied for it to inherit (RFC-001 §5.1 literal rule 1, issue #176). |
 | `map_field_in_literal.proto` | `map-field-in-literal` | Map fields are not supported in v1.2 message literals (RFC-001 §5.1 literal rule 3, deferred). |
 | `container_alias.proto` | `container-alias` | `repeated` / `map<,>` are forbidden in `typeRef`; container-shaped alias targets are deferred (RFC-001 §5.1, §6.3). |
+| `cyclic_alias.proto` | `cyclic-alias` | Type-alias composition is a chain over a value-shaped base kind; a cyclic alias never reaches a base and has no data type. Diagnosed at the declaration site even when no field references the alias (RFC-001 §6.3, issue #181). |
 | `unbalanced_expression.proto` | `unbalanced-capture` | Expression-argument capture requires `()`/`[]`/`{}` to balance at the argument boundary (RFC-001 §5.1, capture step). |
 | `undeclared_annotation.proto` | `undeclared-annotation` | An annotation use site must resolve to a visible `annotation` declaration. |
 | `reserved_sensitive_class.proto` | `reserved-sensitive-class` | `@sensitive` class names beginning with `protowire.` are reserved for future spec-defined classes; compilers MUST reject them (RFC-001 §6.7 classification rule 1, issue #111). |
