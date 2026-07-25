@@ -170,6 +170,37 @@ func CompileSources(reg *Registry, opts CompileOptions) error {
 	return nil
 }
 
+// CompileBundledFiles compiles canonical schemas from the embedded
+// proto/ tree and returns their FileDescriptors.
+//
+// CompileSources folds its results into a flat message Registry, which
+// is what the value-oriented subcommands need. Callers that need
+// file-level descriptors — extensions, in particular, which a message
+// map cannot carry — use this instead: `pxf docs build` builds dynamic
+// extension types from schema/v1/descriptor.proto so it can read the
+// 50400-50404 carriers out of a lowered image.
+func CompileBundledFiles(files ...string) ([]protoreflect.FileDescriptor, error) {
+	accessor := func(filename string) (io.ReadCloser, error) {
+		data, err := protowire.BundledProto.ReadFile("proto/" + filename)
+		if err != nil {
+			return nil, err
+		}
+		return io.NopCloser(bytes.NewReader(data)), nil
+	}
+	comp := protocompile.Compiler{
+		Resolver: protocompile.WithStandardImports(&protocompile.SourceResolver{Accessor: accessor}),
+	}
+	result, err := comp.Compile(context.Background(), files...)
+	if err != nil {
+		return nil, fmt.Errorf("compile bundled schemas: %w", err)
+	}
+	out := make([]protoreflect.FileDescriptor, 0, len(result))
+	for _, f := range result {
+		out = append(out, f)
+	}
+	return out, nil
+}
+
 // MergeDescriptorBlob unmarshals a FileDescriptorSet and merges every
 // message it carries into reg. The label disambiguates error messages
 // when callers have multiple descriptor sources in flight (e.g.

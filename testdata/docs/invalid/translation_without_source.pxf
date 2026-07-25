@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 TrendVidia, LLC.
+#
+# Invalid: a translation whose source-locale topic is absent. The source
+# locale is the single origin of truth (§7 catalog pattern).
+@type protowire.docs.v1.TopicFile
+topics = [
+  {
+    key = "orphan.translation"
+    locale = "de"
+    title = "Verwaiste Übersetzung"
+    meta { audience = AUDIENCE_PUBLIC }
+    body { blocks = [{ paragraph { runs = [{ text = "Text." }] } }] }
+    review { state = REVIEW_STATE_DRAFT author = "a@example.com" }
+    translation {
+      source_digest = "0000000000000000000000000000000000000000000000000000000000000000"
+      translator = "a@example.com"
+    }
+  }
+]

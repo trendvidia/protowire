@@ -1,0 +1,45 @@
+{
+  "schema_version": 3,
+  "runtime_version": "0.4.0",
+  "widgets": [
+    {
+      "type": "Button",
+      "since": "0.1.0",
+      "doc": "Tappable button with a text label",
+      "bindable": false,
+      "props": [
+        { "name": "text", "kind": "string", "doc": "button label" },
+        { "name": "icon", "kind": "string", "doc": "leading icon name", "since": "0.3.0" },
+        { "name": "importance", "kind": "enum", "enum": ["low", "medium", "high"], "doc": "visual prominence" }
+      ],
+      "events": [
+        { "name": "onTapped", "doc": "fired when the button is tapped" }
+      ]
+    },
+    {
+      "type": "Label",
+      "since": "0.1.0",
+      "doc": "Static text",
+      "props": [
+        { "name": "text", "kind": "string", "doc": "displayed text" }
+      ]
+    },
+    {
+      "type": "Border",
+      "since": "0.2.0",
+      "doc": "Five-slot border layout",
+      "structural": true,
+      "child_props": [
+        { "name": "position", "kind": "enum", "enum": ["top", "bottom", "left", "right", "center"], "doc": "slot this child fills" }
+      ]
+    }
+  ],
+  "common_props": [
+    { "name": "id", "kind": "string", "doc": "widget ID for ctx.* lookups" },
+    { "name": "type", "kind": "string", "doc": "widget type (PascalCase registry name)" }
+  ],
+  "action_funcs": [
+    { "name": "ctx.navigate", "since": "0.1.0" },
+    { "name": "ctx.set", "since": "0.1.0" }
+  ]
+}

@@ -1,6 +1,6 @@
 # `pxf` — the protowire toolchain
 
-`pxf` is the canonical CLI for the `protowire` stack. One binary covers every operation you can do against a PXF document or a `.proto` schema: encode and decode against protobuf binary, validate and pretty-print, lint schemas for reserved-name violations, run jq-style queries with input adapters for CSV / JSON / YAML, infer a `.proto` from a tabular sample, convert between SBE XML schemas and `.proto`, and compile v1.2 (RFC-001) schema sources to a lowered `FileDescriptorSet` image for stock buf/protoc.
+`pxf` is the canonical CLI for the `protowire` stack. One binary covers every operation you can do against a PXF document or a `.proto` schema: encode and decode against protobuf binary, validate and pretty-print, lint schemas for reserved-name violations, run jq-style queries with input adapters for CSV / JSON / YAML, infer a `.proto` from a tabular sample, convert between SBE XML schemas and `.proto`, compile v1.2 (RFC-001) schema sources to a lowered `FileDescriptorSet` image for stock buf/protoc, and compile documentation topics to a doc pack.
 
 The format is named PXF (Protowire eXpressive Format); the binary is named after the format because that's the artifact users interact with day-to-day. The deeper design rationale for the query subcommand lives in [`QUERY.md`](QUERY.md); this README is the user-facing reference for the binary itself.
 
@@ -10,8 +10,9 @@ pxf is the unified CLI for the protowire stack. Subcommands cover
 the encode/decode/validate/fmt/lint surface for the PXF text format,
 plus a jq-style `query` subcommand, a `.proto`-emitting
 `infer-schema` subcommand for tabular inputs (CSV, PXF @dataset),
-and a `build` subcommand compiling v1.2 (RFC-001) schema sources
-to a lowered FileDescriptorSet image for stock buf/protoc.
+a `build` subcommand compiling v1.2 (RFC-001) schema sources
+to a lowered FileDescriptorSet image for stock buf/protoc, and a
+`docs` subcommand compiling documentation topics to a doc pack.
 
 Usage:
   pxf [command]
@@ -20,6 +21,7 @@ Available Commands:
   build        Compile v1.2 schemas to a lowered FileDescriptorSet image
   completion   Generate the autocompletion script for the specified shell
   decode       Decode protobuf binary to PXF (stdout)
+  docs         Documentation tooling — the typed doc model and its compiler
   encode       Encode PXF to protobuf binary (stdout)
   fmt          Format a PXF document, canonicalizing keyed repeated fields
   help         Help about any command
@@ -55,6 +57,8 @@ Every published `protowire-*` language port ships the same binary as part of its
 | `sbe2proto <schema.xml>` | SBE XML | `.proto` source | no |
 | `proto2sbe` | `.proto` source via `-p` | SBE XML | no |
 | `build <roots-or-files>...` | v1.2 (RFC-001) schema sources | lowered `FileDescriptorSet` binary | no |
+| `docs build <roots-or-files>...` | PXF topic sources (+ image, registry export) | doc pack binary | no |
+| `docs digest <roots-or-files>...` | PXF topic sources | one content digest per topic | no |
 
 ## Schema resolution chain
 
@@ -232,6 +236,31 @@ pxf build --check ./schemas/...                          # CI gate, no output
 pxf build -o image.binpb --config ci/protowire.config.textproto ./schemas/...
 protoc --descriptor_set_in=image.binpb --cpp_out=gen $(FILES)   # stock protoc accepts the image
 ```
+
+### `pxf docs build <topic-root-or-file>...`
+
+Compiles PXF documentation topics (`@type protowire.docs.v1.TopicFile`) into a **doc pack** — the documentation analog of the lowered image: compiled topics, resolved anchors, redirects and an embedded full-text search index in one typed, byte-stable artifact. The model and the compiler contract are documented in [`docs/DOC-PACK.md`](../../docs/DOC-PACK.md).
+
+```bash
+pxf docs build -o docs.binpb --image image.binpb --registry registry.json ./topics/...
+```
+
+- Topic identity is `(key, locale)`, never the file path; directory arguments contribute every `.pxf` beneath them (a trailing `/...` is accepted and equivalent).
+- Anchors resolve against **data inputs only**: `--image` (the lowered schema image) for schema and descriptor-path anchors, `--registry` (the appviewer registry export, `.binpb` / `.pxf` / `.json`) for widget anchors. Either may be omitted when the corpus uses no anchors of that kind; an anchor with no input to resolve against is an error naming the flag it needs.
+- A **dangling anchor is a compile error**; a moved target is a redirect entry in the model. Descriptor paths are re-derived on every build and stamped with the image digest — never trusted from the source.
+- `--release` applies release policy: topics that are not `REVIEW_STATE_APPROVED`, approvals invalidated by a later edit, and topics that never chose an audience tier all become errors. The revisor gate is compiler policy, so no authoring tool can skip it.
+- `--stale-translations-fatal` escalates translation drift from warning to error.
+- Output is deterministic, and `--check` reports diagnostics without writing a pack. A build with errors emits no pack at all.
+
+```bash
+pxf docs build --check ./topics/...             # CI gate, no output
+pxf docs build --check --release ./topics/...   # the revisor gate
+pxf decode -p proto/docs/v1/pack.proto -m protowire.docs.v1.DocPack docs.binpb   # inspect a pack
+```
+
+### `pxf docs digest <topic-root-or-file>...`
+
+Prints the canonical content digest of each topic — `<digest>\t<key>\t<locale>\t<file>` — covering the title, summary and body a revisor reads. This is the value `review.approved_digest` and `translation.source_digest` record, so approving a topic or filing a translation means writing the digest printed here into the source; the authoring flow never reimplements the canonical encoding.
 
 ## Exit codes
 
