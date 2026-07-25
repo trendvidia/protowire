@@ -203,8 +203,21 @@ annotation example(value: any);
 annotation error_code(code: string);
 annotation deprecated(reason: string = "");
 annotation sensitive(class: string = "");
-annotation http(method: string, path: string);
+annotation http(
+  method: string,
+  path: string,
+  summary: string = "",
+  operation_id: string = "",
+  tags: any = [],
+  security: any = []
+);
 ```
+
+**`@http` and the operation surface.** `method` and `path` are the routing skeleton; the remaining parameters carry the operation metadata a REST-surface generator needs (issue #173). `path` may contain `{name}` template segments, each binding to the same-named **top-level** field of the request message; remaining request fields bind to the query string for bodyless methods and to the request body otherwise. `summary` falls back to the first sentence of `@description`; `operation_id` is derived as `<Service>_<Method>` when empty; `tags` and `security` take list literals of strings (§8.1 `Literal.list`), and the security-*scheme definitions* they name are generator configuration rather than schema content — the same §9.4 argument that keeps engine configuration out of file options and that rejected `@encrypted` (§6.7).
+
+Operation metadata carries **no validation semantics**. A port that renders no REST surface parses these arguments like any other annotation and interprets nothing; conformance requires carrying them through the §8.1 carrier, not acting on them. Responses are derived rather than authored — the success response from the method's return type, error responses from `@error_code` plus the §7 report model — so `@http` has no `responses` parameter (rationale: `docs/RFC-001-issues.md` §#080).
+
+Every parameter beyond `method` and `path` is defaulted, so the v1.2.0 two-argument form keeps its meaning and no existing schema changes shape. Conformance fixture: `testdata/schema-extensions/21_http_operation.proto`.
 
 The existing PXF annotations `(pxf.required)` and `(pxf.default)` retain their bracket forms and extension numbers (`50000`, `50001`): bracket-written options remain valid v1.2 input and lower identically to v1.1. `@required` and `@default(value)` are the canonical annotation form going forward, and they lower **exclusively** to the schema-extension carrier (§8.1) — the annotation forms never emit the legacy options (§8.5). A consumer that reads only `(pxf.required)`/`(pxf.default)` observes bracket-written options and nothing else; enforcing the annotation forms requires a carrier-aware (v1.2) consumer.
 
