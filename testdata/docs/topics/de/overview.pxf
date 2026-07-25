@@ -1,0 +1,93 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 TrendVidia, LLC.
+#
+# Fixture: locale variants (§7 catalog pattern — one entity per
+# (key, locale), no inheritance between locales).
+# Exercises: a current translation, and a stale one whose recorded
+# source digest no longer matches the source-locale topic.
+
+@type protowire.docs.v1.TopicFile
+
+topics = [
+  {
+    key = "guide.overview"
+    locale = "de"
+    title = "Dokumentation im Überblick"
+    summary = "Was ein Doc-Pack ist und welche Oberflächen es lesen."
+
+    meta {
+      audience = AUDIENCE_PUBLIC
+      tags = ["getting-started", "concepts"]
+      order = 10
+      since = "1.5.0"
+    }
+
+    body {
+      blocks = [
+        {
+          paragraph {
+            runs = [
+              { text = "Ein " }
+              { strong = "Doc-Pack" }
+              { text = " ist die kompilierte Form eines Themensatzes." }
+            ]
+          }
+        }
+      ]
+    }
+
+    review {
+      state = REVIEW_STATE_APPROVED
+      author = "uebersetzer@trendvidia.com"
+      revisor = "revisor@trendvidia.com"
+      approved_digest = "e18ef19bc86d869ebb1e4b1e1447780f48075e3cadfd02488be8ee6fb9fbc465"
+    }
+
+    # Matches guide.overview/en — a current translation.
+    translation {
+      source_digest = "9c108a85b001186e7e0fe291a9df3e708368fe00e9f62363bb3f1832e27fce3f"
+      translator = "uebersetzer@trendvidia.com"
+      translated_version = "1.5.0"
+    }
+  }
+
+  {
+    key = "guide.anchors"
+    locale = "de"
+    title = "Anker und Stabilität"
+    summary = "Wie Themen auf Schema-Elemente und Widgets zeigen."
+
+    meta {
+      audience = AUDIENCE_PUBLIC
+      tags = ["concepts"]
+      order = 20
+      parent = "guide.overview"
+      since = "1.5.0"
+    }
+
+    body {
+      blocks = [
+        {
+          paragraph {
+            runs = [{ text = "Jeder Anker wird beim Build aufgelöst." }]
+          }
+        }
+      ]
+    }
+
+    review {
+      state = REVIEW_STATE_APPROVED
+      author = "uebersetzer@trendvidia.com"
+      revisor = "revisor@trendvidia.com"
+      approved_digest = "a6df4f6836c5e31b22ace6da2629ad176061adb91839d15115eb124ab8f50574"
+    }
+
+    # Deliberately stale: this is the digest guide.anchors/en had before
+    # the stability table was added. The compiler must notice.
+    translation {
+      source_digest = "0000000000000000000000000000000000000000000000000000000000000000"
+      translator = "uebersetzer@trendvidia.com"
+      translated_version = "1.4.0"
+    }
+  }
+]

@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 TrendVidia, LLC.
+#
+# Invalid: a public topic anchors an internal one. Filtering at render
+# time would produce a link to a page the reader may not see — a broken
+# link and a leak about what exists.
+@type protowire.docs.v1.TopicFile
+topics = [
+  {
+    key = "leak.public"
+    locale = "en"
+    title = "Public topic"
+    meta { audience = AUDIENCE_PUBLIC }
+    anchors = [{ topic { key = "leak.internal" } }]
+    body { blocks = [{ paragraph { runs = [{ text = "Body." }] } }] }
+    review { state = REVIEW_STATE_DRAFT author = "a@example.com" }
+  }
+  {
+    key = "leak.internal"
+    locale = "en"
+    title = "Internal topic"
+    meta { audience = AUDIENCE_INTERNAL }
+    body { blocks = [{ paragraph { runs = [{ text = "Body." }] } }] }
+    review { state = REVIEW_STATE_DRAFT author = "a@example.com" }
+  }
+]

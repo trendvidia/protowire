@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 TrendVidia, LLC.
+#
+# Invalid: heading levels jump from 1 to 3. Heading structure is
+# navigation and accessibility, not styling.
+@type protowire.docs.v1.TopicFile
+topics = [
+  {
+    key = "bad.headings"
+    locale = "en"
+    title = "Skipped heading level"
+    meta { audience = AUDIENCE_PUBLIC }
+    body {
+      blocks = [
+        { heading { level = 1 runs = [{ text = "One" }] } }
+        { heading { level = 3 runs = [{ text = "Three" }] } }
+      ]
+    }
+    review { state = REVIEW_STATE_DRAFT author = "a@example.com" }
+  }
+]

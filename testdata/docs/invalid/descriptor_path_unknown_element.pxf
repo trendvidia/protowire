@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 TrendVidia, LLC.
+#
+# Invalid: a descriptor-path anchor whose carrier element is not in the
+# image at all — a renamed or removed target, as distinct from an
+# ordinal that has drifted (see descriptor_path_missing.pxf). The
+# diagnostics say which, because the fixes differ: a redirect versus a
+# re-derived ordinal.
+@type protowire.docs.v1.TopicFile
+topics = [
+  {
+    key = "bad.descriptor_element"
+    locale = "en"
+    title = "Descriptor path on an element the image does not have"
+    meta { audience = AUDIENCE_PUBLIC }
+    anchors = [
+      {
+        descriptor_path {
+          element_fqn = "fixtures.basic.User.nickname"
+          annotation_fqn = "protowire.schema.v1.validate"
+          ordinal = 0
+        }
+      }
+    ]
+    body { blocks = [{ paragraph { runs = [{ text = "Body." }] } }] }
+    review { state = REVIEW_STATE_DRAFT author = "a@example.com" }
+  }
+]

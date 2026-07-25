@@ -1,0 +1,194 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 TrendVidia, LLC.
+#
+# Fixture: the source-locale guide topics.
+# Exercises: prose blocks (paragraph, heading, list, admonition, code,
+# table), inline runs, in-pack links with fragments, topic anchors, the
+# parent/child navigation relation, and an approved review with a
+# matching content digest.
+
+@type protowire.docs.v1.TopicFile
+
+topics = [
+  {
+    key = "guide.overview"
+    locale = "en"
+    title = "Documentation overview"
+    summary = "What a doc pack is, and which surfaces read it."
+
+    meta {
+      audience = AUDIENCE_PUBLIC
+      tags = ["getting-started", "concepts"]
+      order = 10
+      since = "1.5.0"
+    }
+
+    anchors = [
+      { topic { key = "guide.anchors" } label = "Anchors" }
+    ]
+
+    body {
+      blocks = [
+        {
+          paragraph {
+            runs = [
+              { text = "A " }
+              { strong = "doc pack" }
+              { text = " is the compiled form of a topic set: topics, resolved anchors, redirects and a full-text index in one typed artifact." }
+            ]
+          }
+        }
+        {
+          heading {
+            level = 1
+            runs = [{ text = "Who reads it" }]
+          }
+        }
+        {
+          list {
+            ordered = false
+            items = [
+              {
+                blocks = [
+                  { paragraph { runs = [{ text = "The runtime help panel, from bundle data." }] } }
+                ]
+              }
+              {
+                blocks = [
+                  { paragraph { runs = [{ text = "The boundary renderers: static HTML and OpenAPI." }] } }
+                ]
+              }
+              {
+                blocks = [
+                  {
+                    paragraph {
+                      runs = [
+                        { text = "The authoring flow, which drives " }
+                        { link { text = "review states" topic = "guide.anchors" fragment = "stability" } }
+                        { text = "." }
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+        {
+          admonition {
+            kind = ADMONITION_KIND_NOTE
+            blocks = [
+              {
+                paragraph {
+                  runs = [
+                    { text = "Consumers read the pack and nothing else — they never re-resolve anchors." }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+        {
+          heading {
+            level = 1
+            runs = [{ text = "Building a pack" }]
+          }
+        }
+        {
+          code {
+            language = "sh"
+            source = "pxf docs build -o docs.binpb --image image.binpb ./topics/..."
+            caption = "The compiler invocation"
+          }
+        }
+      ]
+    }
+
+    review {
+      state = REVIEW_STATE_APPROVED
+      author = "author@trendvidia.com"
+      reviewers = ["revisor@trendvidia.com"]
+      revisor = "revisor@trendvidia.com"
+      approved_digest = "9c108a85b001186e7e0fe291a9df3e708368fe00e9f62363bb3f1832e27fce3f"
+      approved_version = "1.5.0"
+    }
+  }
+
+  {
+    key = "guide.anchors"
+    locale = "en"
+    title = "Anchors and stability"
+    summary = "How topics point at schema elements, widgets, routes and each other."
+
+    meta {
+      audience = AUDIENCE_PUBLIC
+      tags = ["concepts"]
+      order = 20
+      parent = "guide.overview"
+      since = "1.5.0"
+    }
+
+    body {
+      blocks = [
+        {
+          paragraph {
+            runs = [
+              { text = "Every anchor is resolved at build time. A dangling anchor is a compile error." }
+            ]
+          }
+        }
+        {
+          heading {
+            level = 1
+            id = "stability"
+            runs = [{ text = "Stability classes" }]
+          }
+        }
+        {
+          table {
+            caption = "Anchor kinds by stability"
+            header = [
+              {
+                cells = [
+                  { runs = [{ text = "Kind" }] }
+                  { runs = [{ text = "Stability" }] }
+                ]
+              }
+            ]
+            rows = [
+              {
+                cells = [
+                  { runs = [{ code = "schema" }] }
+                  { runs = [{ text = "stable by construction" }] }
+                ]
+              }
+              {
+                cells = [
+                  { runs = [{ code = "descriptor_path" }] }
+                  { runs = [{ text = "derived and fragile" }] }
+                ]
+              }
+            ]
+          }
+        }
+        {
+          paragraph {
+            runs = [
+              { text = "Descriptor paths are re-derived on every build; see " }
+              { link { text = "the overview" topic = "guide.overview" } }
+              { text = "." }
+            ]
+          }
+        }
+      ]
+    }
+
+    review {
+      state = REVIEW_STATE_APPROVED
+      author = "author@trendvidia.com"
+      revisor = "revisor@trendvidia.com"
+      approved_digest = "48e1c6ee0a70556e3e26cb9ee734bf70713e4a3d2a987551a8bbb0d2fd9e093d"
+      approved_version = "1.5.0"
+    }
+  }
+]

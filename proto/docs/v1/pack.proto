@@ -1,0 +1,320 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Protowire Documentation Platform — the compiled doc pack (issue #170).
+//
+// A doc pack is to documentation what the lowered FileDescriptorSet image
+// (#164) is to schemas: one typed interchange artifact, produced by
+// `pxf docs build`, consumed by everything downstream — appviewer's
+// bundle publish and runtime help/search (trendvidia/appviewer#364), the
+// goed authoring flow (trendvidia/goed#321), the static-HTML renderer
+// (#171), the OpenAPI generator (#173).
+//
+// Consumers read the pack and nothing else. They never re-resolve
+// anchors, never re-tokenize prose, and never re-derive descriptor
+// paths: everything a renderer needs was decided at build time, by the
+// compiler, against recorded provenance. That is the whole contract.
+//
+// Byte stability is an acceptance bar, not a nicety — the pack is cached,
+// diffed and shipped as bundle data. Every repeated field has a defined
+// order, marshaling is deterministic, and nothing in this file records a
+// build timestamp.
+
+syntax = "proto3";
+
+package protowire.docs.v1;
+
+import "docs/v1/topic.proto";
+
+// ── Pack ──────────────────────────────────────────────────────────────────
+
+// DocPack is the compiler's whole output.
+message DocPack {
+  PackProvenance provenance = 1;
+
+  // BCP 47 tag of the locale topics are authored in. Every other locale
+  // in this pack is a translation of it (§7 catalog pattern: one origin
+  // of truth, no inheritance between locales).
+  string source_locale = 2;
+
+  // Every locale present, source locale first, then the rest sorted.
+  repeated string locales = 3;
+
+  // Compiled topics, sorted by (key, locale).
+  repeated CompiledTopic topics = 4;
+
+  // Redirects, resolved to their terminus and sorted by canonical
+  // `from` id. A consumer resolving a stale anchor consults this list;
+  // it never needs to chain, because the compiler already did.
+  repeated CompiledRedirect redirects = 5;
+
+  // The embedded full-text index. Built here rather than by each
+  // consumer because indexing needs parsed content, and because a
+  // second implementation is a second set of results.
+  SearchIndex index = 6;
+}
+
+// CompiledTopic is one topic as shipped: the authored topic verbatim,
+// plus everything the compiler decided about it.
+message CompiledTopic {
+  // The authored topic, unchanged. Renderers read prose from here, so
+  // there is exactly one prose model in the system.
+  Topic topic = 1;
+
+  // Lowercase hex SHA-256 over the canonical encoding of the topic's
+  // title, summary and body (docs/DOC-PACK.md § Content digest). This is
+  // the value Review.approved_digest and Translation.source_digest are
+  // compared against.
+  string content_digest = 2;
+
+  // Every anchor of this topic, resolved: the topic-level anchors in
+  // authored order, then the anchors appearing in prose in document
+  // order.
+  repeated ResolvedAnchor anchors = 3;
+
+  // Whether this topic's translation still matches its source.
+  // TRANSLATION_STATUS_UNSPECIFIED for source-locale topics.
+  TranslationStatus translation_status = 4;
+
+  // Source path the topic was compiled from, relative to the build root.
+  // Diagnostics and the authoring layer's round trip need it; identity
+  // does not — that is (key, locale).
+  string source_file = 5;
+}
+
+enum TranslationStatus {
+  TRANSLATION_STATUS_UNSPECIFIED = 0;
+  TRANSLATION_STATUS_CURRENT = 1; // source digest matches
+  TRANSLATION_STATUS_STALE = 2;   // the source locale moved on
+}
+
+// ── Resolved anchors ──────────────────────────────────────────────────────
+
+// ResolvedAnchor is an authored anchor plus its resolution.
+//
+// The resolution is the compiler's answer, recorded once. A runtime
+// showing help for a widget looks up `resolved_id`; it does not know or
+// care that the anchor was authored against a name that has since been
+// redirected.
+message ResolvedAnchor {
+  // The anchor as written.
+  Anchor authored = 1;
+
+  // Where in the topic it was written.
+  AnchorOrigin origin = 2;
+
+  // Stability class, derived from the anchor kind — never authored.
+  AnchorStability stability = 3;
+
+  // Canonical identity of the resolved target, in a form consumers can
+  // compare and index:
+  //   schema          "myco.orders.Order.total"
+  //   descriptor path "myco.User.email[protowire.schema.v1.validate#1]"
+  //   widget          "Button", "Button#prop:text", "Button#event:onTapped"
+  //   route           "/settings/profile"
+  //   topic           "widgets.button.overview"
+  string resolved_id = 4;
+
+  // Canonical §8.3.1 descriptor path, populated only for
+  // ANCHOR_STABILITY_DERIVED anchors, and re-derived on every build
+  // against `image_digest` below. Never round-tripped from an authored
+  // value: the path grammar is a toolchain artifact, and a toolchain
+  // that re-keys it (trendvidia/protocompile v0.18.0, see
+  // trendvidia/protolsp#260) must invalidate these, not silently keep
+  // serving them.
+  string descriptor_path = 5;
+
+  // The image this derived path is valid against — the digest recorded
+  // in PackProvenance.image. Carried per-anchor so an extracted topic
+  // stays self-describing.
+  string image_digest = 6;
+
+  // When the anchor resolved through one or more redirects, the chain
+  // of canonical ids from the authored target to the final one,
+  // authored id first. Empty for a direct resolution.
+  repeated string redirect_chain = 7;
+
+  // The target's own since-version, when the input carries one: a
+  // widget catalog entry's `since`, a redirect's `since_version`. Empty
+  // when the input has nothing to say.
+  string target_since = 8;
+}
+
+enum AnchorOrigin {
+  ANCHOR_ORIGIN_UNSPECIFIED = 0;
+  ANCHOR_ORIGIN_TOPIC = 1;   // Topic.anchors
+  ANCHOR_ORIGIN_BODY = 2;    // an AnchorRef inline run
+  ANCHOR_ORIGIN_EXAMPLE = 3; // an ExampleBlock subject
+}
+
+// CompiledRedirect is a redirect resolved to its terminus.
+message CompiledRedirect {
+  // Canonical id of the retired target — the key consumers look up.
+  string from_id = 1;
+
+  // Canonical id of the final target, after chaining.
+  string to_id = 2;
+
+  // The full chain when more than one hop was involved, `from_id` first
+  // and `to_id` last. Empty for a single-hop redirect.
+  repeated string chain = 3;
+
+  string since_version = 4;
+  string note = 5;
+
+  // The anchors as authored, for renderers that want to show the move in
+  // typed terms rather than as canonical id strings.
+  Anchor from = 6;
+  Anchor to = 7;
+}
+
+// ── Provenance ────────────────────────────────────────────────────────────
+
+// PackProvenance records what this pack was built from. It is what makes
+// a fragile anchor honest: a consumer holding a pack whose image digest
+// no longer matches the image it has knows its derived paths are stale,
+// instead of resolving them against the wrong descriptors.
+message PackProvenance {
+  // Format version of the pack itself, not of its contents. Bumped when
+  // this file changes in a way consumers must notice.
+  uint32 format_version = 1;
+
+  // The tool that produced it, e.g. "pxf docs build", and its version.
+  string tool = 2;
+  string tool_version = 3;
+
+  // The lowered schema image anchors were resolved against.
+  ImageProvenance image = 4;
+
+  // The appviewer registry export widget anchors were resolved against.
+  CatalogProvenance catalog = 5;
+
+  // Every topic source that contributed, sorted by path.
+  repeated SourceFile sources = 6;
+
+  // True when built under release policy: unapproved topics refused,
+  // audience tiers required to be explicit. A consumer publishing a pack
+  // can check this rather than trusting the pipeline that handed it over.
+  bool release = 7;
+}
+
+message ImageProvenance {
+  // Path the image was read from, as given on the command line.
+  string path = 1;
+
+  // Lowercase hex SHA-256 of the image bytes.
+  string digest = 2;
+
+  // Number of files in the image — a cheap sanity signal for consumers
+  // comparing two packs.
+  uint32 file_count = 3;
+}
+
+message CatalogProvenance {
+  string path = 1;
+
+  // Lowercase hex SHA-256 of the catalog bytes as read, before any
+  // boundary conversion.
+  string digest = 2;
+
+  // The catalog format's own version (appviewer Catalog.schema_version).
+  uint32 schema_version = 3;
+
+  uint32 widget_count = 4;
+}
+
+message SourceFile {
+  string path = 1;   // relative to the build root
+  string digest = 2; // lowercase hex SHA-256 of the file bytes
+}
+
+// ── Search index ──────────────────────────────────────────────────────────
+
+// SearchIndex is a prebuilt inverted index over every compiled topic.
+//
+// It ships inside the pack because indexing needs parsed content, and
+// because the index must be consumable beyond appviewer — goed's help,
+// the static-HTML export's client-side search (#171), a docs-site
+// export. No search service is involved anywhere in that list: the index
+// is data, and it loads on fully static hosting.
+message SearchIndex {
+  Tokenization tokenization = 1;
+
+  // Indexed documents. `SearchOccurrence.document` indexes into this
+  // list, which is ordered exactly like DocPack.topics.
+  repeated IndexedDocument documents = 2;
+
+  // Postings, sorted by term. One entry per distinct term across every
+  // document and locale; locale is a property of the document, so a
+  // locale-filtered search intersects postings with the document set.
+  repeated TermPosting postings = 3;
+}
+
+// Tokenization records how the index was built, so a consumer can
+// tokenize a query the same way. A query tokenized differently from the
+// index is a search that quietly misses.
+message Tokenization {
+  // Algorithm identifier, e.g. "protowire.docs.v1.simple". Bumped when
+  // the tokenizer changes in a way that alters results.
+  string algorithm = 1;
+
+  // Whether terms were lowercased and Unicode-folded.
+  bool case_folded = 2;
+
+  // Minimum token length kept.
+  uint32 min_token_length = 3;
+
+  // Locales whose text was tokenized with the default word-splitting
+  // rules. A locale absent from this list was indexed with the same
+  // rules anyway; the field exists so a future locale-specific
+  // tokenizer can be introduced without guessing what old packs did.
+  repeated string locales = 4;
+}
+
+message IndexedDocument {
+  string topic_key = 1;
+  string locale = 2;
+  string title = 3;
+
+  // Visibility tier, copied from the topic so a search surface can
+  // filter results without loading every topic.
+  Audience audience = 4;
+
+  // Total number of indexed tokens — the denominator for any
+  // length-normalized ranking the consumer chooses to apply.
+  uint32 token_count = 5;
+}
+
+message TermPosting {
+  string term = 1;
+
+  // Occurrences, sorted by (document, field, first position).
+  repeated SearchOccurrence occurrences = 2;
+}
+
+message SearchOccurrence {
+  // Index into SearchIndex.documents.
+  uint32 document = 1;
+
+  // Which part of the document the term appeared in. Consumers weight
+  // fields; the index does not bake a ranking in, because a runtime help
+  // panel and a docs site rank differently and both are right.
+  FieldClass field = 2;
+
+  // Number of occurrences in this (document, field).
+  uint32 count = 3;
+
+  // Token positions within the field's token stream, ascending. Present
+  // so consumers can support phrase queries.
+  repeated uint32 positions = 4;
+}
+
+enum FieldClass {
+  FIELD_CLASS_UNSPECIFIED = 0;
+  FIELD_CLASS_TITLE = 1;
+  FIELD_CLASS_SUMMARY = 2;
+  FIELD_CLASS_HEADING = 3;
+  FIELD_CLASS_BODY = 4;
+  FIELD_CLASS_CODE = 5;
+  FIELD_CLASS_TAG = 6;
+}

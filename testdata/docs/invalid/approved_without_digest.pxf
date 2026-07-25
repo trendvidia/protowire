@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 TrendVidia, LLC.
+#
+# Invalid: approval with no digest. A bare APPROVED flag is a claim
+# nobody can check.
+@type protowire.docs.v1.TopicFile
+topics = [
+  {
+    key = "bad.approval"
+    locale = "en"
+    title = "Approved with no digest"
+    meta { audience = AUDIENCE_PUBLIC }
+    body { blocks = [{ paragraph { runs = [{ text = "Body." }] } }] }
+    review {
+      state = REVIEW_STATE_APPROVED
+      author = "a@example.com"
+      revisor = "r@example.com"
+    }
+  }
+]

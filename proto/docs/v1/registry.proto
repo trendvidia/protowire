@@ -1,0 +1,121 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Protowire Documentation Platform — typed mirror of the appviewer
+// registry export (issue #170; trendvidia/appviewer#33, ADR-0010 §4).
+//
+// `pxf docs build` resolves widget anchors against **data**: the runtime's
+// exported widget/property catalog. protowire consumes appviewer data,
+// never appviewer code — this file is the shape that data takes once it
+// is inside the pipeline.
+//
+// The appviewer runtime currently dumps its catalog as JSON
+// (`--dump-registry`, for non-Go consumers). JSON is an
+// integration-boundary format: `pxf docs build` converts it to this typed
+// form on read and everything downstream — anchor resolution, provenance,
+// diagnostics — sees only the typed model. When appviewer emits this
+// message natively, the boundary adapter drops out and nothing else
+// changes.
+//
+// Mirrors need not be feature-complete against their upstream: only the
+// facts anchor resolution needs are modeled — entry identity, membership,
+// and since-versions. Fields appviewer adds for its own purposes are not
+// errors here, they are simply not carried (precedents: #164, #66/Appendix C).
+
+syntax = "proto3";
+
+package protowire.docs.v1;
+
+// WidgetCatalog is one runtime's complete widget/property surface.
+message WidgetCatalog {
+  // The catalog format's own version, as reported by the producer
+  // (appviewer `Catalog.schema_version`). Recorded in the pack's
+  // provenance; the compiler does not interpret it beyond refusing a
+  // version it was not built to read.
+  uint32 schema_version = 1;
+
+  // Widget entries, sorted by type.
+  repeated WidgetSpec widgets = 2;
+
+  // Node-level attributes every widget accepts (the config loader
+  // handles them rather than any factory). A widget anchor naming one of
+  // these as a prop resolves against the widget it was written on.
+  repeated PropSpec common_props = 3;
+
+  // Action natives (`ctx.*`). Carried for provenance and for future
+  // anchor kinds; not resolvable as a widget anchor today.
+  repeated ActionFunc action_funcs = 4;
+
+  // The runtime version this catalog was exported from, when the
+  // producer reports one.
+  string runtime_version = 5;
+}
+
+// WidgetSpec is one widget type's catalog entry.
+message WidgetSpec {
+  // Registry type name, PascalCase, e.g. "Button". The anchor target.
+  string type = 1;
+
+  // Runtime version that introduced the type. Required by the producer;
+  // it is what makes the bundle compatibility contract (ADR-0011)
+  // checkable, and what lets a doc pack state which runtime a topic
+  // applies to.
+  string since = 2;
+
+  string doc = 3;
+
+  bool container = 4;  // children go into a fyne container
+  bool structural = 5; // the builder gives children special handling
+  bool bindable = 6;   // supports two-way `bind = "stateKey"`
+
+  repeated PropSpec props = 7;
+  repeated EventSpec events = 8;
+
+  // Attributes this widget's structural builder consumes on its direct
+  // children (Border's "position", Tabs' "text"). A prop anchor resolves
+  // against a widget's own props or its parent's child_props.
+  repeated PropSpec child_props = 9;
+}
+
+message PropSpec {
+  string name = 1;
+  PropKind kind = 2;
+  repeated string enum_values = 3; // for PROP_KIND_ENUM
+  string doc = 4;
+  string since = 5; // overrides the widget's since for later additions
+}
+
+message EventSpec {
+  string name = 1; // e.g. "onTapped"
+  string doc = 2;
+  string since = 3;
+  repeated EventArg args = 4; // positional, in dispatch order
+}
+
+message EventArg {
+  string name = 1;
+  PropKind kind = 2;
+  string doc = 3;
+}
+
+message ActionFunc {
+  string name = 1;
+  string since = 2;
+}
+
+// PropKind classifies a property's value domain. The vocabulary is the
+// producer's; unknown kinds map to PROP_KIND_UNSPECIFIED rather than
+// failing the build — a catalog from a newer runtime must still resolve
+// anchors for the entries this one understands.
+enum PropKind {
+  PROP_KIND_UNSPECIFIED = 0;
+  PROP_KIND_STRING = 1;
+  PROP_KIND_INT = 2;
+  PROP_KIND_FLOAT = 3;
+  PROP_KIND_BOOL = 4;
+  PROP_KIND_COLOR = 5; // hex color or theme color token
+  PROP_KIND_ENUM = 6;
+  PROP_KIND_LIST = 7;
+  PROP_KIND_STATE = 8; // state path
+  PROP_KIND_ANY = 9;
+}

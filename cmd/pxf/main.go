@@ -47,8 +47,9 @@ func newRootCmd() *cobra.Command {
 			"the encode/decode/validate/fmt/lint surface for the PXF text format,\n" +
 			"plus a jq-style `query` subcommand, a `.proto`-emitting\n" +
 			"`infer-schema` subcommand for tabular inputs (CSV, PXF @dataset),\n" +
-			"and a `build` subcommand compiling v1.2 (RFC-001) schema sources\n" +
-			"to a lowered FileDescriptorSet image for stock buf/protoc.",
+			"a `build` subcommand compiling v1.2 (RFC-001) schema sources\n" +
+			"to a lowered FileDescriptorSet image for stock buf/protoc, and a\n" +
+			"`docs` subcommand compiling documentation topics to a doc pack.",
 	}
 
 	pf := root.PersistentFlags()
@@ -61,7 +62,7 @@ func newRootCmd() *cobra.Command {
 	root.AddCommand(
 		encodeCmd(), decodeCmd(), validateCmd(), fmtCmd(), lintCmd(),
 		sbe2protoCmd(), proto2sbeCmd(),
-		queryCmd(), inferSchemaCmd(), buildCmd(),
+		queryCmd(), inferSchemaCmd(), buildCmd(), docsCmd(),
 	)
 	return root
 }

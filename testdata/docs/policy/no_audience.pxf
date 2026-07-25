@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 TrendVidia, LLC.
+#
+# Policy fixture: a topic that never chose an audience tier. Visibility
+# should be a decision, not a default: tolerated while drafting,
+# required at release.
+@type protowire.docs.v1.TopicFile
+topics = [
+  {
+    key = "policy.no_audience"
+    locale = "en"
+    title = "No audience tier"
+    summary = "Nobody decided who may read this."
+    body { blocks = [{ paragraph { runs = [{ text = "Body." }] } }] }
+    review {
+      state = REVIEW_STATE_APPROVED
+      author = "a@example.com"
+      revisor = "r@example.com"
+      approved_digest = "8051871c2daa458a524c31adc9f78f46ffb90607445899a725087f87d2174005"
+    }
+  }
+]
