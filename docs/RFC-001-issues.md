@@ -38,7 +38,7 @@ This is the umbrella tracking issue for [RFC-001 — Protowire Schema Extensions
 - [x] #014 — Streaming RPC validation contract — resolved 2026-07-15 (GH #63, PR #98)
 - [x] #015 — `Literal` shape in `AnnotationArg` — resolved 2026-07-15 (GH #64, PR #99)
 - [x] #016 — Validation report wire shape — resolved 2026-07-15 (GH #65, PR #94)
-- [ ] #017 — protovalidate migration story — spec story open (GH #66); a protovalidate adapter already ships as a nested module in protowire-go v1.3.1 (protowire-go#49/PR#60)
+- [x] #017 — protovalidate migration story — resolved 2026-07-24 (GH #66, PR #162): adapter-first via protocheck/protovalidate, RFC-001 Appendix C; `--compat` rejected, no rewriter
 - [ ] #018 — Performance budget + benchmark suite
 - [x] #019 — Conformance test fixtures — corpus expansion shipped 2026-07-24 (GH #68); §5.3 worked-example executable fixtures shipped 2026-07-23 (GH #135, PR #138)
 - [ ] #020 — Upstream `buf/protocompile` compatibility
@@ -534,6 +534,27 @@ Document how a project using `[(buf.validate.field).cel = "..."]` migrates to `@
 - Manual rewrite (acceptable for small projects)
 - `pxf migrate-validate` subcommand that transforms in-place
 - `--compat` flag in protocompile accepting both forms during transition
+
+**Resolution (2026-07-24, GH #66, PR #162):** Adapter-first, three
+phases, pinned as RFC-001 Appendix C. Phase 0: unchanged `buf.validate`
+schemas validate at the protowire seam via
+`github.com/trendvidia/protocheck/protovalidate` (canonical home per
+trendvidia/protocheck#54; the protowire-go nested module deprecated in
+trendvidia/protowire-go#61). Phase 1: per-file rewrite — custom CEL
+rules carry over verbatim under the default `cel` engine (§9.4);
+Appendix C's mapping table covers standard rules (→ stdlib expressions
+/ `type` aliases) and the `required`-vs-`@required` presence delta
+(§6.1). Phase 2: drop `buf/validate` imports and the adapter. Of the
+three scaffold options: manual rewrite is the supported path;
+`--compat` **rejected** — `buf.validate` options are ordinary custom
+options that already parse and round-trip opaquely (§8.5), so the
+compat problem is runtime-shaped and the adapter is the answer;
+`pxf migrate-validate` **not built** — Phase 0 removes urgency, revisit
+on demand (the mapping is mechanical; adding a rewriter later needs no
+spec change). One normative pin: protowire engines MUST NOT interpret
+`buf.validate` options, so mixed-form schemas during transition are
+well-defined — both validators may run at one seam, reports disjoint by
+rule-ID namespace. Docs + that sentence only; no wire change.
 
 ---
 
