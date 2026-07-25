@@ -63,7 +63,7 @@ This is the umbrella tracking issue for [RFC-001 — Protowire Schema Extensions
 - [x] #060 — `protobuf-go`: function-stub codegen plugin (Go) — done 2026-07-24 (§9.3 Functions/UnimplementedFunctions/RegisterFunctions onto a protocheck Engine; carriers decoded from unknown fields, protobuf-go#2/PR#4)
 - [x] #061 — `protobuf-go`: annotation-aware codegen — done 2026-07-24 (@description doc comments + @deprecated notices on enums/values/messages/fields/getters, function-level bracket options; example-as-test emission stays optional, protobuf-go#3/PR#4)
 - [x] #070 — `protowire-go`: M5 runtime wiring through `protocheck` — done 2026-07-23 (Validator seam through pxf/pb/sbe decoders, protowire-go#49/PR#59; protocheck-side adapter protocheck PR#38; protovalidate adapter PR#60; shipped v1.3.1)
-- [ ] #080 — OpenAPI generator (M8) — separate tool consuming descriptors
+- [ ] #080 — OpenAPI generator (M8) — landing site decided 2026-07-25: `pxf openapi` subcommand in this repo (GH #93); implementation not started
 
 ### Per-port adoption (M9+)
 - [ ] `protowire-java`
@@ -1375,14 +1375,38 @@ Wire `protocheck` into `protowire-go`'s decode path so that PXF / `pb` / SBE dec
 
 ---
 
-## #080 — OpenAPI generator (separate tool)
+## #080 — OpenAPI generator (`pxf openapi`)
 
-**Repo:** TBD (likely `pxfed` or new `protowire-openapi`)
+**Repo:** `protowire` (`cmd/pxf` — decided 2026-07-25, GH #93)
 **Milestone:** M8
 **Labels:** `openapi`, `tooling`, `schema-extensions`
 **Depends on:** #034
 
 Consume descriptors; map common `@validate` shapes to OpenAPI keywords (`matches` → `pattern`, `this.size()` → `minLength`/`maxLength`, `this in [...]` → `enum`, etc.). Emit `x-validation` extension for non-mappable rules. Type aliases become `components/schemas/<Name>`. Gnostic-style `@description` / `@example` / `@http` integrate.
+
+**Resolution (2026-07-25, GH #93, PR #172) — landing site:** **`pxf
+openapi` subcommand in `trendvidia/protowire`** — no new repo. `pxfed`
+was excluded at audit (deprecated, superseded by goed); a standalone
+`protowire-openapi` repo is rejected because the generator is a
+**boundary renderer** over artifacts this repo already owns and emits —
+the lowered schema image (`pxf build`, #164/PR #167) and the doc pack
+(`pxf docs build`, GH #170) — so a separate repo would split the `pxf`
+family and re-import the image-consumption machinery for no isolation
+benefit. `pxf` accretes the coherent family: `build` (schemas → image),
+`docs build` (topics → pack), `openapi` (image + pack → boundary
+formats). Binding format principle (decided 2026-07-25, recorded on GH
+#93): JSON/YAML are integration-boundary formats only — OpenAPI is
+emitted at the edge; no OpenAPI-shaped intermediate or JSON libraries
+in the doc pipeline (precedents: #164, #66/Appendix C). Scope note: the
+M8 design gaps recorded on GH #93 remain open design work for the
+implementation phase — operation surface (enrich `@http` with defaulted
+params vs. a generator-owned `openapi.*` annotation library);
+audience/visibility tiers (taxonomy defined once at the doc-model
+level, GH #170, so every renderer inherits it; transitive-consistency
+checking and artifact-filtering-vs-descriptor-stripping semantics
+designed up front); availability version (prefer derivation from
+registry history over authored `@since` claims). Inputs: #034 lowering
+output via the #164 image; doc-model inputs arrive with GH #170.
 
 ---
 
