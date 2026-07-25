@@ -59,7 +59,7 @@ func newRootCmd() *cobra.Command {
 	root.AddCommand(
 		encodeCmd(), decodeCmd(), validateCmd(), fmtCmd(), lintCmd(),
 		sbe2protoCmd(), proto2sbeCmd(),
-		queryCmd(), inferSchemaCmd(),
+		queryCmd(), inferSchemaCmd(), buildCmd(),
 	)
 	return root
 }
