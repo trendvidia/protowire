@@ -202,7 +202,7 @@ annotation description(text: string);
 annotation example(value: any);
 annotation error_code(code: string);
 annotation deprecated(reason: string = "");
-annotation sensitive;
+annotation sensitive(class: string = "");
 annotation http(method: string, path: string);
 ```
 
@@ -450,10 +450,47 @@ Normative consumer minima:
 
 The annotation lowers through the standard `50400` `AnnotationList`
 carrier like every other annotation; no dedicated extension number or
-descriptor surface exists. A classification parameter (e.g. a
-secret / PII / confidential taxonomy) and a schema-level key-reference
-annotation are deferred (§13); adding optional parameters with defaults
-to a canonical annotation is an additive, minor-version change.
+descriptor surface exists.
+
+**Classification parameter.** `@sensitive` takes one optional
+parameter, `class: string = ""` (issue #111). The vocabulary is open
+and org-defined (`"credentials"`, `"pii"`, `"payment"`, …):
+sensitivity taxonomies are organizational policy, not cross-port
+interop, and protection-layer consumers (e.g. the chameleon editor's
+key management) map class names to key domains in their own
+runtime-layer configuration. The spec pins only the mechanics:
+
+1. **Reserved prefix.** Class names beginning with `protowire.` are
+   reserved for future spec-defined classes, mirroring the §7
+   violation-code reservation; compilers MUST reject them.
+2. **One class per field.** `class` is a single string, never a list:
+   consumers that route protection by class (field → class → key
+   domain) need that resolution to be deterministic. Orgs needing
+   intersections define composite classes.
+3. **Effective class.** Where sensitivity arrives from several sites
+   (field, type-alias chain, message), a field's *effective class* is
+   the class of the **nearest `@sensitive` that specifies one**: the
+   field's own annotation first, then the alias chain most-derived
+   first, then the message-level marker. A bare `@sensitive` (or an
+   explicit `class = ""`) never erases an outer class — it reasserts
+   sensitivity without reclassifying.
+4. **Minima are class-invariant.** Every consumer minimum above
+   applies identically to every class, including `""` (sensitive but
+   unclassified). Classes add routing granularity in consumers that
+   opt in; they never weaken the redaction floor.
+
+**No protection metadata in the schema.** A schema-level key-reference
+annotation (`@encrypted(key_ref)`) was considered and rejected (issue
+#112). Key references, algorithms, and rotation state are deployment
+topology: they vary per environment and per tenant while the data's
+meaning is unchanged, and annotations lower into `FileDescriptorSet`
+artifacts (§8.1) that are committed, embedded, and shipped across
+organizational boundaries — the same reasoning that keeps engine
+configuration out of file options (§9.4). The sanctioned contract is
+split: the schema declares *what* is sensitive and *which class* it
+belongs to; the protection layer (PXF / chameleon) maps class → key
+domain in its own configuration, so key rotation and per-environment
+key topology never touch the schema.
 
 ## 7. Error model
 
@@ -1003,8 +1040,8 @@ Items deferred for separate resolution. Each becomes a tracked issue.
 | 10 | Conformance test fixtures in `protowire/testdata/schema-extensions/` | spec |
 | 11 | Upstream `buf/protocompile` compatibility (this codebase is a fork) | protocompile |
 | 12 | Stream-level validation invariants (aggregate rules across a stream's messages, ordering constraints) — deferred from §6.6, needs its own design pass like container-shaped aliases (#1) | spec |
-| 13 | Sensitivity-class taxonomy (`@sensitive(class: ...)` — secret / PII / confidential) — deferred from §6.7 until a consumer needs to distinguish classes; additive parameter (tracked: GH #111) | spec |
-| 14 | Schema-level encryption / key-reference annotation (e.g. `@encrypted(key_ref)`) and chameleon interplay — deferred from §6.7; today the schema stays orthogonal to key management (tracked: GH #112) | spec / chameleon |
+| 13 | ~~Sensitivity-class taxonomy (`@sensitive(class: ...)`)~~ **Resolved 2026-07-25** (issue #111): additive `class: string = ""` parameter — open org-defined vocabulary, `protowire.` prefix reserved, single class, effective-class rule; see §6.7. The consumer that triggered the deferral's "until needed" clause is the chameleon editor's key management | spec |
+| 14 | ~~Schema-level encryption / key-reference annotation (`@encrypted(key_ref)`)~~ **Rejected 2026-07-25** (issue #112): protection metadata never enters the schema — key refs are deployment topology and would leak through descriptor artifacts (§8.1, same reasoning as §9.4); the class → key-domain mapping lives in the protection layer's configuration, see §6.7 | spec / chameleon |
 
 ## 14. References
 

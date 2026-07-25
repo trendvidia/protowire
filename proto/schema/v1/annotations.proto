@@ -110,9 +110,18 @@ annotation deprecated(reason: string = "");
 // fields), and messages (all fields, transitively through message-typed
 // fields).
 //
-// A classification parameter (e.g. secret vs. PII) is deferred; adding
-// optional defaulted parameters to a canonical annotation is additive.
-annotation sensitive;
+// The optional class parameter names the sensitivity class the value
+// belongs to ("credentials", "pii", ...). The vocabulary is open and
+// org-defined; names beginning with "protowire." are reserved for
+// future spec-defined classes and MUST be rejected. "" means sensitive
+// but unclassified. A field's effective class is the class of the
+// nearest @sensitive that specifies one (field, then type-alias chain
+// most-derived first, then message) — a bare @sensitive reasserts
+// sensitivity without reclassifying. Every consumer minimum applies
+// identically to every class, including "": classes add routing
+// granularity (e.g. class -> key-domain mapping in protection layers),
+// never weaken the redaction floor (RFC-001 §6.7, issue #111).
+annotation sensitive(class: string = "");
 
 // http — attach HTTP routing metadata to an RPC method.
 //
