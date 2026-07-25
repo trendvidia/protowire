@@ -63,7 +63,7 @@ This is the umbrella tracking issue for [RFC-001 — Protowire Schema Extensions
 - [x] #060 — `protobuf-go`: function-stub codegen plugin (Go) — done 2026-07-24 (§9.3 Functions/UnimplementedFunctions/RegisterFunctions onto a protocheck Engine; carriers decoded from unknown fields, protobuf-go#2/PR#4)
 - [x] #061 — `protobuf-go`: annotation-aware codegen — done 2026-07-24 (@description doc comments + @deprecated notices on enums/values/messages/fields/getters, function-level bracket options; example-as-test emission stays optional, protobuf-go#3/PR#4)
 - [x] #070 — `protowire-go`: M5 runtime wiring through `protocheck` — done 2026-07-23 (Validator seam through pxf/pb/sbe decoders, protowire-go#49/PR#59; protocheck-side adapter protocheck PR#38; protovalidate adapter PR#60; shipped v1.3.1)
-- [ ] #080 — OpenAPI generator (M8) — landing site decided 2026-07-25: `pxf openapi` subcommand in this repo (GH #93); implementation not started
+- [ ] #080 — OpenAPI generator (M8) — landing site decided 2026-07-25: `pxf openapi` subcommand in this repo (GH #93); design gaps resolved 2026-07-25 (GH #173 — enriched `@http`, artifact filtering, derived `x-since`); implementation not started
 
 ### Per-port adoption (M9+)
 - [ ] `protowire-java`
@@ -1407,6 +1407,80 @@ checking and artifact-filtering-vs-descriptor-stripping semantics
 designed up front); availability version (prefer derivation from
 registry history over authored `@since` claims). Inputs: #034 lowering
 output via the #164 image; doc-model inputs arrive with GH #170.
+
+**Resolution (2026-07-25, GH #173) — the three M8 design gaps.** #170
+landed (PR #174), so the doc pack the renderer reads is a real artifact
+and the design gaps recorded on GH #93 are answerable.
+
+*Gap 1 — operation surface: enrich canonical `@http`.* The added
+parameters are `summary`, `operation_id`, `tags` and `security`, all
+defaulted, so the v1.2.0 two-argument form is unchanged and no existing
+schema changes shape (§5.2; fixture `21_http_operation.proto`). Binding
+rules: `{name}` path segments bind to same-named top-level request
+fields; remaining fields bind to the query string for bodyless methods
+and to the request body otherwise; `operation_id` defaults to
+`<Service>_<Method>`, which is unique by construction; `summary` falls
+back to the first sentence of `@description`. `tags` and `security`
+take list literals of strings — the annotation grammar admits no
+`repeated` parameter type (§5.1 `paramType ::= qualifiedIdent`), so
+list-shaped values ride `any` plus a `Literal.list` (§8.1).
+
+The alternative — a generator-owned `openapi.*` annotation library with
+zero spec involvement, gnostic-style — was considered and **not**
+chosen. The cost of the chosen route is recorded rather than elided:
+OpenAPI vocabulary now sits in the library every port mirrors and the
+IETF draft describes, and the surface can only grow additively from
+here. What makes it tolerable is that the parameters carry no
+validation semantics and impose no port obligation beyond carrying them
+through the §8.1 carrier — a port that renders no REST surface parses
+them and interprets nothing.
+
+*No `responses` parameter.* Responses are **derived**: the success
+response from the method's return type, error responses from
+`@error_code` plus the §7 report model, which the settled schema half
+already maps. Authored per-status descriptions would need a list of
+message literals, and while the carrier represents that shape
+(`LiteralValue.literal`, §8.1), the reference parser rejects it at an
+annotation argument today — so the shape would have been specified
+ahead of the toolchain that can express it. Revisit when the parser gap
+closes and demand exists.
+
+*Gap 2 — audience/visibility tiers: artifact filtering, config-assigned
+tiers.* The taxonomy is `protowire.docs.v1.Audience` (GH #170):
+`PUBLIC` → `COMMUNITY` → `PARTNER` → `ENTERPRISE` → `INTERNAL`,
+widening in restriction. Three sub-decisions:
+
+- **Filtering, never stripping.** `pxf openapi --audience <tier>` emits
+  only elements at or below the requested tier. Descriptors are never
+  rewritten: descriptor stripping has spec implications — what a
+  conformant consumer may assume about an image's completeness — and
+  would need its own design pass, which nothing yet demands.
+- **Tiers are assigned by generator configuration** — FQN globs to
+  tier, defaulting to `PUBLIC` — not by a new canonical annotation.
+  Visibility is deployment policy: which audience sees an API is an
+  org-and-deployment fact, and the §9.4 / #112 reasoning keeps that out
+  of descriptors that cross org boundaries. Doc-pack topics anchoring
+  an element contribute their own tier, so documentation and API
+  surface cannot disagree.
+- **Transitive consistency is an error.** A `PUBLIC` element whose
+  schema closure reaches an `INTERNAL` one fails generation, naming
+  both ends. Emitting a public schema with a dangling `$ref`, or
+  silently inlining a restricted definition, are both worse than
+  refusing.
+
+*Gap 3 — availability version: derived, never authored.* `x-since` is
+stamped from **protoregistry history** — the first registered revision
+in which an element appears — when registry coordinates are configured,
+and omitted otherwise. No canonical `@since` annotation is added: an
+authored claim is unverifiable and nothing in the toolchain would check
+it, whereas the registry already knows. An org that annotates `@since`
+in its own namespace is user-space and the generator ignores it, which
+stays true unless a compatibility-checking MUST ever attaches to the
+value.
+
+*Document-level metadata* (`info`, `servers`, security-scheme
+definitions) remains generator configuration, per the #112 reasoning —
+unchanged by this resolution.
 
 ---
 

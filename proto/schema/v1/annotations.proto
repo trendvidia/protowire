@@ -123,10 +123,45 @@ annotation deprecated(reason: string = "");
 // never weaken the redaction floor (RFC-001 §6.7, issue #111).
 annotation sensitive(class: string = "");
 
-// http — attach HTTP routing metadata to an RPC method.
+// http — attach HTTP routing and operation metadata to an RPC method.
 //
 // Used by OpenAPI / Swagger generators to produce REST-bound surface
 // descriptions. Pairs naturally with the `google.api.http` option in
 // schemas that prefer it; either form is accepted by tooling that
 // understands both.
-annotation http(method: string, path: string);
+//
+// `method` and `path` are the routing skeleton. `path` may carry
+// `{name}` template segments; each binds to the same-named top-level
+// field of the request message, and remaining fields bind to the query
+// string (bodyless methods) or the request body (RFC-001 §5.2, issue
+// #173).
+//
+// The remaining parameters are documentation metadata: they carry no
+// validation semantics, and a port that does not render REST surfaces
+// parses them like any other annotation and interprets nothing.
+//
+//   summary       one-line operation summary; falls back to the first
+//                 sentence of @description when empty
+//   operation_id  document-unique operation identifier; derived as
+//                 "<Service>_<Method>" when empty
+//   tags          list literal of grouping tags, e.g. ["orders"]
+//   security      list literal of security-scheme names; the scheme
+//                 *definitions* are generator configuration, never
+//                 schema content (the §9.4 config-out-of-descriptors
+//                 reasoning that also rejected @encrypted, issue #112)
+//
+// Responses are derived rather than authored: the success response from
+// the method's return type, error responses from @error_code plus
+// report.proto (RFC-001 §7). A `responses` parameter is deliberately
+// absent — see docs/RFC-001-issues.md §#080.
+//
+// Every added parameter is defaulted, so `@http("GET", "/orders")`
+// keeps its v1.2.0 meaning and existing schemas are untouched.
+annotation http(
+  method: string,
+  path: string,
+  summary: string = "",
+  operation_id: string = "",
+  tags: any = [],
+  security: any = []
+);
