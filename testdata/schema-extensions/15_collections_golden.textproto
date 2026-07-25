@@ -19,12 +19,12 @@
 # Pins per violation:
 #   1. Key violation: same subscripted path as the value violation of
 #      the SAME entry — for_key = true is what disambiguates them (§7);
-#      actual_value is the key the rule evaluated. (This violation is
-#      spec-authored and leads the reference engine: protocheck does
-#      not yet validate the key dimension — trendvidia/protocheck#53 —
-#      and its wire conversion predates for_key —
-#      trendvidia/protocompile#116.)
+#      actual_value is the key the rule evaluated. Its source_ref cites
+#      the synthetic entry's key field, where the §8 lowering carries
+#      key-type rules.
 #   2. Value violation: for_key unset; actual_value is the entry value.
+#      Its source_ref cites the map field itself, where value-type
+#      alias rules expand.
 #   3. Repeated element: `index` subscript, alias chain provenance.
 #   4. Collection-level rule: unsubscripted path, no actual_value (the
 #      collection itself is not captured as a Value), RULE_KIND_VALIDATE.
@@ -54,6 +54,10 @@ violations: {
   }
   rule_kind: RULE_KIND_TYPE_REFINEMENT
   for_key: true
+  source_ref: {
+    file: "15_collections_golden/inventory.proto"
+    descriptor_path: "fixtures.collections.Inventory.StockEntry.key[protowire.schema.v1.validate#0]"
+  }
 }
 violations: {
   cause: {
@@ -78,6 +82,10 @@ violations: {
     column: 3
   }
   rule_kind: RULE_KIND_TYPE_REFINEMENT
+  source_ref: {
+    file: "15_collections_golden/inventory.proto"
+    descriptor_path: "fixtures.collections.Inventory.stock[protowire.schema.v1.validate#0]"
+  }
 }
 violations: {
   cause: {
@@ -102,6 +110,10 @@ violations: {
     column: 3
   }
   rule_kind: RULE_KIND_TYPE_REFINEMENT
+  source_ref: {
+    file: "15_collections_golden/inventory.proto"
+    descriptor_path: "fixtures.collections.Inventory.discontinued[protowire.schema.v1.validate#0]"
+  }
 }
 violations: {
   cause: {
@@ -122,5 +134,11 @@ violations: {
     column: 5
   }
   rule_kind: RULE_KIND_VALIDATE
+  # validate#1: the discontinued field's list carries Sku's expanded
+  # rule (#0) ahead of the field-site rule (#1).
+  source_ref: {
+    file: "15_collections_golden/inventory.proto"
+    descriptor_path: "fixtures.collections.Inventory.discontinued[protowire.schema.v1.validate#1]"
+  }
 }
 mode: EXECUTION_MODE_COLLECT_ALL

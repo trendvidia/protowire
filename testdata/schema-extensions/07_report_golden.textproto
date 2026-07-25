@@ -15,6 +15,10 @@
 #   instance: 07_report_golden/instance.textproto
 # Source locations below cite user.proto's field declaration lines;
 # conformance stubs for the declared functions are pinned in README.md.
+# Every rule here resolved through user.proto's embedded source map, so
+# every violation carries source_ref — the §8.3.1 rule join key
+# (protowire#142/#161); deterministic from the descriptor, it
+# participates in equality with no carve-out.
 #
 # Exercises the three enrichment shapes:
 #   - RULE_KIND_TYPE_REFINEMENT with a 3-link type_chain (CompanyEmail)
@@ -48,6 +52,12 @@ violations {
   actual_value { string_value: "alice@example.org" }
   source { file: "myco/users/user.proto" line: 32 column: 3 }
   rule_kind: RULE_KIND_TYPE_REFINEMENT
+  # validate#1: the email field's list carries Email's rule (#0), then
+  # CompanyEmail's (#1) — the failing rule is the derived alias's.
+  source_ref {
+    file: "myco/users/user.proto"
+    descriptor_path: "myco.users.User.email[protowire.schema.v1.validate#1]"
+  }
 }
 violations {
   cause {
@@ -60,6 +70,10 @@ violations {
   # actual_value deliberately unset: the field is ABSENT.
   source { file: "myco/users/user.proto" line: 36 column: 3 }
   rule_kind: RULE_KIND_REQUIRED
+  source_ref {
+    file: "myco/users/user.proto"
+    descriptor_path: "myco.users.User.phone[protowire.schema.v1.required#0]"
+  }
 }
 violations {
   cause {
@@ -73,4 +87,8 @@ violations {
   actual_value { string_value: "DE" }
   source { file: "myco/users/user.proto" line: 38 column: 3 }
   rule_kind: RULE_KIND_VALIDATE
+  source_ref {
+    file: "myco/users/user.proto"
+    descriptor_path: "myco.users.User.country[protowire.schema.v1.validate#0]"
+  }
 }
