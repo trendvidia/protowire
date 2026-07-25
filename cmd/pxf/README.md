@@ -51,6 +51,7 @@ Every published `protowire-*` language port ships the same binary as part of its
 | `infer-schema <file>` | CSV or PXF `@dataset` | `.proto` source | yes |
 | `sbe2proto <schema.xml>` | SBE XML | `.proto` source | no |
 | `proto2sbe` | `.proto` source via `-p` | SBE XML | no |
+| `build <roots-or-files>...` | v1.2 (RFC-001) schema sources | lowered `FileDescriptorSet` binary | no |
 
 ## Schema resolution chain
 
@@ -205,6 +206,30 @@ Inverse of `sbe2proto`: takes a `.proto` source via `-p` and emits SBE XML on st
 pxf proto2sbe -p trade.proto > trade-schema.xml
 ```
 
+### `pxf build <schema-root-or-file>...`
+
+Compiles Protowire v1.2 ([RFC-001](../../docs/RFC-001-schema-extensions.md)) schema sources with the reference compiler — the [trendvidia/protocompile](https://github.com/trendvidia/protocompile) fork — and writes a lowered `FileDescriptorSet` whose schema-extension semantics ride in the 50400–50404 carrier options. This is the **only v1.2-aware step** in the toolchain; the image it produces is stock protobuf, so everything downstream runs on unmodified buf/protoc:
+
+```bash
+pxf build -o image.binpb ./schemas/...   # the only step that parses v1.2 source
+buf generate image.binpb                 # stock buf + plugin chain (forked protoc-gen-go, protoc-gen-pxf-*)
+```
+
+Stock buf/protoc never see v1.2 *source* — only images. There is no buf fork, and none is planned.
+
+- Each **directory** argument is an import root; every `.proto` beneath it is compiled under its root-relative import path (a trailing `/...` is accepted and equivalent). A **file** argument is compiled under its base name, with its parent directory as import root.
+- The canonical annotation libraries (`protowire/schema/v1/annotations.proto`, `pxf/annotations.proto`) and the well-known types resolve from the bundled schemas — no `-p` needed.
+- Output is deterministic: the same sources produce a byte-identical image across runs, so it caches cleanly as a build artifact.
+- `--check` compiles and reports diagnostics without writing an image — the CI entry point (`ok` on stderr, exit `0` when clean; exit `1` on any error diagnostic).
+
+Engine configuration (RFC-001 §9.4) is discovered by upward walk from the first argument's directory, honoring the normative precedence: per-setting flags (`--function-library`) > `--config <path>` > `PROTOWIRE_CONFIG` > discovered `protowire.config.textproto` > defaults. For `build`, the configuration's `function_libraries` are what matter: each listed import path is compiled into the image so downstream consumers (§9.3 function-stub codegen, engine startup) see the declarations. Engine-runtime knobs (`engine`, `default_mode`, …) are validation-time concerns and ignored here.
+
+```bash
+pxf build --check ./schemas/...                          # CI gate, no output
+pxf build -o image.binpb --config ci/protowire.config.textproto ./schemas/...
+protoc --descriptor_set_in=image.binpb --cpp_out=gen $(FILES)   # stock protoc accepts the image
+```
+
 ## Exit codes
 
 | Code | Meaning |
@@ -221,6 +246,7 @@ The exit-code contract is stable per [STABILITY.md](../../STABILITY.md). The 1-v
 |---|---|---|
 | `PROTOREGISTRY_SERVER` | unset | Default value for `-s` when the flag isn't passed |
 | `PROTOREGISTRY_NAMESPACE` | unset | Default value for `-n` when the flag isn't passed |
+| `PROTOWIRE_CONFIG` | unset | Path to an engine configuration file for `pxf build`; sits between `--config` and discovery in the §9.4 precedence chain |
 
 These let scripts treat the registry triple as ambient configuration. A combined CI step might set `PROTOREGISTRY_SERVER=registry.internal:50051` and `PROTOREGISTRY_NAMESPACE=billing` once, then every `pxf encode --schema invoice -m billing.v1.Invoice ...` call inherits the connection.
 
