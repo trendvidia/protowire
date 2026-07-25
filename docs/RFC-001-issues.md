@@ -1445,6 +1445,25 @@ annotation argument today — so the shape would have been specified
 ahead of the toolchain that can express it. Revisit when the parser gap
 closes and demand exists.
 
+*Responses deferral resolved (2026-07-25, GH #177) — derived-only
+stands.* The parser precondition closed the same day the gaps were
+recorded (trendvidia/protocompile#127 → #128, merged post-v0.21.0;
+corpus pinned by GH #176 / PR #178), which left demand — and none
+exists: `pxf openapi` has not yet run against the derived model to
+produce counter-evidence, and no consumer on the roadmap (doc packs,
+GH #170; the chameleon/pxfed product plans) authors per-status HTTP
+metadata. Decision: responses stay **derived-only**, and the deferral
+converts from two conditions into a principled bar. An authored
+per-status list is an unverifiable claim — the same test that rejected
+authored `@since` (Gap 3) and `@encrypted` (#112): nothing in the
+toolchain or runtime would check that an authored status corresponds
+to anything the service can actually do, so the parameter would invite
+schema/runtime drift with no consumer to justify it. A future proposal
+must arrive with a concrete consumer and clear that bar, and the
+narrower lever is preferred when it does — e.g. a defaulted scalar
+`success_status: int = 200` for 201/204-style success semantics —
+rather than an authored per-status vocabulary.
+
 *Gap 2 — audience/visibility tiers: artifact filtering, config-assigned
 tiers.* The taxonomy is `protowire.docs.v1.Audience` (GH #170):
 `PUBLIC` → `COMMUNITY` → `PARTNER` → `ENTERPRISE` → `INTERNAL`,
