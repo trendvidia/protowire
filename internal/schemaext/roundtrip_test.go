@@ -40,13 +40,6 @@ func TestLoweredCarriers(t *testing.T) {
 	})
 
 	t.Run("function options keys are unqualified", func(t *testing.T) {
-		// Real drift caught by this round trip: the lowering pass drops
-		// bracket-form function options entirely, so the FunctionDecl
-		// carrier the generator reads options["description"] /
-		// options["deprecated"] from is always empty. Skipped, not
-		// deleted: unskip once the lowering emits the map.
-		t.Skip("protocompile drops bracket-form function options; tracked in trendvidia/protocompile#118")
-
 		decls := fileFunctions(t, h, "05_error_overrides.proto")
 		byName := make(map[string]*pwsv1.FunctionDecl)
 		for _, d := range decls {
