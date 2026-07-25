@@ -22,6 +22,7 @@ NOT include this directory when compiling the positive corpus.
 | `container_alias.proto` | `container-alias` | `repeated` / `map<,>` are forbidden in `typeRef`; container-shaped alias targets are deferred (RFC-001 §5.1, §6.3). |
 | `unbalanced_expression.proto` | `unbalanced-capture` | Expression-argument capture requires `()`/`[]`/`{}` to balance at the argument boundary (RFC-001 §5.1, capture step). |
 | `undeclared_annotation.proto` | `undeclared-annotation` | An annotation use site must resolve to a visible `annotation` declaration. |
+| `reserved_sensitive_class.proto` | `reserved-sensitive-class` | `@sensitive` class names beginning with `protowire.` are reserved for future spec-defined classes; compilers MUST reject them (RFC-001 §6.7 classification rule 1, issue #111). |
 
 Runtime error states (missing implementation, unsatisfiable `@default`,
 locale-catalog miss) are **valid** schemas whose behavior is pinned by

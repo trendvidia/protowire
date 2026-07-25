@@ -662,6 +662,43 @@ the standard 50400 carrier. Chameleon stays orthogonal (schema declares
 `@encrypted(key_ref)`. Conformance fixtures ride the corpus expansion
 (#019 / GH #68).
 
+**Resolution (2026-07-25, GH #111, PR #163):** the `class:` taxonomy
+parameter is **accepted** — `annotation sensitive(class: string = "")`
+(RFC-001 §6.7). The deferral's "until a consumer needs to distinguish
+classes" clause fired: the planned chameleon editor's enterprise key
+management routes sensitive-field maintenance by key access, which
+needs a stable schema-side join key (field → class → key domain), and
+pxfed cloud needs one uniform surface across tenants rather than
+per-org stacked annotations. Design: open org-defined vocabulary (no
+fixed enum, no spec registry — taxonomies are org policy); `protowire.`
+prefix reserved with compile-time rejection (mirrors the §7 code
+reservation; `invalid/reserved_sensitive_class.proto`); single string,
+never a list (deterministic key routing — a one-way door pinned now
+since string → list is not additive); effective class = nearest
+`@sensitive` that specifies one (field > alias chain most-derived
+first > message), bare `@sensitive` reasserts without reclassifying;
+redaction minima stay class-invariant including `""` (= today's
+behavior, existing schemas untouched). Additive defaulted param on the
+standard `AnnotationArg` carrier — no grammar, wire, or report change.
+Fixture `20_sensitive_class.proto` pins every arm of the effective-
+class rule. Reference-toolchain gap: protocompile does not yet reject
+the reserved prefix (issue to file, precedent protocompile#121).
+
+**Resolution (2026-07-25, GH #112, PR #163):** `@encrypted(key_ref)`
+is **rejected** — protection metadata never enters the schema, now
+permanent §6.7 text rather than a provisional deferral. Key
+references, algorithms, and rotation state are deployment topology:
+they churn per environment and per tenant while the data's meaning is
+unchanged, and annotations lower into `FileDescriptorSet` artifacts
+(§8.1) that are committed, embedded, and shipped across org
+boundaries — pxfed cloud makes the leak concrete (schemas travel to
+the hosted service; key topology must not). Same reasoning as §9.4's
+config-out-of-file-options. The chameleon editor is served by the
+sanctioned split contract: schema declares *what* is sensitive and
+*which class* (#111); chameleon maps class → key domain in its own
+security-layer configuration, so enterprise key rotation and
+per-environment topology never touch the schema.
+
 ---
 
 ## #022 — Engine-expression grammar scope
