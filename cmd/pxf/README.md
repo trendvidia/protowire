@@ -1,6 +1,6 @@
 # `pxf` — the protowire toolchain
 
-`pxf` is the canonical CLI for the `protowire` stack. One binary covers every operation you can do against a PXF document or a `.proto` schema: encode and decode against protobuf binary, validate and pretty-print, lint schemas for reserved-name violations, run jq-style queries with input adapters for CSV / JSON / YAML, infer a `.proto` from a tabular sample, and convert between SBE XML schemas and `.proto`.
+`pxf` is the canonical CLI for the `protowire` stack. One binary covers every operation you can do against a PXF document or a `.proto` schema: encode and decode against protobuf binary, validate and pretty-print, lint schemas for reserved-name violations, run jq-style queries with input adapters for CSV / JSON / YAML, infer a `.proto` from a tabular sample, convert between SBE XML schemas and `.proto`, and compile v1.2 (RFC-001) schema sources to a lowered `FileDescriptorSet` image for stock buf/protoc.
 
 The format is named PXF (Protowire eXpressive Format); the binary is named after the format because that's the artifact users interact with day-to-day. The deeper design rationale for the query subcommand lives in [`QUERY.md`](QUERY.md); this README is the user-facing reference for the binary itself.
 
@@ -8,20 +8,23 @@ The format is named PXF (Protowire eXpressive Format); the binary is named after
 $ pxf --help
 pxf is the unified CLI for the protowire stack. Subcommands cover
 the encode/decode/validate/fmt/lint surface for the PXF text format,
-plus a jq-style `query` subcommand and a `.proto`-emitting
-`infer-schema` subcommand for tabular inputs (CSV, PXF @dataset).
+plus a jq-style `query` subcommand, a `.proto`-emitting
+`infer-schema` subcommand for tabular inputs (CSV, PXF @dataset),
+and a `build` subcommand compiling v1.2 (RFC-001) schema sources
+to a lowered FileDescriptorSet image for stock buf/protoc.
 
 Usage:
   pxf [command]
 
 Available Commands:
+  build        Compile v1.2 schemas to a lowered FileDescriptorSet image
   completion   Generate the autocompletion script for the specified shell
   decode       Decode protobuf binary to PXF (stdout)
   encode       Encode PXF to protobuf binary (stdout)
-  fmt          Format PXF file (stdout)
+  fmt          Format a PXF document, canonicalizing keyed repeated fields
   help         Help about any command
   infer-schema Produce a .proto schema by inferring per-column types from a sample file
-  lint         Check schema(s) for PXF reserved-name violations (draft §3.13)
+  lint         Check schema(s) for PXF reserved-name violations (draft §3.14)
   proto2sbe    Convert .proto with SBE annotations to SBE XML (stdout)
   query        Run a jq-style query against PXF, CSV, JSON, or YAML input
   sbe2proto    Convert SBE XML schema to .proto (stdout)
