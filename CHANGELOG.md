@@ -10,9 +10,17 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+## [1.7.0] – 2026-07-25
+
+The RFC-001 §7 i18n story becomes implementable end to end: `catalog_libraries` was a dangling pointer — the §9.4 engine config named it, but nothing defined what a referenced file contains — and this release pins the source format, ships the conformance fixture, and pairs with the reference loader in protocompile v0.23.0. No wire-format changes — PXF, `pb`, SBE, envelope, doc-pack, and report outputs are byte-identical to v1.6.0 for every schema and document; the only schema delta is the new `protowire.schema.catalog.v1` package (no extension numbers). See [`STABILITY.md`](STABILITY.md) for the compatibility contract.
+
 ### Added
 
-- **Locale catalog source format** (issue [#194](https://github.com/trendvidia/protowire/issues/194)). RFC-001 §7 pins what a file named by `EngineConfig.catalog_libraries` contains: a text-format `protowire.schema.catalog.v1.Catalog` message (new package `proto/schema/catalog/v1/catalog.proto` — same artifact status as the §9.4 engine config: loaded at engine init, never embedded in descriptors, no extension numbers). One locale per file (BCP 47 tag, the `RegisterCatalog` key); entries map violation code → `{param}` template with the §7 interpolation and fallback-on-miss semantics; multiple files per locale merge with duplicate codes a load error; paths resolve relative to the config file (they are not proto import paths — catalogs are runtime data, `pxf build` does not compile them). The `19_catalog_miss` conformance fixture's pinned catalog is now a real source file (`catalog_de.textproto`), and the `08_engine_config` fixture's `catalog_libraries` values are `.textproto` paths. Reference loader lands in `protocompile` beside `engineconfig`. Plural/gender/ICU template forms deferred (§13 #15).
+- **Locale catalog source format** (issue [#194](https://github.com/trendvidia/protowire/issues/194)). RFC-001 §7 pins what a file named by `EngineConfig.catalog_libraries` contains: a text-format `protowire.schema.catalog.v1.Catalog` message (new package `proto/schema/catalog/v1/catalog.proto` — same artifact status as the §9.4 engine config: loaded at engine init, never embedded in descriptors, no extension numbers). One locale per file (BCP 47 tag, the `RegisterCatalog` key); entries map violation code → `{param}` template with the §7 interpolation and fallback-on-miss semantics; multiple files per locale merge with duplicate codes a load error; paths resolve relative to the config file (they are not proto import paths — catalogs are runtime data, `pxf build` does not compile them). The `19_catalog_miss` conformance fixture's pinned catalog is now a real source file (`catalog_de.textproto`), and the `08_engine_config` fixture's `catalog_libraries` values are `.textproto` paths. The reference loader landed beside `engineconfig` as the `catalogs` package ([trendvidia/protocompile#131](https://github.com/trendvidia/protocompile/pull/131), v0.23.0), returning plain `(locale → entries)` data that feeds `protocheck.NewMapCatalog` directly; it unblocks trendvidia/protolsp#267. Plural/gender/ICU template forms deferred (§13 #15).
+
+### Changed
+
+- **Reference toolchain pinned at protocompile v0.23.0** (was v0.22.0): picks up the `catalogs` loader and the re-vendored `config.proto`/`catalog.proto` spec files (`checkspecdrift` covers both). No compiler-surface change.
 
 ## [1.6.0] – 2026-07-25
 
