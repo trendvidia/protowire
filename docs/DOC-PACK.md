@@ -121,6 +121,7 @@ name, and the name is already governed by a compatibility process.
 |---|---|---|
 | `schema` | message, field, enum, enum value, service, method, or `type` alias FQN | the lowered image |
 | `widget` | registry type, prop or event | the registry export |
+| `transition` | a screen-transition name ([#199](https://github.com/trendvidia/protowire/issues/199)) | the registry export |
 | `topic` | another topic's key | the build |
 | `route` | an app route | nothing — shape-checked only |
 
@@ -249,10 +250,15 @@ When appviewer emits the typed message natively, the adapter drops out
 and nothing else changes.
 
 Widget anchors resolve against a widget's own props, the props its
-structural builder reads on children (`child_props`, appviewer#51), and
-the common node props; the resolved anchor carries the entry's
-since-version, which is what makes a topic's runtime applicability
-checkable against the ADR-0011 bundle contract.
+structural builder reads on children (`child_props`, appviewer#51), the
+common node props, and the template-composition attributes (`template`,
+`slot`, `content_slot` — offered by context on any widget node, so they
+resolve on every widget like common props, #199); the resolved anchor
+carries the entry's since-version, which is what makes a topic's runtime
+applicability checkable against the ADR-0011 bundle contract. Transition
+anchors resolve against the catalog-global screen-transition vocabulary
+(catalog schema v9); transitions belong to no widget type, which is why
+they are a distinct anchor kind rather than a pseudo-member of one.
 
 Either input may be omitted when the corpus uses no anchors of that
 kind. An anchor with no input to resolve against is an error naming the

@@ -6,6 +6,7 @@ package docpack
 import (
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -89,6 +90,14 @@ func TestAnchorID(t *testing.T) {
 			set:  func(m dmsg) { m.setStr("key", "widgets.button.overview") },
 			want: "widgets.button.overview",
 		},
+		{
+			// The prefix keeps transition ids disjoint from every other
+			// spelling in the shared namespace (#199).
+			name: "transition",
+			kind: anchorTransition,
+			set:  func(m dmsg) { m.setStr("name", "slide") },
+			want: "transition:slide",
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -128,6 +137,8 @@ func TestAnchorIDRejects(t *testing.T) {
 			m.setStr("element_fqn", "myco.User.email")
 			m.setU32("ordinal", 2)
 		}, "without an annotation_fqn"},
+		{"empty transition name", anchorTransition, func(m dmsg) {}, "empty name"},
+		{"dashed transition name", anchorTransition, func(m dmsg) { m.setStr("name", "slide-left") }, "not an identifier"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -150,6 +161,7 @@ func TestAnchorStability(t *testing.T) {
 		anchorWidget:         "ANCHOR_STABILITY_STABLE",
 		anchorRoute:          "ANCHOR_STABILITY_STABLE",
 		anchorTopic:          "ANCHOR_STABILITY_STABLE",
+		anchorTransition:     "ANCHOR_STABILITY_STABLE",
 		anchorDescriptorPath: "ANCHOR_STABILITY_DERIVED",
 	} {
 		if got := stabilityOf(kind); got != want {
@@ -306,11 +318,11 @@ func TestCatalogV9Boundary(t *testing.T) {
 		}
 	}
 
-	// Composition props are context props on untyped nodes — the widget
-	// anchor grammar cannot address them, so they must not resolve as
-	// props of any widget.
-	if _, err := cat.ResolveWidget("Label#prop:slot"); err == nil {
-		t.Error("Label#prop:slot resolved; composition props are not widget props")
+	// Composition props are offered by context on any widget node, so a
+	// prop anchor naming one resolves on every widget, like a common
+	// prop (#199) — with since falling back to the widget's.
+	if since, err := cat.ResolveWidget("Label#prop:slot"); err != nil || since != "0.1.0" {
+		t.Errorf("Label#prop:slot = (%q, %v), want (\"0.1.0\", nil)", since, err)
 	}
 	if got := strings.Join(cat.CompositionProps(), ","); got != "content_slot,slot,template" {
 		t.Errorf("CompositionProps() = %q", got)
@@ -318,6 +330,13 @@ func TestCatalogV9Boundary(t *testing.T) {
 	// Producer order, not sorted: the default leads upstream.
 	if got := strings.Join(cat.Transitions(), ","); got != "none,slide,fade" {
 		t.Errorf("Transitions() = %q", got)
+	}
+	// Transitions are catalog-global transition-anchor targets (#199).
+	if err := cat.ResolveTransition("slide"); err != nil {
+		t.Errorf("ResolveTransition(slide): %v", err)
+	}
+	if err := cat.ResolveTransition("warp"); err == nil || !strings.Contains(err.Error(), "none, slide, fade") {
+		t.Errorf("ResolveTransition(warp) = %v, want an error naming the vocabulary", err)
 	}
 }
 
@@ -629,4 +648,86 @@ topics = [
 	if keys := compiledKeys(t, result); strings.Join(keys, ",") != "widgets.button" {
 		t.Errorf("compiled topics = %v", keys)
 	}
+}
+
+// TestCompositionAndTransitionAnchors compiles the #199 anchor kinds
+// end to end against a v9 catalog: a composition prop resolves on a
+// typed widget with the widget's since as fallback, and a transition
+// anchor resolves against the catalog-global vocabulary under its
+// prefixed canonical id.
+func TestCompositionAndTransitionAnchors(t *testing.T) {
+	src := `@type protowire.docs.v1.TopicFile
+topics = [
+  {
+    key = "guide.composition"
+    locale = "en"
+    title = "Templates and transitions"
+    anchors = [
+      { widget { type = "Label" prop = "slot" } }
+      { transition { name = "slide" } }
+    ]
+  }
+]
+`
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "c.pxf"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	result, err := Compile(Options{Inputs: []string{root}, CatalogPath: "../testdata/docs/registry_v9.json"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Errors > 0 {
+		t.Fatalf("compile failed:\n%s", formatDiags(result.Diagnostics))
+	}
+	topic := wrap(result.Pack.ProtoReflect()).msgs("topics")[0]
+	got := map[string]dmsg{}
+	for _, a := range topic.msgs("anchors") {
+		got[a.str("resolved_id")] = a
+	}
+	slot, ok := got["Label#prop:slot"]
+	if !ok {
+		t.Fatalf("no anchor resolved to Label#prop:slot; got %v", keysOf(got))
+	}
+	if since := slot.str("target_since"); since != "0.1.0" {
+		t.Errorf("Label#prop:slot target_since = %q, want the widget fallback 0.1.0", since)
+	}
+	slide, ok := got["transition:slide"]
+	if !ok {
+		t.Fatalf("no anchor resolved to transition:slide; got %v", keysOf(got))
+	}
+	if s := slide.enumName("stability"); s != "ANCHOR_STABILITY_STABLE" {
+		t.Errorf("transition:slide stability = %s", s)
+	}
+
+	// A name outside the vocabulary is a dangling anchor, like any other.
+	bad := strings.Replace(src, `name = "slide"`, `name = "warp"`, 1)
+	dangling, err := Compile(Options{
+		Inputs:      []string{root},
+		Overlay:     map[string][]byte{"c.pxf": []byte(bad)},
+		CatalogPath: "../testdata/docs/registry_v9.json",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dangling.Errors == 0 {
+		t.Error("a transition outside the catalog vocabulary compiled clean")
+	}
+}
+
+func formatDiags(ds []Diagnostic) string {
+	var sb strings.Builder
+	for _, d := range ds {
+		sb.WriteString("  " + d.String() + "\n")
+	}
+	return sb.String()
+}
+
+func keysOf(m map[string]dmsg) []string {
+	var out []string
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }

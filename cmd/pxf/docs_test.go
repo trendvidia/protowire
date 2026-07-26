@@ -295,6 +295,7 @@ func TestDocsInvalidFixtures(t *testing.T) {
 		"approved_without_digest.pxf":         "REVIEW_STATE_APPROVED with no review.approved_digest",
 		"audience_leak.pxf":                   "may not point at a more restricted one",
 		"dangling_schema_anchor.pxf":          "resolves to nothing",
+		"dangling_transition.pxf":             "carries no transitions",
 		"dangling_widget_prop.pxf":            `has no property "colour"`,
 		"descriptor_path_missing.pxf":         "is not in the image's source map",
 		"descriptor_path_unknown_element.pxf": "names element fixtures.basic.User.nickname, which is not in",

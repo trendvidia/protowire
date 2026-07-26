@@ -253,6 +253,7 @@ message Anchor {
     WidgetAnchor widget = 3;
     RouteAnchor route = 4;
     TopicAnchor topic = 5;
+    TransitionAnchor transition = 6;
   }
 
   // Optional human label for renderers that show the anchor inline
@@ -314,6 +315,12 @@ message WidgetAnchor {
 
   // At most one of `prop` / `event` may be set, naming a member of that
   // widget's catalog entry, e.g. prop "text", event "onTapped".
+  //
+  // A prop resolves against the widget's own props, the props its
+  // structural parent reads on children (`child_props`), the common
+  // node props every widget accepts, and — since #199 — the
+  // template-composition attributes (`template`, `slot`, `content_slot`),
+  // which are offered by context on any widget node.
   string prop = 2;
   string event = 3;
 }
@@ -335,6 +342,18 @@ message RouteAnchor {
 // moved resolves through its Redirect.
 message TopicAnchor {
   string key = 1;
+}
+
+// TransitionAnchor targets one entry of the runtime's screen-transition
+// vocabulary (appviewer#276; catalog schema v9) — "slide", "fade".
+//
+// Transitions are catalog-global: they belong to no widget type, so they
+// are a distinct anchor kind rather than a pseudo-member of one (#199).
+// Resolved against the registry export's `transitions` list; names are
+// stable by construction, like widget IDs.
+message TransitionAnchor {
+  // Transition name as the catalog spells it, e.g. "slide".
+  string name = 1;
 }
 
 // AnchorStability classifies how well an anchor survives evolution. It is
