@@ -76,6 +76,13 @@ v1.5 is an additive minor: no wire-format changes (PXF, `pb`, SBE, and envelope 
 - **Report semantics.** §6.4 map-key validation is explicit (key violations set `for_key`), and the four reserved `protowire.*` violation codes carry spec-pinned `fallback_message` strings and templates (§7).
 - **New typed artifact families.** `protowire.docs.v1` (doc packs, `pxf docs build`) and `protowire.openapi.v1` (generator config, `pxf openapi`) are new packages allocating no extension numbers; existing consumers are unaffected. Doc packs are byte-stable, timestamp-free artifacts with the anchor-stability and revisor-gate contracts documented in `docs/DOC-PACK.md`; the OpenAPI document is a boundary rendering, not a conformance surface — ports owe nothing for it.
 
+### v1.6 — docpack library + catalog v9 mirror
+
+v1.6 is an additive minor with **no conformance-claim changes for ports**: no grammar, wire-format, envelope, or report change, and doc packs built from identical inputs are byte-identical to v1.5's (`PackProvenance.format_version` is unchanged). What changes:
+
+- **`protowire.docs.v1.WidgetCatalog` gains additive fields** mirroring appviewer catalog schema v9 (`composition_props`, `transitions`/`TransitionSpec`, `WidgetSpec.icon`/`category`/`variadic_children`, `PropSpec.required`/`default_value`; GH [#186](https://github.com/trendvidia/protowire/issues/186)). The mirror is a compiler input model, not a port obligation; existing catalogs parse unchanged. The compiler's catalog version gate is a documented floor — only exports newer than the mirrored version warn.
+- **`docpack` is a public Go package** (GH [#185](https://github.com/trendvidia/protowire/issues/185), [#187](https://github.com/trendvidia/protowire/issues/187)). Its API follows the reference-implementation rules, not the spec freeze: additive within a minor. Diagnostic output on stderr now carries `file:line:col:` prefixes and omits the usage block on runtime errors (GH [#188](https://github.com/trendvidia/protowire/issues/188)) — allowed movement under the CLI-surface rules below; exit codes are unchanged.
+
 ### CLI surface — evolves
 
 The shared CLI in [`cmd/pxf`](cmd/pxf) follows looser rules. New subcommands and flags can be added at any minor version. Existing flags are deprecated with one minor-version notice before removal at the next major. CLI exit codes are stable (`0` success, `1` user error, `2` internal error), and the JSON output schema produced by `bench-pxf` / `bench-sbe` is stable per [point 6](#promises) below.
