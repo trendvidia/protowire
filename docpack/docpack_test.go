@@ -4,6 +4,8 @@
 package docpack
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -238,7 +240,7 @@ func TestContentDigestCoversContentOnly(t *testing.T) {
 // pipeline: appviewer's export converts to the typed model, and the
 // widget membership rules hold on the far side.
 func TestCatalogJSONBoundary(t *testing.T) {
-	cat, err := loadCatalog("../../testdata/docs/registry.json")
+	cat, err := LoadCatalog("../testdata/docs/registry.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -257,7 +259,7 @@ func TestCatalogJSONBoundary(t *testing.T) {
 		"Button#prop:id":        "0.1.0", // common node prop
 		"Border#prop:position":  "0.2.0", // a structural widget's child prop
 	} {
-		since, err := cat.resolveWidget(id)
+		since, err := cat.ResolveWidget(id)
 		if err != nil {
 			t.Errorf("resolveWidget(%q): %v", id, err)
 			continue
@@ -268,8 +270,169 @@ func TestCatalogJSONBoundary(t *testing.T) {
 	}
 
 	for _, id := range []string{"Nope", "Button#prop:colour", "Button#event:onHover"} {
-		if _, err := cat.resolveWidget(id); err == nil {
+		if _, err := cat.ResolveWidget(id); err == nil {
 			t.Errorf("resolveWidget(%q) resolved; expected an error", id)
 		}
+	}
+}
+
+// TestCatalogQuerySurface pins the read-only sets anchor completion
+// consumes (#185): exactly what ResolveWidget checks membership
+// against, so an editor can only offer anchors the compiler accepts.
+func TestCatalogQuerySurface(t *testing.T) {
+	cat, err := LoadCatalog("../testdata/docs/registry.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	joined := func(ss []string) string { return strings.Join(ss, ",") }
+
+	if got := cat.Widgets(); joined(got) != "Border,Button,Label" {
+		t.Errorf("Widgets() = %v", got)
+	}
+	if got := cat.Props("Button"); joined(got) != "icon,importance,text" {
+		t.Errorf("Props(Button) = %v", got)
+	}
+	// A structural widget's child_props are prop-anchorable, so they are
+	// part of the completion set too.
+	if got := cat.Props("Border"); joined(got) != "position" {
+		t.Errorf("Props(Border) = %v", got)
+	}
+	if got := cat.Events("Button"); joined(got) != "onTapped" {
+		t.Errorf("Events(Button) = %v", got)
+	}
+	if got := cat.CommonProps(); joined(got) != "id,type" {
+		t.Errorf("CommonProps() = %v", got)
+	}
+	if got := cat.Props("Nope"); got != nil {
+		t.Errorf("Props of an unknown type = %v, want nil", got)
+	}
+	if got := cat.Events("Nope"); got != nil {
+		t.Errorf("Events of an unknown type = %v, want nil", got)
+	}
+}
+
+// topicSource renders a minimal one-topic file for the overlay tests.
+func topicSource(key string) string {
+	return `@type protowire.docs.v1.TopicFile
+topics = [
+  {
+    key = "` + key + `"
+    locale = "en"
+    title = "T"
+  }
+]
+`
+}
+
+// compiledKeys lists a compile result's topic keys via the digest pass
+// over the same inputs — the pack itself is checked in the cmd tests;
+// here the question is only which sources joined the build.
+func compiledKeys(t *testing.T, result *Result) []string {
+	t.Helper()
+	if result.Errors > 0 {
+		var sb strings.Builder
+		for _, d := range result.Diagnostics {
+			sb.WriteString("  " + d.String() + "\n")
+		}
+		t.Fatalf("compile failed:\n%s", sb.String())
+	}
+	var keys []string
+	for _, ct := range wrap(result.Pack.ProtoReflect()).msgs("topics") {
+		keys = append(keys, ct.sub("topic").str("key"))
+	}
+	return keys
+}
+
+// TestOverlay pins the editor seam (#185): a dirty buffer replaces its
+// on-disk file, and a buffer with no file yet still joins the build —
+// while root-wide checks keep running across the spliced corpus.
+func TestOverlay(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "a.pxf"), []byte(topicSource("guide.saved")), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// The overlay replaces a.pxf (its saved key disappears) and adds a
+	// file that exists nowhere on disk.
+	result, err := Compile(Options{
+		Inputs: []string{root},
+		Overlay: map[string][]byte{
+			"a.pxf":   []byte(topicSource("guide.edited")),
+			"new.pxf": []byte(topicSource("guide.unsaved")),
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := strings.Join(compiledKeys(t, result), ",")
+	if got != "guide.edited,guide.unsaved" {
+		t.Errorf("compiled topics = %s, want guide.edited,guide.unsaved", got)
+	}
+
+	// Root-wide checks see the overlay: two buffers claiming one (key,
+	// locale) is the duplicate-topic error, exactly as on disk.
+	dup, err := Compile(Options{
+		Inputs: []string{root},
+		Overlay: map[string][]byte{
+			"new.pxf": []byte(topicSource("guide.saved")),
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dup.Errors == 0 {
+		t.Error("duplicate key across disk and overlay compiled clean")
+	}
+
+	// Diagnostics attribute to the overlay path, so the editor can route
+	// them to the right buffer.
+	bad, err := Compile(Options{
+		Inputs:  []string{root},
+		Overlay: map[string][]byte{"new.pxf": []byte("not pxf {{{")},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var attributed bool
+	for _, d := range bad.Diagnostics {
+		if d.Severity == SeverityError && d.Loc.File == "new.pxf" {
+			attributed = true
+		}
+	}
+	if !attributed {
+		t.Errorf("no error attributed to the overlay path; got %v", bad.Diagnostics)
+	}
+}
+
+// TestPreloadedCatalog pins Options.Catalog (#185): a caller on a
+// debounce loads the registry once and hands it in; resolution behaves
+// exactly as with CatalogPath.
+func TestPreloadedCatalog(t *testing.T) {
+	cat, err := LoadCatalog("../testdata/docs/registry.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	src := `@type protowire.docs.v1.TopicFile
+topics = [
+  {
+    key = "widgets.button"
+    locale = "en"
+    title = "Button"
+    anchors = [
+      { widget { type = "Button" prop = "text" } }
+    ]
+  }
+]
+`
+	if err := os.WriteFile(filepath.Join(root, "b.pxf"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	result, err := Compile(Options{Inputs: []string{root}, Catalog: cat})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if keys := compiledKeys(t, result); strings.Join(keys, ",") != "widgets.button" {
+		t.Errorf("compiled topics = %v", keys)
 	}
 }

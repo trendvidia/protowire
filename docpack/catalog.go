@@ -60,8 +60,13 @@ type widgetEntry struct {
 // runtime's release cadence.
 const catalogFormatVersion = 3
 
-// loadCatalog reads a widget catalog in any accepted encoding.
-func loadCatalog(path string) (*Catalog, error) {
+// LoadCatalog reads a widget catalog in any accepted encoding. [Compile]
+// calls it for Options.CatalogPath; a caller compiling repeatedly (the
+// editor debounce) loads once and passes the result as Options.Catalog,
+// and anchor completion reads the entry sets off it directly
+// ([Catalog.Widgets], [Catalog.Props], [Catalog.Events],
+// [Catalog.CommonProps]).
+func LoadCatalog(path string) (*Catalog, error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -126,11 +131,17 @@ func loadCatalog(path string) (*Catalog, error) {
 	return cat, nil
 }
 
-// resolveWidget checks a widget anchor's canonical id against the
+// ResolveWidget checks a widget anchor's canonical id against the
 // catalog and returns the target's since-version. The error names what
 // exists, because "no such prop" is only useful next to the props that
 // do exist.
-func (c *Catalog) resolveWidget(id string) (since string, err error) {
+//
+// The id is the canonical resolved_id spelling the pack records: the
+// PascalCase type alone ("Button"), or the type plus one member —
+// "Button#prop:text", "Button#event:onTapped". Exported so an editor
+// can validate a completed anchor against exactly the check the
+// compiler will run (#185).
+func (c *Catalog) ResolveWidget(id string) (since string, err error) {
 	typ, memberKind, member := widgetMember(id)
 	entry, ok := c.widgets[typ]
 	if !ok {
@@ -154,6 +165,61 @@ func (c *Catalog) resolveWidget(id string) (since string, err error) {
 		return "", fmt.Errorf("widget %s has no event %q (has: %s)", typ, member, joinKeys(entry.events))
 	}
 	return "", fmt.Errorf("widget anchor %q has an unknown member kind %q", id, memberKind)
+}
+
+// ── Anchor-target queries (#185) ──────────────────────────────────────────
+//
+// The read-only surface widget-anchor completion consumes: the same
+// entry sets ResolveWidget checks membership against, so an editor can
+// only ever offer an anchor this compiler would accept.
+
+// Widgets returns the catalog's widget types, sorted.
+func (c *Catalog) Widgets() []string {
+	out := make([]string, 0, len(c.widgets))
+	for typ := range c.widgets {
+		out = append(out, typ)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// Props returns the property names a prop anchor on the widget type
+// resolves against — the widget's own props and its structural parent
+// duties (child_props), sorted. Common node props are not included;
+// they resolve on every widget and come from [Catalog.CommonProps].
+// Nil for a type the catalog does not carry.
+func (c *Catalog) Props(widgetType string) []string {
+	entry, ok := c.widgets[widgetType]
+	if !ok {
+		return nil
+	}
+	return sortedStringKeys(entry.props)
+}
+
+// Events returns the widget type's event names, sorted. Nil for a type
+// the catalog does not carry.
+func (c *Catalog) Events(widgetType string) []string {
+	entry, ok := c.widgets[widgetType]
+	if !ok {
+		return nil
+	}
+	return sortedStringKeys(entry.events)
+}
+
+// CommonProps returns the node-level property names every widget
+// accepts, sorted. A prop anchor naming one resolves on any catalog
+// widget.
+func (c *Catalog) CommonProps() []string {
+	return sortedStringKeys(c.common)
+}
+
+func sortedStringKeys(m map[string]string) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }
 
 func firstNonEmpty(vs ...string) string {

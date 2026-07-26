@@ -25,7 +25,7 @@ type TopicDigest struct {
 // gate everybody routes around.
 func Digests(inputs []string) ([]TopicDigest, []Diagnostic, error) {
 	d := &diags{}
-	sources, err := loadSources(inputs, d)
+	sources, err := loadSources(inputs, nil, d)
 	if err != nil {
 		return nil, d.sorted(), err
 	}

@@ -102,7 +102,12 @@ func collectSources(args []string) ([]string, map[string]string, error) {
 // loadSources reads and parses every collected topic file. Parse failures
 // are diagnostics rather than hard errors: one unparseable file should
 // not hide the problems in the rest of the corpus.
-func loadSources(args []string, d *diags) ([]*source, error) {
+//
+// The overlay substitutes in-memory contents by collected relative path
+// (Options.Overlay); a key matching no collected file joins the build as
+// an overlay-only source, so an editor buffer that has never been saved
+// still compiles with the rest of its root.
+func loadSources(args []string, overlay map[string][]byte, d *diags) ([]*source, error) {
 	md, err := message(TopicFileMessage)
 	if err != nil {
 		return nil, err
@@ -111,13 +116,22 @@ func loadSources(args []string, d *diags) ([]*source, error) {
 	if err != nil {
 		return nil, err
 	}
+	for rel := range overlay {
+		if _, ok := fileFor[rel]; !ok {
+			fileFor[rel] = ""
+			order = append(order, rel)
+		}
+	}
+	sort.Strings(order)
 
 	out := make([]*source, 0, len(order))
 	for _, rel := range order {
 		abs := fileFor[rel]
-		data, err := os.ReadFile(abs)
-		if err != nil {
-			return nil, err
+		data, ok := overlay[rel]
+		if !ok {
+			if data, err = os.ReadFile(abs); err != nil {
+				return nil, err
+			}
 		}
 		sum := sha256.Sum256(data)
 

@@ -48,8 +48,8 @@ counterparts; boundary renderers map what they map (precedents: #164,
 | `proto/docs/v1/topic.proto` | The authoring model: `TopicFile`, `Topic`, prose blocks, anchors, review, translation, redirects, the `Audience` taxonomy |
 | `proto/docs/v1/pack.proto` | The compiled artifact: `DocPack`, `CompiledTopic`, `ResolvedAnchor`, `SearchIndex`, provenance |
 | `proto/docs/v1/registry.proto` | `WidgetCatalog` — protowire's typed mirror of the appviewer registry export |
-| `internal/docpack/` | The compiler |
-| `cmd/pxf/docs.go` | `pxf docs build`, `pxf docs digest` |
+| `docpack/` | The compiler, importable (#185): `Compile` with a buffer overlay and preloaded inputs, `LoadImage`/`LoadCatalog` with the anchor-target query surface |
+| `cmd/pxf/docs.go` | `pxf docs build`, `pxf docs digest` — thin callers of `docpack` |
 
 All three schemas are stock proto3, like `schema/v1/report.proto`: they
 are read by runtimes and editors across every port, so they must parse

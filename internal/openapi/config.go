@@ -13,7 +13,7 @@ import (
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/types/dynamicpb"
 
-	"github.com/trendvidia/protowire/internal/docpack"
+	"github.com/trendvidia/protowire/docpack"
 	"github.com/trendvidia/protowire/internal/schemaresolve"
 )
 

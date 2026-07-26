@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/trendvidia/protowire/internal/docpack"
+	"github.com/trendvidia/protowire/docpack"
 )
 
 // Audience tiers (§#080 Gap 2): assigned by generator configuration

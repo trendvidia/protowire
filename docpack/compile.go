@@ -19,6 +19,19 @@
 // the review states and runs this compiler on its diagnostics debounce
 // (trendvidia/goed#321); the OpenAPI (#173) and static-HTML (#171)
 // renderers read pack plus image.
+//
+// The package is importable, not CLI-only (#185): goed links its
+// compilers in-process, so the editor integration is [Compile] on a
+// debounce rather than a subprocess. Three affordances exist for that
+// caller and cost the CLI nothing: [Options.Overlay] splices unsaved
+// editor buffers into the topic root (topic identity is (key, locale)
+// across the whole root, so a single-buffer check would be unsound);
+// [Options.Image] and [Options.Catalog] accept preloaded data inputs so
+// a debounced rebuild does not re-read and re-index them from disk; and
+// [LoadImage]/[LoadCatalog] expose the anchor-target sets — FQNs,
+// canonical descriptor paths, widget/prop/event names — that anchor
+// completion offers. The join key throughout is the canonical
+// resolved-id spelling the pack records in `resolved_id`.
 package docpack
 
 import (
@@ -38,13 +51,37 @@ type Options struct {
 	// Inputs are topic roots or files, as given on the command line.
 	Inputs []string
 
+	// Overlay substitutes in-memory contents for topic sources, keyed by
+	// the root-relative slash-separated path a source is collected under
+	// (the path recorded in the pack's provenance and in diagnostics). A
+	// key matching a collected file replaces that file's bytes; a key
+	// matching nothing is compiled as a new source that exists only in
+	// the overlay. Files on disk are otherwise read as usual.
+	//
+	// This is the editor seam (trendvidia/goed#321): topic identity is
+	// (key, locale) across the whole root — duplicate keys, cross-topic
+	// links and translation staleness are root-wide checks — so checking
+	// one unsaved buffer in isolation would be unsound. The editor
+	// compiles the full root with its dirty buffers spliced in.
+	Overlay map[string][]byte
+
 	// ImagePath is the lowered FileDescriptorSet schema anchors resolve
 	// against. Optional: a corpus with no schema anchors needs no image.
 	ImagePath string
 
+	// Image, when non-nil, is an already-loaded image used instead of
+	// reading ImagePath. [Compile] re-reads and re-indexes the image on
+	// every call otherwise; a caller compiling on a debounce loads it
+	// once with [LoadImage] and hands it in.
+	Image *Image
+
 	// CatalogPath is the appviewer registry export widget anchors
 	// resolve against. Optional, on the same terms.
 	CatalogPath string
+
+	// Catalog, when non-nil, is an already-loaded registry export used
+	// instead of reading CatalogPath, on the same terms as Image.
+	Catalog *Catalog
 
 	// SourceLocale is the locale topics are authored in. Defaults to "en".
 	SourceLocale string
@@ -176,25 +213,27 @@ func (c *compiler) hasKey(key string) bool { return len(c.byKey[key]) > 0 }
 // ── Pipeline ──────────────────────────────────────────────────────────────
 
 func (c *compiler) run() error {
-	sources, err := loadSources(c.opts.Inputs, c.d)
+	sources, err := loadSources(c.opts.Inputs, c.opts.Overlay, c.d)
 	if err != nil {
 		return err
 	}
 	c.sources = sources
-	if c.opts.ImagePath != "" {
-		if c.image, err = loadImage(c.opts.ImagePath); err != nil {
+	c.image = c.opts.Image
+	if c.image == nil && c.opts.ImagePath != "" {
+		if c.image, err = LoadImage(c.opts.ImagePath); err != nil {
 			return err
 		}
 	}
-	if c.opts.CatalogPath != "" {
-		if c.catalog, err = loadCatalog(c.opts.CatalogPath); err != nil {
+	c.catalog = c.opts.Catalog
+	if c.catalog == nil && c.opts.CatalogPath != "" {
+		if c.catalog, err = LoadCatalog(c.opts.CatalogPath); err != nil {
 			return err
 		}
-		if c.catalog.SchemaVersion > catalogFormatVersion {
-			c.d.warnf(Loc{File: c.catalog.Path},
-				"registry export is catalog schema version %d; this compiler understands %d — newer entries may not resolve",
-				c.catalog.SchemaVersion, catalogFormatVersion)
-		}
+	}
+	if c.catalog != nil && c.catalog.SchemaVersion > catalogFormatVersion {
+		c.d.warnf(Loc{File: c.catalog.Path},
+			"registry export is catalog schema version %d; this compiler understands %d — newer entries may not resolve",
+			c.catalog.SchemaVersion, catalogFormatVersion)
 	}
 
 	c.collectTopics(sources)
@@ -391,7 +430,7 @@ func (c *compiler) resolveTarget(t *topic, ra *resolvedAnchor) error {
 		}
 		// Re-derived on every build, never trusted from the source: the
 		// path grammar is a toolchain artifact (trendvidia/protolsp#260).
-		if !c.image.hasPath(ra.id) {
+		if !c.image.HasPath(ra.id) {
 			element := ra.a.sub(anchorDescriptorPath).str("element_fqn")
 			// Distinguish "no such element" from "that element carries no
 			// such annotation": the first is a renamed or removed target,
@@ -401,7 +440,7 @@ func (c *compiler) resolveTarget(t *topic, ra *resolvedAnchor) error {
 					ra.id, element, c.image.Path, redirectHint(ra))
 			}
 			return fmt.Errorf("descriptor-path anchor %s is not in the image's source map (annotations recorded on %s: %s)",
-				ra.id, element, c.image.annotationsOn(element))
+				ra.id, element, c.image.annotationSummary(element))
 		}
 		ra.descPath = ra.id
 		return nil
@@ -410,7 +449,7 @@ func (c *compiler) resolveTarget(t *topic, ra *resolvedAnchor) error {
 		if c.catalog == nil {
 			return fmt.Errorf("widget anchor %s needs a registry export (pass --registry)", ra.id)
 		}
-		since, err := c.catalog.resolveWidget(ra.id)
+		since, err := c.catalog.ResolveWidget(ra.id)
 		if err != nil {
 			return err
 		}

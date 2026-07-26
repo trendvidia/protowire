@@ -10,7 +10,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/dynamicpb"
 
-	"github.com/trendvidia/protowire/internal/docpack"
+	"github.com/trendvidia/protowire/docpack"
 )
 
 // Doc-pack integration (§#080 Gap 2): topics anchored to schema

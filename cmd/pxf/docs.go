@@ -26,7 +26,7 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/trendvidia/protowire/internal/docpack"
+	"github.com/trendvidia/protowire/docpack"
 )
 
 func docsCmd() *cobra.Command {
