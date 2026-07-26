@@ -37,6 +37,7 @@ package docpack
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"google.golang.org/protobuf/proto"
 )
@@ -477,6 +478,12 @@ func (c *compiler) resolveTarget(t *topic, ra *resolvedAnchor) error {
 			ra.since = since
 		}
 		return nil
+
+	case anchorTransition:
+		if c.catalog == nil {
+			return fmt.Errorf("transition anchor %s needs a registry export (pass --registry)", ra.id)
+		}
+		return c.catalog.ResolveTransition(strings.TrimPrefix(ra.id, "transition:"))
 
 	case anchorRoute:
 		// Routes are app-owned strings with no data input to check them

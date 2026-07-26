@@ -26,10 +26,12 @@ const (
 	anchorWidget         = "widget"
 	anchorRoute          = "route"
 	anchorTopic          = "topic"
+	anchorTransition     = "transition"
 )
 
 // stabilityOf classifies an anchor kind. Schema FQNs, widget IDs, topic
-// keys and routes are stable by construction — identity is the name.
+// keys, routes and transition names are stable by construction —
+// identity is the name.
 // Descriptor paths are derived from a specific image with a specific
 // toolchain and are valid only against the provenance recorded beside
 // them (trendvidia/protolsp#260 is the proof this distinction is load
@@ -146,6 +148,19 @@ func anchorID(a dmsg) (kind, id string, err error) {
 			return kind, "", fmt.Errorf("topic anchor key %q is not a dotted lowercase key", key)
 		}
 		return kind, key, nil
+
+	case anchorTransition:
+		name := a.sub(anchorTransition).str("name")
+		if name == "" {
+			return kind, "", fmt.Errorf("transition anchor has an empty name")
+		}
+		if !identPattern.MatchString(name) {
+			return kind, "", fmt.Errorf("transition anchor name %q is not an identifier", name)
+		}
+		// The "transition:" prefix keeps the id disjoint from every other
+		// spelling in the shared namespace: widget ids start PascalCase,
+		// topic keys are dotted lowercase, routes start with "/".
+		return kind, "transition:" + name, nil
 	}
 	return kind, "", fmt.Errorf("anchor has an unknown target kind %q", kind)
 }

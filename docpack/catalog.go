@@ -174,7 +174,13 @@ func (c *Catalog) ResolveWidget(id string) (since string, err error) {
 		if s, ok := c.common[member]; ok {
 			return firstNonEmpty(s, entry.since), nil
 		}
-		return "", fmt.Errorf("widget %s has no property %q (has: %s)", typ, member, joinKeys(entry.props, c.common))
+		// Composition attributes are offered by context on any widget node
+		// (#199): pick-to-help lands on a typed node carrying `slot`, and
+		// the lookup must land with it — so they resolve like common props.
+		if s, ok := c.composition[member]; ok {
+			return firstNonEmpty(s, entry.since), nil
+		}
+		return "", fmt.Errorf("widget %s has no property %q (has: %s)", typ, member, joinKeys(entry.props, c.common, c.composition))
 	case "event":
 		if s, ok := entry.events[member]; ok {
 			return firstNonEmpty(s, entry.since), nil
@@ -231,19 +237,35 @@ func (c *Catalog) CommonProps() []string {
 }
 
 // CompositionProps returns the template-composition attribute names
-// (catalog schema v8), sorted. Not resolvable as widget anchors — they
-// apply to untyped template-instance nodes, which the widget-anchor
-// grammar cannot address — so completion must not offer them as prop
-// anchors (#186).
+// (catalog schema v8), sorted. Like CommonProps, a prop anchor naming
+// one resolves on every catalog widget (#199): the attributes are
+// offered by context, and the context is any node under composition.
 func (c *Catalog) CompositionProps() []string {
 	return sortedStringKeys(c.composition)
 }
 
 // Transitions returns the accepted screen-transition names (catalog
 // schema v9) in the producer's canonical order (the default first — the
-// order is load-bearing upstream). Not resolvable as widget anchors.
+// order is load-bearing upstream). Each is a transition-anchor target
+// (#199); [Catalog.ResolveTransition] is the membership check.
 func (c *Catalog) Transitions() []string {
 	return append([]string(nil), c.transitions...)
+}
+
+// ResolveTransition checks a transition anchor's name against the
+// catalog's screen-transition vocabulary (#199). Transitions carry no
+// since-version of their own; a topic states applicability through
+// meta.since instead.
+func (c *Catalog) ResolveTransition(name string) error {
+	for _, tr := range c.transitions {
+		if tr == name {
+			return nil
+		}
+	}
+	if len(c.transitions) == 0 {
+		return fmt.Errorf("transition %q is not in the registry export (%s carries no transitions; catalog schema v9 adds them)", name, c.Path)
+	}
+	return fmt.Errorf("transition %q is not in the registry export (has: %s)", name, strings.Join(c.transitions, ", "))
 }
 
 func sortedStringKeys(m map[string]string) []string {

@@ -63,17 +63,18 @@ message WidgetCatalog {
   string runtime_version = 5;
 
   // Template-composition attributes (`template`, `slot`, `content_slot`),
-  // meaningful only on an untyped template-instance node — offered by
-  // context, never by widget (appviewer#209; catalog schema v8). Like
-  // action_funcs they are carried for provenance and future anchor
-  // kinds: the widget-anchor grammar addresses a typed widget, which is
-  // exactly what a composition node is not.
+  // offered by context on a node participating in template composition
+  // (appviewer#209; catalog schema v8). Since #199 a widget prop anchor
+  // naming one of these resolves on any catalog widget, exactly like
+  // common_props: pick-to-help lands on a typed node carrying `slot`,
+  // and the lookup must land with it.
   repeated PropSpec composition_props = 6;
 
   // The accepted screen-transition vocabulary (appviewer#276; catalog
   // schema v9), in the producer's canonical order (the default first —
-  // the order is load-bearing upstream). Carried for provenance and
-  // future anchor kinds; not resolvable as a widget anchor today.
+  // the order is load-bearing upstream). Anchorable since #199 through
+  // the dedicated TransitionAnchor kind — transitions are catalog-global
+  // and belong to no widget type.
   repeated TransitionSpec transitions = 7;
 }
 
