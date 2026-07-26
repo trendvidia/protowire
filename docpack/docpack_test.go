@@ -715,6 +715,180 @@ topics = [
 	}
 }
 
+// coverageCorpus writes the doc-coverage test corpus (#200): an
+// approved PUBLIC topic documenting Label and Label#prop:text, and an
+// approved INTERNAL topic documenting Entry. Approval digests are
+// computed with the real digest pass, so the corpus is release-clean
+// and the only policy findings are coverage's own.
+func coverageCorpus(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	render := func(labelDigest, entryDigest string) string {
+		return `@type protowire.docs.v1.TopicFile
+topics = [
+  {
+    key = "widgets.label"
+    locale = "en"
+    title = "Label"
+    meta { audience = AUDIENCE_PUBLIC }
+    anchors = [
+      { widget { type = "Label" } }
+      { widget { type = "Label" prop = "text" } }
+    ]
+    review {
+      state = REVIEW_STATE_APPROVED
+      author = "author@example.com"
+      revisor = "revisor@example.com"
+      approved_digest = "` + labelDigest + `"
+    }
+  }
+  {
+    key = "widgets.entry"
+    locale = "en"
+    title = "Entry"
+    meta { audience = AUDIENCE_INTERNAL }
+    anchors = [{ widget { type = "Entry" } }]
+    review {
+      state = REVIEW_STATE_APPROVED
+      author = "author@example.com"
+      revisor = "revisor@example.com"
+      approved_digest = "` + entryDigest + `"
+    }
+  }
+]
+`
+	}
+	placeholder := strings.Repeat("0", 64)
+	path := filepath.Join(root, "t.pxf")
+	if err := os.WriteFile(path, []byte(render(placeholder, placeholder)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	digests, _, err := Digests([]string{root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	byKey := map[string]string{}
+	for _, d := range digests {
+		byKey[d.Key] = d.Digest
+	}
+	if err := os.WriteFile(path, []byte(render(byKey["widgets.label"], byKey["widgets.entry"])), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return root
+}
+
+// TestDocCoveragePolicy pins the #200 coverage policy over the catalog
+// half of the denominator: exact-id matching, the audience rule, the
+// approved level, both granularities, and the deliberate exclusion of
+// common and composition props.
+func TestDocCoveragePolicy(t *testing.T) {
+	root := coverageCorpus(t)
+	compile := func(coverage string, approved, release bool) *Result {
+		t.Helper()
+		result, err := Compile(Options{
+			Inputs:           []string{root},
+			CatalogPath:      "../testdata/docs/registry_v9.json",
+			Coverage:         coverage,
+			CoverageApproved: approved,
+			Release:          release,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return result
+	}
+	messages := func(r *Result) string {
+		var sb strings.Builder
+		for _, d := range r.Diagnostics {
+			sb.WriteString(d.Message + "\n")
+		}
+		return sb.String()
+	}
+
+	// Off by default: no coverage findings at all.
+	if got := messages(compile("", false, false)); strings.Contains(got, "documenting topic") {
+		t.Errorf("coverage ran without opt-in:\n%s", got)
+	}
+
+	// widgets granularity: Border is undocumented, Entry is documented
+	// only at INTERNAL (elements read as public today), Label is fine.
+	drafting := compile(CoverageWidgets, false, false)
+	if drafting.Errors > 0 {
+		t.Fatalf("coverage must warn while drafting:\n%s", formatDiags(drafting.Diagnostics))
+	}
+	got := messages(drafting)
+	for _, want := range []string{
+		"widget Border has no documenting topic",
+		"widget Entry is documented only by topics more restricted than the element",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q in:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "widget Label") {
+		t.Errorf("documented widget flagged:\n%s", got)
+	}
+
+	// Under --release the same findings refuse the build.
+	release := compile(CoverageWidgets, false, true)
+	if release.Errors != 2 || release.Pack != nil {
+		t.Errorf("release coverage: errors = %d (want 2), pack emitted = %v:\n%s",
+			release.Errors, release.Pack != nil, formatDiags(release.Diagnostics))
+	}
+
+	// members granularity adds per-widget props and events and the
+	// transition vocabulary — but never common or composition props,
+	// which resolve on every widget and have no single id to require.
+	got = messages(compile(CoverageMembers, false, false))
+	for _, want := range []string{
+		"widget prop Entry#prop:placeholder has no documenting topic",
+		"widget event Entry#event:onChanged has no documenting topic",
+		"widget prop Border#prop:position has no documenting topic",
+		"transition transition:slide has no documenting topic",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q in:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "Label#prop:text") {
+		t.Errorf("documented prop flagged:\n%s", got)
+	}
+	for _, excluded := range []string{"#prop:id", "#prop:type", "#prop:help_topic", "#prop:slot", "#prop:template", "#prop:content_slot"} {
+		if strings.Contains(got, excluded) {
+			t.Errorf("common/composition prop %s joined the denominator:\n%s", excluded, got)
+		}
+	}
+
+	// The approved level: a draft topic documenting Border stops
+	// counting, and the message says the drafts exist.
+	draft := `@type protowire.docs.v1.TopicFile
+topics = [
+  {
+    key = "widgets.border"
+    locale = "en"
+    title = "Border"
+    meta { audience = AUDIENCE_PUBLIC }
+    anchors = [{ widget { type = "Border" } }]
+    review { state = REVIEW_STATE_DRAFT author = "author@example.com" }
+  }
+]
+`
+	if err := os.WriteFile(filepath.Join(root, "draft.pxf"), []byte(draft), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := messages(compile(CoverageWidgets, false, false)); strings.Contains(got, "widget Border") {
+		t.Errorf("draft topic did not count at the documented level:\n%s", got)
+	}
+	if got := messages(compile(CoverageWidgets, true, false)); !strings.Contains(got, "widget Border has no approved documenting topic") {
+		t.Errorf("approved level did not flag the draft-only widget:\n%s", got)
+	}
+
+	// An unknown granularity is refused up front.
+	if _, err := Compile(Options{Inputs: []string{root}, Coverage: "everything"}); err == nil {
+		t.Error("unknown coverage granularity accepted")
+	}
+}
+
 // TestReviewIdentityWarnings pins the identity convention (#197): the
 // canonical form is the lowercase git author email, and every spelling
 // that would defeat the string-compared gate — a forge login, a

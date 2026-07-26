@@ -344,6 +344,71 @@ func TestResolvedIDGrammarGolden(t *testing.T) {
 	}
 }
 
+// TestDocsCoverageHTTP pins the image half of the #200 coverage
+// denominator: methods carrying @http — the same set `pxf openapi`
+// renders operations for — demand a documenting topic, and a schema
+// anchor terminating at the method satisfies it.
+func TestDocsCoverageHTTP(t *testing.T) {
+	image := filepath.Join(t.TempDir(), "image.binpb")
+	if err := runPxf(t, "build", "-o", image, "../../testdata/schema-extensions/21_http_operation.proto"); err != nil {
+		t.Fatalf("pxf build: %v", err)
+	}
+	im, err := docpack.LoadImage(image)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "fixtures.http.Orders.CreateOrder,fixtures.http.Orders.GetOrder,fixtures.http.Orders.ListOrders"
+	if got := strings.Join(im.HTTPMethods(), ","); got != want {
+		t.Fatalf("HTTPMethods() = %q, want %q", got, want)
+	}
+
+	src := `@type protowire.docs.v1.TopicFile
+topics = [
+  {
+    key = "api.orders.get"
+    locale = "en"
+    title = "Fetching an order"
+    meta { audience = AUDIENCE_PUBLIC }
+    anchors = [{ schema { fqn = "fixtures.http.Orders.GetOrder" } }]
+    review { state = REVIEW_STATE_DRAFT author = "author@example.com" }
+  }
+]
+`
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "t.pxf"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	result, err := docpack.Compile(docpack.Options{
+		Inputs:    []string{root},
+		ImagePath: image,
+		Coverage:  docpack.CoverageWidgets,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Errors > 0 {
+		t.Fatalf("coverage must warn while drafting:\n%s", formatDiags(result.Diagnostics))
+	}
+	var flagged []string
+	for _, d := range result.Diagnostics {
+		if strings.Contains(d.Message, "@http method") {
+			flagged = append(flagged, d.Message)
+			if d.Loc.File != image {
+				t.Errorf("coverage diagnostic located at %q, want the image path", d.Loc.File)
+			}
+		}
+	}
+	joined := strings.Join(flagged, "\n")
+	for _, undocumented := range []string{"fixtures.http.Orders.ListOrders", "fixtures.http.Orders.CreateOrder"} {
+		if !strings.Contains(joined, "@http method "+undocumented+" has no documenting topic") {
+			t.Errorf("missing finding for %s in:\n%s", undocumented, joined)
+		}
+	}
+	if strings.Contains(joined, "GetOrder") {
+		t.Errorf("documented method flagged:\n%s", joined)
+	}
+}
+
 // TestDocsInvalidFixtures pins the diagnostics for every way a corpus can
 // be wrong. Each fixture compiles alone.
 func TestDocsInvalidFixtures(t *testing.T) {
