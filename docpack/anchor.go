@@ -51,6 +51,13 @@ var (
 	tagPattern    = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
 	localePattern = regexp.MustCompile(`^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$`)
 	digestPattern = regexp.MustCompile(`^[0-9a-f]{64}$`)
+	// identityPattern is the shape of the canonical review identity: a
+	// git author email, normalized to lowercase (#197, DOC-PACK.md
+	// § Review identity). Deliberately loose about what an email may
+	// contain — it exists to catch the forms that defeat the string-
+	// compared gate (forge logins, "Name <email>", case variants), not
+	// to litigate RFC 5321.
+	identityPattern = regexp.MustCompile(`^[a-z0-9._%'+-]+@[a-z0-9.-]+\.[a-z0-9-]+$`)
 )
 
 // anchorID returns an anchor's canonical id together with its oneof kind.

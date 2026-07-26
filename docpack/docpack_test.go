@@ -715,6 +715,74 @@ topics = [
 	}
 }
 
+// TestReviewIdentityWarnings pins the identity convention (#197): the
+// canonical form is the lowercase git author email, and every spelling
+// that would defeat the string-compared gate — a forge login, a
+// "Name <email>" form, a case variant — draws a warning while
+// canonical values draw none. Warnings only: the convention protects
+// the gate, it is not itself the gate.
+func TestReviewIdentityWarnings(t *testing.T) {
+	src := `@type protowire.docs.v1.TopicFile
+topics = [
+  {
+    key = "a.b"
+    locale = "en"
+    title = "T"
+    review {
+      state = REVIEW_STATE_IN_REVIEW
+      author = "decoder"
+      reviewers = ["ok@example.com", "Jane Doe <jane@example.com>"]
+      revisor = "Revisor@Example.com"
+    }
+  }
+]
+`
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "t.pxf"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	result, err := Compile(Options{Inputs: []string{root}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Errors > 0 {
+		t.Fatalf("identity drift must warn, not fail:\n%s", formatDiags(result.Diagnostics))
+	}
+	var flagged []string
+	for _, d := range result.Diagnostics {
+		if d.Severity == SeverityWarning && strings.Contains(d.Message, "not a lowercase git author email") {
+			flagged = append(flagged, d.Message[:strings.Index(d.Message, `" is not`)+1])
+		}
+	}
+	want := []string{
+		`review.author "decoder"`,
+		`review.reviewers entry "Jane Doe <jane@example.com>"`,
+		`review.revisor "Revisor@Example.com"`,
+	}
+	sort.Strings(flagged)
+	sort.Strings(want)
+	if strings.Join(flagged, "; ") != strings.Join(want, "; ") {
+		t.Errorf("flagged identities = %v, want %v", flagged, want)
+	}
+
+	// A canonical corpus draws no identity warning at all: the existing
+	// fixtures are the proof, but pin it locally too.
+	clean := strings.NewReplacer(
+		`"decoder"`, `"decoder@example.com"`,
+		`"Jane Doe <jane@example.com>"`, `"jane@example.com"`,
+		`"Revisor@Example.com"`, `"revisor@example.com"`,
+	).Replace(src)
+	result, err = Compile(Options{Inputs: []string{root}, Overlay: map[string][]byte{"t.pxf": []byte(clean)}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range result.Diagnostics {
+		if strings.Contains(d.Message, "git author email") {
+			t.Errorf("canonical identity warned: %s", d)
+		}
+	}
+}
+
 func formatDiags(ds []Diagnostic) string {
 	var sb strings.Builder
 	for _, d := range ds {

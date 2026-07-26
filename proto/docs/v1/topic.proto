@@ -173,16 +173,27 @@ enum Audience {
 message Review {
   ReviewState state = 1;
 
-  // Authoring identity (developer or technical writer). Free-form; the
-  // authoring layer decides whether these are emails, handles or IDs.
+  // Authoring identity (developer or technical writer).
+  //
+  // Identity convention (#197, normative — DOC-PACK.md § Review
+  // identity): the canonical form is the **git author email, normalized
+  // to lowercase**. Every producer — hand-authored topics, pxf tooling,
+  // editors, CI checks — MUST write and compare exactly that form. The
+  // release gate is a string comparison, so two spellings for one human
+  // defeat it in both directions; the compiler warns on values that do
+  // not look canonical. The same convention governs `reviewers`,
+  // `revisor` and Translation.translator.
   string author = 2;
 
-  // Who requested changes or signed off, depending on `state`.
+  // Who requested changes or signed off, depending on `state`. Same
+  // identity convention as `author`.
   repeated string reviewers = 3;
 
   // The revisor whose approval gates release. Required when state is
   // REVIEW_STATE_APPROVED, and MUST NOT be the author: self-approval
-  // defeats the gate.
+  // defeats the gate. Same identity convention as `author` — the
+  // inequality check is a string comparison, which is exactly why the
+  // form is pinned.
   string revisor = 4;
 
   // Digest of the topic content this review decision applies to —
@@ -222,7 +233,9 @@ message Translation {
   // `pxf docs build` warns, and release policy may escalate to an error.
   string source_digest = 1;
 
-  // Translator identity and the product version translated against.
+  // Translator identity (Review.author's identity convention: git
+  // author email, lowercased) and the product version translated
+  // against.
   string translator = 2;
   string translated_version = 3;
 }
