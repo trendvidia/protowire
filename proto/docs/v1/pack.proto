@@ -111,8 +111,14 @@ message ResolvedAnchor {
   //   schema          "myco.orders.Order.total"
   //   descriptor path "myco.User.email[protowire.schema.v1.validate#1]"
   //   widget          "Button", "Button#prop:text", "Button#event:onTapped"
+  //   transition      "transition:slide"
   //   route           "/settings/profile"
   //   topic           "widgets.button.overview"
+  //
+  // These spellings are format contract, normatively specified in
+  // docs/DOC-PACK.md § Resolved anchor IDs and pinned by the
+  // testdata/docs/grammar conformance corpus (#198). Changing one is a
+  // format break, not a refactor.
   string resolved_id = 4;
 
   // Canonical §8.3.1 descriptor path, populated only for

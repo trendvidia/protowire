@@ -285,6 +285,65 @@ func TestDocsPackContents(t *testing.T) {
 	}
 }
 
+// TestResolvedIDGrammarGolden pins the resolved_id spellings as format
+// contract (#198). The grammar corpus authors one anchor per spelling
+// arm — every schema element kind including both enum-value scoping
+// cases, every widget member-resolution source, the derived descriptor
+// path, transition, route and topic — and the ids they resolve to are
+// golden. Consumers that cannot import this package (appviewer's Store
+// mirror per ADR-0012, non-Go ports) implement the DOC-PACK.md grammar
+// against this fixture; a spelling change fails here, not in their
+// lookups (the trendvidia/protolsp#260 lesson).
+func TestResolvedIDGrammarGolden(t *testing.T) {
+	image := filepath.Join(t.TempDir(), "image.binpb")
+	if err := runPxf(t, "build", "-o", image, filepath.Join(docsFixtureDir, "grammar", "schema.proto")); err != nil {
+		t.Fatalf("pxf build: %v", err)
+	}
+	result, err := docpack.Compile(docpack.Options{
+		Inputs:      []string{filepath.Join(docsFixtureDir, "grammar")},
+		ImagePath:   image,
+		CatalogPath: filepath.Join(docsFixtureDir, "registry_v9.json"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Errors > 0 {
+		t.Fatalf("grammar corpus failed to compile:\n%s", formatDiags(result.Diagnostics))
+	}
+
+	seen := map[string]bool{}
+	topics := result.Pack.ProtoReflect().Get(field(t, result.Pack.ProtoReflect(), "topics")).List()
+	for i := 0; i < topics.Len(); i++ {
+		ct := topics.Get(i).Message()
+		anchors := ct.Get(field(t, ct, "anchors")).List()
+		for j := 0; j < anchors.Len(); j++ {
+			a := anchors.Get(j).Message()
+			authored := a.Get(field(t, a, "authored")).Message()
+			od := authored.WhichOneof(authored.Descriptor().Oneofs().ByName("target"))
+			if od == nil {
+				t.Fatal("resolved anchor with no authored target")
+			}
+			seen[string(od.Name())+"\t"+a.Get(field(t, a, "resolved_id")).String()] = true
+		}
+	}
+	var lines []string
+	for l := range seen {
+		lines = append(lines, l)
+	}
+	sort.Strings(lines)
+	got := strings.Join(lines, "\n") + "\n"
+
+	goldenPath := filepath.Join(docsFixtureDir, "grammar", "resolved_ids.golden")
+	golden, err := os.ReadFile(goldenPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != string(golden) {
+		t.Errorf("resolved_id set drifted from %s — this is a doc-pack format break "+
+			"(DOC-PACK.md § Resolved anchor IDs), not a fixture to update casually.\ngot:\n%s", goldenPath, got)
+	}
+}
+
 // TestDocsInvalidFixtures pins the diagnostics for every way a corpus can
 // be wrong. Each fixture compiles alone.
 func TestDocsInvalidFixtures(t *testing.T) {
