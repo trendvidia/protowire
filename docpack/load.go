@@ -24,10 +24,11 @@ import (
 
 // source is one authored topic file.
 type source struct {
-	Abs    string // absolute path on disk
-	Rel    string // path relative to its input root, slash-separated
-	Digest string // lowercase hex SHA-256 of the file bytes
-	File   dmsg   // parsed TopicFile
+	Abs    string    // absolute path on disk; empty for an overlay-only source
+	Rel    string    // path relative to its input root, slash-separated
+	Digest string    // lowercase hex SHA-256 of the file bytes
+	File   dmsg      // parsed TopicFile
+	AST    *astIndex // element positions for diagnostics (#187)
 }
 
 // collectSources turns the positional arguments into topic sources. A
@@ -139,10 +140,12 @@ func loadSources(args []string, overlay map[string][]byte, d *diags) ([]*source,
 		// declares one it must be the topic-file message: a document
 		// claiming to be something else was almost certainly pointed at
 		// the wrong compiler.
-		if doc, err := pxf.Parse(data); err != nil {
+		doc, err := pxf.Parse(data)
+		if err != nil {
 			d.errorf(Loc{File: rel}, "parsing PXF: %v", err)
 			continue
-		} else if doc.TypeURL != "" && doc.TypeURL != TopicFileMessage {
+		}
+		if doc.TypeURL != "" && doc.TypeURL != TopicFileMessage {
 			d.errorf(Loc{File: rel}, "@type is %s; topic files must be %s", doc.TypeURL, TopicFileMessage)
 			continue
 		}
@@ -157,6 +160,7 @@ func loadSources(args []string, overlay map[string][]byte, d *diags) ([]*source,
 			Rel:    rel,
 			Digest: hex.EncodeToString(sum[:]),
 			File:   wrap(msg),
+			AST:    indexAST(doc),
 		})
 	}
 	return out, nil

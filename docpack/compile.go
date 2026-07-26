@@ -164,6 +164,7 @@ type topic struct {
 	locale string
 	digest string
 	loc    Loc
+	ast    *topicAST
 
 	anchors  []collectedAnchor
 	resolved []resolvedAnchor
@@ -176,6 +177,7 @@ func (t *topic) ref() topicRef { return topicRef{key: t.key, locale: t.locale} }
 type collectedAnchor struct {
 	origin string
 	a      dmsg
+	loc    Loc // where the anchor was written; the topic baseline for prose
 }
 
 type resolvedAnchor struct {
@@ -264,6 +266,13 @@ func (c *compiler) collectTopics(sources []*source) {
 				locale: msg.str("locale"),
 			}
 			t.loc = Loc{File: src.Rel, Topic: t.key}
+			// The key entry's position is the baseline every diagnostic
+			// about this topic carries (#187); checks that know their
+			// offending entry refine it through topic.at.
+			if ast := src.AST.topics[t.ref()]; ast != nil {
+				t.ast = ast
+				t.loc.Line, t.loc.Column = ast.line, ast.column
+			}
 			if !c.validateIdentity(t) {
 				continue
 			}
@@ -297,8 +306,19 @@ func (c *compiler) collectTopics(sources []*source) {
 // can be malformed: a target that means nothing, and a chain that loops.
 func (c *compiler) collectRedirects(sources []*source) {
 	for _, src := range sources {
-		loc := Loc{File: src.Rel}
-		for _, r := range src.File.msgs("redirects") {
+		msgs := src.File.msgs("redirects")
+		// Redirect entries have no in-model identity to key positions by,
+		// so pairing with the AST is positional — trusted only when the
+		// authored element count matches the bound one (#187).
+		positions := src.AST.redirects
+		if len(positions) != len(msgs) {
+			positions = nil
+		}
+		for ri, r := range msgs {
+			loc := Loc{File: src.Rel}
+			if positions != nil {
+				loc.Line, loc.Column = positions[ri].Line, positions[ri].Column
+			}
 			from, to := r.sub("from"), r.sub("to")
 			if !from.valid() || !to.valid() {
 				c.d.errorf(loc, "redirect must set both from and to")
@@ -385,7 +405,7 @@ func (c *compiler) resolveAnchors() {
 		for _, ca := range t.anchors {
 			kind, id, err := anchorID(ca.a)
 			if err != nil {
-				c.d.errorf(t.loc, "%v", err)
+				c.d.errorf(ca.loc, "%v", err)
 				continue
 			}
 			ra := resolvedAnchor{collectedAnchor: ca, kind: kind, id: id, stability: stabilityOf(kind)}
@@ -403,7 +423,7 @@ func (c *compiler) resolveAnchors() {
 			}
 
 			if err := c.resolveTarget(t, &ra); err != nil {
-				c.d.errorf(t.loc, "%v", err)
+				c.d.errorf(ca.loc, "%v", err)
 				continue
 			}
 			t.resolved = append(t.resolved, ra)

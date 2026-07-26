@@ -404,6 +404,70 @@ func TestOverlay(t *testing.T) {
 	}
 }
 
+// TestDiagnosticPositions pins the Loc coordinates (#187): the baseline
+// is the topic's `key` entry, and checks that know their offending
+// entry — a review field, a topic-level anchor — point at that entry.
+// Positions come from the AST the loader already parses; the editor
+// must never need a second parse to place a squiggle.
+func TestDiagnosticPositions(t *testing.T) {
+	src := `@type protowire.docs.v1.TopicFile
+topics = [
+  {
+    key = "a.b"
+    locale = "en"
+    review {
+      state = REVIEW_STATE_APPROVED
+      author = "a@example.com"
+      revisor = "a@example.com"
+    }
+    anchors = [
+      { topic { key = "no.such" } }
+    ]
+  }
+]
+`
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "t.pxf"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	result, err := Compile(Options{Inputs: []string{root}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	find := func(substr string) Diagnostic {
+		t.Helper()
+		for _, d := range result.Diagnostics {
+			if strings.Contains(d.Message, substr) {
+				return d
+			}
+		}
+		t.Fatalf("no diagnostic contains %q; got %v", substr, result.Diagnostics)
+		return Diagnostic{}
+	}
+
+	for substr, wantLine := range map[string]int{
+		"topic has no title":           4,  // baseline: the key entry
+		"self-approval defeats":        9,  // the revisor entry
+		"no review.approved_digest":    6,  // the review block
+		"names no topic in this build": 12, // the anchor's list element
+		"does not set meta.audience":   4,  // no meta entry to point at → baseline
+	} {
+		d := find(substr)
+		if d.Loc.Line != wantLine {
+			t.Errorf("%q at line %d, want %d (%s)", substr, d.Loc.Line, wantLine, d)
+		}
+		if d.Loc.Column == 0 {
+			t.Errorf("%q has no column (%s)", substr, d)
+		}
+	}
+
+	// String() renders file:line:col so terminals and editors can jump.
+	if d := find("topic has no title"); !strings.HasPrefix(d.String(), "t.pxf:4:5: error:") {
+		t.Errorf("String() = %q, want a t.pxf:4:5: error: prefix", d.String())
+	}
+}
+
 // TestPreloadedCatalog pins Options.Catalog (#185): a caller on a
 // debounce loads the registry once and hands it in; resolution behaves
 // exactly as with CatalogPath.
