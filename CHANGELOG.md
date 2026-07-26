@@ -10,6 +10,10 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+### Changed
+
+- **`protowire.docs.v1.WidgetCatalog` mirrors appviewer catalog schema v9** (issue [#186](https://github.com/trendvidia/protowire/issues/186)). Additive fields only: `WidgetCatalog.composition_props`/`transitions` (new `TransitionSpec` message), `WidgetSpec.icon`/`category`/`variadic_children`, `PropSpec.required`/`default_value`. `pxf docs build` accepts a v9 registry export without the every-build version warning (the gate is a documented floor: only exports *newer* than the mirrored version warn), and a `bind` prop anchor resolves per-widget — on Bindable specs only — per the v8 move off `common_props`. Composition props and transitions are carried like `action_funcs`: provenance and future anchor kinds, not resolvable as widget anchors, since the widget-anchor grammar addresses typed widgets. Wire-compatible: existing catalogs and packs are unchanged.
+
 ## [1.5.0] – 2026-07-25
 
 Feature train on the v1.0 freeze line: the documentation platform's first layer and the M8 OpenAPI boundary land together with the v1.2 toolchain's CLI entry points. Two additive schema-language changes (`@http` operation surface, `@sensitive` classification), two new typed artifact families (`protowire.docs.v1` doc packs, `protowire.openapi.v1` generator config — new packages, no extension numbers), three new `pxf` subcommands (`build`, `docs build`/`docs digest`, `openapi`), and a set of conformance tightenings: §6.4 map-key validation is explicit, the §7 reserved-code fallback messages are pinned, §5.1/§8.1 message-literal list elements are corpus-pinned now that the reference parser accepts them, and unreferenced broken/cyclic aliases MUST be rejected at the declaration site. No wire-format changes — PXF, `pb`, SBE, and envelope outputs are byte-identical to v1.4.0 for every schema and document, and `report.proto` is byte-compatible (comment-only edits). See [`STABILITY.md`](STABILITY.md) for the compatibility contract.

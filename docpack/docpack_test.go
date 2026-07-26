@@ -276,6 +276,136 @@ func TestCatalogJSONBoundary(t *testing.T) {
 	}
 }
 
+// TestCatalogV9Boundary pins the schema-v9 mirror (#186) against an
+// export shaped like the live appviewer registry: bind resolves
+// per-widget (the v8 move off common_props), composition props and
+// transitions are carried but never resolvable as widget anchors, and
+// the authoring hints survive the JSON boundary into the typed model.
+func TestCatalogV9Boundary(t *testing.T) {
+	cat, err := LoadCatalog("../testdata/docs/registry_v9.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cat.SchemaVersion != 9 {
+		t.Errorf("schema version = %d, want 9", cat.SchemaVersion)
+	}
+
+	// bind is a capability prop stamped onto Bindable specs: it resolves
+	// on the Binder widget and on no other — never commonly.
+	if _, err := cat.ResolveWidget("Entry#prop:bind"); err != nil {
+		t.Errorf("Entry#prop:bind did not resolve: %v", err)
+	}
+	if _, err := cat.ResolveWidget("Label#prop:bind"); err == nil {
+		t.Error("Label#prop:bind resolved; bind must be per-widget since v8")
+	}
+
+	// The rest of the membership rules hold on the v9 shape.
+	for _, id := range []string{"Border#prop:position", "Entry#event:onChanged", "Label#prop:help_topic"} {
+		if _, err := cat.ResolveWidget(id); err != nil {
+			t.Errorf("ResolveWidget(%q): %v", id, err)
+		}
+	}
+
+	// Composition props are context props on untyped nodes — the widget
+	// anchor grammar cannot address them, so they must not resolve as
+	// props of any widget.
+	if _, err := cat.ResolveWidget("Label#prop:slot"); err == nil {
+		t.Error("Label#prop:slot resolved; composition props are not widget props")
+	}
+	if got := strings.Join(cat.CompositionProps(), ","); got != "content_slot,slot,template" {
+		t.Errorf("CompositionProps() = %q", got)
+	}
+	// Producer order, not sorted: the default leads upstream.
+	if got := strings.Join(cat.Transitions(), ","); got != "none,slide,fade" {
+		t.Errorf("Transitions() = %q", got)
+	}
+}
+
+// TestCatalogV9TypedMirror checks the JSON boundary carries the v4–v9
+// fields into the typed WidgetCatalog — the mirror a .pxf/.binpb
+// producer authors directly.
+func TestCatalogV9TypedMirror(t *testing.T) {
+	raw, err := os.ReadFile("../testdata/docs/registry_v9.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	md, err := message(WidgetCatalogMessage)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cat, err := catalogFromJSON(raw, md)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	widgets := map[string]dmsg{}
+	for _, w := range cat.msgs("widgets") {
+		widgets[w.str("type")] = w
+	}
+	border := widgets["Border"]
+	if !border.valid() {
+		t.Fatal("no Border widget in the typed mirror")
+	}
+	if border.str("icon") != "border" || border.str("category") != "layout" {
+		t.Errorf("Border icon/category = %q/%q", border.str("icon"), border.str("category"))
+	}
+	if border.m.Get(border.fd("variadic_children")).Bool() != true {
+		t.Error("Border variadic_children not carried")
+	}
+	pos := border.msgs("child_props")[0]
+	if pos.str("name") != "position" {
+		t.Fatalf("Border child_props[0] = %q", pos.str("name"))
+	}
+	if pos.m.Get(pos.fd("required")).Bool() != true || pos.str("default_value") != "center" {
+		t.Errorf("position required/default_value = %v/%q, want true/center",
+			pos.m.Get(pos.fd("required")).Bool(), pos.str("default_value"))
+	}
+	if got := len(cat.msgs("composition_props")); got != 3 {
+		t.Errorf("composition_props carried %d entries, want 3", got)
+	}
+	if got := len(cat.msgs("transitions")); got != 3 {
+		t.Errorf("transitions carried %d entries, want 3", got)
+	}
+}
+
+// TestCatalogVersionGate pins the floor semantics (#186): an export at
+// the mirrored version builds silently, an older one still resolves,
+// and only a genuinely newer one warns.
+func TestCatalogVersionGate(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "t.pxf"), []byte(topicSource("a.b")), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	warned := func(registry string) bool {
+		t.Helper()
+		result, err := Compile(Options{Inputs: []string{root}, CatalogPath: registry})
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, d := range result.Diagnostics {
+			if strings.Contains(d.Message, "newer entries may not resolve") {
+				return true
+			}
+		}
+		return false
+	}
+
+	if warned("../testdata/docs/registry_v9.json") {
+		t.Error("a v9 export warned on a v9 compiler; the gate must be silent at the floor")
+	}
+	if warned("../testdata/docs/registry.json") {
+		t.Error("an older export warned; the floor gates newer versions only")
+	}
+
+	v10 := filepath.Join(t.TempDir(), "registry.json")
+	if err := os.WriteFile(v10, []byte(`{"schema_version": 10, "widgets": []}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if !warned(v10) {
+		t.Error("a v10 export did not warn; the floor must flag versions past the mirror")
+	}
+}
+
 // TestCatalogQuerySurface pins the read-only sets anchor completion
 // consumes (#185): exactly what ResolveWidget checks membership
 // against, so an editor can only offer anchors the compiler accepts.

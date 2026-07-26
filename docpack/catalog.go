@@ -43,8 +43,10 @@ type Catalog struct {
 	SchemaVersion uint32
 	WidgetCount   int
 
-	widgets map[string]*widgetEntry
-	common  map[string]string // common prop name → since ("" when unversioned)
+	widgets     map[string]*widgetEntry
+	common      map[string]string // common prop name → since ("" when unversioned)
+	composition map[string]string // composition prop name → since
+	transitions []string          // transition names, producer order
 }
 
 type widgetEntry struct {
@@ -54,11 +56,19 @@ type widgetEntry struct {
 }
 
 // catalogFormatVersion is the appviewer catalog schema version this
-// compiler was written against. A newer catalog is accepted with a
-// warning rather than refused: entries this compiler understands still
-// resolve, and refusing would couple every documentation build to the
-// runtime's release cadence.
-const catalogFormatVersion = 3
+// compiler was written against — a floor, not an equality check. A
+// newer catalog is accepted with a warning rather than refused: entries
+// this compiler understands still resolve, and refusing would couple
+// every documentation build to the runtime's release cadence. An
+// upstream addition that is purely presentational needs no bump here;
+// one that changes what anchors resolve against does (#186).
+//
+// Version history mirrored (appviewer catalog.ExportCatalog): 2 event
+// args (#45); 3 child_props (#51); 4 runtime_version (#35); 5 PropSpec
+// required/default (#146); 6 variadic_children (#151); 7 icon (#192);
+// 8 composition props split out + `bind` moved onto Bindable specs
+// (#209); 9 transitions (#276).
+const catalogFormatVersion = 9
 
 // LoadCatalog reads a widget catalog in any accepted encoding. [Compile]
 // calls it for Options.CatalogPath; a caller compiling repeatedly (the
@@ -104,9 +114,16 @@ func LoadCatalog(path string) (*Catalog, error) {
 		SchemaVersion: msg.u32("schema_version"),
 		widgets:       map[string]*widgetEntry{},
 		common:        map[string]string{},
+		composition:   map[string]string{},
 	}
 	for _, p := range msg.msgs("common_props") {
 		cat.common[p.str("name")] = p.str("since")
+	}
+	for _, p := range msg.msgs("composition_props") {
+		cat.composition[p.str("name")] = p.str("since")
+	}
+	for _, tr := range msg.msgs("transitions") {
+		cat.transitions = append(cat.transitions, tr.str("name"))
 	}
 	for _, w := range msg.msgs("widgets") {
 		entry := &widgetEntry{
@@ -213,6 +230,22 @@ func (c *Catalog) CommonProps() []string {
 	return sortedStringKeys(c.common)
 }
 
+// CompositionProps returns the template-composition attribute names
+// (catalog schema v8), sorted. Not resolvable as widget anchors — they
+// apply to untyped template-instance nodes, which the widget-anchor
+// grammar cannot address — so completion must not offer them as prop
+// anchors (#186).
+func (c *Catalog) CompositionProps() []string {
+	return sortedStringKeys(c.composition)
+}
+
+// Transitions returns the accepted screen-transition names (catalog
+// schema v9) in the producer's canonical order (the default first — the
+// order is load-bearing upstream). Not resolvable as widget anchors.
+func (c *Catalog) Transitions() []string {
+	return append([]string(nil), c.transitions...)
+}
+
 func sortedStringKeys(m map[string]string) []string {
 	out := make([]string, 0, len(m))
 	for k := range m {
@@ -252,23 +285,28 @@ func joinKeys(maps ...map[string]string) string {
 // purposes are ignored rather than rejected, so a newer runtime's export
 // still builds documentation.
 type jsonCatalog struct {
-	SchemaVersion  uint32           `json:"schema_version"`
-	RuntimeVersion string           `json:"runtime_version"`
-	Widgets        []jsonWidget     `json:"widgets"`
-	CommonProps    []jsonProp       `json:"common_props"`
-	ActionFuncs    []jsonActionFunc `json:"action_funcs"`
+	SchemaVersion    uint32           `json:"schema_version"`
+	RuntimeVersion   string           `json:"runtime_version"`
+	Widgets          []jsonWidget     `json:"widgets"`
+	CommonProps      []jsonProp       `json:"common_props"`
+	CompositionProps []jsonProp       `json:"composition_props"`
+	ActionFuncs      []jsonActionFunc `json:"action_funcs"`
+	Transitions      []jsonTransition `json:"transitions"`
 }
 
 type jsonWidget struct {
-	Type       string      `json:"type"`
-	Since      string      `json:"since"`
-	Doc        string      `json:"doc"`
-	Container  bool        `json:"container"`
-	Structural bool        `json:"structural"`
-	Bindable   bool        `json:"bindable"`
-	Props      []jsonProp  `json:"props"`
-	Events     []jsonEvent `json:"events"`
-	ChildProps []jsonProp  `json:"child_props"`
+	Type             string      `json:"type"`
+	Since            string      `json:"since"`
+	Doc              string      `json:"doc"`
+	Icon             string      `json:"icon"`
+	Category         string      `json:"category"`
+	Container        bool        `json:"container"`
+	Structural       bool        `json:"structural"`
+	VariadicChildren bool        `json:"variadic_children"`
+	Bindable         bool        `json:"bindable"`
+	Props            []jsonProp  `json:"props"`
+	Events           []jsonEvent `json:"events"`
+	ChildProps       []jsonProp  `json:"child_props"`
 }
 
 type jsonProp struct {
@@ -277,6 +315,16 @@ type jsonProp struct {
 	Enum  []string `json:"enum"`
 	Doc   string   `json:"doc"`
 	Since string   `json:"since"`
+	// Authoring hints (catalog schema v5, appviewer#146). The producer
+	// spells the value "default"; the typed mirror calls it
+	// default_value.
+	Required bool   `json:"required"`
+	Default  string `json:"default"`
+}
+
+type jsonTransition struct {
+	Name string `json:"name"`
+	Doc  string `json:"doc"`
 }
 
 type jsonEvent struct {
@@ -347,8 +395,11 @@ func catalogFromJSON(raw []byte, md protoreflect.MessageDescriptor) (dmsg, error
 		out.setStr("type", w.Type)
 		out.setStr("since", w.Since)
 		out.setStr("doc", w.Doc)
+		out.setStr("icon", w.Icon)
+		out.setStr("category", w.Category)
 		out.setBool("container", w.Container)
 		out.setBool("structural", w.Structural)
+		out.setBool("variadic_children", w.VariadicChildren)
 		out.setBool("bindable", w.Bindable)
 		addProps(out, "props", w.Props)
 		addProps(out, "child_props", w.ChildProps)
@@ -366,11 +417,20 @@ func catalogFromJSON(raw []byte, md protoreflect.MessageDescriptor) (dmsg, error
 		}
 	}
 	addProps(cat, "common_props", jc.CommonProps)
+	addProps(cat, "composition_props", jc.CompositionProps)
 	sort.Slice(jc.ActionFuncs, func(i, j int) bool { return jc.ActionFuncs[i].Name < jc.ActionFuncs[j].Name })
 	for _, f := range jc.ActionFuncs {
 		fn := cat.appendMsg("action_funcs")
 		fn.setStr("name", f.Name)
 		fn.setStr("since", f.Since)
+	}
+	// Transitions keep the producer's order: the default leads and the
+	// order maps to upstream's TransitionKind indices, so sorting here
+	// would erase a fact the export states.
+	for _, tr := range jc.Transitions {
+		out := cat.appendMsg("transitions")
+		out.setStr("name", tr.Name)
+		out.setStr("doc", tr.Doc)
 	}
 	return cat, nil
 }
@@ -384,6 +444,8 @@ func addProps(parent dmsg, field string, props []jsonProp) {
 		out.setEnum("kind", propKind(p.Kind))
 		out.setStr("doc", p.Doc)
 		out.setStr("since", p.Since)
+		out.setBool("required", p.Required)
+		out.setStr("default_value", p.Default)
 		for _, v := range p.Enum {
 			out.appendStr("enum_values", v)
 		}
