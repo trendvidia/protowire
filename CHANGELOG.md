@@ -10,9 +10,22 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+## [1.6.0] – 2026-07-25
+
+Editor-integration follow-up to the v1.5.0 documentation platform, driven by the goed authoring layer (trendvidia/goed#321): the doc-pack compiler becomes an importable Go library with an unsaved-buffer overlay and an anchor-completion query surface, its diagnostics carry source positions, and the `WidgetCatalog` mirror catches up to the live appviewer registry export. No wire-format changes — PXF, `pb`, SBE, envelope, and doc-pack outputs are byte-identical to v1.5.0 for every schema, document, and topic corpus; the only schema delta is additive fields on `protowire.docs.v1.WidgetCatalog` (no extension numbers). See [`STABILITY.md`](STABILITY.md) for the compatibility contract.
+
+### Added
+
+- **`docpack` is an importable library** (issue [#185](https://github.com/trendvidia/protowire/issues/185)). `internal/docpack` → public `docpack/`; `cmd/pxf` is a thin caller. For in-process consumers on a diagnostics debounce: `Options.Overlay` splices unsaved editor buffers into the topic root by root-relative path (topic identity is (key, locale) across the whole root, so single-buffer checks would be unsound; overlay-only keys compile as new sources), `Options.Image`/`Options.Catalog` accept preloaded data inputs via the exported `LoadImage`/`LoadCatalog` (pinned byte-identical to the path-based build), and the anchor-completion query surface — `Image.FQNs`/`Has`/`Paths`/`HasPath`/`AnnotationsOn`, `Catalog.Widgets`/`Props`/`Events`/`CommonProps`, exported `Catalog.ResolveWidget` — exposes exactly the sets resolution checks membership against, keyed by the canonical `resolved_id` spellings.
+- **Source positions on doc diagnostics** (issue [#187](https://github.com/trendvidia/protowire/issues/187)). `docpack.Loc` gains optional 1-based `Line`/`Column` (zero = unknown), taken from the PXF AST the loader already parses — no second parse. Baseline is the topic's `key` entry; checks that know their offending entry point at it (review/meta/translation fields, each topic-level anchor's own list element, redirect entries). Topic positions are keyed by (key, locale) identity, never index-paired. `Diagnostic.String()` renders `file:line:col:` when present.
+
 ### Changed
 
 - **`protowire.docs.v1.WidgetCatalog` mirrors appviewer catalog schema v9** (issue [#186](https://github.com/trendvidia/protowire/issues/186)). Additive fields only: `WidgetCatalog.composition_props`/`transitions` (new `TransitionSpec` message), `WidgetSpec.icon`/`category`/`variadic_children`, `PropSpec.required`/`default_value`. `pxf docs build` accepts a v9 registry export without the every-build version warning (the gate is a documented floor: only exports *newer* than the mirrored version warn), and a `bind` prop anchor resolves per-widget — on Bindable specs only — per the v8 move off `common_props`. Composition props and transitions are carried like `action_funcs`: provenance and future anchor kinds, not resolvable as widget anchors, since the widget-anchor grammar addresses typed widgets. Wire-compatible: existing catalogs and packs are unchanged.
+
+### Fixed
+
+- **`pxf` runtime errors no longer print the usage block** (issue [#188](https://github.com/trendvidia/protowire/issues/188)). Usage prints for exactly the errors it can help with — unknown flags, wrong argument counts — and never after a runtime failure. Also fixed alongside: `pxf query` and `pxf infer-schema` runtime failures used to exit 1 in complete silence (per-command `SilenceErrors` with nothing else printing); their errors now print like every other command's.
 
 ## [1.5.0] – 2026-07-25
 
