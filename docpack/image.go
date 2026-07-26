@@ -6,6 +6,7 @@ package docpack
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 
@@ -65,9 +66,12 @@ const (
 	kindTypeAlias elementKind = "type alias"
 )
 
-// loadImage reads a lowered image and indexes everything anchors can
-// point at.
-func loadImage(path string) (*Image, error) {
+// LoadImage reads a lowered image and indexes everything anchors can
+// point at. [Compile] calls it for Options.ImagePath; a caller compiling
+// repeatedly (the editor debounce) loads once and passes the result as
+// Options.Image, and anchor completion reads the target sets off it
+// directly ([Image.FQNs], [Image.Paths], [Image.AnnotationsOn]).
+func LoadImage(path string) (*Image, error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -206,13 +210,56 @@ func (im *Image) lookup(fqn string) (elementKind, bool) {
 	return k, ok
 }
 
-// hasPath reports whether the image's source maps carry this canonical
-// descriptor path.
-func (im *Image) hasPath(p string) bool { return im.paths[p] }
+// ── Anchor-target queries (#185) ──────────────────────────────────────────
+//
+// The read-only surface anchor completion consumes: exactly the sets
+// resolution checks against, so an editor can only ever offer an anchor
+// this compiler would accept. Schema-anchor ids are the FQNs verbatim;
+// descriptor-path ids are the canonical §8.3.1 spellings in Paths.
 
-// annotationsOn lists the annotation FQNs the image records for an
-// element, for diagnostics.
-func (im *Image) annotationsOn(fqn string) string {
+// Has reports whether the image defines the fully-qualified name — the
+// membership check behind schema anchors.
+func (im *Image) Has(fqn string) bool {
+	_, ok := im.fqns[fqn]
+	return ok
+}
+
+// FQNs returns every addressable schema element in the image — messages,
+// fields, oneofs, enums, enum values, services, methods and v1.2 type
+// aliases — sorted, one spelling per element.
+func (im *Image) FQNs() []string {
+	out := make([]string, 0, len(im.fqns))
+	for fqn := range im.fqns {
+		out = append(out, fqn)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// HasPath reports whether the image's source maps carry this canonical
+// descriptor path — the membership check behind descriptor-path anchors.
+func (im *Image) HasPath(p string) bool { return im.paths[p] }
+
+// Paths returns the canonical §8.3.1 descriptor paths the image's source
+// maps record, sorted.
+func (im *Image) Paths() []string {
+	out := make([]string, 0, len(im.paths))
+	for p := range im.paths {
+		out = append(out, p)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// AnnotationsOn returns the annotation FQNs the image's source maps
+// record on an element, in recorded order. Nil when the element carries
+// none (or does not exist — distinguish with Has).
+func (im *Image) AnnotationsOn(fqn string) []string {
+	return append([]string(nil), im.annotations[fqn]...)
+}
+
+// annotationSummary renders AnnotationsOn for diagnostics.
+func (im *Image) annotationSummary(fqn string) string {
 	list := im.annotations[fqn]
 	if len(list) == 0 {
 		return "none"

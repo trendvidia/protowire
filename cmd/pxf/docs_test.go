@@ -4,6 +4,7 @@
 package main
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"sort"
@@ -14,7 +15,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
 
-	"github.com/trendvidia/protowire/internal/docpack"
+	"github.com/trendvidia/protowire/docpack"
 	"github.com/trendvidia/protowire/internal/schemaresolve"
 )
 
@@ -418,6 +419,96 @@ func TestDocsDigestMatchesApprovals(t *testing.T) {
 		if !strings.Contains(string(raw), d.Digest) {
 			t.Errorf("%s/%s digest %s is not recorded in overview.pxf", d.Key, d.Locale, d.Digest)
 		}
+	}
+}
+
+// TestImageQuerySurface pins the anchor-target sets LoadImage exposes
+// (#185), against an image from the real lowering pipeline: the FQN
+// set behind schema anchors, the canonical descriptor-path set behind
+// derived anchors, and the per-element annotation FQNs completion
+// filters by.
+func TestImageQuerySurface(t *testing.T) {
+	im, err := docpack.LoadImage(docsImage(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, fqn := range []string{"fixtures.basic.User", "fixtures.basic.User.email"} {
+		if !im.Has(fqn) {
+			t.Errorf("Has(%q) = false", fqn)
+		}
+	}
+	if im.Has("fixtures.basic.Nope") {
+		t.Error(`Has("fixtures.basic.Nope") = true`)
+	}
+
+	fqns := im.FQNs()
+	if !sort.StringsAreSorted(fqns) {
+		t.Error("FQNs() is not sorted")
+	}
+	if i := sort.SearchStrings(fqns, "fixtures.basic.User.email"); i >= len(fqns) || fqns[i] != "fixtures.basic.User.email" {
+		t.Error("FQNs() does not list fixtures.basic.User.email")
+	}
+
+	// The corpus resolves this derived anchor, so the path set must
+	// carry its canonical spelling.
+	const path = "fixtures.basic.User.email[protowire.schema.v1.validate#0]"
+	if !im.HasPath(path) {
+		t.Errorf("HasPath(%q) = false", path)
+	}
+	paths := im.Paths()
+	if !sort.StringsAreSorted(paths) {
+		t.Error("Paths() is not sorted")
+	}
+	if i := sort.SearchStrings(paths, path); i >= len(paths) || paths[i] != path {
+		t.Errorf("Paths() does not list %q", path)
+	}
+
+	var found bool
+	for _, a := range im.AnnotationsOn("fixtures.basic.User.email") {
+		if a == "protowire.schema.v1.validate" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("AnnotationsOn(fixtures.basic.User.email) = %v, want it to list protowire.schema.v1.validate",
+			im.AnnotationsOn("fixtures.basic.User.email"))
+	}
+}
+
+// TestDocsPreloadedInputs compiles the corpus with both data inputs
+// preloaded (#185) and checks the result matches the path-based build
+// byte for byte — the debounce optimization must not change the pack.
+func TestDocsPreloadedInputs(t *testing.T) {
+	imagePath := docsImage(t)
+	image, err := docpack.LoadImage(imagePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	catalog, err := docpack.LoadCatalog(filepath.Join(docsFixtureDir, "registry.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var packs [2][]byte
+	for i, opts := range []docpack.Options{
+		{Inputs: []string{filepath.Join(docsFixtureDir, "topics")}, Image: image, Catalog: catalog},
+		{Inputs: []string{filepath.Join(docsFixtureDir, "topics")}, ImagePath: imagePath, CatalogPath: filepath.Join(docsFixtureDir, "registry.json")},
+	} {
+		result, err := docpack.Compile(opts)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if result.Errors > 0 {
+			t.Fatalf("compile errors:\n%s", formatDiags(result.Diagnostics))
+		}
+		raw, err := proto.MarshalOptions{Deterministic: true}.Marshal(result.Pack)
+		if err != nil {
+			t.Fatal(err)
+		}
+		packs[i] = raw
+	}
+	if !bytes.Equal(packs[0], packs[1]) {
+		t.Error("preloaded-input build differs from the path-based build")
 	}
 }
 

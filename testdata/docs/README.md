@@ -5,7 +5,7 @@ Fixtures for the typed documentation model (`proto/docs/v1/`) and
 [#170](https://github.com/trendvidia/protowire/issues/170). The design
 record is [`docs/DOC-PACK.md`](../../docs/DOC-PACK.md); the tests that
 drive this corpus are `cmd/pxf/docs_test.go` and
-`internal/docpack/docpack_test.go`.
+`docpack/docpack_test.go`.
 
 ## Layout
 
