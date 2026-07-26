@@ -63,7 +63,7 @@ This is the umbrella tracking issue for [RFC-001 — Protowire Schema Extensions
 - [x] #060 — `protobuf-go`: function-stub codegen plugin (Go) — done 2026-07-24 (§9.3 Functions/UnimplementedFunctions/RegisterFunctions onto a protocheck Engine; carriers decoded from unknown fields, protobuf-go#2/PR#4)
 - [x] #061 — `protobuf-go`: annotation-aware codegen — done 2026-07-24 (@description doc comments + @deprecated notices on enums/values/messages/fields/getters, function-level bracket options; example-as-test emission stays optional, protobuf-go#3/PR#4)
 - [x] #070 — `protowire-go`: M5 runtime wiring through `protocheck` — done 2026-07-23 (Validator seam through pxf/pb/sbe decoders, protowire-go#49/PR#59; protocheck-side adapter protocheck PR#38; protovalidate adapter PR#60; shipped v1.3.1)
-- [ ] #080 — OpenAPI generator (M8) — landing site decided 2026-07-25: `pxf openapi` subcommand in this repo (GH #93); design gaps resolved 2026-07-25 (GH #173 — enriched `@http`, artifact filtering, derived `x-since`); implementation not started
+- [x] #080 — OpenAPI generator (M8) — landing site decided 2026-07-25: `pxf openapi` subcommand in this repo (GH #93); design gaps resolved 2026-07-25 (GH #173 — enriched `@http`, artifact filtering, derived `x-since`); implemented 2026-07-25 (GH #173): `internal/openapi` + `cmd/pxf/openapi.go`, generator config `protowire.openapi.v1.GeneratorConfig`, fixtures `testdata/openapi/`
 
 ### Per-port adoption (M9+)
 - [ ] `protowire-java`

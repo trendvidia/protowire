@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 TrendVidia, LLC.
+#
+# Deliberately inconsistent audience assignment: only AuditRecord is
+# restricted, so the public ListAudit operation's schema closure
+# reaches an internal element — generation MUST fail naming both ends
+# (RFC-001 §#080 Gap 2).
+
+info { title: "Store API" version: "1.2.0" }
+security_schemes { name: "bearerAuth" type: "http" scheme: "bearer" }
+audiences { fqn_glob: "demo.store.AuditRecord" tier: "internal" }
