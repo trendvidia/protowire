@@ -35,10 +35,12 @@ func queryCmd() *cobra.Command {
 			"PXF directives and schema-bound row binding. Output is always PXF;\n" +
 			"see cmd/pxf/QUERY.md for the full design and the function\n" +
 			"reference.",
-		Args:          cobra.ExactArgs(2),
-		RunE:          runQueryCmd,
-		SilenceUsage:  true,
-		SilenceErrors: true,
+		// Usage-on-parse-errors-only is inherited from the root command's
+		// PersistentPreRun (#188). The former per-command SilenceErrors
+		// also suppressed cobra's error line with nothing else printing
+		// it, so runtime failures exited 1 in silence.
+		Args: cobra.ExactArgs(2),
+		RunE: runQueryCmd,
 	}
 	f := cmd.Flags()
 	f.StringVar(&formatFlag, "format", "",
