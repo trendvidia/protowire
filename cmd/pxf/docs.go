@@ -79,13 +79,15 @@ func docsDigestCmd() *cobra.Command {
 
 func docsBuildCmd() *cobra.Command {
 	var (
-		output       string
-		check        bool
-		release      bool
-		image        string
-		registry     string
-		sourceLocale string
-		staleFatal   bool
+		output           string
+		check            bool
+		release          bool
+		image            string
+		registry         string
+		sourceLocale     string
+		staleFatal       bool
+		coverage         string
+		coverageApproved bool
 	)
 	cmd := &cobra.Command{
 		Use:   "build [flags] <topic-root-or-file>...",
@@ -108,7 +110,12 @@ func docsBuildCmd() *cobra.Command {
 			"--release applies release policy: topics that are not\n" +
 			"REVIEW_STATE_APPROVED are refused, as are approvals invalidated by a\n" +
 			"later edit and topics that never chose an audience tier. The revisor\n" +
-			"gate is compiler policy, so no authoring tool can skip it.",
+			"gate is compiler policy, so no authoring tool can skip it.\n\n" +
+			"--coverage enables the doc-coverage policy (#200): every registry\n" +
+			"widget type and @http-annotated method must have a documenting\n" +
+			"topic (\"widgets\"), or additionally every per-widget prop, event\n" +
+			"and transition (\"members\"). Warnings by default, errors under\n" +
+			"--release. --coverage-approved counts only approved topics.",
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			result, err := docpack.Compile(docpack.Options{
@@ -118,6 +125,8 @@ func docsBuildCmd() *cobra.Command {
 				SourceLocale:           sourceLocale,
 				Release:                release,
 				StaleTranslationsFatal: staleFatal,
+				Coverage:               coverage,
+				CoverageApproved:       coverageApproved,
 				ToolVersion:            toolVersion(),
 			})
 			if err != nil {
@@ -155,6 +164,8 @@ func docsBuildCmd() *cobra.Command {
 	f.StringVar(&registry, "registry", "", "appviewer registry export (.binpb, .pxf or .json) for widget anchors")
 	f.StringVar(&sourceLocale, "source-locale", "en", "BCP 47 locale topics are authored in")
 	f.BoolVar(&staleFatal, "stale-translations-fatal", false, "treat stale translations as errors rather than warnings")
+	f.StringVar(&coverage, "coverage", "", `doc-coverage policy granularity: "widgets" or "members" (off when empty)`)
+	f.BoolVar(&coverageApproved, "coverage-approved", false, "coverage counts only REVIEW_STATE_APPROVED topics")
 	return cmd
 }
 

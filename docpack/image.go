@@ -258,6 +258,31 @@ func (im *Image) AnnotationsOn(fqn string) []string {
 	return append([]string(nil), im.annotations[fqn]...)
 }
 
+// annHTTPFQN is the @http annotation as its use sites appear in the
+// image's source map — the marker that makes a method part of the HTTP
+// boundary surface.
+const annHTTPFQN = "protowire.schema.v1.http"
+
+// HTTPMethods returns the FQNs of methods carrying @http, sorted — the
+// operation surface `pxf openapi` renders and the image half of the
+// doc-coverage denominator (#200).
+func (im *Image) HTTPMethods() []string {
+	var out []string
+	for fqn, kind := range im.fqns {
+		if kind != kindMethod {
+			continue
+		}
+		for _, a := range im.annotations[fqn] {
+			if a == annHTTPFQN {
+				out = append(out, fqn)
+				break
+			}
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
 // annotationSummary renders AnnotationsOn for diagnostics.
 func (im *Image) annotationSummary(fqn string) string {
 	list := im.annotations[fqn]

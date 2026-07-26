@@ -91,6 +91,20 @@ type Options struct {
 	// tiers and approvals invalidated by later edits become errors.
 	Release bool
 
+	// Coverage enables the doc-coverage policy (#200): every element of
+	// the documentable surface must have a documenting topic.
+	// CoverageWidgets checks registry widget types and @http-annotated
+	// methods; CoverageMembers additionally checks per-widget props and
+	// events and the transition vocabulary. Warnings by default, errors
+	// under Release. Empty disables the check — existing packs must not
+	// start failing on upgrade.
+	Coverage string
+
+	// CoverageApproved raises the coverage bar from "documented" to
+	// "documented and approved": only REVIEW_STATE_APPROVED topics
+	// count toward coverage.
+	CoverageApproved bool
+
 	// StaleTranslationsFatal escalates translation drift from warning to
 	// error independently of Release, for pipelines that ship no drift.
 	StaleTranslationsFatal bool
@@ -118,6 +132,11 @@ func Compile(opts Options) (*Result, error) {
 	}
 	if !localePattern.MatchString(opts.SourceLocale) {
 		return nil, fmt.Errorf("source locale %q is not a BCP 47 language tag", opts.SourceLocale)
+	}
+	switch opts.Coverage {
+	case "", CoverageWidgets, CoverageMembers:
+	default:
+		return nil, fmt.Errorf("coverage granularity %q is not %q or %q", opts.Coverage, CoverageWidgets, CoverageMembers)
 	}
 	c := &compiler{
 		opts:       opts,
@@ -247,6 +266,13 @@ func (c *compiler) run() error {
 	c.validateCrossTopic()
 	c.resolveAnchors()
 
+	if c.d.errors() > 0 {
+		return nil
+	}
+	// Coverage runs only on an otherwise error-free build: a denominator
+	// diff over a corpus with dangling anchors is noise on top of real
+	// errors.
+	c.checkCoverage()
 	if c.d.errors() > 0 {
 		return nil
 	}

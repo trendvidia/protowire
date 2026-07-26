@@ -298,6 +298,56 @@ a warning by default, an error under `--stale-translations-fatal`. The
 i18n workflow gets a compiler signal instead of tribal knowledge, and
 `CompiledTopic.translation_status` carries the verdict into the pack.
 
+## Doc coverage
+
+"Every public registry widget and exported `@http` endpoint has a
+documenting topic" is a release property
+([#200](https://github.com/trendvidia/protowire/issues/200)), and like
+the revisor gate it is compiler policy: defined once, enforced
+everywhere, never re-derived by each consumer with its own denominator.
+The compiler holds both sides of the diff at build time — the expected
+surface from the data inputs, the documented surface from the resolved
+anchors (redirects already folded to their terminus in `resolved_id`).
+
+Opt-in via `--coverage`, because existing packs must not start failing
+on upgrade. Findings are warnings while drafting and errors under
+`--release`, in the standard `Loc` shape (located at the data input
+that demanded the element), so editors surface them for free.
+
+**Denominator**, by granularity:
+
+- `--coverage widgets` — every registry widget type, and every method
+  carrying `@http` in the image (the same set `pxf openapi` renders
+  operations for).
+- `--coverage members` — additionally every per-widget prop (own and
+  `child_props`), every event, and every screen transition.
+
+Common node props and composition props are deliberately **excluded**:
+they resolve on every widget (#199), so there is no single canonical id
+to require, and requiring them per widget would count one cross-cutting
+mechanic dozens of times. They stay fully anchorable — they are just
+not individually demanded. Consumers computing editor-side coverage
+cite this rule instead of re-encoding it.
+
+**Numerator**: exact `resolved_id` matches. A bare `Button` anchor
+covers the type; `Button#prop:text` covers the prop and only the prop —
+the same lookup semantics the runtime's pick-to-help uses, so "covered"
+means "help lands there". `--coverage-approved` raises the bar from
+*documented* to *documented and approved*: only `REVIEW_STATE_APPROVED`
+topics count.
+
+**Audience-aware** through `AudienceRank`: an element demands a topic
+visible at the element's own tier, so an `AUDIENCE_INTERNAL` element
+would not demand a `PUBLIC` topic — and a public element documented
+only by internal topics is reported as such, not as covered. Neither
+data input carries element tiers today, so every element reads as
+public; the schema-side half of the taxonomy is #173's to introduce,
+and this rule is already written against it.
+
+goed's editor warnings (goed#321) remain the live surface for the same
+rule; with the rule in the compiler it is CI-enforceable for any
+pipeline, with or without an editor.
+
 ## Data inputs
 
 The compiler resolves anchors against **data only** — protowire consumes
@@ -382,6 +432,7 @@ pxf docs build -o docs.binpb \
 
 pxf docs build --check ./topics/...             # CI gate, no output
 pxf docs build --check --release ./topics/...   # the revisor gate
+pxf docs build --check --release --coverage widgets ./topics/...  # + doc coverage
 pxf docs digest ./topics/...                    # digests for approvals
 ```
 
