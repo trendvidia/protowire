@@ -109,6 +109,11 @@ func (c *compiler) validateReview(t *topic) {
 		return
 	}
 	author, revisor := review.str("author"), review.str("revisor")
+	c.checkIdentity(t.at("review", "author"), "review.author", author)
+	for _, r := range review.strs("reviewers") {
+		c.checkIdentity(t.at("review", "reviewers"), "review.reviewers entry", r)
+	}
+	c.checkIdentity(t.at("review", "revisor"), "review.revisor", revisor)
 	if digest := review.str("approved_digest"); digest != "" && !digestPattern.MatchString(digest) {
 		c.d.errorf(t.at("review", "approved_digest"), "review.approved_digest is not a lowercase hex SHA-256")
 	}
@@ -267,6 +272,7 @@ func (c *compiler) validateTranslation(t *topic) {
 		}
 		return
 	}
+	c.checkIdentity(t.at("translation", "translator"), "translation.translator", tr.str("translator"))
 	source := c.topic(t.key, c.opts.SourceLocale)
 	if source == nil {
 		c.d.errorf(t.loc, "translation has no source-locale topic %q in %s", t.key, c.opts.SourceLocale)
@@ -290,6 +296,22 @@ func (c *compiler) validateTranslation(t *topic) {
 		c.staleTranslationf(t.at("translation", "source_digest"), "translation is stale: %s in %s has changed since translation (from %s, now %s)",
 			t.key, c.opts.SourceLocale, shortDigest(digest), shortDigest(source.digest))
 	}
+}
+
+// checkIdentity warns when an identity field is not in the canonical
+// form — the git author email, normalized to lowercase (#197,
+// DOC-PACK.md § Review identity). The revisor gate is a string
+// comparison, so two spellings for one human defeat it in both
+// directions: a forge login beside an email is a false pass on
+// self-approval, and "Jane Doe <jane@x>" beside "jane@x" counts one
+// reviewer as two. Always a warning, never escalated by release policy:
+// the point is that drift surfaces while drafting, before it reaches
+// the gate.
+func (c *compiler) checkIdentity(loc Loc, field, v string) {
+	if v == "" || identityPattern.MatchString(v) {
+		return
+	}
+	c.d.warnf(loc, "%s %q is not a lowercase git author email — the canonical identity every producer writes and compares (DOC-PACK.md § Review identity)", field, v)
 }
 
 // ── Policy-sensitive diagnostics ──────────────────────────────────────────

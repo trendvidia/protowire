@@ -266,6 +266,30 @@ stays strict.
 `--release` additionally requires an explicit audience tier: visibility
 should be a decision, not a default.
 
+### Review identity
+
+Every identity in the model — `review.author`, `review.reviewers`,
+`review.revisor`, `translation.translator` — is normatively the **git
+author email, normalized to lowercase**
+([#197](https://github.com/trendvidia/protowire/issues/197)). The email
+is unique per human, stable across display-name changes, and already
+present in every commit the review flow rides on (revision = PR,
+revisor = reviewer, per the goed#321 design).
+
+Every producer — hand-authored topics, `pxf` tooling, editors, CI
+checks — MUST write and compare exactly that form. The gate's checks
+are string comparisons: `revisor != author` and per-revisor
+`approved_digest` matching. Two spellings for one human defeat both
+directions at once — a forge login beside an email is a false pass on
+self-approval, and `Jane Doe <jane@x>` beside `jane@x` counts one
+reviewer as two.
+
+The compiler warns on values that do not look canonical (no `@`,
+angle brackets, whitespace, uppercase), so drift surfaces while
+drafting rather than at the release gate. The warning is never
+escalated by `--release`: the convention protects the gate, it is not
+itself the gate.
+
 ### Translation staleness
 
 A translated topic records `translation.source_digest`. When the
