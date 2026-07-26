@@ -26,14 +26,24 @@ func (s Severity) String() string {
 	return "warning"
 }
 
-// Loc is where a diagnostic happened: the topic source file, and the
-// topic within it when the problem is topic-scoped. There are no line
-// numbers — PXF parsing gives them for syntax errors, but by the time
-// the compiler is validating a typed model the useful coordinate is the
-// topic key, which is also what the authoring layer navigates by.
+// Loc is where a diagnostic happened: the topic source file, the topic
+// within it when the problem is topic-scoped, and — when the compiler
+// still holds the position — the source coordinates of the entry the
+// check complained about.
+//
+// File + topic key is the primary address (it is what the authoring
+// layer navigates by); Line and Column exist so an editor placing
+// squiggles does not have to re-parse the sources it just handed the
+// compiler (#187, trendvidia/goed#321). They are 1-based; zero means
+// unknown. The baseline for every topic-scoped diagnostic is the
+// position of the topic's `key` entry; checks that know the offending
+// entry — a review field, a translation digest, a topic-level anchor —
+// point at that entry instead.
 type Loc struct {
-	File  string
-	Topic string
+	File   string
+	Topic  string
+	Line   int
+	Column int
 }
 
 // Diagnostic is one compiler finding.
@@ -47,6 +57,12 @@ func (d Diagnostic) String() string {
 	var sb strings.Builder
 	if d.Loc.File != "" {
 		sb.WriteString(d.Loc.File)
+		if d.Loc.Line > 0 {
+			fmt.Fprintf(&sb, ":%d", d.Loc.Line)
+			if d.Loc.Column > 0 {
+				fmt.Fprintf(&sb, ":%d", d.Loc.Column)
+			}
+		}
 		sb.WriteString(": ")
 	}
 	sb.WriteString(d.Severity.String())
@@ -98,6 +114,12 @@ func (d *diags) sorted() []Diagnostic {
 		}
 		if a.Loc.Topic != b.Loc.Topic {
 			return a.Loc.Topic < b.Loc.Topic
+		}
+		if a.Loc.Line != b.Loc.Line {
+			return a.Loc.Line < b.Loc.Line
+		}
+		if a.Loc.Column != b.Loc.Column {
+			return a.Loc.Column < b.Loc.Column
 		}
 		return a.Message < b.Message
 	})

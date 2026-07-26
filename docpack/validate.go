@@ -52,13 +52,15 @@ func (c *compiler) validateTopic(t *topic) {
 	c.validateBody(t)
 
 	// Topic-level anchors come first, in authored order, so the pack's
-	// anchor list reads the way the topic does.
-	for _, a := range t.msg.msgs("anchors") {
-		t.anchors = append(t.anchors, collectedAnchor{origin: originTopic, a: a})
+	// anchor list reads the way the topic does. Each carries the source
+	// position of its own list element; prose anchors are nested too deep
+	// for the retained AST and keep the topic baseline (#187).
+	for i, a := range t.msg.msgs("anchors") {
+		t.anchors = append(t.anchors, collectedAnchor{origin: originTopic, a: a, loc: t.atListElem("anchors", i)})
 	}
 	walkProse(t.msg.sub("body"), proseVisitor{
 		anchor: func(origin string, a dmsg) {
-			t.anchors = append(t.anchors, collectedAnchor{origin: origin, a: a})
+			t.anchors = append(t.anchors, collectedAnchor{origin: origin, a: a, loc: t.loc})
 		},
 	})
 }
@@ -68,27 +70,27 @@ func (c *compiler) validateMeta(t *topic) {
 	if !meta.valid() || meta.enumNum("audience") == 0 {
 		// Unset audience is a decision nobody made. Tolerated while
 		// drafting (it defaults to public), refused at release.
-		c.policyf(t.loc, "topic does not set meta.audience; defaulting to AUDIENCE_PUBLIC")
+		c.policyf(t.at("meta"), "topic does not set meta.audience; defaulting to AUDIENCE_PUBLIC")
 	}
 	seen := map[string]bool{}
 	for _, tag := range meta.strs("tags") {
 		switch {
 		case !tagPattern.MatchString(tag):
-			c.d.errorf(t.loc, "tag %q must be lowercase [a-z0-9] words joined by %q", tag, "-")
+			c.d.errorf(t.at("meta", "tags"), "tag %q must be lowercase [a-z0-9] words joined by %q", tag, "-")
 		case seen[tag]:
-			c.d.errorf(t.loc, "tag %q is listed twice", tag)
+			c.d.errorf(t.at("meta", "tags"), "tag %q is listed twice", tag)
 		}
 		seen[tag] = true
 	}
 	if parent := meta.str("parent"); parent != "" {
 		if !topicPattern.MatchString(parent) {
-			c.d.errorf(t.loc, "meta.parent %q is not a topic key", parent)
+			c.d.errorf(t.at("meta", "parent"), "meta.parent %q is not a topic key", parent)
 		} else if parent == t.key {
-			c.d.errorf(t.loc, "meta.parent points at the topic itself")
+			c.d.errorf(t.at("meta", "parent"), "meta.parent points at the topic itself")
 		}
 	}
 	if sup := meta.str("superseded_by"); sup != "" && !topicPattern.MatchString(sup) {
-		c.d.errorf(t.loc, "meta.superseded_by %q is not a topic key", sup)
+		c.d.errorf(t.at("meta", "superseded_by"), "meta.superseded_by %q is not a topic key", sup)
 	}
 }
 
@@ -103,33 +105,33 @@ func (c *compiler) validateReview(t *topic) {
 	state := review.enumName("state")
 
 	if !review.valid() || state == "REVIEW_STATE_UNSPECIFIED" {
-		c.policyf(t.loc, "topic has no review state; release builds require REVIEW_STATE_APPROVED")
+		c.policyf(t.at("review"), "topic has no review state; release builds require REVIEW_STATE_APPROVED")
 		return
 	}
 	author, revisor := review.str("author"), review.str("revisor")
 	if digest := review.str("approved_digest"); digest != "" && !digestPattern.MatchString(digest) {
-		c.d.errorf(t.loc, "review.approved_digest is not a lowercase hex SHA-256")
+		c.d.errorf(t.at("review", "approved_digest"), "review.approved_digest is not a lowercase hex SHA-256")
 	}
 	if revisor != "" && revisor == author {
-		c.d.errorf(t.loc, "review.revisor %q is also the author; self-approval defeats the gate", revisor)
+		c.d.errorf(t.at("review", "revisor"), "review.revisor %q is also the author; self-approval defeats the gate", revisor)
 	}
 
 	if state != "REVIEW_STATE_APPROVED" {
-		c.policyf(t.loc, "topic is %s; release builds require REVIEW_STATE_APPROVED", state)
+		c.policyf(t.at("review", "state"), "topic is %s; release builds require REVIEW_STATE_APPROVED", state)
 		return
 	}
 	if revisor == "" {
-		c.d.errorf(t.loc, "topic is REVIEW_STATE_APPROVED with no review.revisor")
+		c.d.errorf(t.at("review"), "topic is REVIEW_STATE_APPROVED with no review.revisor")
 	}
 	switch approved := review.str("approved_digest"); {
 	case approved == "":
-		c.d.errorf(t.loc, "topic is REVIEW_STATE_APPROVED with no review.approved_digest")
+		c.d.errorf(t.at("review"), "topic is REVIEW_STATE_APPROVED with no review.approved_digest")
 	case approved != t.digest:
 		// The normal authoring loop passes through this state: edit an
 		// approved topic and the sign-off no longer covers it. That is a
 		// warning while working (goed runs this compiler on its
 		// diagnostics debounce) and a refusal at release.
-		c.policyf(t.loc, "content changed since approval (approved %s, current %s); re-review required",
+		c.policyf(t.at("review", "approved_digest"), "content changed since approval (approved %s, current %s); re-review required",
 			shortDigest(approved), shortDigest(t.digest))
 	}
 }
@@ -206,11 +208,11 @@ func (c *compiler) validateCrossTopic() {
 
 		if parent := meta.str("parent"); parent != "" && topicPattern.MatchString(parent) && parent != t.key {
 			if !c.hasTopic(parent, t.locale) {
-				c.d.errorf(t.loc, "meta.parent %q names no topic in this build (locale %s)", parent, t.locale)
+				c.d.errorf(t.at("meta", "parent"), "meta.parent %q names no topic in this build (locale %s)", parent, t.locale)
 			}
 		}
 		if sup := meta.str("superseded_by"); sup != "" && topicPattern.MatchString(sup) && !c.hasKey(sup) {
-			c.d.errorf(t.loc, "meta.superseded_by %q names no topic in this build", sup)
+			c.d.errorf(t.at("meta", "superseded_by"), "meta.superseded_by %q names no topic in this build", sup)
 		}
 		for _, l := range t.links {
 			switch {
@@ -243,7 +245,7 @@ func (c *compiler) validateParentChain(t *topic) {
 			return
 		}
 		if seen[parent] {
-			c.d.errorf(t.loc, "meta.parent chain cycles through %q", parent)
+			c.d.errorf(t.at("meta", "parent"), "meta.parent chain cycles through %q", parent)
 			return
 		}
 		seen[parent] = true
@@ -261,7 +263,7 @@ func (c *compiler) validateTranslation(t *topic) {
 	tr := t.msg.sub("translation")
 	if t.locale == c.opts.SourceLocale {
 		if tr.valid() {
-			c.d.errorf(t.loc, "topic is in the source locale %s but carries translation provenance", c.opts.SourceLocale)
+			c.d.errorf(t.at("translation"), "topic is in the source locale %s but carries translation provenance", c.opts.SourceLocale)
 		}
 		return
 	}
@@ -271,12 +273,12 @@ func (c *compiler) validateTranslation(t *topic) {
 		return
 	}
 	if !tr.valid() || tr.str("source_digest") == "" {
-		c.d.errorf(t.loc, "translation does not record translation.source_digest")
+		c.d.errorf(t.at("translation"), "translation does not record translation.source_digest")
 		return
 	}
 	digest := tr.str("source_digest")
 	if !digestPattern.MatchString(digest) {
-		c.d.errorf(t.loc, "translation.source_digest is not a lowercase hex SHA-256")
+		c.d.errorf(t.at("translation", "source_digest"), "translation.source_digest is not a lowercase hex SHA-256")
 		return
 	}
 	if digest != source.digest {
@@ -285,7 +287,7 @@ func (c *compiler) validateTranslation(t *topic) {
 		// behind. Warned by default so the i18n workflow has a signal
 		// instead of tribal knowledge; escalated by policy for builds
 		// that must not ship drift.
-		c.staleTranslationf(t.loc, "translation is stale: %s in %s has changed since translation (from %s, now %s)",
+		c.staleTranslationf(t.at("translation", "source_digest"), "translation is stale: %s in %s has changed since translation (from %s, now %s)",
 			t.key, c.opts.SourceLocale, shortDigest(digest), shortDigest(source.digest))
 	}
 }
