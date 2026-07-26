@@ -14,6 +14,7 @@ drive this corpus are `cmd/pxf/docs_test.go` and
 | `topics/` | as one corpus | builds clean, including under `--release`; one warning for the deliberately stale translation |
 | `invalid/*.pxf` | one file at a time | each fails with a specific diagnostic |
 | `policy/*.pxf` | one file at a time | warns by default, fails under `--release` |
+| `grammar/` | as one corpus, against its own `schema.proto` image and `registry_v9.json` | resolves to exactly the id set in `grammar/resolved_ids.golden` — the resolved-id format contract ([#198](https://github.com/trendvidia/protowire/issues/198)) |
 | `registry.json` | — | the widget catalog anchors resolve against (catalog schema v3 — proves older exports keep resolving) |
 | `registry_v9.json` | — | a catalog-schema-v9 export shaped like the live appviewer registry: per-widget `bind`, composition props, transitions, authoring hints ([#186](https://github.com/trendvidia/protowire/issues/186)) |
 

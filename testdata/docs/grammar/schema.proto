@@ -1,0 +1,46 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Fixture: the resolved-id grammar corpus (#198).
+// One schema element of every anchorable kind, so the golden resolved_id
+// set in resolved_ids.golden exercises every spelling arm of the
+// contract — including the enum-value parent-scoping rule, at both a
+// top-level enum (scoped to the package) and a nested one (scoped to
+// the enclosing message, never to the enum).
+
+syntax = "proto3";
+
+package fixtures.grammar;
+
+import "protowire/schema/v1/annotations.proto";
+
+// A validation function; the body is provided by the engine at runtime.
+function is_sku(value: string);
+
+// A refinement alias — anchorable by its declared name (§8.2).
+type Sku = string
+  @validate(is_sku(this), code = "sku.invalid");
+
+enum Status {
+  STATUS_UNSPECIFIED = 0;
+  STATUS_OPEN = 1;
+}
+
+message Order {
+  enum Kind {
+    KIND_UNSPECIFIED = 0;
+    KIND_WEB = 1;
+  }
+  string id = 1;
+  Sku sku = 2;
+  Kind kind = 3;
+  Status status = 4;
+}
+
+message GetOrderRequest {
+  string id = 1;
+}
+
+service OrderService {
+  rpc GetOrder(GetOrderRequest) returns (Order);
+}

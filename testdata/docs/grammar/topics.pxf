@@ -1,0 +1,71 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 TrendVidia, LLC.
+#
+# Fixture: the resolved-id grammar corpus (#198).
+# One anchor per spelling arm of the resolved_id contract
+# (docs/DOC-PACK.md § Resolved anchor IDs). The golden set these resolve
+# to lives in resolved_ids.golden; a spelling change in the compiler
+# fails the suite here rather than a downstream consumer's lookups.
+
+@type protowire.docs.v1.TopicFile
+
+topics = [
+  {
+    key = "grammar.ids"
+    locale = "en"
+    title = "Every resolved-id spelling"
+    meta { audience = AUDIENCE_PUBLIC }
+
+    anchors = [
+      # schema — the element FQN verbatim, one arm per element kind
+      { schema { fqn = "fixtures.grammar.Order" } }
+      { schema { fqn = "fixtures.grammar.Order.id" } }
+      { schema { fqn = "fixtures.grammar.Status" } }
+      # enum values scope to the enum's *parent*: the package for a
+      # top-level enum, the enclosing message for a nested one — never
+      # the enum itself.
+      { schema { fqn = "fixtures.grammar.STATUS_OPEN" } }
+      { schema { fqn = "fixtures.grammar.Order.KIND_WEB" } }
+      { schema { fqn = "fixtures.grammar.OrderService" } }
+      { schema { fqn = "fixtures.grammar.OrderService.GetOrder" } }
+      { schema { fqn = "fixtures.grammar.Sku" } }
+
+      # descriptor path — derived through fdp.DescriptorPath, §8.3.1
+      { descriptor_path {
+          element_fqn = "fixtures.grammar.Order.sku"
+          annotation_fqn = "protowire.schema.v1.validate"
+          ordinal = 0
+      } }
+
+      # widget — bare type, then one arm per member-resolution source:
+      # own prop, event, structural child prop, common node prop,
+      # composition prop (#199)
+      { widget { type = "Label" } }
+      { widget { type = "Label" prop = "text" } }
+      { widget { type = "Entry" event = "onChanged" } }
+      { widget { type = "Border" prop = "position" } }
+      { widget { type = "Label" prop = "id" } }
+      { widget { type = "Label" prop = "slot" } }
+
+      # transition — catalog-global, prefixed spelling (#199)
+      { transition { name = "slide" } }
+
+      # route — the path verbatim
+      { route { path = "/grammar" } }
+
+      # topic — the key verbatim
+      { topic { key = "grammar.other" } }
+    ]
+
+    body { blocks = [{ paragraph { runs = [{ text = "Grammar corpus." }] } }] }
+    review { state = REVIEW_STATE_DRAFT author = "author@example.com" }
+  }
+  {
+    key = "grammar.other"
+    locale = "en"
+    title = "Topic-anchor target"
+    meta { audience = AUDIENCE_PUBLIC }
+    body { blocks = [{ paragraph { runs = [{ text = "Referenced." }] } }] }
+    review { state = REVIEW_STATE_DRAFT author = "author@example.com" }
+  }
+]

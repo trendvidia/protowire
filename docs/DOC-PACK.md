@@ -141,6 +141,53 @@ embedded source map (extension 50404), and stamps the resolved anchor
 with the image digest. A toolchain that re-keys the grammar therefore
 invalidates these anchors instead of silently serving stale ones.
 
+### Resolved anchor IDs
+
+`ResolvedAnchor.resolved_id` is the join key three independent consumers
+hold: the compiler itself (redirects, dedup, provenance), appviewer's
+runtime reader (a hand-written mirror per ADR-0012, deliberately not
+importing this repo), and goed's doc-coverage diff. The canonical
+spellings are therefore **part of the doc-pack format contract**,
+covered by the same byte-stability promise as the pack itself: changing
+one is a format break that requires a `format_version` bump, never a
+refactor ([#198](https://github.com/trendvidia/protowire/issues/198);
+the protolsp#260 lesson, again).
+
+One spelling per anchor kind, disjoint by construction — widget ids
+start PascalCase, topic keys are dotted lowercase, routes start with
+`/`, transitions carry their prefix, descriptor paths carry brackets:
+
+| Kind | Grammar | Example |
+|---|---|---|
+| `schema` | the element FQN, verbatim | `myco.orders.Order.total` |
+| `descriptor_path` | the §8.3.1 rendering via `fdp.DescriptorPath`: `element[annotation#ordinal]`, bare `element` for a plain TYPE_REFINEMENT entry | `myco.User.email[protowire.schema.v1.validate#1]` |
+| `widget` | `Type`, or `Type` + `#` + member class + `:` + member name; member classes are `prop` and `event` | `Button`, `Button#prop:text`, `Button#event:onTapped` |
+| `transition` | `transition:` + name | `transition:slide` |
+| `route` | the path, verbatim (leading `/`) | `/settings/profile` |
+| `topic` | the topic key, verbatim | `widgets.button.overview` |
+
+Two rules deserve calling out because both have been gotten wrong
+elsewhere:
+
+- **Enum values scope to the enum's parent, not the enum**: a top-level
+  enum's value spells `pkg.STATUS_OPEN`, a nested enum's value spells
+  `pkg.Order.KIND_WEB` — never `pkg.Status.STATUS_OPEN`. This is
+  protobuf's own name-resolution rule and the spelling
+  `fdp.DescriptorPath` expects; the image indexes values that way, so
+  any other spelling is a dangling anchor.
+- **Widget member spellings do not say where the member resolved from**:
+  `Border#prop:position` reads identically whether `position` is one of
+  Border's own props, a structural parent's `child_props` duty, a
+  common node prop, or a composition prop (#199). Resolution source is
+  a catalog fact, not an identity fact, so it must not leak into the id
+  a runtime looks up.
+
+The conformance corpus `testdata/docs/grammar/` authors one anchor per
+spelling arm; the set they resolve to is golden in
+`resolved_ids.golden`, so a spelling change fails this repo's suite
+rather than a downstream consumer's lookups. A consumer implementing
+the grammar from this section should validate against that fixture.
+
 ### Redirects
 
 A rename is a documented event, not a wave of dangling links:
@@ -337,6 +384,9 @@ pxf decode -p proto/docs/v1/pack.proto -m protowire.docs.v1.DocPack docs.binpb
   to fail with a specific diagnostic.
 - `policy/` — fixtures that warn while authoring and fail under
   `--release`.
+- `grammar/` — the resolved-id conformance corpus (§ Resolved anchor
+  IDs): one anchor per spelling arm, with the golden id set in
+  `resolved_ids.golden`.
 - `registry.json` — a small widget catalog in appviewer's export shape.
 
 ## Non-goals
