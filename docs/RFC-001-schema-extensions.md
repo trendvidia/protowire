@@ -608,6 +608,60 @@ message Report {
 
 Localized messages are produced at format time from `code` + `params` through a registered catalog (one per locale, registered with the engine alongside function impls). Catalog miss falls back to `fallback_message`. Programmatic clients consume `code` + `params` directly; human consumers receive the localized rendering.
 
+**Catalog sources.** A locale catalog is data, not schema —
+translator-maintained strings loaded at engine init, never compiled
+into descriptors. The source format for a catalog referenced from the
+§9.4 `catalog_libraries` is a **text-format
+`protowire.schema.catalog.v1.Catalog` message** (normative schema
+`protowire/proto/schema/catalog/v1/catalog.proto` — stock proto3 with
+the same artifact status as the §9.4 engine config: consumed by
+validator binaries and tooling, never embedded in descriptors,
+allocates no extension numbers):
+
+```proto
+message Catalog {
+  string locale = 1;                // BCP 47 tag; the RegisterCatalog key (§9.1)
+  map<string, string> entries = 2;  // violation code → message template
+}
+```
+
+```textproto
+# myco/i18n/de.textproto — text-format protowire.schema.catalog.v1.Catalog
+locale: "de"
+entries { key: "string.min_len"     value: "mindestens {min_len} Zeichen erforderlich" }
+entries { key: "users.email.format" value: "keine gültige Adresse (Muster {pattern})" }
+```
+
+Normative rules:
+
+1. **One locale per file.** `locale` is a non-empty BCP 47 tag and is
+   the `RegisterCatalog` key (§9.1). Multiple `catalog_libraries`
+   entries MAY declare the same locale (per-domain catalogs); loaders
+   merge them into the single per-locale catalog before registration.
+   The same code in two files for one locale is a load error — never a
+   silent override. (Within one file, text format already rejects
+   duplicate map keys.)
+2. **Template interpolation.** `{name}` placeholders interpolate the
+   violation's `params`; a placeholder with no matching param — and any
+   brace that does not form a placeholder — passes through verbatim, so
+   a missing translation surfaces visibly rather than silently
+   vanishing. No escape syntax is defined. A catalog miss falls back to
+   `fallback_message`, as above.
+3. **Path resolution.** `catalog_libraries` values are filesystem paths
+   resolved relative to the directory of the config file that declares
+   them (absolute paths are taken as-is). They are **not** proto import
+   paths — contrast `function_libraries`, whose declarations compile
+   into the image (§9.4). Build tools do not compile or embed catalogs;
+   validator binaries and editors load them when the engine is
+   configured.
+4. **Locale negotiation** — matching a consumer's requested locale
+   (for example an LSP client's `InitializeParams.locale`) against
+   registered catalogs — is consumer policy; the spec pins only
+   registration keyed by the file's `locale`.
+
+Plural, gender, and ICU-MessageFormat-style template forms are
+deferred (§13).
+
 `@validate(...)` accepts optional `code` and `message` to override defaults at use sites.
 
 **Params provenance.** `cause.params` is populated from exactly two
@@ -978,7 +1032,9 @@ message EngineConfig {
   string engine = 1;                       // registered identifier: "cel", "starlark", "go";
                                            //   unknown name = startup error, never a fallback
   repeated string function_libraries = 2;  // proto import paths of function-declaration files (§9.2, §9.3)
-  repeated string catalog_libraries = 3;   // locale catalog sources (§7)
+  repeated string catalog_libraries = 3;   // paths to locale catalog files (§7),
+                                           //   text-format catalog.v1.Catalog,
+                                           //   resolved relative to this config file
   bool strict_validation = 4;              // missing impls fail startup instead of first call (§9.2)
   protowire.schema.v1.ExecutionMode default_mode = 5;  // UNSPECIFIED ⇒ COLLECT_ALL (§6.4)
   uint32 max_recursion_depth = 6;          // 0 ⇒ normative default 64 (§6.4)
@@ -1055,6 +1111,7 @@ Items deferred for separate resolution. Each becomes a tracked issue.
 | 12 | Stream-level validation invariants (aggregate rules across a stream's messages, ordering constraints) — deferred from §6.6, needs its own design pass like container-shaped aliases (#1) | spec |
 | 13 | ~~Sensitivity-class taxonomy (`@sensitive(class: ...)`)~~ **Resolved 2026-07-25** (issue #111): additive `class: string = ""` parameter — open org-defined vocabulary, `protowire.` prefix reserved, single class, effective-class rule; see §6.7. The consumer that triggered the deferral's "until needed" clause is the chameleon editor's key management | spec |
 | 14 | ~~Schema-level encryption / key-reference annotation (`@encrypted(key_ref)`)~~ **Rejected 2026-07-25** (issue #112): protection metadata never enters the schema — key refs are deployment topology and would leak through descriptor artifacts (§8.1, same reasoning as §9.4); the class → key-domain mapping lives in the protection layer's configuration, see §6.7 | spec / chameleon |
+| 15 | Plural / gender / ICU-MessageFormat template forms in locale catalogs (`catalog.v1.Catalog` templates are plain `{param}` interpolation for now, §7) — revisit when a consumer needs plural rules | spec |
 
 ## 14. References
 

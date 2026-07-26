@@ -1196,6 +1196,32 @@ Current state: no locale awareness. `Violation.Message` is a single string; `Vio
 - [ ] Template substitution interpolates `params` correctly
 - [ ] At least two locale catalogs (e.g., `en`, `fr`) exercised in tests against the conformance fixtures
 
+**Resolution — catalog library source format (2026-07-25, GH #194, PR
+#195):** `catalog_libraries` was a dangling pointer — nothing defined
+what a referenced file contains, blocking every consumer (protolsp#267
+localized violation messages, `pxf build` validator binaries). Pinned
+in §7: a catalog source is a **text-format
+`protowire.schema.catalog.v1.Catalog`** message (new
+`proto/schema/catalog/v1/catalog.proto`), per the #011/GH #60
+engine-config precedent — no-JSON/YAML, no grammar change, no carrier
+extension, nothing leaks into descriptors. A `catalog` *language*
+declaration was rejected: catalogs are translator-maintained runtime
+data, not schema, and lowering them would put localized strings in
+`FileDescriptorSet` artifacts (the §9.4/#112 argument). One locale per
+file (BCP 47 `locale` is the `RegisterCatalog` key); `entries` map
+violation code → `{param}` template, with interpolation/fallback
+semantics pinned from the reference `MapCatalog` (unmatched
+placeholders pass through verbatim); multiple files per locale merge,
+duplicate codes across files are a load error; paths resolve relative
+to the declaring config file — **not** proto import paths (contrast
+`function_libraries`), so `pxf build` ignores them and engines load
+them at init. Fixtures: `08_engine_config` values are now `.textproto`
+paths; the `19_catalog_miss` pinned catalog is a real source file
+(`catalog_de.textproto`), the loader-conformance target. Reference
+loader: `protocompile` beside `engineconfig`, returning plain
+`(locale → entries)` data that feeds `NewMapCatalog` with no new
+dependency edge. ICU/plural template forms deferred (§13 #15).
+
 ---
 
 ## #050 — `protolsp`: extended grammar parsing

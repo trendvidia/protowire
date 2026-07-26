@@ -52,8 +52,9 @@ testdata/schema-extensions/
 ├── 18_default_unsatisfiable_golden.textproto — golden Report: RULE_KIND_DEFAULT (§6.4)
 ├── 18_default_unsatisfiable_golden/         — schema + instance
 ├── 19_catalog_miss.textproto                — golden Report for the i18n catalog-miss fixture (§7)
-├── 19_catalog_miss/                         — schema + instance + messages_de.txt rendering golden
+├── 19_catalog_miss/                         — schema + instance + catalog_de.textproto (§7 catalog source) + messages_de.txt rendering golden
 ├── 20_sensitive_class.proto                 — @sensitive(class: ...) + effective-class rule (§6.7, issue #111)
+├── 21_http_operation.proto                  — enriched @http operation surface (§5.2, issue #173)
 └── invalid/                                 — MUST-NOT-COMPILE fixtures + manifest (see invalid/README.md)
 ```
 
@@ -87,7 +88,7 @@ carrier contents, and the `.textproto` goldens pin the runtime surfaces
 | `16_sensitive_golden{,.textproto}/` | `@sensitive` report redaction (§6.7): type-alias, field, and transitive message-level sensitivity — `actual_value` unset + `value_redacted = true` — with a non-sensitive control field |
 | `17_missing_impl_golden{,.textproto}/` | The missing-implementation error state (§9.2): lenient engine + unregistered declared function ⇒ reserved `protowire.function.unimplemented` with its spec-pinned fallback template; strict engines fail startup instead |
 | `18_default_unsatisfiable_golden{,.textproto}/` | The unsatisfiable-rule error state (§6.4, issue #133): a `@default` failing the field's own rules ⇒ `RULE_KIND_DEFAULT` with the substituted default as `actual_value` |
-| `19_catalog_miss{,.textproto}/` | The locale-catalog-miss error state (§7): function-authored params feeding catalog interpolation on a hit, `fallback_message` verbatim on a miss; rendering golden `messages_de.txt`, pinned stub + catalog in the schema header |
+| `19_catalog_miss{,.textproto}/` | The locale-catalog-miss error state (§7): function-authored params feeding catalog interpolation on a hit, `fallback_message` verbatim on a miss; rendering golden `messages_de.txt`, pinned stub in the schema header, pinned catalog as a §7 source file `catalog_de.textproto` (issue #194) |
 | `20_sensitive_class.proto` | The `@sensitive` classification parameter (§6.7, issue #111): `class` at all three attachment sites plus every arm of the effective-class rule — field overrides alias chain, alias chain overrides message, bare `@sensitive` reasserts without reclassifying (derived alias and field-inside-classified-message), `""` as sensitive-but-unclassified. Compile + lowering only; class never appears in reports, so there is no golden — expected effective classes are pinned in the header comment |
 | `21_http_operation.proto` | The enriched `@http` operation surface (§5.2, issue #173): the v1.2.0 two-argument form alongside uses that set every added parameter — `summary` / `operation_id` as plain string args, `tags` / `security` as `Literal.list` string lists — plus a named subset after the positional routing pair, and a `{name}` path template. Additive-contract proof: the bare form must keep lowering to exactly the args it wrote. Compile + lowering only; operation metadata carries no validation semantics, so there is no golden |
 | `invalid/` | Nine MUST-NOT-COMPILE fixtures — arity mismatch ("invalid signature"), positional-after-named, heterogeneous list, unknown literal field, map field in literal, container alias, unbalanced capture, undeclared annotation, reserved sensitive class — with the error-class manifest in `invalid/README.md` |
@@ -122,6 +123,14 @@ goldens, not v1.2 schema sources:
   ([`proto/schema/config/v1/config.proto`](../../proto/schema/config/v1/config.proto)),
   i.e. the content of a project's `protowire.config.textproto`. Target
   for config-loader implementations (§9.4 discovery/precedence).
+- `19_catalog_miss/catalog_de.textproto` — text-format
+  `protowire.schema.catalog.v1.Catalog`
+  ([`proto/schema/catalog/v1/catalog.proto`](../../proto/schema/catalog/v1/catalog.proto)),
+  i.e. the content of a file named by `catalog_libraries` (§7 catalog
+  source format, issue #194). Target for catalog-loader
+  implementations: one locale per file, code → `{param}` template
+  entries, per-locale merge across files with duplicate codes a load
+  error.
 - `11_literal_carrier_golden.textproto` — text-format
   `protowire.schema.v1.AnnotationList`: the lowered carrier for
   non-scalar annotation arguments, covering all three `Literal` kinds.
@@ -132,8 +141,9 @@ The report goldens added by the corpus expansion (issue #68) follow the
 07 pattern — a schema + instance directory beside a top-level golden —
 with two differences, stated in each golden's header: `engine` and
 `wall_time_nanos` are omitted entirely (they are excluded from
-cross-port equality), and any pinned conformance stubs or catalogs live
-in the schema's header comment. `19_catalog_miss/` additionally pins the
+cross-port equality), and any pinned conformance stubs live in the
+schema's header comment (pinned catalogs are §7 source files beside the
+schema). `19_catalog_miss/` additionally pins the
 format-time rendering contract (§7): `messages_de.txt` lists the
 localized message text per violation — catalog hit interpolates the
 pinned template from `cause.params`, catalog miss falls back to
@@ -150,6 +160,8 @@ for g in 07_report_golden 15_collections_golden 16_sensitive_golden \
 done
 protoc -I <root> --encode=protowire.schema.config.v1.EngineConfig \
   protowire/schema/config/v1/config.proto < 08_engine_config.textproto > /dev/null
+protoc -I <root> --encode=protowire.schema.catalog.v1.Catalog \
+  protowire/schema/catalog/v1/catalog.proto < 19_catalog_miss/catalog_de.textproto > /dev/null
 protoc -I <root> --encode=protowire.schema.v1.AnnotationList \
   protowire/schema/v1/descriptor.proto < 11_literal_carrier_golden.textproto > /dev/null
 ```

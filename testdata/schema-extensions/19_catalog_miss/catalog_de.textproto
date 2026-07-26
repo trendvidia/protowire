@@ -1,0 +1,16 @@
+# proto-file: protowire/schema/catalog/v1/catalog.proto
+# proto-message: protowire.schema.catalog.v1.Catalog
+#
+# The pinned conformance catalog for this fixture, in the §7 catalog
+# source format (issue #194): a text-format Catalog message, one locale
+# per file, entries keyed by violation code with {param} templates.
+# Target for catalog-loader implementations: loading this file and
+# registering it yields the "de" rendering pinned in messages_de.txt.
+# There is deliberately no entry for "profile.display_name.length" —
+# that miss is the fixture's point.
+
+locale: "de"
+entries {
+  key: "profile.username.format"
+  value: "Benutzername muss dem Muster {pattern} entsprechen"
+}

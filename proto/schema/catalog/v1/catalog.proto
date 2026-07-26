@@ -1,0 +1,37 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Protowire Schema Extensions — locale catalog source format (RFC-001 §7).
+// A catalog library file referenced by `EngineConfig.catalog_libraries`
+// (§9.4) is a text-format Catalog message: a data artifact loaded at
+// engine init by validator binaries and tooling, never embedded in
+// descriptors. Allocates no extension numbers.
+
+syntax = "proto3";
+
+package protowire.schema.catalog.v1;
+
+// Catalog is one locale's message catalog: violation code → message
+// template. Localized messages are produced at format time from a
+// violation's `code` + `params` (RFC-001 §7): `{name}` placeholders in a
+// template interpolate the violation's params; a placeholder with no
+// matching param is left verbatim, so a missing translation surfaces
+// visibly rather than silently vanishing. A catalog miss (no entry for
+// the code) falls back to the violation's `fallback_message`.
+//
+// One file declares one locale. Multiple `catalog_libraries` entries MAY
+// declare the same locale (per-domain catalogs); loaders merge them into
+// the single per-locale catalog registered with the engine
+// (`Engine.RegisterCatalog`, §9.1). The same code appearing in two files
+// for one locale is a load error — never a silent override.
+message Catalog {
+  // BCP 47 language tag ("en", "de", "pt-BR"): the registration key for
+  // the engine's per-locale catalog. Must be non-empty. Locale
+  // negotiation — matching a consumer's requested locale against
+  // registered catalogs — is consumer policy, not pinned by the spec.
+  string locale = 1;
+
+  // Violation code → message template. `{name}` placeholders
+  // interpolate the violation's params.
+  map<string, string> entries = 2;
+}
