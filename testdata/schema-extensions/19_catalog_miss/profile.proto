@@ -18,7 +18,9 @@
 //     params:           {pattern: <the pattern argument, as a string>}
 //     fallback_message: "username format invalid"
 //
-// Pinned conformance catalog, registered for locale "de" only:
+// Pinned conformance catalog, registered for locale "de" only —
+// catalog_de.textproto in this directory, a §7 catalog source file
+// (text-format protowire.schema.catalog.v1.Catalog, issue #194):
 //
 //   "profile.username.format" ->
 //     "Benutzername muss dem Muster {pattern} entsprechen"

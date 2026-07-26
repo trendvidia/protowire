@@ -1,6 +1,6 @@
 # Rendering golden (RFC-001 §7): the localized MESSAGE TEXT for each
 # violation of ../19_catalog_miss.textproto, in Report order, when
-# formatting with the pinned "de" catalog (see profile.proto header).
+# formatting with the pinned "de" catalog (catalog_de.textproto).
 # Line 1: catalog HIT — template interpolated from cause.params.
 # Line 2: catalog MISS — fallback_message verbatim.
 # Formatting in a locale with no registered catalog yields every

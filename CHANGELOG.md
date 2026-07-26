@@ -10,6 +10,10 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+### Added
+
+- **Locale catalog source format** (issue [#194](https://github.com/trendvidia/protowire/issues/194)). RFC-001 §7 pins what a file named by `EngineConfig.catalog_libraries` contains: a text-format `protowire.schema.catalog.v1.Catalog` message (new package `proto/schema/catalog/v1/catalog.proto` — same artifact status as the §9.4 engine config: loaded at engine init, never embedded in descriptors, no extension numbers). One locale per file (BCP 47 tag, the `RegisterCatalog` key); entries map violation code → `{param}` template with the §7 interpolation and fallback-on-miss semantics; multiple files per locale merge with duplicate codes a load error; paths resolve relative to the config file (they are not proto import paths — catalogs are runtime data, `pxf build` does not compile them). The `19_catalog_miss` conformance fixture's pinned catalog is now a real source file (`catalog_de.textproto`), and the `08_engine_config` fixture's `catalog_libraries` values are `.textproto` paths. Reference loader lands in `protocompile` beside `engineconfig`. Plural/gender/ICU template forms deferred (§13 #15).
+
 ## [1.6.0] – 2026-07-25
 
 Editor-integration follow-up to the v1.5.0 documentation platform, driven by the goed authoring layer (trendvidia/goed#321): the doc-pack compiler becomes an importable Go library with an unsaved-buffer overlay and an anchor-completion query surface, its diagnostics carry source positions, and the `WidgetCatalog` mirror catches up to the live appviewer registry export. No wire-format changes — PXF, `pb`, SBE, envelope, and doc-pack outputs are byte-identical to v1.5.0 for every schema, document, and topic corpus; the only schema delta is additive fields on `protowire.docs.v1.WidgetCatalog` (no extension numbers). See [`STABILITY.md`](STABILITY.md) for the compatibility contract.
