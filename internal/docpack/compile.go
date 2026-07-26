@@ -453,6 +453,10 @@ func redirectHint(ra *resolvedAnchor) string {
 
 // audienceRank orders the visibility tiers by widening restriction. An
 // unset tier reads as public, matching the compiler's documented default.
+//
+// This map is the single in-repo definition of the taxonomy's ordering
+// (protowire.docs.v1.Audience); consumers outside the doc pipeline reach
+// it through AudienceRank so the ordering is never forked.
 var audienceRank = map[string]int{
 	"AUDIENCE_UNSPECIFIED": 1,
 	"AUDIENCE_PUBLIC":      1,
@@ -460,6 +464,18 @@ var audienceRank = map[string]int{
 	"AUDIENCE_PARTNER":     3,
 	"AUDIENCE_ENTERPRISE":  4,
 	"AUDIENCE_INTERNAL":    5,
+}
+
+// AudienceRank returns the restriction rank of a protowire.docs.v1
+// Audience value name ("AUDIENCE_PUBLIC" → 1 … "AUDIENCE_INTERNAL" → 5),
+// with the empty string and AUDIENCE_UNSPECIFIED reading as public. The
+// second result is false for a name outside the taxonomy.
+func AudienceRank(name string) (int, bool) {
+	if name == "" {
+		return audienceRank["AUDIENCE_PUBLIC"], true
+	}
+	r, ok := audienceRank[name]
+	return r, ok
 }
 
 // checkAudience enforces transitive consistency: a topic must not point

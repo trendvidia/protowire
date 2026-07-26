@@ -59,6 +59,7 @@ Every published `protowire-*` language port ships the same binary as part of its
 | `build <roots-or-files>...` | v1.2 (RFC-001) schema sources | lowered `FileDescriptorSet` binary | no |
 | `docs build <roots-or-files>...` | PXF topic sources (+ image, registry export) | doc pack binary | no |
 | `docs digest <roots-or-files>...` | PXF topic sources | one content digest per topic | no |
+| `openapi <image.binpb>` | lowered image (+ doc pack, generator config) | OpenAPI 3.1 YAML/JSON | no |
 
 ## Schema resolution chain
 
@@ -261,6 +262,24 @@ pxf decode -p proto/docs/v1/pack.proto -m protowire.docs.v1.DocPack docs.binpb  
 ### `pxf docs digest <topic-root-or-file>...`
 
 Prints the canonical content digest of each topic — `<digest>\t<key>\t<locale>\t<file>` — covering the title, summary and body a revisor reads. This is the value `review.approved_digest` and `translation.source_digest` record, so approving a topic or filing a translation means writing the digest printed here into the source; the authoring flow never reimplements the canonical encoding.
+
+### `pxf openapi <image.binpb>`
+
+Renders the OpenAPI boundary from a `pxf build` image and an optional `pxf docs build` pack (RFC-001 §#080, issue #173). Third member of the family: `build` (schemas → image), `docs build` (topics → pack), `openapi` (image + pack → boundary formats) — JSON/YAML exist only at this edge.
+
+```bash
+pxf openapi image.binpb                          # YAML on stdout
+pxf openapi -o api.json image.binpb              # JSON, inferred from the extension
+pxf openapi --pack docs.binpb --audience partner image.binpb
+pxf openapi --check image.binpb                  # CI gate, no output
+```
+
+- **Schema half.** Messages, enums and v1.2 type aliases become `components/schemas` entries keyed by FQN; alias chains compose with `allOf` and fields reference their alias by `$ref`. Common `@validate` shapes map to native keywords — `matches` → `pattern`, `size()` bounds → `minLength`/`maxLength` (`minItems`/`maxItems`, `minProperties`/`maxProperties` by subject), `this in [...]` → `enum`, numeric comparisons → `minimum`/`maximum`/`exclusive*` — and every non-mappable rule is carried through verbatim under `x-validation`, never dropped. `@description`/`@deprecated(reason)`/`@example`/`@default`/`@required` map to their counterparts; `optional` and wrapper fields are nullable per §6.1; `@sensitive` fields honor the §6.7 doc-emit minima (no values or examples, `x-sensitive`/`x-sensitive-class` markers only). Property and parameter names are the proto field names as written — the same names the §5.2 binding rules speak in.
+- **Operation half.** Methods carrying `@http` become operations: `{name}` path segments bind to same-named top-level request fields, remaining fields bind to the query string for bodyless methods (GET/HEAD/DELETE/OPTIONS) and to the request body otherwise; `operation_id` defaults to `<Service>_<Method>`; `summary` falls back to the first sentence of `@description`. Responses are **derived, never authored** (GH #177): `200` from the return type, `default` from the §7 report model (`protowire.schema.v1.Report`, emitted into components), with the stable violation codes reachable from the request closure listed under `x-error-codes`.
+- **Generator config** (`protowire.openapi.textproto`, discovered upward from the image or named with `--config`): `info`, `servers`, security-scheme definitions (an `@http(security = [...])` name with no definition is a generation error), audience tiers as FQN globs, and protoregistry coordinates for `x-since`. All of it is deployment policy the §9.4/#112 line keeps out of descriptors.
+- **Audience tiers** (`--audience`, default public): elements at or below the tier are emitted; descriptors are never rewritten. Doc-pack topics anchored to an element contribute their own tier. An element whose schema closure reaches a more restricted element fails generation naming both ends — a dangling `$ref` and a silently inlined restricted definition are both worse than refusing.
+- **`x-since`** is stamped from protoregistry history (first registered version containing the element) when the config carries registry coordinates, and omitted otherwise; availability is never authored.
+- Output is byte-stable in both formats; `--check` reports diagnostics and writes nothing.
 
 ## Exit codes
 

@@ -5,10 +5,10 @@
 // schema-resolution chain that the `pxf` CLI
 // surface. cmd/pxf/QUERY.md documents the chain as:
 //
-//	1. Bundled canonical schemas      (`pxf/*`, `sbe/*`, `envelope/v1/*`)
-//	2. In-document `@proto` directives (source / named / descriptor shapes)
-//	3. -p schema.proto                 (user-supplied .proto sources)
-//	4. -s server -n namespace --schema  (protoregistry gRPC fetch)
+//  1. Bundled canonical schemas      (`pxf/*`, `sbe/*`, `envelope/v1/*`)
+//  2. In-document `@proto` directives (source / named / descriptor shapes)
+//  3. -p schema.proto                 (user-supplied .proto sources)
+//  4. -s server -n namespace --schema  (protoregistry gRPC fetch)
 //
 // Each item is independent and additive: callers compose the steps
 // they need. The output is always a *Registry — a flat
@@ -25,12 +25,14 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/bufbuild/protocompile"
-	"github.com/trendvidia/protowire"
 	registrypb "github.com/trendvidia/protoregistry/proto/protoregistry/v1"
+	"github.com/trendvidia/protowire"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/proto"
@@ -137,8 +139,8 @@ func CompileSources(reg *Registry, opts CompileOptions) error {
 			if data, ok := virtual[filename]; ok {
 				return io.NopCloser(bytes.NewReader(data)), nil
 			}
-			if data, err := protowire.BundledProto.ReadFile("proto/" + filename); err == nil {
-				return io.NopCloser(bytes.NewReader(data)), nil
+			if rc, err := readBundled(filename); err == nil {
+				return rc, nil
 			}
 			return os.Open(filename)
 		}
@@ -181,11 +183,7 @@ func CompileSources(reg *Registry, opts CompileOptions) error {
 // 50400-50404 carriers out of a lowered image.
 func CompileBundledFiles(files ...string) ([]protoreflect.FileDescriptor, error) {
 	accessor := func(filename string) (io.ReadCloser, error) {
-		data, err := protowire.BundledProto.ReadFile("proto/" + filename)
-		if err != nil {
-			return nil, err
-		}
-		return io.NopCloser(bytes.NewReader(data)), nil
+		return readBundled(filename)
 	}
 	comp := protocompile.Compiler{
 		Resolver: protocompile.WithStandardImports(&protocompile.SourceResolver{Accessor: accessor}),
@@ -199,6 +197,22 @@ func CompileBundledFiles(files ...string) ([]protoreflect.FileDescriptor, error)
 		out = append(out, f)
 	}
 	return out, nil
+}
+
+// readBundled opens a canonical schema from the embedded proto/ tree.
+// Import paths map the same way the `pxf build` bundled opener maps
+// them: "X" → proto/X, and the canonical "protowire/X" spelling also
+// resolves to proto/X.
+func readBundled(filename string) (io.ReadCloser, error) {
+	if data, err := protowire.BundledProto.ReadFile("proto/" + filename); err == nil {
+		return io.NopCloser(bytes.NewReader(data)), nil
+	}
+	if rest, ok := strings.CutPrefix(filename, "protowire/"); ok {
+		if data, err := protowire.BundledProto.ReadFile("proto/" + rest); err == nil {
+			return io.NopCloser(bytes.NewReader(data)), nil
+		}
+	}
+	return nil, fs.ErrNotExist
 }
 
 // MergeDescriptorBlob unmarshals a FileDescriptorSet and merges every
