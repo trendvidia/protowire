@@ -21,6 +21,12 @@
 // facts anchor resolution needs are modeled — entry identity, membership,
 // and since-versions. Fields appviewer adds for its own purposes are not
 // errors here, they are simply not carried (precedents: #164, #66/Appendix C).
+//
+// This mirror is written against catalog schema version 9 (#186). The
+// compiler's version gate is a floor, not an equality check: a newer
+// export is accepted with a warning, because entries this mirror
+// understands still resolve, and purely presentational additions
+// upstream need no mirror change at all.
 
 syntax = "proto3";
 
@@ -37,9 +43,15 @@ message WidgetCatalog {
   // Widget entries, sorted by type.
   repeated WidgetSpec widgets = 2;
 
-  // Node-level attributes every widget accepts (the config loader
-  // handles them rather than any factory). A widget anchor naming one of
-  // these as a prop resolves against the widget it was written on.
+  // Node-level attributes every widget accepts, in every context (the
+  // config loader handles them rather than any factory). A widget anchor
+  // naming one of these as a prop resolves against the widget it was
+  // written on.
+  //
+  // Since catalog schema v8 this is the truly-universal set only:
+  // `bind` moved onto Bindable widget specs' props (appviewer#209), so a
+  // bind prop anchor resolves per-widget, and the template-composition
+  // attributes live in composition_props.
   repeated PropSpec common_props = 3;
 
   // Action natives (`ctx.*`). Carried for provenance and for future
@@ -49,6 +61,20 @@ message WidgetCatalog {
   // The runtime version this catalog was exported from, when the
   // producer reports one.
   string runtime_version = 5;
+
+  // Template-composition attributes (`template`, `slot`, `content_slot`),
+  // meaningful only on an untyped template-instance node — offered by
+  // context, never by widget (appviewer#209; catalog schema v8). Like
+  // action_funcs they are carried for provenance and future anchor
+  // kinds: the widget-anchor grammar addresses a typed widget, which is
+  // exactly what a composition node is not.
+  repeated PropSpec composition_props = 6;
+
+  // The accepted screen-transition vocabulary (appviewer#276; catalog
+  // schema v9), in the producer's canonical order (the default first —
+  // the order is load-bearing upstream). Carried for provenance and
+  // future anchor kinds; not resolvable as a widget anchor today.
+  repeated TransitionSpec transitions = 7;
 }
 
 // WidgetSpec is one widget type's catalog entry.
@@ -66,7 +92,12 @@ message WidgetSpec {
 
   bool container = 4;  // children go into a fyne container
   bool structural = 5; // the builder gives children special handling
-  bool bindable = 6;   // supports two-way `bind = "stateKey"`
+
+  // Supports two-way `bind = "stateKey"`. Since catalog schema v8 the
+  // producer also stamps a `bind` entry into a Bindable widget's props
+  // (appviewer#209), so a bind prop anchor resolves per-widget through
+  // the normal membership check — never through common_props.
+  bool bindable = 6;
 
   repeated PropSpec props = 7;
   repeated EventSpec events = 8;
@@ -75,6 +106,19 @@ message WidgetSpec {
   // children (Border's "position", Tabs' "text"). A prop anchor resolves
   // against a widget's own props or its parent's child_props.
   repeated PropSpec child_props = 9;
+
+  // Semantic glyph key a host maps to its own themed icon
+  // (appviewer#192; catalog schema v7). Presentational — carried for
+  // doc renderers, no resolution semantics.
+  string icon = 10;
+
+  // Palette section key (appviewer#202). Presentational, like icon.
+  string category = 11;
+
+  // Accepts a variable number of children; set only alongside
+  // structural (appviewer#151; catalog schema v6). Authoring metadata,
+  // no resolution semantics.
+  bool variadic_children = 12;
 }
 
 message PropSpec {
@@ -83,6 +127,14 @@ message PropSpec {
   repeated string enum_values = 3; // for PROP_KIND_ENUM
   string doc = 4;
   string since = 5; // overrides the widget's since for later additions
+
+  // Authoring hints for structural children (appviewer#146; catalog
+  // schema v5): required marks a child attribute an insert should seed,
+  // default_value the value to seed (the producer's JSON spells it
+  // "default"). Hints only — the runtime still applies its fallback
+  // when the attribute is absent.
+  bool required = 6;
+  string default_value = 7;
 }
 
 message EventSpec {
@@ -101,6 +153,13 @@ message EventArg {
 message ActionFunc {
   string name = 1;
   string since = 2;
+}
+
+// TransitionSpec is one accepted screen-transition name
+// (appviewer#276). Doc is the producer's tooltip-sized description.
+message TransitionSpec {
+  string name = 1;
+  string doc = 2;
 }
 
 // PropKind classifies a property's value domain. The vocabulary is the

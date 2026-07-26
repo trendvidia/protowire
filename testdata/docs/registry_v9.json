@@ -1,0 +1,63 @@
+{
+  "schema_version": 9,
+  "runtime_version": "0.1.0",
+  "widgets": [
+    {
+      "type": "Border",
+      "since": "0.2.0",
+      "doc": "Five-slot border layout",
+      "icon": "border",
+      "category": "layout",
+      "structural": true,
+      "variadic_children": true,
+      "props": [],
+      "child_props": [
+        { "name": "position", "kind": "enum", "enum": ["top", "bottom", "left", "right", "center"], "doc": "slot this child fills", "required": true, "default": "center" }
+      ]
+    },
+    {
+      "type": "Entry",
+      "since": "0.1.0",
+      "doc": "Single-line text input",
+      "icon": "entry",
+      "category": "inputs",
+      "bindable": true,
+      "props": [
+        { "name": "bind", "kind": "state", "doc": "two-way state binding (Binder widgets only)" },
+        { "name": "placeholder", "kind": "string", "doc": "hint shown while empty" }
+      ],
+      "events": [
+        { "name": "onChanged", "doc": "fired as the text changes", "args": [ { "name": "text", "kind": "string", "doc": "current text" } ] }
+      ]
+    },
+    {
+      "type": "Label",
+      "since": "0.1.0",
+      "doc": "Static text",
+      "icon": "label",
+      "category": "text",
+      "props": [
+        { "name": "text", "kind": "string", "doc": "displayed text" }
+      ]
+    }
+  ],
+  "common_props": [
+    { "name": "id", "kind": "string", "doc": "widget ID for ctx.* lookups" },
+    { "name": "type", "kind": "string", "doc": "widget type (PascalCase registry name)" },
+    { "name": "help_topic", "kind": "string", "doc": "help anchor for contextual help" }
+  ],
+  "composition_props": [
+    { "name": "template", "kind": "string", "doc": "template to instantiate" },
+    { "name": "slot", "kind": "string", "doc": "slot of the parent template this node fills" },
+    { "name": "content_slot", "kind": "string", "doc": "template slot that receives this node's children" }
+  ],
+  "action_funcs": [
+    { "name": "ctx.navigate", "since": "0.1.0" },
+    { "name": "ctx.set", "since": "0.1.0" }
+  ],
+  "transitions": [
+    { "name": "none", "doc": "no animation; the new screen replaces the old instantly" },
+    { "name": "slide", "doc": "horizontal slide; forward slides left, back slides right" },
+    { "name": "fade", "doc": "cross-fade from the old screen to the new" }
+  ]
+}
