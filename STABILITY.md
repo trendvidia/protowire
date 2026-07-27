@@ -99,6 +99,12 @@ v1.8 is an additive minor: no grammar, wire-format, envelope, or report change �
 - **Review identity convention** (GH [#197](https://github.com/trendvidia/protowire/issues/197)). Producers of review metadata MUST write the git author email, lowercased, into `author`/`reviewers`/`revisor`/`translator` and compare that form. Compiler enforcement is a warning only — never escalated by `--release` — so no existing corpus starts failing.
 - **Doc-coverage policy is opt-in compiler policy** (GH [#200](https://github.com/trendvidia/protowire/issues/200)). `--coverage`/`--coverage-approved` are new-flag additions under the CLI-surface rules below; with the flags absent, `pxf docs build` behavior is unchanged. Ports owe nothing — coverage is a build-time policy of the reference compiler, not a conformance surface.
 
+### v1.9 — docpack element-kind lookup
+
+v1.9 is an additive minor with **no conformance-claim changes for ports**: no grammar, wire-format, envelope, report, or doc-pack change — every output is byte-identical to v1.8 for every schema, document, and topic corpus. What changes:
+
+- **`docpack` gains `ElementKind` and `Image.Kind`** (GH [#206](https://github.com/trendvidia/protowire/issues/206)). Additive Go API under the v1.6 docpack library rules (reference-implementation surface, additive within a minor). The kind spellings (`message`, `field`, `oneof`, `enum`, `enum value`, `service`, `method`, `type alias`) are exported constants consumers may rely on as stable — they are display strings a hover renders verbatim. The lookup is a query surface of the reference compiler's image index, not a conformance surface; ports owe nothing.
+
 ### CLI surface — evolves
 
 The shared CLI in [`cmd/pxf`](cmd/pxf) follows looser rules. New subcommands and flags can be added at any minor version. Existing flags are deprecated with one minor-version notice before removal at the next major. CLI exit codes are stable (`0` success, `1` user error, `2` internal error), and the JSON output schema produced by `bench-pxf` / `bench-sbe` is stable per [point 6](#promises) below.

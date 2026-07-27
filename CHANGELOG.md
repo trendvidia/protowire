@@ -10,6 +10,10 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+## [1.9.0] – 2026-07-26
+
+A single-accessor follow-up to the v1.6 editor-integration story, driven by goed's schema-anchor hover (trendvidia/goed#325, PR trendvidia/goed#334): the element-kind fact the compiler already indexes becomes readable, so the editor drops its second decode of the image. No wire-format changes — PXF, `pb`, SBE, envelope, report, and doc-pack outputs are byte-identical to v1.8.0 for every schema, document, and topic corpus; the only change is additive Go API on the `docpack` package. See [`STABILITY.md`](STABILITY.md) for the compatibility contract.
+
 ### Added
 
 - **Element-kind lookup on the docpack `Image`** (issue [#206](https://github.com/trendvidia/protowire/issues/206)). The image already indexes what kind of element every fully-qualified name names — schema-anchor resolution checks membership against exactly that index — but only unexported code could read the kind. `Image.Kind(fqn)` now exports it, returning an `ElementKind` (`message`, `field`, `oneof`, `enum`, `enum value`, `service`, `method`, `type alias`) plus existence — the same shape as the #185 accessors: the presentational fact a hover renders is read off the index resolution checks, so an editor can never disagree with the compiler. It is also the only truthful source for v1.2 `type` aliases, which live in the `FileTypeDecls` carrier (§8.2), not the descriptor tree; goed drops its interim protodesc re-decode (trendvidia/goed#334) and alias hovers stop degrading to a generic "schema element". Reference-implementation surface only (additive within a minor per `STABILITY.md`); no wire-format change.
