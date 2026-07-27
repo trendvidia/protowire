@@ -42,7 +42,7 @@ type Image struct {
 	// messages, fields, oneofs, enums, enum values (parent-scoped, per
 	// protobuf name resolution), services, methods, plus the v1.2 `type`
 	// aliases preserved in the FileTypeDecls carrier (§8.2).
-	fqns map[string]elementKind
+	fqns map[string]ElementKind
 
 	// Canonical §8.3.1 descriptor paths, from the embedded source maps.
 	paths map[string]bool
@@ -53,24 +53,30 @@ type Image struct {
 	annotations map[string][]string
 }
 
-type elementKind string
+// ElementKind is what kind of schema element a fully-qualified name
+// names in an image. The values are stable display spellings — "enum
+// value", "type alias" — so a hover can render them verbatim, and
+// constants, so a consumer switching on them cannot drift from what the
+// index records.
+type ElementKind string
 
 const (
-	kindMessage   elementKind = "message"
-	kindField     elementKind = "field"
-	kindOneof     elementKind = "oneof"
-	kindEnum      elementKind = "enum"
-	kindEnumValue elementKind = "enum value"
-	kindService   elementKind = "service"
-	kindMethod    elementKind = "method"
-	kindTypeAlias elementKind = "type alias"
+	KindMessage   ElementKind = "message"
+	KindField     ElementKind = "field"
+	KindOneof     ElementKind = "oneof"
+	KindEnum      ElementKind = "enum"
+	KindEnumValue ElementKind = "enum value"
+	KindService   ElementKind = "service"
+	KindMethod    ElementKind = "method"
+	KindTypeAlias ElementKind = "type alias"
 )
 
 // LoadImage reads a lowered image and indexes everything anchors can
 // point at. [Compile] calls it for Options.ImagePath; a caller compiling
 // repeatedly (the editor debounce) loads once and passes the result as
 // Options.Image, and anchor completion reads the target sets off it
-// directly ([Image.FQNs], [Image.Paths], [Image.AnnotationsOn]).
+// directly ([Image.FQNs], [Image.Paths], [Image.AnnotationsOn]), hover
+// the element kinds ([Image.Kind]).
 func LoadImage(path string) (*Image, error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
@@ -84,7 +90,7 @@ func LoadImage(path string) (*Image, error) {
 		Path:        path,
 		Digest:      digestOf(raw),
 		FileCount:   len(fds.GetFile()),
-		fqns:        map[string]elementKind{},
+		fqns:        map[string]ElementKind{},
 		paths:       map[string]bool{},
 		annotations: map[string][]string{},
 	}
@@ -104,9 +110,9 @@ func (im *Image) indexFile(fd *descriptorpb.FileDescriptorProto) {
 	}
 	for _, s := range fd.GetService() {
 		name := qualify(prefix, s.GetName())
-		im.fqns[name] = kindService
+		im.fqns[name] = KindService
 		for _, mth := range s.GetMethod() {
-			im.fqns[qualify(name, mth.GetName())] = kindMethod
+			im.fqns[qualify(name, mth.GetName())] = KindMethod
 		}
 	}
 	im.indexFileCarriers(fd)
@@ -114,12 +120,12 @@ func (im *Image) indexFile(fd *descriptorpb.FileDescriptorProto) {
 
 func (im *Image) indexMessage(prefix string, m *descriptorpb.DescriptorProto) {
 	name := qualify(prefix, m.GetName())
-	im.fqns[name] = kindMessage
+	im.fqns[name] = KindMessage
 	for _, f := range m.GetField() {
-		im.fqns[qualify(name, f.GetName())] = kindField
+		im.fqns[qualify(name, f.GetName())] = KindField
 	}
 	for _, o := range m.GetOneofDecl() {
-		im.fqns[qualify(name, o.GetName())] = kindOneof
+		im.fqns[qualify(name, o.GetName())] = KindOneof
 	}
 	for _, n := range m.GetNestedType() {
 		im.indexMessage(name, n)
@@ -135,9 +141,9 @@ func (im *Image) indexMessage(prefix string, m *descriptorpb.DescriptorProto) {
 // fdp.DescriptorPath expects.
 func (im *Image) indexEnum(prefix string, e *descriptorpb.EnumDescriptorProto) {
 	name := qualify(prefix, e.GetName())
-	im.fqns[name] = kindEnum
+	im.fqns[name] = KindEnum
 	for _, v := range e.GetValue() {
-		im.fqns[qualify(prefix, v.GetName())] = kindEnumValue
+		im.fqns[qualify(prefix, v.GetName())] = KindEnumValue
 	}
 }
 
@@ -169,7 +175,7 @@ func (im *Image) indexFileCarriers(fd *descriptorpb.FileDescriptorProto) {
 	if decls := decoded.typeDecls; decls.valid() {
 		for _, td := range decls.msgs("declarations") {
 			if n := td.str("name"); n != "" {
-				im.fqns[n] = kindTypeAlias
+				im.fqns[n] = KindTypeAlias
 			}
 		}
 	}
@@ -204,13 +210,7 @@ func appendUnique(list []string, v string) []string {
 	return append(list, v)
 }
 
-// lookup reports an element's kind, and whether it exists at all.
-func (im *Image) lookup(fqn string) (elementKind, bool) {
-	k, ok := im.fqns[fqn]
-	return k, ok
-}
-
-// ── Anchor-target queries (#185) ──────────────────────────────────────────
+// ── Anchor-target queries (#185, #206) ────────────────────────────────────
 //
 // The read-only surface anchor completion consumes: exactly the sets
 // resolution checks against, so an editor can only ever offer an anchor
@@ -222,6 +222,18 @@ func (im *Image) lookup(fqn string) (elementKind, bool) {
 func (im *Image) Has(fqn string) bool {
 	_, ok := im.fqns[fqn]
 	return ok
+}
+
+// Kind reports what the fully-qualified name is in the image — message,
+// field, oneof, enum, enum value, service, method, or v1.2 type alias —
+// and whether it exists at all. This is the same index resolution
+// checks membership against, so a hover that renders the kind (#206)
+// can never disagree with the compiler; it is also the only place type
+// aliases are visible, since they live in the FileTypeDecls carrier
+// (§8.2), not the descriptor tree.
+func (im *Image) Kind(fqn string) (ElementKind, bool) {
+	k, ok := im.fqns[fqn]
+	return k, ok
 }
 
 // FQNs returns every addressable schema element in the image — messages,
@@ -269,7 +281,7 @@ const annHTTPFQN = "protowire.schema.v1.http"
 func (im *Image) HTTPMethods() []string {
 	var out []string
 	for fqn, kind := range im.fqns {
-		if kind != kindMethod {
+		if kind != KindMethod {
 			continue
 		}
 		for _, a := range im.annotations[fqn] {
