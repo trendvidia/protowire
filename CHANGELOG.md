@@ -10,6 +10,10 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+### Added
+
+- **Element-kind lookup on the docpack `Image`** (issue [#206](https://github.com/trendvidia/protowire/issues/206)). The image already indexes what kind of element every fully-qualified name names — schema-anchor resolution checks membership against exactly that index — but only unexported code could read the kind. `Image.Kind(fqn)` now exports it, returning an `ElementKind` (`message`, `field`, `oneof`, `enum`, `enum value`, `service`, `method`, `type alias`) plus existence — the same shape as the #185 accessors: the presentational fact a hover renders is read off the index resolution checks, so an editor can never disagree with the compiler. It is also the only truthful source for v1.2 `type` aliases, which live in the `FileTypeDecls` carrier (§8.2), not the descriptor tree; goed drops its interim protodesc re-decode (trendvidia/goed#334) and alias hovers stop degrading to a generic "schema element". Reference-implementation surface only (additive within a minor per `STABILITY.md`); no wire-format change.
+
 ## [1.8.0] – 2026-07-26
 
 The doc-platform contract batch, driven by planning the goed authoring layer (trendvidia/goed#321) against the landed platform: the contracts three repos were about to re-derive independently are pinned in one place. The resolved-anchor-id spellings become normative format contract with a conformance golden, the review identity convention is pinned before it calcifies divergently, the anchor surface widens to composition props and transitions, and doc coverage becomes compiler policy under `--release`. No wire-format changes — PXF, `pb`, SBE, envelope, and report outputs are byte-identical to v1.7.0 for every schema and document; doc packs from corpora using no new anchor kind are byte-identical too (`PackProvenance.format_version` unchanged), and the only schema delta is the additive `TransitionAnchor` oneof arm in `protowire.docs.v1` (no extension numbers). See [`STABILITY.md`](STABILITY.md) for the compatibility contract.

@@ -361,6 +361,9 @@ func TestDocsCoverageHTTP(t *testing.T) {
 	if got := strings.Join(im.HTTPMethods(), ","); got != want {
 		t.Fatalf("HTTPMethods() = %q, want %q", got, want)
 	}
+	if got, ok := im.Kind("fixtures.http.Orders.CreateOrder"); !ok || got != docpack.KindMethod {
+		t.Errorf(`Kind("fixtures.http.Orders.CreateOrder") = %q, %v, want %q, true`, got, ok, docpack.KindMethod)
+	}
 
 	src := `@type protowire.docs.v1.TopicFile
 topics = [
@@ -548,10 +551,10 @@ func TestDocsDigestMatchesApprovals(t *testing.T) {
 }
 
 // TestImageQuerySurface pins the anchor-target sets LoadImage exposes
-// (#185), against an image from the real lowering pipeline: the FQN
-// set behind schema anchors, the canonical descriptor-path set behind
-// derived anchors, and the per-element annotation FQNs completion
-// filters by.
+// (#185) and the element-kind lookup (#206), against an image from the
+// real lowering pipeline: the FQN set behind schema anchors, the
+// canonical descriptor-path set behind derived anchors, the per-element
+// annotation FQNs completion filters by, and the kinds hover renders.
 func TestImageQuerySurface(t *testing.T) {
 	im, err := docpack.LoadImage(docsImage(t))
 	if err != nil {
@@ -564,6 +567,23 @@ func TestImageQuerySurface(t *testing.T) {
 	}
 	if im.Has("fixtures.basic.Nope") {
 		t.Error(`Has("fixtures.basic.Nope") = true`)
+	}
+
+	// Kind (#206) reads the element kind off the same index Has checks.
+	// fixtures.basic.Email is the load-bearing case: a v1.2 type alias
+	// lives in the FileTypeDecls carrier, so no protodesc re-decode of
+	// the image can classify it.
+	for fqn, want := range map[string]docpack.ElementKind{
+		"fixtures.basic.User":       docpack.KindMessage,
+		"fixtures.basic.User.email": docpack.KindField,
+		"fixtures.basic.Email":      docpack.KindTypeAlias,
+	} {
+		if got, ok := im.Kind(fqn); !ok || got != want {
+			t.Errorf("Kind(%q) = %q, %v, want %q, true", fqn, got, ok, want)
+		}
+	}
+	if got, ok := im.Kind("fixtures.basic.Nope"); ok {
+		t.Errorf(`Kind("fixtures.basic.Nope") = %q, true, want ok = false`, got)
 	}
 
 	fqns := im.FQNs()

@@ -466,7 +466,7 @@ func (c *compiler) resolveTarget(t *topic, ra *resolvedAnchor) error {
 		if c.image == nil {
 			return fmt.Errorf("schema anchor %s needs a lowered image (pass --image)", ra.id)
 		}
-		if _, ok := c.image.lookup(ra.id); !ok {
+		if _, ok := c.image.Kind(ra.id); !ok {
 			return fmt.Errorf("schema anchor %s resolves to nothing in %s%s", ra.id, c.image.Path, redirectHint(ra))
 		}
 		return nil
@@ -482,7 +482,7 @@ func (c *compiler) resolveTarget(t *topic, ra *resolvedAnchor) error {
 			// Distinguish "no such element" from "that element carries no
 			// such annotation": the first is a renamed or removed target,
 			// the second is an ordinal that has drifted.
-			if _, ok := c.image.lookup(element); !ok {
+			if _, ok := c.image.Kind(element); !ok {
 				return fmt.Errorf("descriptor-path anchor %s names element %s, which is not in %s%s",
 					ra.id, element, c.image.Path, redirectHint(ra))
 			}
