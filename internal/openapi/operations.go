@@ -264,12 +264,10 @@ func (ob *operationsBuilder) operation(svc *serviceInfo, mth *methodInfo, use *h
 	// unmatched segment is a generation error — emitting a parameter
 	// with no schema would be a silent guess.
 	//
-	// bound is keyed by the *first* component, because that is the field
-	// the remaining-field binding below iterates: a nested binding takes
-	// its whole top-level container out of the query string or body
-	// rather than splitting it, since this renderer flattens no message
-	// anywhere else either (issue #218).
-	bound := map[string]bool{}
+	// bound records whole dotted paths, not just their first component:
+	// a nested binding takes only the leaf it names out of the
+	// remaining-field binding, and its siblings still bind (issue #218).
+	bound := boundPaths{}
 	var params []any
 	for _, name := range templateParams(use.path) {
 		// declaring, not owner: the operation's own `owner` description
@@ -278,7 +276,7 @@ func (ob *operationsBuilder) operation(svc *serviceInfo, mth *methodInfo, use *h
 		if fi == nil {
 			return fmt.Errorf("path template {%s} names no field of %s", name, mth.input)
 		}
-		bound[strings.SplitN(name, ".", 2)[0]] = true
+		bound[name] = true
 		ps, err := ob.paramSchema(declaring, fi)
 		if err != nil {
 			return err
@@ -291,26 +289,11 @@ func (ob *operationsBuilder) operation(svc *serviceInfo, mth *methodInfo, use *h
 	}
 
 	if bodyless(use.method) {
-		for _, fi := range req.fields {
-			if bound[fi.desc.GetName()] {
-				continue
-			}
-			ps, err := ob.paramSchema(req, fi)
-			if err != nil {
-				return err
-			}
-			p := newOmap().
-				set("name", fi.desc.GetName()).
-				set("in", "query")
-			if findAnn(fi.anns, annRequired).valid() {
-				p.set("required", true)
-			}
-			if d := description(fi.anns); d != "" {
-				p.set("description", d)
-			}
-			p.set("schema", ps)
-			params = append(params, p)
+		query, err := ob.queryParams(req, bound, "", nil)
+		if err != nil {
+			return err
 		}
+		params = append(params, query...)
 	}
 	if len(params) > 0 {
 		op.set("parameters", params)
@@ -394,10 +377,94 @@ func (ob *operationsBuilder) paramSchema(req *messageInfo, fi *fieldInfo) (*omap
 	return s, nil
 }
 
+// boundPaths is the set of dotted field paths a path template bound.
+type boundPaths map[string]bool
+
+// exact reports whether the path itself is bound.
+func (b boundPaths) exact(path string) bool { return b[path] }
+
+// under returns the bound paths below name, re-rooted at it — so a
+// container can ask what of *it* is spoken for without knowing where it
+// sits. Empty means nothing below name is bound.
+func (b boundPaths) under(name string) boundPaths {
+	var out boundPaths
+	for p := range b {
+		if rest, ok := strings.CutPrefix(p, name+"."); ok {
+			if out == nil {
+				out = boundPaths{}
+			}
+			out[rest] = true
+		}
+	}
+	return out
+}
+
+// queryParams renders the unbound fields of a message as query
+// parameters. A field whose leaf the path template bound is skipped; a
+// container holding one is descended into, so its siblings keep binding
+// under dotted names — `shelf.display_name` beside a bound `{shelf.id}`
+// (§5.2, issue #218). Containers with nothing bound below them keep the
+// existing treatment: value-shaped ones render, message-typed ones are
+// refused, because flattening every message into the query string is a
+// wider change than a bound leaf forces.
+//
+// seen carries the message FQNs on the current descent, so a container
+// that reaches itself is refused rather than recursed forever.
+func (ob *operationsBuilder) queryParams(mi *messageInfo, bound boundPaths, prefix string, seen map[string]bool) ([]any, error) {
+	var out []any
+	for _, fi := range mi.fields {
+		name := fi.desc.GetName()
+		if bound.exact(name) {
+			continue
+		}
+
+		if below := bound.under(name); below != nil {
+			sub := ob.m.messages[strings.TrimPrefix(fi.desc.GetTypeName(), ".")]
+			if sub == nil {
+				// resolveFieldPath already walked this path, so the
+				// container resolves; a nil here would be a model gap.
+				return nil, fmt.Errorf("field %s%s is not in the image", prefix, name)
+			}
+			if seen[sub.fqn] {
+				return nil, fmt.Errorf("field %s%s binds through a recursive message (%s); "+
+					"the query string has no finite spelling for it", prefix, name, sub.fqn)
+			}
+			next := map[string]bool{sub.fqn: true}
+			for f := range seen {
+				next[f] = true
+			}
+			nested, err := ob.queryParams(sub, below, prefix+name+".", next)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, nested...)
+			continue
+		}
+
+		ps, err := ob.paramSchema(mi, fi)
+		if err != nil {
+			return nil, err
+		}
+		p := newOmap().
+			set("name", prefix+name).
+			set("in", "query")
+		if findAnn(fi.anns, annRequired).valid() {
+			p.set("required", true)
+		}
+		if d := description(fi.anns); d != "" {
+			p.set("description", d)
+		}
+		p.set("schema", ps)
+		out = append(out, p)
+	}
+	return out, nil
+}
+
 // requestBody renders the §5.2 body binding: the whole request message
 // when no template segment bound a field, otherwise an inline object of
-// the remaining fields.
-func (ob *operationsBuilder) requestBody(req *messageInfo, bound map[string]bool) (*omap, error) {
+// the remaining fields — a container with a bound leaf inlined in turn,
+// minus that leaf (issue #218).
+func (ob *operationsBuilder) requestBody(req *messageInfo, bound boundPaths) (*omap, error) {
 	var schema *omap
 	if len(bound) == 0 {
 		if err := ob.sb.component(req.fqn); err != nil {
@@ -405,33 +472,68 @@ func (ob *operationsBuilder) requestBody(req *messageInfo, bound map[string]bool
 		}
 		schema = ref(req.fqn)
 	} else {
-		schema = newOmap().set("type", "object")
-		props := newOmap()
-		var required []any
-		msgSensitive := ob.sb.messageSensitive(req.fqn)
-		for _, fi := range req.fields {
-			name := fi.desc.GetName()
-			if bound[name] {
-				continue
-			}
-			ps, err := ob.sb.propertySchema(req, fi, msgSensitive)
-			if err != nil {
-				return nil, err
-			}
-			props.set(name, ps)
-			if findAnn(fi.anns, annRequired).valid() {
-				required = append(required, name)
-			}
-		}
-		if props.len() > 0 {
-			schema.set("properties", props)
-		}
-		if len(required) > 0 {
-			schema.set("required", required)
+		var err error
+		if schema, err = ob.bodyObject(req, bound, nil); err != nil {
+			return nil, err
 		}
 	}
 	content := newOmap().set("application/json", newOmap().set("schema", schema))
 	return newOmap().set("required", true).set("content", content), nil
+}
+
+// bodyObject inlines a message as an object schema minus whatever the
+// path bound below it. Fields with nothing bound below keep their
+// ordinary property schema, `$ref`s included.
+func (ob *operationsBuilder) bodyObject(mi *messageInfo, bound boundPaths, seen map[string]bool) (*omap, error) {
+	schema := newOmap().set("type", "object")
+	props := newOmap()
+	var required []any
+	msgSensitive := ob.sb.messageSensitive(mi.fqn)
+
+	for _, fi := range mi.fields {
+		name := fi.desc.GetName()
+		if bound.exact(name) {
+			continue
+		}
+
+		var ps *omap
+		if below := bound.under(name); below != nil {
+			sub := ob.m.messages[strings.TrimPrefix(fi.desc.GetTypeName(), ".")]
+			if sub == nil {
+				return nil, fmt.Errorf("field %s is not in the image", name)
+			}
+			if seen[sub.fqn] {
+				return nil, fmt.Errorf("field %s binds through a recursive message (%s)", name, sub.fqn)
+			}
+			next := map[string]bool{sub.fqn: true}
+			for f := range seen {
+				next[f] = true
+			}
+			nested, err := ob.bodyObject(sub, below, next)
+			if err != nil {
+				return nil, err
+			}
+			ps = nested
+		} else {
+			var err error
+			if ps, err = ob.sb.propertySchema(mi, fi, msgSensitive); err != nil {
+				return nil, err
+			}
+		}
+
+		props.set(name, ps)
+		if findAnn(fi.anns, annRequired).valid() {
+			required = append(required, name)
+		}
+	}
+
+	if props.len() > 0 {
+		schema.set("properties", props)
+	}
+	if len(required) > 0 {
+		schema.set("required", required)
+	}
+	return schema, nil
 }
 
 // responses derives the response map: 200 from the return type, default
