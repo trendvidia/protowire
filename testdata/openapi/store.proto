@@ -112,8 +112,13 @@ message ListAuditResponse {
 }
 
 service Store {
+  // Two bindings for one RPC: the primary rule keeps the derived
+  // operation id, the alias names its own (issue #215).
   @description("Fetch one customer by id. Path binds customer_id; the rest is query.")
   @http("GET", "/customers/{customer_id}", security = ["bearerAuth"])
+  @http("GET", "/v2/customers/{customer_id}",
+        operation_id = "getCustomerV2",
+        security = ["bearerAuth"])
   rpc GetCustomer(GetCustomerRequest) returns (Customer);
 
   @http("POST", "/customers",

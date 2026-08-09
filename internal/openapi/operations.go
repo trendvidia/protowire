@@ -77,6 +77,9 @@ type operationsBuilder struct {
 	schemes map[string]bool // config-defined scheme names
 	// paths: path template → method(lower) → operation
 	paths map[string]map[string]*omap
+	// operationIDs maps every emitted operationId to a description of
+	// the operation that claimed it, so a collision names both ends.
+	operationIDs map[string]string
 	// usedSchemes records referenced names for components emission.
 	usedSchemes map[string]bool
 	needsReport bool
@@ -84,12 +87,13 @@ type operationsBuilder struct {
 
 func newOperationsBuilder(m *model, sb *schemaBuilder, include func(string) bool, schemes map[string]bool) *operationsBuilder {
 	return &operationsBuilder{
-		m:           m,
-		sb:          sb,
-		include:     include,
-		schemes:     schemes,
-		paths:       make(map[string]map[string]*omap),
-		usedSchemes: make(map[string]bool),
+		m:            m,
+		sb:           sb,
+		include:      include,
+		schemes:      schemes,
+		paths:        make(map[string]map[string]*omap),
+		operationIDs: make(map[string]string),
+		usedSchemes:  make(map[string]bool),
 	}
 }
 
@@ -106,12 +110,25 @@ func (ob *operationsBuilder) buildAll() error {
 			if !ob.included(svc.fqn + "." + mth.name) {
 				continue
 			}
-			use, ok := parseHTTP(findAnn(mth.anns, annHTTP))
-			if !ok {
-				continue
-			}
-			if err := ob.operation(svc, mth, use); err != nil {
-				return fmt.Errorf("%s.%s: %w", svc.fqn, mth.name, err)
+			// Every @http use site is an operation. A method carrying
+			// several lowers to a rule plus additional_bindings (§5.2),
+			// so rendering only the first would describe less than the
+			// image binds — the mirror of issue #213 (issue #215).
+			//
+			// binding counts the use sites that render, not the carrier
+			// slots: one that parses to nothing produces no operation, so
+			// it must not push the first real one out of the position
+			// that owns the derived operationId.
+			binding := 0
+			for _, ann := range allAnns(mth.anns, annHTTP) {
+				use, ok := parseHTTP(ann)
+				if !ok {
+					continue
+				}
+				if err := ob.operation(svc, mth, use, binding); err != nil {
+					return fmt.Errorf("%s.%s: %w", svc.fqn, mth.name, err)
+				}
+				binding++
 			}
 		}
 	}
@@ -127,7 +144,10 @@ func generatedFileByName(m *model, name string) bool {
 	return false
 }
 
-func (ob *operationsBuilder) operation(svc *serviceInfo, mth *methodInfo, use *httpUse) error {
+// operation renders one @http use site. binding is its index among the
+// method's rendered use sites: 0 is the rule, the rest are additional
+// bindings.
+func (ob *operationsBuilder) operation(svc *serviceInfo, mth *methodInfo, use *httpUse, binding int) error {
 	op := newOmap()
 
 	if len(use.tags) > 0 {
@@ -150,10 +170,27 @@ func (ob *operationsBuilder) operation(svc *serviceInfo, mth *methodInfo, use *h
 		op.set("description", desc)
 	}
 
+	// operationId names a method in generated clients, so it must be
+	// unique across the document and stable across edits that do not
+	// change the API. The derived spelling satisfies both only while a
+	// method has one binding — the §#080 "unique by construction"
+	// argument. A repeated @http names its own rather than taking a
+	// positional suffix, which would rename a client method whenever
+	// two annotation lines are reordered (issue #215).
 	opID := use.operationID
 	if opID == "" {
+		if binding > 0 {
+			return fmt.Errorf("@http %s %s needs an explicit operation_id: "+
+				"it is binding %d on this method, and the derived %q is reserved for the first",
+				use.method, use.path, binding+1, svc.name+"_"+mth.name)
+		}
 		opID = svc.name + "_" + mth.name
 	}
+	owner := fmt.Sprintf("%s.%s (%s %s)", svc.fqn, mth.name, use.method, use.path)
+	if prev, dup := ob.operationIDs[opID]; dup {
+		return fmt.Errorf("operationId %q is already used by %s: ids must be unique across the document", opID, prev)
+	}
+	ob.operationIDs[opID] = owner
 	op.set("operationId", opID)
 
 	if dep := findAnn(mth.anns, annDeprecated); dep.valid() {
