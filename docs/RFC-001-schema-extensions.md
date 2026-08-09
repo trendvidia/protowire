@@ -254,6 +254,8 @@ The existing PXF annotations `(pxf.required)` and `(pxf.default)` retain their b
 
 `@default(value)` inherits the placement constraint the draft states for `(pxf.default)` (draft `-01` §annotation-extensions, "Default Placement"): the annotation carries one literal, so it is valid only on singular scalar fields, enum fields, and the message types a PXF literal can denote — never on a `repeated` field, a `map<K,V>` field, a group, or any other message type. The constraint is on the annotation, not on the surface that writes it, so the compiler rejects a misplaced `@default(value)` at the use site with the same force a PXF binding tool rejects a misplaced bracket option. Note this is the one place `@default` and `@validate` diverge in their treatment of collections: §6.4's per-element rule makes `@validate` meaningful on a `repeated` or `map<K,V>` field, whereas `@default` has no per-element reading — a single literal cannot denote a collection, and the annotation grammar has no element or key separator to give it one.
 
+Both `@default(value)` and `@required` also inherit the oneof-member constraints (draft `-01` §annotation-extensions, "Oneof Members"): `@default(value)` on a oneof member applies only when no member of that oneof is present, at most one member of a oneof may carry it, and `@required` is not valid on a oneof member at all. The presence model of §6.1 is defined per field, and inside a oneof that reading does not hold — setting any member clears the rest, so a member is "absent" whenever a sibling was chosen. `@required`'s only coherent reading there is a property of the oneof, for which this revision defines no annotation scope.
+
 ### 5.3 Worked example
 
 ```proto
