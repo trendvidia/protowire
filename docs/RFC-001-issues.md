@@ -1529,6 +1529,65 @@ unchanged by this resolution.
 
 ---
 
+## #081 — `@http` lowering: carrier-only vs `google.api.http`
+
+**Repo:** `protowire` + `protocompile` (GH #213)
+**Milestone:** post-M8
+**Labels:** `spec`, `schema-extensions`, `tooling`
+**Depends on:** #080
+
+`@http` lowered to the `50400` carrier and nothing else. The routing
+information was complete and correct in an encoding no off-the-shelf
+consumer reads: every REST binder (connect vanguard, grpc-gateway,
+Envoy's `grpc_json_transcoder`, buf's OpenAPI plugins) reads
+`MethodOptions` field `72295728`. The failure was silent — zero rules
+found, zero routes bound, nothing reported — and worse beside the #080
+renderer, which described routes nothing served. Decide: is `@http`
+sugar over `google.api.http`, or a documentation-only annotation?
+
+**Resolution (2026-08-08, GH #213, PR #214 / protocompile#132):**
+**Sugar — dual lowering, both surfaces, default on.** RFC-001 §5.2
+gains the normative rule: the routing skeleton lowers to the §8.1
+carrier *and* to `google.api.http`. The two are complements — the
+carrier keeps `summary` / `operation_id` / `tags` / `security`, which
+`HttpRule` has no place for; the standard option carries the skeleton
+downstream acts on. §5.2 pins the mapping table, the rule that an
+author-written `(google.api.http)` is never joined by a competing rule,
+and the opt-out (`pxf build --google-api-http=false`).
+
+*Why this is not a reversal of #023.* That decision refused
+dual-emission into `(pxf.required)` / `(pxf.default)` — two competing
+surfaces for semantics **this project owns**, where back-filling one
+from the other would make neither authoritative and migration
+ambiguous. `72295728` is a number protowire does not own, in a
+vocabulary defined and versioned by googleapis, carrying a strictly
+narrower fact (verb and path) than the carrier. Nothing is back-filled
+in either direction: the carrier is never derived from an authored
+`HttpRule`, and an authored `HttpRule` is never overwritten. The test
+that separates the two cases is ownership, not arity of emission.
+
+*No import is added.* The option rides in the options message's
+unknown-field bytes exactly as the §8.1 carriers do. Adding
+`google/api/annotations.proto` to `dependency` would oblige every image
+to carry those files or fail `protodesc.NewFiles`, trading a
+self-contained image for a declaration nothing checks; consumers
+resolve the extension through their own type registry, as they do for
+any `protoc`-produced descriptor.
+
+*Lowered means checked.* Because the skeleton now produces a rule
+something will try to serve, `{name}` segments binding no top-level
+request field — plus relative paths, unbalanced braces and empty verbs
+— are compile errors rather than image content (fixture
+`invalid/http_unbound_template.proto`). #080's renderer already
+rejected the identical condition, so the two ends of the toolchain stop
+disagreeing about what is servable.
+
+*Landing site:* the lowering is in the reference compiler, not the CLI,
+so every image producer inherits it and the diagnostics carry source
+positions from the IR pass rather than arriving as a bare CLI error.
+
+---
+
 ## Labels suggested
 
 | Label | Use |
@@ -1558,4 +1617,5 @@ unchanged by this resolution.
 - **M6** (i18n): #043.
 - **M7** (Tooling integration): #052, #061.
 - **M8** (OpenAPI): #080.
+- **Post-M8**: #081.
 - **M9+** (Per-port adoption): one issue per port repo following the same shape.
