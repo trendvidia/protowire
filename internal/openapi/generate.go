@@ -142,7 +142,7 @@ func Generate(opts Options) (*Result, error) {
 				if !ok {
 					continue
 				}
-				if item, found := paths.get(use.path); found {
+				if item, found := paths.get(openAPIPath(use.path)); found {
 					if op, found := item.(*omap).get(strings.ToLower(use.method)); found {
 						since.stamp(op.(*omap), svc.fqn+"."+mth.name)
 					}

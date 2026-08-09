@@ -50,9 +50,27 @@ func bodyless(method string) bool {
 	return false
 }
 
-// templateParams extracts {name} segments in order of appearance.
+// templateParams extracts the variable of each {…} segment, in order of
+// appearance. A segment may constrain its variable with a sub-path
+// pattern (`{name=shelves/*}`); the variable is what precedes the `=`,
+// exactly as the compiler reads it (§5.2, issue #217).
 func templateParams(path string) []string {
 	var out []string
+	for _, seg := range templateSegments(path) {
+		out = append(out, seg.variable)
+	}
+	return out
+}
+
+// templateSegment is one {…} of a path: the variable it binds and the
+// half-open byte range of the whole segment, braces included.
+type templateSegment struct {
+	variable   string
+	start, end int
+}
+
+func templateSegments(path string) []templateSegment {
+	var out []templateSegment
 	for i := 0; i < len(path); {
 		open := strings.IndexByte(path[i:], '{')
 		if open < 0 {
@@ -63,10 +81,40 @@ func templateParams(path string) []string {
 		if close < 0 {
 			break
 		}
-		out = append(out, path[open+1:open+close])
+		name := path[open+1 : open+close]
+		if eq := strings.IndexByte(name, '='); eq >= 0 {
+			name = name[:eq]
+		}
+		out = append(out, templateSegment{
+			variable: strings.TrimSpace(name),
+			start:    open,
+			end:      open + close + 1,
+		})
 		i = open + close + 1
 	}
 	return out
+}
+
+// openAPIPath rewrites a §5.2 path into an OpenAPI path template. The
+// two agree except for sub-path patterns: OpenAPI's template grammar
+// has no `{name=pattern}` form, so the constraint is dropped from the
+// key and only the variable remains. Everything else — including a
+// dotted variable, which OpenAPI allows as a parameter name — is
+// carried through verbatim.
+func openAPIPath(path string) string {
+	segs := templateSegments(path)
+	if len(segs) == 0 {
+		return path
+	}
+	var b strings.Builder
+	prev := 0
+	for _, seg := range segs {
+		b.WriteString(path[prev:seg.start])
+		b.WriteString("{" + seg.variable + "}")
+		prev = seg.end
+	}
+	b.WriteString(path[prev:])
+	return b.String()
 }
 
 // operationsBuilder accumulates paths and the security-scheme demand.
@@ -77,6 +125,11 @@ type operationsBuilder struct {
 	schemes map[string]bool // config-defined scheme names
 	// paths: path template → method(lower) → operation
 	paths map[string]map[string]*omap
+	// pathOwners maps "<method> <OpenAPI path>" to the @http use site
+	// that claimed it. Because the key is the *normalised* path, a
+	// collision can involve two source paths that differ; naming both
+	// ends keeps the diagnostic pointing at text the author wrote.
+	pathOwners map[string]string
 	// operationIDs maps every emitted operationId to a description of
 	// the operation that claimed it, so a collision names both ends.
 	operationIDs map[string]string
@@ -92,6 +145,7 @@ func newOperationsBuilder(m *model, sb *schemaBuilder, include func(string) bool
 		include:      include,
 		schemes:      schemes,
 		paths:        make(map[string]map[string]*omap),
+		pathOwners:   make(map[string]string),
 		operationIDs: make(map[string]string),
 		usedSchemes:  make(map[string]bool),
 	}
@@ -205,18 +259,27 @@ func (ob *operationsBuilder) operation(svc *serviceInfo, mth *methodInfo, use *h
 		return fmt.Errorf("request message %s is not in the image", mth.input)
 	}
 
-	// Path parameters: {name} binds to the same-named top-level request
-	// field (§5.2); an unmatched template segment is a generation error
-	// — emitting a parameter with no schema would be a silent guess.
+	// Path parameters: a segment names a field of the request message
+	// from its top level, as a dotted path (§5.2, issue #217). An
+	// unmatched segment is a generation error — emitting a parameter
+	// with no schema would be a silent guess.
+	//
+	// bound is keyed by the *first* component, because that is the field
+	// the remaining-field binding below iterates: a nested binding takes
+	// its whole top-level container out of the query string or body
+	// rather than splitting it, since this renderer flattens no message
+	// anywhere else either (issue #218).
 	bound := map[string]bool{}
 	var params []any
 	for _, name := range templateParams(use.path) {
-		fi := fieldByName(req, name)
+		// declaring, not owner: the operation's own `owner` description
+		// is still live below, at the path-key collision check.
+		declaring, fi := resolveFieldPath(ob.m, req, name)
 		if fi == nil {
-			return fmt.Errorf("path template {%s} has no same-named top-level field in %s", name, mth.input)
+			return fmt.Errorf("path template {%s} names no field of %s", name, mth.input)
 		}
-		bound[name] = true
-		ps, err := ob.paramSchema(req, fi)
+		bound[strings.SplitN(name, ".", 2)[0]] = true
+		ps, err := ob.paramSchema(declaring, fi)
 		if err != nil {
 			return err
 		}
@@ -279,16 +342,32 @@ func (ob *operationsBuilder) operation(svc *serviceInfo, mth *methodInfo, use *h
 	}
 	op.set("responses", responses)
 
-	methods, ok := ob.paths[use.path]
+	// Keyed by the OpenAPI spelling, so two bindings that differ only in
+	// a sub-path constraint collide here rather than rendering as two
+	// path items OpenAPI cannot tell apart. That makes the collision a
+	// residual §5.2 divergence rather than a closed one — the pair binds
+	// in the image and is refused here — so the diagnostic has to name
+	// both source paths and say why they met (issue #217).
+	key := openAPIPath(use.path)
+	methods, ok := ob.paths[key]
 	if !ok {
 		methods = make(map[string]*omap)
-		ob.paths[use.path] = methods
+		ob.paths[key] = methods
 	}
 	lower := strings.ToLower(use.method)
+	claim := lower + " " + key
 	if _, dup := methods[lower]; dup {
-		return fmt.Errorf("duplicate operation %s %s", use.method, use.path)
+		prev := ob.pathOwners[claim]
+		if key == use.path {
+			return fmt.Errorf("duplicate operation %s %s: already claimed by %s", use.method, use.path, prev)
+		}
+		return fmt.Errorf("duplicate operation %s %s: it renders as the OpenAPI path %s, already claimed by %s — "+
+			"OpenAPI's template grammar has no {name=pattern} form, so two bindings differing only in a sub-path "+
+			"constraint cannot be told apart in a document (§5.2, issue #217)",
+			use.method, use.path, key, prev)
 	}
 	methods[lower] = op
+	ob.pathOwners[claim] = owner
 	return nil
 }
 
@@ -474,6 +553,43 @@ func (ob *operationsBuilder) emitPaths() *omap {
 		paths.set(k, item)
 	}
 	return paths
+}
+
+// resolveFieldPath walks a dotted field path from a request message and
+// returns the message that declares the leaf together with the leaf
+// itself, or (nil, nil) when any component names nothing or the path
+// descends through a non-message. The compiler resolves the same shape
+// (§5.2, issue #217); disagreeing here is what made a schema compile,
+// bind, and then fail to document.
+func resolveFieldPath(m *model, mi *messageInfo, path string) (*messageInfo, *fieldInfo) {
+	components := strings.Split(path, ".")
+	owner := mi
+	for i, component := range components {
+		if owner == nil {
+			return nil, nil
+		}
+		fi := fieldByName(owner, component)
+		if fi == nil {
+			return nil, nil
+		}
+		// No component may be repeated, map entries included: a repeated
+		// field has no single value a path segment could carry (§5.2).
+		// The compiler rejects this first, so this arm is unreachable for
+		// an image it produced — it is here so the walk implements the
+		// documented rule rather than whatever descending happens to
+		// allow, which is the disagreement issue #217 was about.
+		if fi.desc.GetLabel() == descriptorpb.FieldDescriptorProto_LABEL_REPEATED {
+			return nil, nil
+		}
+		if i == len(components)-1 {
+			return owner, fi
+		}
+		if fi.desc.GetType() != descriptorpb.FieldDescriptorProto_TYPE_MESSAGE {
+			return nil, nil // Descending through a scalar names nothing.
+		}
+		owner = m.messages[strings.TrimPrefix(fi.desc.GetTypeName(), ".")]
+	}
+	return nil, nil
 }
 
 func fieldByName(mi *messageInfo, name string) *fieldInfo {

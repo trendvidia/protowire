@@ -128,11 +128,12 @@ annotation sensitive(class: string = "");
 // Used by OpenAPI / Swagger generators to produce REST-bound surface
 // descriptions, and by REST binders to serve the routes.
 //
-// `method` and `path` are the routing skeleton. `path` may carry
-// `{name}` template segments; each binds to the same-named top-level
-// field of the request message, and remaining fields bind to the query
-// string (bodyless methods) or the request body (RFC-001 §5.2, issue
-// #173).
+// `method` and `path` are the routing skeleton. `path` may carry `{…}`
+// template segments; each binds a field of the request message, named
+// from its top level as a dotted path (`{order_id}`, `{shelf.id}`) and
+// optionally constrained by a sub-path pattern (`{name=shelves/*}`).
+// Remaining fields bind to the query string (bodyless methods) or the
+// request body (RFC-001 §5.2, issues #173 and #217).
 //
 // The skeleton lowers twice: to the standard annotation carrier, and
 // to the `google.api.http` option on MethodOptions (field 72295728) —
