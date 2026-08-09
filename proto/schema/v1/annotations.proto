@@ -155,6 +155,10 @@ annotation sensitive(class: string = "");
 //   - a path whose `{` is never closed
 //   - an empty `method`
 //
+// A method may carry several @http — a versioned or aliased route for
+// one RPC. The first is the rule; the rest become `additional_bindings`
+// in source order, and each renders as its own operation.
+//
 // The remaining parameters are documentation metadata: they carry no
 // validation semantics, and a port that does not render REST surfaces
 // parses them like any other annotation and interprets nothing.
@@ -162,7 +166,12 @@ annotation sensitive(class: string = "");
 //   summary       one-line operation summary; falls back to the first
 //                 sentence of @description when empty
 //   operation_id  document-unique operation identifier; derived as
-//                 "<Service>_<Method>" when empty
+//                 "<Service>_<Method>" when empty. The derivation is
+//                 unique only while a method has one @http: a method
+//                 with several (see below) MUST name its own on every
+//                 binding after the first, since the id becomes a
+//                 method name in generated clients and an index-derived
+//                 one would move when two annotations are reordered
 //   tags          list literal of grouping tags, e.g. ["orders"]
 //   security      list literal of security-scheme names; the scheme
 //                 *definitions* are generator configuration, never

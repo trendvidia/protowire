@@ -124,13 +124,18 @@ func Generate(opts Options) (*Result, error) {
 	// Stamp operations with x-since through the path index.
 	for _, svc := range m.services {
 		for _, mth := range svc.methods {
-			use, ok := parseHTTP(findAnn(mth.anns, annHTTP))
-			if !ok {
-				continue
-			}
-			if item, found := paths.get(use.path); found {
-				if op, found := item.(*omap).get(strings.ToLower(use.method)); found {
-					since.stamp(op.(*omap), svc.fqn+"."+mth.name)
+			// Every binding of the method, not just the first: a method
+			// with additional bindings has one operation per @http, and
+			// they share the method's availability (issue #215).
+			for _, ann := range allAnns(mth.anns, annHTTP) {
+				use, ok := parseHTTP(ann)
+				if !ok {
+					continue
+				}
+				if item, found := paths.get(use.path); found {
+					if op, found := item.(*omap).get(strings.ToLower(use.method)); found {
+						since.stamp(op.(*omap), svc.fqn+"."+mth.name)
+					}
 				}
 			}
 		}
