@@ -27,6 +27,20 @@
 //     beside `{shelf.id}`. The renderer flattens no message anywhere,
 //     so splitting one here would be a special case (issue #218).
 //
+// Not exercised here, because they are the open remainder of #217 and
+// still fail at render time rather than at compile time (RFC-001 §5.2,
+// "What the grammar above still leaves unsettled"):
+//   - a segment whose *leaf* is message-typed (`{mid.inner}`, and
+//     equally a bare `{mid}`) — it compiles and binds, and a path
+//     parameter has no flat encoding for a message;
+//   - two bindings whose paths differ only in a sub-path constraint
+//     (`{name=shelves/*}` and `{name=shelves/*/books/*}`) — distinct
+//     routes to a binder, one OpenAPI path key, so the pair is refused
+//     as a duplicate operation;
+//   - the constraint reaching a reader at all: dropping it from the
+//     path key drops it from the document, so `name` here renders as an
+//     unconstrained string.
+//
 // Compile + lowering only, so there is no report golden.
 
 syntax = "proto3";

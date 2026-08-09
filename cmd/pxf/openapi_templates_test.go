@@ -6,6 +6,7 @@ package main
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -99,6 +100,116 @@ func TestHTTPRulesMatchOpenAPIPathsTemplates(t *testing.T) {
 			t.Errorf("the image binds %q, but the OpenAPI document does not describe it", op)
 		}
 	}
+}
+
+// renderOpenAPIError runs `pxf openapi` expecting it to fail, and
+// returns the error text. The residual #217 edges below are refusals,
+// so they need the failing half of renderOpenAPI's contract.
+func renderOpenAPIError(t *testing.T, args ...string) string {
+	t.Helper()
+	full := append([]string{"openapi", "-o", filepath.Join(t.TempDir(), "openapi.out")}, args...)
+	err := runPxf(t, full...)
+	if err == nil {
+		t.Fatalf("pxf %s: rendered a document, want an error", strings.Join(full, " "))
+	}
+	return err.Error()
+}
+
+// TestOpenAPISubPathConstraintCollision pins the first open edge of
+// #217 (RFC-001 §5.2, "What the grammar above still leaves unsettled").
+// `{name=shelves/*}` and `{name=shelves/*/books/*}` are distinct routes
+// to a binder — the canonical nested-resource shape — but one OpenAPI
+// path key, so the pair is refused. The refusal is the behaviour under
+// test; what this asserts is that the diagnostic names both source
+// paths, since the key it collided on appears in no schema.
+func TestOpenAPISubPathConstraintCollision(t *testing.T) {
+	image := buildTempSchema(t, `syntax = "proto3";
+package t;
+import "protowire/schema/v1/annotations.proto";
+
+message GetReq { string name = 1; }
+message Shelf { string id = 1; }
+
+service S {
+  @http("GET", "/v1/{name=shelves/*}")
+  rpc GetShelf(GetReq) returns (Shelf);
+
+  @http("GET", "/v1/{name=shelves/*/books/*}")
+  rpc GetBook(GetReq) returns (Shelf);
+}
+`)
+	msg := renderOpenAPIError(t, image)
+
+	for _, want := range []string{
+		"/v1/{name=shelves/*/books/*}", // the path that was refused
+		"/v1/{name}",                   // the key both normalised to
+		"/v1/{name=shelves/*}",         // the path that claimed it first
+	} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("collision diagnostic does not name %q: %s", want, msg)
+		}
+	}
+}
+
+// TestOpenAPIMessageTypedLeafRefused pins the second open edge of #217:
+// the grammar constrains interior components, so a message-typed leaf
+// compiles and binds and then fails to render. This is the residual
+// compile-and-bind-then-refuse case, asserted so that closing it at
+// either end flips a test rather than passing unnoticed.
+func TestOpenAPIMessageTypedLeafRefused(t *testing.T) {
+	image := buildTempSchema(t, `syntax = "proto3";
+package t;
+import "protowire/schema/v1/annotations.proto";
+
+message Inner { string v = 1; }
+message Mid { Inner inner = 1; }
+message Req { Mid mid = 1; }
+message Res { string ok = 1; }
+
+service S {
+  @http("GET", "/things/{mid.inner}")
+  rpc Get(Req) returns (Res);
+}
+`)
+	if msg := renderOpenAPIError(t, image); !strings.Contains(msg, "message-typed") {
+		t.Errorf("want the message-typed refusal, got: %s", msg)
+	}
+}
+
+// TestOpenAPISubPathConstraintIsNotRepresented pins the third open edge
+// of #217: dropping the constraint from the path key drops it from the
+// document, so `name` renders as an unconstrained string. Recorded as a
+// known loss — a reader of the document cannot tell that the value must
+// be a `shelves/…` sub-path.
+func TestOpenAPISubPathConstraintIsNotRepresented(t *testing.T) {
+	doc := string(renderOpenAPI(t, "--format", "json", buildTempImage(t, templatesFixture)))
+
+	var rendered struct {
+		Paths map[string]map[string]struct {
+			Parameters []struct {
+				Name   string         `json:"name"`
+				Schema map[string]any `json:"schema"`
+			} `json:"parameters"`
+		} `json:"paths"`
+	}
+	if err := json.Unmarshal([]byte(doc), &rendered); err != nil {
+		t.Fatalf("parsing rendered document: %v", err)
+	}
+	op, ok := rendered.Paths["/named/{name}"]["get"]
+	if !ok {
+		t.Fatalf("no GET /named/{name} in the rendered document:\n%s", doc)
+	}
+	for _, p := range op.Parameters {
+		if p.Name != "name" {
+			continue
+		}
+		if len(p.Schema) != 1 || p.Schema["type"] != "string" {
+			t.Errorf("the sub-path constraint now has a representation (%v) — "+
+				"#217's third open edge closed; update RFC-001 §5.2 and this test", p.Schema)
+		}
+		return
+	}
+	t.Errorf("GET /named/{name} declares no `name` parameter:\n%s", doc)
 }
 
 // openAPIPathSpelling drops a sub-path constraint from each template
