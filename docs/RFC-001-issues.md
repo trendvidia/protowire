@@ -1527,6 +1527,119 @@ value.
 definitions) remains generator configuration, per the #112 reasoning —
 unchanged by this resolution.
 
+**Resolution — repeated `@http`, and `operation_id` uniqueness
+(2026-08-09, GH #215, PR #216):** **one operation per binding; ids are
+authored after the first and checked document-wide.** #081 lowered a
+repeated `@http` to a rule plus `additional_bindings`, and the renderer
+still read only the first use site — so a document could describe fewer
+routes than the image binds, #081's failure pointed the other way.
+`pxf openapi` now emits an operation per use site, and `x-since` stamps
+every one.
+
+*Why authored rather than suffixed.* "`operation_id` defaults to
+`<Service>_<Method>`, which is unique by construction" holds only while
+a method has one `@http`; repetition dissolves the construction. An
+index-derived id (`Orders_GetOrder_2`) never fails, but it is
+positional: reordering two annotation lines renames a method in every
+generated client — a silent SDK break from an edit that changes no API.
+An authored id is stable under reordering and under path changes, so
+bindings after the first MUST name their own and omitting one is a
+generation error.
+
+*Uniqueness is now checked, not argued.* The construction argument was
+never verified, so two methods claiming one id rendered a colliding
+document in silence. The renderer rejects that independently of
+repetition — the same shape of defect as #081, one layer up.
+
+*Renderer, not compiler.* #081 made routing compiler-checked because a
+rule that cannot bind is unservable. `operation_id` is documentation
+metadata that §5.2 permits a port to parse and ignore, so checking it
+in the compiler would impose a rendering concern on ports that render
+nothing. Conformance fixture `22_http_additional_bindings.proto` states
+what repetition means for ports, and pins that the #200 coverage
+denominator counts methods, not bindings.
+
+---
+
+## #081 — `@http` lowering: carrier-only vs `google.api.http`
+
+**Repo:** `protowire` + `protocompile` (GH #213)
+**Milestone:** post-M8
+**Labels:** `spec`, `schema-extensions`, `tooling`
+**Depends on:** #080
+
+`@http` lowered to the `50400` carrier and nothing else. The routing
+information was complete and correct in an encoding no off-the-shelf
+consumer reads: every REST binder (connect vanguard, grpc-gateway,
+Envoy's `grpc_json_transcoder`, buf's OpenAPI plugins) reads
+`MethodOptions` field `72295728`. The failure was silent — zero rules
+found, zero routes bound, nothing reported — and worse beside the #080
+renderer, which described routes nothing served. Decide: is `@http`
+sugar over `google.api.http`, or a documentation-only annotation?
+
+**Resolution (2026-08-08, GH #213, PR #214 / protocompile#132):**
+**Sugar — dual lowering, both surfaces, default on.** RFC-001 §5.2
+gains the normative rule: the routing skeleton lowers to the §8.1
+carrier *and* to `google.api.http`. The two are complements — the
+carrier keeps `summary` / `operation_id` / `tags` / `security`, which
+`HttpRule` has no place for; the standard option carries the skeleton
+downstream acts on. §5.2 pins the mapping table, the rule that an
+author-written `(google.api.http)` is never joined by a competing rule,
+and the opt-out (`pxf build --google-api-http=false`).
+
+*Why this is not a reversal of #023.* That decision refused
+dual-emission into `(pxf.required)` / `(pxf.default)` — two competing
+surfaces for semantics **this project owns**, where back-filling one
+from the other would make neither authoritative and migration
+ambiguous. `72295728` is a number protowire does not own, in a
+vocabulary defined and versioned by googleapis, carrying a strictly
+narrower fact (verb and path) than the carrier. Nothing is back-filled
+in either direction: the carrier is never derived from an authored
+`HttpRule`, and an authored `HttpRule` is never overwritten. The test
+that separates the two cases is ownership, not arity of emission.
+
+*No import is added.* The option rides in the options message's
+unknown-field bytes exactly as the §8.1 carriers do. Adding
+`google/api/annotations.proto` to `dependency` would oblige every image
+to carry those files or fail `protodesc.NewFiles`, trading a
+self-contained image for a declaration nothing checks; consumers
+resolve the extension through their own type registry, as they do for
+any `protoc`-produced descriptor.
+
+*Lowered means checked.* Because the skeleton now produces a rule
+something will try to serve, `{name}` segments binding no request field
+— plus segments binding a repeated field, relative paths, unbalanced
+braces and empty verbs — are compile errors rather than image content
+(one fixture per class, `invalid/http_*.proto`). #080's renderer
+already rejected the naming-nothing case, so on that class the two ends
+of the toolchain stop disagreeing about what is servable. This narrows
+what v1.2 sources a v1.10.0 compiler accepts; the narrowing and its
+justification are recorded in `STABILITY.md`.
+
+*Landing site:* the lowering is in the reference compiler, not the CLI,
+so every image producer inherits it and the diagnostics carry source
+positions from the IR pass rather than arriving as a bare CLI error.
+
+**Left open by this resolution.** The agreement above holds for the
+class the fixture pins and not yet for the whole template grammar; both
+gaps are the same shape as the one #213 closed, and neither is settled
+by the text §5.2 now carries:
+
+- *Template grammar* (GH #217). The reference compiler resolves a
+  segment name as a dotted path from the request message's top level
+  and accepts the `HttpRule` sub-path form `{name=segments/**}`; §5.2
+  as written, and #080's renderer, admit only a same-named top-level
+  field. So `@http("GET", "/things/{ref.id}")` compiles, binds, and
+  then fails `pxf openapi` on the image it produced. Either the
+  renderer widens to `HttpRule`'s grammar (and §5.2 with it) or the
+  compiler narrows to §5.2 — the decision belongs with the same
+  ownership argument as this entry, not with whichever end was written
+  last.
+- *`additional_bindings`* (GH #215). Every use site lowers; #080's
+  renderer describes the first. The blocker is what `operation_id` a
+  second binding carries, since the derived `<Service>_<Method>` is no
+  longer unique.
+
 ---
 
 ## Labels suggested
@@ -1558,4 +1671,5 @@ unchanged by this resolution.
 - **M6** (i18n): #043.
 - **M7** (Tooling integration): #052, #061.
 - **M8** (OpenAPI): #080.
+- **Post-M8**: #081.
 - **M9+** (Per-port adoption): one issue per port repo following the same shape.
