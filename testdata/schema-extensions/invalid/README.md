@@ -25,7 +25,7 @@ NOT include this directory when compiling the positive corpus.
 | `unbalanced_expression.proto` | `unbalanced-capture` | Expression-argument capture requires `()`/`[]`/`{}` to balance at the argument boundary (RFC-001 §5.1, capture step). |
 | `undeclared_annotation.proto` | `undeclared-annotation` | An annotation use site must resolve to a visible `annotation` declaration. |
 | `reserved_sensitive_class.proto` | `reserved-sensitive-class` | `@sensitive` class names beginning with `protowire.` are reserved for future spec-defined classes; compilers MUST reject them (RFC-001 §6.7 classification rule 1, issue #111). |
-| `http_unbound_template.proto` | `http-unbound-template` | Every `{name}` segment of an `@http` path binds to the same-named top-level field of the request message. Since the skeleton lowers to a standard `google.api.http` rule, a segment that binds nothing is an unservable route, and compilers MUST reject it rather than emit it (RFC-001 §5.2, issue #213). |
+| `http_unbound_template.proto` | `http-unbound-template` | Every `{name}` segment of an `@http` path binds a field of the request message. Since the skeleton lowers to a standard `google.api.http` rule, a segment that binds nothing is an unservable route, and compilers MUST reject it rather than emit it (RFC-001 §5.2, issue #213). This fixture pins only the binds-nothing class: whether a segment may name a *nested* field as a dotted path is unsettled between the reference implementations (issue #217), so no fixture asserts either answer. |
 
 Runtime error states (missing implementation, unsatisfiable `@default`,
 locale-catalog miss) are **valid** schemas whose behavior is pinned by

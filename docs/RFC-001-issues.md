@@ -1575,16 +1575,36 @@ resolve the extension through their own type registry, as they do for
 any `protoc`-produced descriptor.
 
 *Lowered means checked.* Because the skeleton now produces a rule
-something will try to serve, `{name}` segments binding no top-level
-request field — plus relative paths, unbalanced braces and empty verbs
-— are compile errors rather than image content (fixture
-`invalid/http_unbound_template.proto`). #080's renderer already
-rejected the identical condition, so the two ends of the toolchain stop
-disagreeing about what is servable.
+something will try to serve, `{name}` segments binding no request field
+— plus segments binding a repeated field, relative paths, unbalanced
+braces and empty verbs — are compile errors rather than image content
+(fixture `invalid/http_unbound_template.proto`). #080's renderer
+already rejected the naming-nothing case, so on that class the two ends
+of the toolchain stop disagreeing about what is servable.
 
 *Landing site:* the lowering is in the reference compiler, not the CLI,
 so every image producer inherits it and the diagnostics carry source
 positions from the IR pass rather than arriving as a bare CLI error.
+
+**Left open by this resolution.** The agreement above holds for the
+class the fixture pins and not yet for the whole template grammar; both
+gaps are the same shape as the one #213 closed, and neither is settled
+by the text §5.2 now carries:
+
+- *Template grammar* (GH #217). The reference compiler resolves a
+  segment name as a dotted path from the request message's top level
+  and accepts the `HttpRule` sub-path form `{name=segments/**}`; §5.2
+  as written, and #080's renderer, admit only a same-named top-level
+  field. So `@http("GET", "/things/{ref.id}")` compiles, binds, and
+  then fails `pxf openapi` on the image it produced. Either the
+  renderer widens to `HttpRule`'s grammar (and §5.2 with it) or the
+  compiler narrows to §5.2 — the decision belongs with the same
+  ownership argument as this entry, not with whichever end was written
+  last.
+- *`additional_bindings`* (GH #215). Every use site lowers; #080's
+  renderer describes the first. The blocker is what `operation_id` a
+  second binding carries, since the derived `<Service>_<Method>` is no
+  longer unique.
 
 ---
 

@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -91,7 +92,8 @@ func ruleString(r *annotations.HttpRule) string {
 // by `pxf build` binds routes in stock tooling that has never heard of
 // protowire.
 func TestBuildEmitsGoogleAPIHTTP(t *testing.T) {
-	got := httpRules(t, buildImage(t, httpFixture))
+	image := buildImage(t, httpFixture)
+	got := httpRules(t, image)
 	want := []string{
 		"fixtures.http.Orders.CreateOrder: POST /orders body=*",
 		"fixtures.http.Orders.GetOrder: GET /orders/{order_id}",
@@ -101,6 +103,34 @@ func TestBuildEmitsGoogleAPIHTTP(t *testing.T) {
 		t.Errorf("google.api.http rules:\ngot:\n  %s\nwant:\n  %s",
 			strings.Join(got, "\n  "), strings.Join(want, "\n  "))
 	}
+
+	// The rule rides in unknown-field bytes, so the lowered file gains no
+	// dependency on google/api/annotations.proto (RFC-001 §5.2,
+	// STABILITY.md). protodesc.NewFiles above would fail outright on a
+	// dangling one; this pins that none is written at all, because an
+	// image obliged to carry the googleapis files is no longer
+	// self-contained.
+	for _, dep := range fileDeps(t, image, filepath.Base(httpFixture)) {
+		if strings.HasPrefix(dep, "google/api/") {
+			t.Errorf("lowering added the import %q; the option must ride in unknown-field bytes", dep)
+		}
+	}
+}
+
+// fileDeps returns the dependency list the image records for one file.
+func fileDeps(t *testing.T, image []byte, name string) []string {
+	t.Helper()
+	fds := new(descriptorpb.FileDescriptorSet)
+	if err := proto.Unmarshal(image, fds); err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range fds.GetFile() {
+		if f.GetName() == name {
+			return f.GetDependency()
+		}
+	}
+	t.Fatalf("image has no file %q", name)
+	return nil
 }
 
 // TestBuildGoogleAPIHTTPOptOut verifies --google-api-http=false drops
@@ -193,6 +223,14 @@ func TestBuildGoogleAPIHTTPByteStable(t *testing.T) {
 // must describe the same surface. A spec that promises what nothing
 // serves is worse than no spec, and the two now derive from one
 // annotation, so drift between them is a bug in one of the two readers.
+//
+// The invariant holds over the store fixture and is not yet true in
+// general: the renderer describes only the first `@http` of a method
+// (#215) and rejects the dotted and sub-path template segments the
+// compiler accepts (#217). Neither class appears in any corpus fixture,
+// which is why this test passes while those gaps stand — adding one
+// before its issue is resolved is expected to fail here, and that is
+// the signal, not a broken test.
 func TestHTTPRulesMatchOpenAPIPaths(t *testing.T) {
 	image := storeImage(t)
 	raw, err := os.ReadFile(image)
@@ -264,14 +302,134 @@ func renderedOperations(t *testing.T, image, audience string) map[string]bool {
 
 // TestBuildUnboundPathTemplateRejected pins the compile-error side: a
 // path template naming no request field is rejected, so an unbindable
-// route never reaches an image. The corpus fixture is the normative
-// statement; this asserts the CLI surfaces it.
+// route never reaches an image. That it is rejected at all is already
+// covered for every fixture in invalid/ by TestCheckInvalidFixtures;
+// what this adds is the half §5.2 actually promises — the diagnostic
+// names the offending segment and points at the annotation that wrote
+// it, rather than failing the build from somewhere unattributable.
 func TestBuildUnboundPathTemplateRejected(t *testing.T) {
 	fixture := filepath.Join(fixtureDir, "invalid", "http_unbound_template.proto")
 	if _, err := os.Stat(fixture); err != nil {
 		t.Fatalf("corpus fixture missing: %v", err)
 	}
-	if err := runPxf(t, "build", "--check", fixture); err == nil {
-		t.Error("expected --check to reject an @http path template that binds no field")
+	var err error
+	diag := captureStderr(t, func() { err = runPxf(t, "build", "--check", fixture) })
+	if err == nil {
+		t.Fatal("expected --check to reject an @http path template that binds no field")
+	}
+	for _, want := range []string{
+		"{orderId}",                         // the segment that binds nothing
+		"fixtures.badhttp.GetOrderRequest",  // the message it was resolved against
+		"http_unbound_template.proto:",      // a position in the fixture, not a bare CLI error
+		`@http("GET", "/orders/{orderId}")`, // the annotation blamed, quoted back
+	} {
+		if !strings.Contains(diag, want) {
+			t.Errorf("diagnostic does not mention %q:\n%s", want, diag)
+		}
 	}
 }
+
+// captureStderr swaps os.Stderr for a pipe while fn runs and returns
+// what was written to it. The compile-diagnostic renderer writes to
+// os.Stderr directly rather than to cobra's error writer, so
+// runPxfCaptured cannot see it. The reader is drained on a goroutine so
+// a report larger than the pipe buffer cannot deadlock — the same shape
+// as runCLI's stdout capture.
+func captureStderr(t *testing.T, fn func()) string {
+	t.Helper()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("pipe: %v", err)
+	}
+	old := os.Stderr
+	os.Stderr = w
+	done := make(chan string, 1)
+	go func() {
+		b, _ := io.ReadAll(r)
+		done <- string(b)
+	}()
+	defer func() {
+		os.Stderr = old
+	}()
+	fn()
+	_ = w.Close()
+	return <-done
+}
+
+// TestBuildAuthoredHTTPRuleWins pins the promise STABILITY.md makes
+// about the foreign extension number: protowire writes nothing at
+// 72295728 when the schema author wrote the option by hand. A second,
+// competing rule is not merely redundant — a method carries at most one
+// rule, so emitting ours would silently re-route the author's endpoint.
+//
+// The schema needs a resolvable google/api/annotations.proto, which the
+// bundled opener deliberately does not serve (no import is ever added
+// to a lowered file), so the test supplies a minimal one in its own
+// import root — exactly what an author writing the option by hand has
+// to do.
+func TestBuildAuthoredHTTPRuleWins(t *testing.T) {
+	root := t.TempDir()
+	write := func(rel, body string) {
+		t.Helper()
+		abs := filepath.Join(root, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(abs), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(abs, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("google/api/annotations.proto", googleAPIAnnotationsStub)
+	write("orders.proto", authoredRuleSchema)
+
+	got := httpRules(t, buildImage(t, root))
+	want := []string{"authored.Orders.GetOrder: GET /v2/orders/{order_id}"}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Errorf("the authored rule did not survive alone:\ngot:\n  %s\nwant:\n  %s",
+			strings.Join(got, "\n  "), strings.Join(want, "\n  "))
+	}
+}
+
+// googleAPIAnnotationsStub is enough of google/api/annotations.proto to
+// write the option by hand: the extension and the shape it carries.
+const googleAPIAnnotationsStub = `syntax = "proto3";
+package google.api;
+import "google/protobuf/descriptor.proto";
+extend google.protobuf.MethodOptions {
+  HttpRule http = 72295728;
+}
+message HttpRule {
+  string selector = 1;
+  oneof pattern {
+    string get = 2;
+    string put = 3;
+    string post = 4;
+    string delete = 5;
+    string patch = 6;
+    CustomHttpPattern custom = 8;
+  }
+  string body = 7;
+  string response_body = 12;
+  repeated HttpRule additional_bindings = 11;
+}
+message CustomHttpPattern {
+  string kind = 1;
+  string path = 2;
+}
+`
+
+// authoredRuleSchema carries both spellings on one method, disagreeing
+// on the path so the surviving rule identifies which one won.
+const authoredRuleSchema = `syntax = "proto3";
+package authored;
+import "protowire/schema/v1/annotations.proto";
+import "google/api/annotations.proto";
+message GetOrderRequest { string order_id = 1; }
+message Order { string order_id = 1; }
+service Orders {
+  @http("GET", "/orders/{order_id}")
+  rpc GetOrder(GetOrderRequest) returns (Order) {
+    option (google.api.http) = { get: "/v2/orders/{order_id}" };
+  }
+}
+`

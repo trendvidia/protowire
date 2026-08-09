@@ -228,11 +228,16 @@ The transform is mechanical, because `@http`'s model is already 1:1 with `HttpRu
 | any other method | `body: "*"` — every field the path template did not bind |
 | several `@http` use sites on one method | first is the rule; the rest are `additional_bindings`, in source order |
 
-`selector` and `response_body` are never written: the rule is attached to its method, and responses are derived (below). A method that already carries an author-written `(google.api.http)` keeps it unchanged — the compiler MUST NOT add a second, competing rule. A compiler MAY offer an opt-out (the reference CLI spells it `pxf build --google-api-http=false`); emission is the default.
+`selector` and `response_body` are never written: the rule is attached to its method, and responses are derived (below). A method that already carries an author-written `(google.api.http)` keeps it unchanged — the compiler MUST NOT add a second, competing rule; because the annotation's own path still reaches the §8.1 carrier, the two spellings can then describe different routes, and a compiler SHOULD warn at the use site (the reference compiler does). A compiler MAY offer an opt-out (the reference CLI spells it `pxf build --google-api-http=false`); emission is the default.
 
 The emitted option adds **no import** to the lowered file. Like the §8.1 carriers, it rides in the options message's unknown-field bytes, so the descriptor set stays self-contained and resolvable by stock `protodesc`; consumers that link `google.api` resolve it through their own type registry, exactly as they do for a `protoc`-produced descriptor.
 
-Because the skeleton is lowered rather than merely carried, it is also **checked**: a `{name}` segment that names no top-level field of the request message is a compile error, as are a non-absolute path, unbalanced template braces, and an empty `method`. Each of those would otherwise produce a rule that no binder can serve (fixture: `invalid/http_unbound_template.proto`).
+Because the skeleton is lowered rather than merely carried, it is also **checked**: a `{name}` segment that binds no field of the request message is a compile error, as are a template segment binding a repeated or map field, a non-absolute path, unbalanced template braces, and an empty `method`. Each of those would otherwise produce a rule that no binder can serve (fixture: `invalid/http_unbound_template.proto`).
+
+Two divergences between the reference implementations are open at the time of writing, and a port MUST NOT read either as settled spec:
+
+- **Template grammar** (issue #217). The reference compiler resolves a segment name as a dotted path from the top level of the request message and accepts the `HttpRule` sub-path form `{name=segments/**}`, which is wider than the same-named-top-level rule stated above and implemented by the reference OpenAPI renderer. A schema using either form compiles and binds, and `pxf openapi` then refuses the image.
+- **`additional_bindings`** (issue #215). The lowering emits every `@http` use site; the reference OpenAPI renderer describes only the first, so the extra bindings are bound but undocumented. The `operation_id` a second binding should carry is the open part.
 
 Operation *metadata* carries **no validation semantics**. A port that renders no REST surface parses `summary`, `operation_id`, `tags` and `security` like any other annotation arguments and interprets nothing; conformance requires carrying them through the §8.1 carrier, not acting on them. Responses are derived rather than authored — the success response from the method's return type, error responses from `@error_code` plus the §7 report model — so `@http` has no `responses` parameter (rationale: `docs/RFC-001-issues.md` §#080).
 
