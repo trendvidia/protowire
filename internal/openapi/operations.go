@@ -87,10 +87,10 @@ type operationsBuilder struct {
 
 func newOperationsBuilder(m *model, sb *schemaBuilder, include func(string) bool, schemes map[string]bool) *operationsBuilder {
 	return &operationsBuilder{
-		m:           m,
-		sb:          sb,
-		include:     include,
-		schemes:     schemes,
+		m:            m,
+		sb:           sb,
+		include:      include,
+		schemes:      schemes,
 		paths:        make(map[string]map[string]*omap),
 		operationIDs: make(map[string]string),
 		usedSchemes:  make(map[string]bool),
@@ -114,14 +114,21 @@ func (ob *operationsBuilder) buildAll() error {
 			// several lowers to a rule plus additional_bindings (§5.2),
 			// so rendering only the first would describe less than the
 			// image binds — the mirror of issue #213 (issue #215).
-			for i, ann := range allAnns(mth.anns, annHTTP) {
+			//
+			// binding counts the use sites that render, not the carrier
+			// slots: one that parses to nothing produces no operation, so
+			// it must not push the first real one out of the position
+			// that owns the derived operationId.
+			binding := 0
+			for _, ann := range allAnns(mth.anns, annHTTP) {
 				use, ok := parseHTTP(ann)
 				if !ok {
 					continue
 				}
-				if err := ob.operation(svc, mth, use, i); err != nil {
+				if err := ob.operation(svc, mth, use, binding); err != nil {
 					return fmt.Errorf("%s.%s: %w", svc.fqn, mth.name, err)
 				}
+				binding++
 			}
 		}
 	}
@@ -138,7 +145,8 @@ func generatedFileByName(m *model, name string) bool {
 }
 
 // operation renders one @http use site. binding is its index among the
-// method's use sites: 0 is the rule, the rest are additional bindings.
+// method's rendered use sites: 0 is the rule, the rest are additional
+// bindings.
 func (ob *operationsBuilder) operation(svc *serviceInfo, mth *methodInfo, use *httpUse, binding int) error {
 	op := newOmap()
 
@@ -173,7 +181,7 @@ func (ob *operationsBuilder) operation(svc *serviceInfo, mth *methodInfo, use *h
 	if opID == "" {
 		if binding > 0 {
 			return fmt.Errorf("@http %s %s needs an explicit operation_id: "+
-				"it is binding %d on this method, and the derived %q belongs to the first",
+				"it is binding %d on this method, and the derived %q is reserved for the first",
 				use.method, use.path, binding+1, svc.name+"_"+mth.name)
 		}
 		opID = svc.name + "_" + mth.name

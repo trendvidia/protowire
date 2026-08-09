@@ -139,7 +139,9 @@ service S {
 // source order decides which use site is the rule and which are
 // additional bindings.
 func TestBuildAdditionalBindingsFixture(t *testing.T) {
-	got := httpRules(t, buildImage(t, bindingsFixture))
+	image := buildImage(t, bindingsFixture)
+
+	got := httpRules(t, image)
 	want := []string{
 		"fixtures.bindings.Orders.GetOrder: GET /legacy/orders/{order_id}",
 		"fixtures.bindings.Orders.GetOrder: GET /orders/{order_id}",
@@ -148,6 +150,19 @@ func TestBuildAdditionalBindingsFixture(t *testing.T) {
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Errorf("rules:\ngot:\n  %s\nwant:\n  %s",
 			strings.Join(got, "\n  "), strings.Join(want, "\n  "))
+	}
+
+	// The set above is sorted and flat, so it holds for any assignment of
+	// the three use sites to rule and additional_bindings. Source order is
+	// the actual §5.2 rule, so assert the split it produces.
+	primary, additional := httpRuleBindings(t, image, "fixtures.bindings.Orders.GetOrder")
+	if wantPrimary := "GET /orders/{order_id}"; primary != wantPrimary {
+		t.Errorf("primary rule = %q, want %q (the first use site in source order)", primary, wantPrimary)
+	}
+	wantExtra := []string{"GET /v2/orders/{order_id}", "GET /legacy/orders/{order_id}"}
+	if strings.Join(additional, "\n") != strings.Join(wantExtra, "\n") {
+		t.Errorf("additional_bindings:\ngot:\n  %s\nwant:\n  %s",
+			strings.Join(additional, "\n  "), strings.Join(wantExtra, "\n  "))
 	}
 }
 

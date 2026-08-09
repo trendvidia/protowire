@@ -1527,6 +1527,38 @@ value.
 definitions) remains generator configuration, per the #112 reasoning —
 unchanged by this resolution.
 
+**Resolution — repeated `@http`, and `operation_id` uniqueness
+(2026-08-09, GH #215, PR #216):** **one operation per binding; ids are
+authored after the first and checked document-wide.** #081 lowered a
+repeated `@http` to a rule plus `additional_bindings`, and the renderer
+still read only the first use site — so a document could describe fewer
+routes than the image binds, #081's failure pointed the other way.
+`pxf openapi` now emits an operation per use site, and `x-since` stamps
+every one.
+
+*Why authored rather than suffixed.* "`operation_id` defaults to
+`<Service>_<Method>`, which is unique by construction" holds only while
+a method has one `@http`; repetition dissolves the construction. An
+index-derived id (`Orders_GetOrder_2`) never fails, but it is
+positional: reordering two annotation lines renames a method in every
+generated client — a silent SDK break from an edit that changes no API.
+An authored id is stable under reordering and under path changes, so
+bindings after the first MUST name their own and omitting one is a
+generation error.
+
+*Uniqueness is now checked, not argued.* The construction argument was
+never verified, so two methods claiming one id rendered a colliding
+document in silence. The renderer rejects that independently of
+repetition — the same shape of defect as #081, one layer up.
+
+*Renderer, not compiler.* #081 made routing compiler-checked because a
+rule that cannot bind is unservable. `operation_id` is documentation
+metadata that §5.2 permits a port to parse and ignore, so checking it
+in the compiler would impose a rendering concern on ports that render
+nothing. Conformance fixture `22_http_additional_bindings.proto` states
+what repetition means for ports, and pins that the #200 coverage
+denominator counts methods, not bindings.
+
 ---
 
 ## #081 — `@http` lowering: carrier-only vs `google.api.http`

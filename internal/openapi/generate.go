@@ -123,7 +123,17 @@ func Generate(opts Options) (*Result, error) {
 	paths := ob.emitPaths()
 	// Stamp operations with x-since through the path index.
 	for _, svc := range m.services {
+		// Same filter the operations builder applied: a method it skipped
+		// rendered nothing, so letting it reach the index here would stamp
+		// whichever operation happens to share its verb and path with the
+		// wrong element's availability.
+		if generatedFileByName(m, svc.file) || !include(svc.fqn) {
+			continue
+		}
 		for _, mth := range svc.methods {
+			if !include(svc.fqn + "." + mth.name) {
+				continue
+			}
 			// Every binding of the method, not just the first: a method
 			// with additional bindings has one operation per @http, and
 			// they share the method's availability (issue #215).

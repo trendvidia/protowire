@@ -63,6 +63,39 @@ func httpRules(t *testing.T, image []byte) []string {
 	return out
 }
 
+// httpRuleBindings returns one method's rule as the primary pattern plus
+// its additional bindings, in wire order. httpRules deliberately
+// flattens and sorts both into one set — good for "is this route
+// bindable at all", useless for the §5.2 property that source order
+// decides which use site is the rule (#215).
+func httpRuleBindings(t *testing.T, image []byte, method string) (primary string, additional []string) {
+	t.Helper()
+	fds := new(descriptorpb.FileDescriptorSet)
+	if err := proto.Unmarshal(image, fds); err != nil {
+		t.Fatalf("image is not a FileDescriptorSet: %v", err)
+	}
+	files, err := protodesc.NewFiles(fds)
+	if err != nil {
+		t.Fatalf("stock protodesc rejects the lowered image: %v", err)
+	}
+	d, err := files.FindDescriptorByName(protoreflect.FullName(method))
+	if err != nil {
+		t.Fatalf("looking up %s: %v", method, err)
+	}
+	md, ok := d.(protoreflect.MethodDescriptor)
+	if !ok {
+		t.Fatalf("%s is %T, not a method", method, d)
+	}
+	rule, _ := proto.GetExtension(md.Options(), annotations.E_Http).(*annotations.HttpRule)
+	if rule == nil {
+		t.Fatalf("%s carries no google.api.http rule", method)
+	}
+	for _, extra := range rule.GetAdditionalBindings() {
+		additional = append(additional, ruleString(extra))
+	}
+	return ruleString(rule), additional
+}
+
 func ruleString(r *annotations.HttpRule) string {
 	var verb, path string
 	switch p := r.GetPattern().(type) {

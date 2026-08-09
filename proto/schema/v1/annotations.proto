@@ -168,7 +168,7 @@ annotation sensitive(class: string = "");
 //   operation_id  document-unique operation identifier; derived as
 //                 "<Service>_<Method>" when empty. The derivation is
 //                 unique only while a method has one @http: a method
-//                 with several (see below) MUST name its own on every
+//                 with several (see above) MUST name its own on every
 //                 binding after the first, since the id becomes a
 //                 method name in generated clients and an index-derived
 //                 one would move when two annotations are reordered
