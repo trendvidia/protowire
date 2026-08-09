@@ -38,18 +38,29 @@ func TestOpenAPIDottedAndSubPathTemplates(t *testing.T) {
 	}
 }
 
-// TestOpenAPINestedBindingExcludesContainer pins the #218 limitation as
-// behaviour rather than an accident: the bound leaf's container drops
-// out of the remaining-field binding, while its scalar siblings at the
-// top level still bind.
-func TestOpenAPINestedBindingExcludesContainer(t *testing.T) {
+// TestOpenAPINestedBindingKeepsSiblings is #218's acceptance path: a
+// bound leaf takes only itself out of the remaining-field binding, so
+// its siblings still bind — nested ones under dotted names, exactly as
+// an HttpRule consumer would place them.
+//
+// This test asserted the opposite until #218 closed: the drop was
+// pinned as behaviour so that fixing it would flip a test rather than
+// change a document quietly.
+func TestOpenAPINestedBindingKeepsSiblings(t *testing.T) {
 	doc := string(renderOpenAPI(t, buildTempImage(t, templatesFixture)))
 
-	if !strings.Contains(doc, "name: include_archived") {
-		t.Error("a top-level sibling of the bound container lost its query parameter")
+	for _, want := range []string{
+		"name: include_archived",   // top-level sibling of the container
+		"name: shelf.display_name", // sibling of the bound leaf
+	} {
+		if !strings.Contains(doc, want) {
+			t.Errorf("rendered document is missing query parameter %q:\n%s", want, doc)
+		}
 	}
-	if strings.Contains(doc, "name: shelf.display_name") {
-		t.Error("the renderer flattened a nested sibling; #218 says it does not (yet)")
+	// The bound leaf itself binds to the path, and must not also appear
+	// as a query parameter.
+	if strings.Contains(doc, "name: shelf.id\n          in: query") {
+		t.Error("the bound leaf was rendered as a query parameter as well as a path one")
 	}
 }
 

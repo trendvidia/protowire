@@ -22,10 +22,14 @@
 //     form — while a dotted variable carries through verbatim, since
 //     OpenAPI parameter names admit dots. So the document's paths are
 //     `/shelves/{shelf.id}` and `/named/{name}`.
-//   - A nested binding takes its whole top-level container out of the
-//     remaining-field binding: `shelf` contributes no query parameter
-//     beside `{shelf.id}`. The renderer flattens no message anywhere,
-//     so splitting one here would be a special case (issue #218).
+//   - A nested binding takes only the leaf it names out of the
+//     remaining-field binding. `shelf.display_name` still binds, under
+//     its dotted name, exactly where an `HttpRule` consumer puts it;
+//     `include_archived` binds as before (issue #218). Descending into
+//     a container does expose that container's own message-typed
+//     members to the binding, and one with nothing bound below it is
+//     refused like any other — the renderer flattens where a bound leaf
+//     forces it to, not everywhere.
 //
 // Not exercised here, because they are the open remainder of #217 and
 // still fail at render time rather than at compile time (RFC-001 §5.2,
