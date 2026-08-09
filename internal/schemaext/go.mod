@@ -9,7 +9,7 @@ go 1.26.2
 
 require (
 	github.com/trendvidia/protocheck/v2 v2.3.0
-	github.com/trendvidia/protocompile v0.23.0
+	github.com/trendvidia/protocompile v0.24.0
 	google.golang.org/protobuf v1.36.11
 )
 
@@ -24,6 +24,7 @@ require (
 	github.com/trendvidia/protowire-go v1.3.1 // indirect
 	golang.org/x/exp v0.0.0-20250911091902-df9299821621 // indirect
 	golang.org/x/sync v0.22.0 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20260807164820-c8921c73eeea // indirect
 )
 
 // The fork carries the RFC-001 §9.3 function-stub codegen in

@@ -269,7 +269,6 @@ func (b *schemaBuilder) propertySchema(mi *messageInfo, fi *fieldInfo, msgSensit
 	// annotations too, but those live on the alias components — only
 	// the field's own entries are mapped inline here.
 	own := b.m.fieldOwnAnns(fi.anns, chain)
-	fieldRules := allAnns(own, annValidate)
 
 	var core *omap
 	var err error
@@ -294,22 +293,7 @@ func (b *schemaBuilder) propertySchema(mi *messageInfo, fi *fieldInfo, msgSensit
 		return nil, err
 	}
 
-	c := &constraints{}
-	for _, v := range fieldRules {
-		c.mapValidate(v, sk, numeric)
-	}
-
-	extra := newOmap()
-	if d := description(own); d != "" {
-		extra.set("description", d)
-	}
-	c.apply(extra)
-	b.commonAnnotations(extra, own, sensitive)
-	if sensitive {
-		if _, has := extra.get("x-sensitive"); !has {
-			extra.set("x-sensitive", true)
-		}
-	}
+	extra := b.fieldKeywords(own, sensitive, sk, numeric)
 
 	// A $ref core with siblings needs allOf; a flat core absorbs them.
 	if _, isRef := core.get("$ref"); isRef && extra.len() > 0 {
@@ -321,6 +305,45 @@ func (b *schemaBuilder) propertySchema(mi *messageInfo, fi *fieldInfo, msgSensit
 		core.set(k, extra.vals[k])
 	}
 	return b.nullable(core, f, chain), nil
+}
+
+// fieldKeywords collects what a field contributes on its own — its
+// description, its @validate rules (mapped, or carried verbatim under
+// x-validation), and the @deprecated/§6.7 markers — apart from the
+// schema of its type, which the caller composes them with.
+func (b *schemaBuilder) fieldKeywords(own []dmsg, sensitive bool, sk sizeKind, numeric bool) *omap {
+	extra := newOmap()
+	if d := description(own); d != "" {
+		extra.set("description", d)
+	}
+	c := &constraints{}
+	for _, v := range allAnns(own, annValidate) {
+		c.mapValidate(v, sk, numeric)
+	}
+	c.apply(extra)
+	b.commonAnnotations(extra, own, sensitive)
+	if sensitive {
+		if _, has := extra.get("x-sensitive"); !has {
+			extra.set("x-sensitive", true)
+		}
+	}
+	return extra
+}
+
+// mergeFieldKeywords writes a field's own keywords onto a schema the
+// caller built in place of propertySchema's. The §5.2 body binding
+// inlines a container minus its bound leaf (issue #218), and an inlined
+// container has no $ref left to compose with — without this its
+// @description, its x-validation carry-through and its §6.7 markers
+// would go missing along with the reference.
+func (b *schemaBuilder) mergeFieldKeywords(s *omap, mi *messageInfo, fi *fieldInfo, msgSensitive bool) {
+	chain := b.m.chainOf(mi.fqn, fi.desc.GetName())
+	sensitive := msgSensitive || b.fieldSensitive(fi, chain)
+	sk, numeric := b.fieldSizeKind(fi.desc, chain)
+	extra := b.fieldKeywords(b.m.fieldOwnAnns(fi.anns, chain), sensitive, sk, numeric)
+	for _, k := range extra.keys {
+		s.set(k, extra.vals[k])
+	}
 }
 
 // elementSchema renders the item schema of a repeated field. A chain on

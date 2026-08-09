@@ -44,10 +44,11 @@ import (
 
 func buildCmd() *cobra.Command {
 	var (
-		output    string
-		check     bool
-		configTxt string
-		funcLibs  []string
+		output        string
+		check         bool
+		configTxt     string
+		funcLibs      []string
+		googleAPIHTTP bool
 	)
 	cmd := &cobra.Command{
 		Use:   "build [flags] <schema-root-or-file>...",
@@ -67,7 +68,12 @@ func buildCmd() *cobra.Command {
 			"Configured function_libraries are compiled into the image.\n\n" +
 			"Well-known types and the canonical annotation libraries\n" +
 			"(protowire/schema/v1/annotations.proto, pxf/annotations.proto) are\n" +
-			"resolved from the bundled schemas; no -p flags needed.",
+			"resolved from the bundled schemas; no -p flags needed.\n\n" +
+			"@http lowers twice (RFC-001 §5.2): the annotation carrier keeps the\n" +
+			"whole operation surface, and the routing skeleton is written again as\n" +
+			"the standard google.api.http option, so connect vanguard, grpc-gateway,\n" +
+			"Envoy and buf's OpenAPI plugins bind the routes off a stock image.\n" +
+			"Pass --google-api-http=false to emit the carrier alone.",
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var flags engineconfig.Overrides
@@ -75,10 +81,11 @@ func buildCmd() *cobra.Command {
 				flags.FunctionLibraries = funcLibs
 			}
 			return runBuild(cmd, args, buildOptions{
-				output:    output,
-				check:     check,
-				configTxt: configTxt,
-				flags:     flags,
+				output:        output,
+				check:         check,
+				configTxt:     configTxt,
+				flags:         flags,
+				googleAPIHTTP: googleAPIHTTP,
 			})
 		},
 	}
@@ -87,6 +94,7 @@ func buildCmd() *cobra.Command {
 	f.BoolVar(&check, "check", false, "compile and report diagnostics only; write no image (CI entry point)")
 	f.StringVar(&configTxt, "config", "", "explicit protowire.config.textproto path (skips PROTOWIRE_CONFIG and discovery)")
 	f.StringSliceVar(&funcLibs, "function-library", nil, "function library import path(s); overrides the configured function_libraries")
+	f.BoolVar(&googleAPIHTTP, "google-api-http", true, "also lower @http's routing skeleton to the standard google.api.http option")
 	return cmd
 }
 
@@ -97,6 +105,10 @@ type buildOptions struct {
 	check     bool
 	configTxt string
 	flags     engineconfig.Overrides
+	// googleAPIHTTP mirrors --google-api-http: whether @http's routing
+	// skeleton is also written as the standard google.api.http option
+	// (RFC-001 §5.2, issue #213). Default true.
+	googleAPIHTTP bool
 }
 
 func runBuild(cmd *cobra.Command, args []string, opts buildOptions) error {
@@ -128,11 +140,19 @@ func runBuild(cmd *cobra.Command, args []string, opts buildOptions) error {
 	}
 	chain = append(chain, source.WKTs())
 
+	// Stated in both directions rather than only suppressing: the
+	// default lives in fdp (the zero Options emits), and a flip there
+	// would otherwise silently turn --google-api-http=true into a no-op
+	// (RFC-001 §5.2, issue #213). EmitGoogleAPIHTTP(true) is the zero
+	// value, so Options stays comparable for the incremental query key.
+	var fdpOpts fdp.Options
+	fdpOpts.Apply(fdp.EmitGoogleAPIHTTP(opts.googleAPIHTTP))
+
 	results, rep, err := incremental.Run(cmd.Context(), incremental.New(), queries.FDS{
 		Opener:    &chain,
 		Session:   new(ir.Session),
 		Workspace: source.NewWorkspace(paths...),
-		Options:   fdp.Options{},
+		Options:   fdpOpts,
 	})
 	if err != nil {
 		return fmt.Errorf("compiling schemas: %w", err)
