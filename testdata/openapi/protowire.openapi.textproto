@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 TrendVidia, LLC.
+#
+# Generator config for the store fixture (protowire.openapi.v1
+# GeneratorConfig). Document-level metadata, security-scheme
+# definitions and audience tiers are generator configuration, never
+# schema content (RFC-001 §#080).
+
+info {
+  title: "Store API"
+  version: "1.2.0"
+  description: "Reference boundary for the pxf openapi fixture."
+}
+servers {
+  url: "https://api.store.example"
+  description: "production"
+}
+security_schemes {
+  name: "bearerAuth"
+  type: "http"
+  scheme: "bearer"
+  bearer_format: "JWT"
+}
+# The *Audit* elements (AuditRecord, ListAudit* messages, the ListAudit
+# method) are operator-only.
+audiences { fqn_glob: "*Audit*" tier: "internal" }

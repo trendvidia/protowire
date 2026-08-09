@@ -1,0 +1,488 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+
+package docpack
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
+
+	"github.com/trendvidia/protowire-go/encoding/pxf"
+)
+
+// The widget catalog is the compiler's second data input: appviewer's
+// exported registry (trendvidia/appviewer#33). protowire consumes
+// appviewer *data*, never appviewer code — nothing here imports the
+// runtime, and the catalog arrives as a file.
+//
+// Three input encodings are accepted, and they are not equals:
+//
+//	.binpb  protowire.docs.v1.WidgetCatalog, the typed form
+//	.pxf    the same message, authored or hand-checked
+//	.json   appviewer's `--dump-registry` output — an integration
+//	        boundary, converted to the typed form on read
+//
+// The JSON path is the boundary adapter, and it is the only place in the
+// pipeline where JSON exists. When appviewer emits the typed message
+// natively, this adapter drops out and no other code changes (the format
+// rule of 2026-07-25; precedent #66/Appendix C, adapter-first inbound).
+
+// Catalog is the resolved view of one runtime's widget surface.
+type Catalog struct {
+	Path   string
+	Digest string
+
+	SchemaVersion uint32
+	WidgetCount   int
+
+	widgets     map[string]*widgetEntry
+	common      map[string]string // common prop name → since ("" when unversioned)
+	composition map[string]string // composition prop name → since
+	transitions []string          // transition names, producer order
+}
+
+type widgetEntry struct {
+	since  string
+	props  map[string]string // prop name → since, falling back to the widget's
+	events map[string]string
+}
+
+// catalogFormatVersion is the appviewer catalog schema version this
+// compiler was written against — a floor, not an equality check. A
+// newer catalog is accepted with a warning rather than refused: entries
+// this compiler understands still resolve, and refusing would couple
+// every documentation build to the runtime's release cadence. An
+// upstream addition that is purely presentational needs no bump here;
+// one that changes what anchors resolve against does (#186).
+//
+// Version history mirrored (appviewer catalog.ExportCatalog): 2 event
+// args (#45); 3 child_props (#51); 4 runtime_version (#35); 5 PropSpec
+// required/default (#146); 6 variadic_children (#151); 7 icon (#192);
+// 8 composition props split out + `bind` moved onto Bindable specs
+// (#209); 9 transitions (#276).
+const catalogFormatVersion = 9
+
+// LoadCatalog reads a widget catalog in any accepted encoding. [Compile]
+// calls it for Options.CatalogPath; a caller compiling repeatedly (the
+// editor debounce) loads once and passes the result as Options.Catalog,
+// and anchor completion reads the entry sets off it directly
+// ([Catalog.Widgets], [Catalog.Props], [Catalog.Events],
+// [Catalog.CommonProps]).
+func LoadCatalog(path string) (*Catalog, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	md, err := message(WidgetCatalogMessage)
+	if err != nil {
+		return nil, err
+	}
+
+	var msg dmsg
+	switch ext := strings.ToLower(filepath.Ext(path)); ext {
+	case ".json":
+		msg, err = catalogFromJSON(raw, md)
+	case ".pxf":
+		var m proto.Message
+		m, err = pxf.UnmarshalDescriptor(raw, md)
+		if err == nil {
+			msg = wrap(m.ProtoReflect())
+		}
+	case ".binpb", ".pb", ".bin":
+		m := newMsg(md)
+		if err = proto.Unmarshal(raw, m.proto()); err == nil {
+			msg = m
+		}
+	default:
+		return nil, fmt.Errorf("%s: unknown registry export format %q (want .binpb, .pxf or .json)", path, ext)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("%s: reading registry export: %w", path, err)
+	}
+
+	cat := &Catalog{
+		Path:          path,
+		Digest:        digestOf(raw),
+		SchemaVersion: msg.u32("schema_version"),
+		widgets:       map[string]*widgetEntry{},
+		common:        map[string]string{},
+		composition:   map[string]string{},
+	}
+	for _, p := range msg.msgs("common_props") {
+		cat.common[p.str("name")] = p.str("since")
+	}
+	for _, p := range msg.msgs("composition_props") {
+		cat.composition[p.str("name")] = p.str("since")
+	}
+	for _, tr := range msg.msgs("transitions") {
+		cat.transitions = append(cat.transitions, tr.str("name"))
+	}
+	for _, w := range msg.msgs("widgets") {
+		entry := &widgetEntry{
+			since:  w.str("since"),
+			props:  map[string]string{},
+			events: map[string]string{},
+		}
+		// A widget's own props and the props its structural builder reads
+		// on children are both documented as attributes of that widget,
+		// so both are anchorable (appviewer#51).
+		for _, group := range [][]dmsg{w.msgs("props"), w.msgs("child_props")} {
+			for _, p := range group {
+				entry.props[p.str("name")] = p.str("since")
+			}
+		}
+		for _, e := range w.msgs("events") {
+			entry.events[e.str("name")] = e.str("since")
+		}
+		cat.widgets[w.str("type")] = entry
+	}
+	cat.WidgetCount = len(cat.widgets)
+	return cat, nil
+}
+
+// ResolveWidget checks a widget anchor's canonical id against the
+// catalog and returns the target's since-version. The error names what
+// exists, because "no such prop" is only useful next to the props that
+// do exist.
+//
+// The id is the canonical resolved_id spelling the pack records: the
+// PascalCase type alone ("Button"), or the type plus one member —
+// "Button#prop:text", "Button#event:onTapped". Exported so an editor
+// can validate a completed anchor against exactly the check the
+// compiler will run (#185).
+func (c *Catalog) ResolveWidget(id string) (since string, err error) {
+	typ, memberKind, member := widgetMember(id)
+	entry, ok := c.widgets[typ]
+	if !ok {
+		return "", fmt.Errorf("widget %q is not in the registry export (%s)", typ, c.Path)
+	}
+	switch memberKind {
+	case "":
+		return entry.since, nil
+	case "prop":
+		if s, ok := entry.props[member]; ok {
+			return firstNonEmpty(s, entry.since), nil
+		}
+		if s, ok := c.common[member]; ok {
+			return firstNonEmpty(s, entry.since), nil
+		}
+		// Composition attributes are offered by context on any widget node
+		// (#199): pick-to-help lands on a typed node carrying `slot`, and
+		// the lookup must land with it — so they resolve like common props.
+		if s, ok := c.composition[member]; ok {
+			return firstNonEmpty(s, entry.since), nil
+		}
+		return "", fmt.Errorf("widget %s has no property %q (has: %s)", typ, member, joinKeys(entry.props, c.common, c.composition))
+	case "event":
+		if s, ok := entry.events[member]; ok {
+			return firstNonEmpty(s, entry.since), nil
+		}
+		return "", fmt.Errorf("widget %s has no event %q (has: %s)", typ, member, joinKeys(entry.events))
+	}
+	return "", fmt.Errorf("widget anchor %q has an unknown member kind %q", id, memberKind)
+}
+
+// ── Anchor-target queries (#185) ──────────────────────────────────────────
+//
+// The read-only surface widget-anchor completion consumes: the same
+// entry sets ResolveWidget checks membership against, so an editor can
+// only ever offer an anchor this compiler would accept.
+
+// Widgets returns the catalog's widget types, sorted.
+func (c *Catalog) Widgets() []string {
+	out := make([]string, 0, len(c.widgets))
+	for typ := range c.widgets {
+		out = append(out, typ)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// Props returns the property names a prop anchor on the widget type
+// resolves against — the widget's own props and its structural parent
+// duties (child_props), sorted. Common node props are not included;
+// they resolve on every widget and come from [Catalog.CommonProps].
+// Nil for a type the catalog does not carry.
+func (c *Catalog) Props(widgetType string) []string {
+	entry, ok := c.widgets[widgetType]
+	if !ok {
+		return nil
+	}
+	return sortedStringKeys(entry.props)
+}
+
+// Events returns the widget type's event names, sorted. Nil for a type
+// the catalog does not carry.
+func (c *Catalog) Events(widgetType string) []string {
+	entry, ok := c.widgets[widgetType]
+	if !ok {
+		return nil
+	}
+	return sortedStringKeys(entry.events)
+}
+
+// CommonProps returns the node-level property names every widget
+// accepts, sorted. A prop anchor naming one resolves on any catalog
+// widget.
+func (c *Catalog) CommonProps() []string {
+	return sortedStringKeys(c.common)
+}
+
+// CompositionProps returns the template-composition attribute names
+// (catalog schema v8), sorted. Like CommonProps, a prop anchor naming
+// one resolves on every catalog widget (#199): the attributes are
+// offered by context, and the context is any node under composition.
+func (c *Catalog) CompositionProps() []string {
+	return sortedStringKeys(c.composition)
+}
+
+// Transitions returns the accepted screen-transition names (catalog
+// schema v9) in the producer's canonical order (the default first — the
+// order is load-bearing upstream). Each is a transition-anchor target
+// (#199); [Catalog.ResolveTransition] is the membership check.
+func (c *Catalog) Transitions() []string {
+	return append([]string(nil), c.transitions...)
+}
+
+// ResolveTransition checks a transition anchor's name against the
+// catalog's screen-transition vocabulary (#199). Transitions carry no
+// since-version of their own; a topic states applicability through
+// meta.since instead.
+func (c *Catalog) ResolveTransition(name string) error {
+	for _, tr := range c.transitions {
+		if tr == name {
+			return nil
+		}
+	}
+	if len(c.transitions) == 0 {
+		return fmt.Errorf("transition %q is not in the registry export (%s carries no transitions; catalog schema v9 adds them)", name, c.Path)
+	}
+	return fmt.Errorf("transition %q is not in the registry export (has: %s)", name, strings.Join(c.transitions, ", "))
+}
+
+func sortedStringKeys(m map[string]string) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func firstNonEmpty(vs ...string) string {
+	for _, v := range vs {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+func joinKeys(maps ...map[string]string) string {
+	var keys []string
+	for _, m := range maps {
+		for k := range m {
+			keys = append(keys, k)
+		}
+	}
+	if len(keys) == 0 {
+		return "none"
+	}
+	sort.Strings(keys)
+	return strings.Join(keys, ", ")
+}
+
+// ── JSON boundary adapter ─────────────────────────────────────────────────
+
+// jsonCatalog mirrors appviewer's exported Catalog. Only the facts anchor
+// resolution needs are modeled; fields appviewer adds for its own
+// purposes are ignored rather than rejected, so a newer runtime's export
+// still builds documentation.
+type jsonCatalog struct {
+	SchemaVersion    uint32           `json:"schema_version"`
+	RuntimeVersion   string           `json:"runtime_version"`
+	Widgets          []jsonWidget     `json:"widgets"`
+	CommonProps      []jsonProp       `json:"common_props"`
+	CompositionProps []jsonProp       `json:"composition_props"`
+	ActionFuncs      []jsonActionFunc `json:"action_funcs"`
+	Transitions      []jsonTransition `json:"transitions"`
+}
+
+type jsonWidget struct {
+	Type             string      `json:"type"`
+	Since            string      `json:"since"`
+	Doc              string      `json:"doc"`
+	Icon             string      `json:"icon"`
+	Category         string      `json:"category"`
+	Container        bool        `json:"container"`
+	Structural       bool        `json:"structural"`
+	VariadicChildren bool        `json:"variadic_children"`
+	Bindable         bool        `json:"bindable"`
+	Props            []jsonProp  `json:"props"`
+	Events           []jsonEvent `json:"events"`
+	ChildProps       []jsonProp  `json:"child_props"`
+}
+
+type jsonProp struct {
+	Name  string   `json:"name"`
+	Kind  string   `json:"kind"`
+	Enum  []string `json:"enum"`
+	Doc   string   `json:"doc"`
+	Since string   `json:"since"`
+	// Authoring hints (catalog schema v5, appviewer#146). The producer
+	// spells the value "default"; the typed mirror calls it
+	// default_value.
+	Required bool   `json:"required"`
+	Default  string `json:"default"`
+}
+
+type jsonTransition struct {
+	Name string `json:"name"`
+	Doc  string `json:"doc"`
+}
+
+type jsonEvent struct {
+	Name  string         `json:"name"`
+	Doc   string         `json:"doc"`
+	Since string         `json:"since"`
+	Args  []jsonEventArg `json:"args"`
+}
+
+type jsonEventArg struct {
+	Name string `json:"name"`
+	Kind string `json:"kind"`
+	Doc  string `json:"doc"`
+}
+
+type jsonActionFunc struct {
+	Name  string `json:"name"`
+	Since string `json:"since"`
+}
+
+// propKinds maps appviewer's open-vocabulary kind strings onto the typed
+// enum. An unrecognised kind becomes PROP_KIND_UNSPECIFIED: a catalog
+// from a newer runtime must still resolve the anchors it shares with
+// this one.
+var propKinds = map[string]string{
+	"string": "PROP_KIND_STRING",
+	"int":    "PROP_KIND_INT",
+	"float":  "PROP_KIND_FLOAT",
+	"bool":   "PROP_KIND_BOOL",
+	"color":  "PROP_KIND_COLOR",
+	"enum":   "PROP_KIND_ENUM",
+	"list":   "PROP_KIND_LIST",
+	"state":  "PROP_KIND_STATE",
+	"any":    "PROP_KIND_ANY",
+}
+
+// catalogFromJSON converts appviewer's export into the typed model.
+//
+// Two shapes are accepted: the full `--dump-registry` object, and a bare
+// widgets array (appviewer's own `registry.Export()` golden, which is
+// convenient to point at directly). Everything past this function sees
+// only WidgetCatalog.
+func catalogFromJSON(raw []byte, md protoreflect.MessageDescriptor) (dmsg, error) {
+	var jc jsonCatalog
+	trimmed := bytes.TrimLeft(raw, " \t\r\n")
+	switch {
+	case bytes.HasPrefix(trimmed, []byte("[")):
+		if err := json.Unmarshal(raw, &jc.Widgets); err != nil {
+			return dmsg{}, err
+		}
+		jc.SchemaVersion = catalogFormatVersion
+	default:
+		if err := json.Unmarshal(raw, &jc); err != nil {
+			return dmsg{}, err
+		}
+	}
+
+	cat := newMsg(md)
+	cat.setU32("schema_version", jc.SchemaVersion)
+	if jc.RuntimeVersion != "" {
+		cat.setStr("runtime_version", jc.RuntimeVersion)
+	}
+	// Sorted on the way in: the pack is byte-stable, and a producer that
+	// reorders its export must not change our output.
+	sort.Slice(jc.Widgets, func(i, j int) bool { return jc.Widgets[i].Type < jc.Widgets[j].Type })
+	for _, w := range jc.Widgets {
+		out := cat.appendMsg("widgets")
+		out.setStr("type", w.Type)
+		out.setStr("since", w.Since)
+		out.setStr("doc", w.Doc)
+		out.setStr("icon", w.Icon)
+		out.setStr("category", w.Category)
+		out.setBool("container", w.Container)
+		out.setBool("structural", w.Structural)
+		out.setBool("variadic_children", w.VariadicChildren)
+		out.setBool("bindable", w.Bindable)
+		addProps(out, "props", w.Props)
+		addProps(out, "child_props", w.ChildProps)
+		for _, e := range sortedEvents(w.Events) {
+			ev := out.appendMsg("events")
+			ev.setStr("name", e.Name)
+			ev.setStr("doc", e.Doc)
+			ev.setStr("since", e.Since)
+			for _, a := range e.Args {
+				arg := ev.appendMsg("args")
+				arg.setStr("name", a.Name)
+				arg.setEnum("kind", propKind(a.Kind))
+				arg.setStr("doc", a.Doc)
+			}
+		}
+	}
+	addProps(cat, "common_props", jc.CommonProps)
+	addProps(cat, "composition_props", jc.CompositionProps)
+	sort.Slice(jc.ActionFuncs, func(i, j int) bool { return jc.ActionFuncs[i].Name < jc.ActionFuncs[j].Name })
+	for _, f := range jc.ActionFuncs {
+		fn := cat.appendMsg("action_funcs")
+		fn.setStr("name", f.Name)
+		fn.setStr("since", f.Since)
+	}
+	// Transitions keep the producer's order: the default leads and the
+	// order maps to upstream's TransitionKind indices, so sorting here
+	// would erase a fact the export states.
+	for _, tr := range jc.Transitions {
+		out := cat.appendMsg("transitions")
+		out.setStr("name", tr.Name)
+		out.setStr("doc", tr.Doc)
+	}
+	return cat, nil
+}
+
+func addProps(parent dmsg, field string, props []jsonProp) {
+	sorted := append([]jsonProp(nil), props...)
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i].Name < sorted[j].Name })
+	for _, p := range sorted {
+		out := parent.appendMsg(field)
+		out.setStr("name", p.Name)
+		out.setEnum("kind", propKind(p.Kind))
+		out.setStr("doc", p.Doc)
+		out.setStr("since", p.Since)
+		out.setBool("required", p.Required)
+		out.setStr("default_value", p.Default)
+		for _, v := range p.Enum {
+			out.appendStr("enum_values", v)
+		}
+	}
+}
+
+func sortedEvents(events []jsonEvent) []jsonEvent {
+	out := append([]jsonEvent(nil), events...)
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out
+}
+
+func propKind(name string) string {
+	if k, ok := propKinds[name]; ok {
+		return k
+	}
+	return "PROP_KIND_UNSPECIFIED"
+}

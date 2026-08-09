@@ -1,6 +1,6 @@
 # `pxf` — the protowire toolchain
 
-`pxf` is the canonical CLI for the `protowire` stack. One binary covers every operation you can do against a PXF document or a `.proto` schema: encode and decode against protobuf binary, validate and pretty-print, lint schemas for reserved-name violations, run jq-style queries with input adapters for CSV / JSON / YAML, infer a `.proto` from a tabular sample, and convert between SBE XML schemas and `.proto`.
+`pxf` is the canonical CLI for the `protowire` stack. One binary covers every operation you can do against a PXF document or a `.proto` schema: encode and decode against protobuf binary, validate and pretty-print, lint schemas for reserved-name violations, run jq-style queries with input adapters for CSV / JSON / YAML, infer a `.proto` from a tabular sample, convert between SBE XML schemas and `.proto`, compile v1.2 (RFC-001) schema sources to a lowered `FileDescriptorSet` image for stock buf/protoc, and compile documentation topics to a doc pack.
 
 The format is named PXF (Protowire eXpressive Format); the binary is named after the format because that's the artifact users interact with day-to-day. The deeper design rationale for the query subcommand lives in [`QUERY.md`](QUERY.md); this README is the user-facing reference for the binary itself.
 
@@ -8,20 +8,25 @@ The format is named PXF (Protowire eXpressive Format); the binary is named after
 $ pxf --help
 pxf is the unified CLI for the protowire stack. Subcommands cover
 the encode/decode/validate/fmt/lint surface for the PXF text format,
-plus a jq-style `query` subcommand and a `.proto`-emitting
-`infer-schema` subcommand for tabular inputs (CSV, PXF @dataset).
+plus a jq-style `query` subcommand, a `.proto`-emitting
+`infer-schema` subcommand for tabular inputs (CSV, PXF @dataset),
+a `build` subcommand compiling v1.2 (RFC-001) schema sources
+to a lowered FileDescriptorSet image for stock buf/protoc, and a
+`docs` subcommand compiling documentation topics to a doc pack.
 
 Usage:
   pxf [command]
 
 Available Commands:
+  build        Compile v1.2 schemas to a lowered FileDescriptorSet image
   completion   Generate the autocompletion script for the specified shell
   decode       Decode protobuf binary to PXF (stdout)
+  docs         Documentation tooling — the typed doc model and its compiler
   encode       Encode PXF to protobuf binary (stdout)
-  fmt          Format PXF file (stdout)
+  fmt          Format a PXF document, canonicalizing keyed repeated fields
   help         Help about any command
   infer-schema Produce a .proto schema by inferring per-column types from a sample file
-  lint         Check schema(s) for PXF reserved-name violations (draft §3.13)
+  lint         Check schema(s) for PXF reserved-name violations (draft §3.14)
   proto2sbe    Convert .proto with SBE annotations to SBE XML (stdout)
   query        Run a jq-style query against PXF, CSV, JSON, or YAML input
   sbe2proto    Convert SBE XML schema to .proto (stdout)
@@ -51,6 +56,10 @@ Every published `protowire-*` language port ships the same binary as part of its
 | `infer-schema <file>` | CSV or PXF `@dataset` | `.proto` source | yes |
 | `sbe2proto <schema.xml>` | SBE XML | `.proto` source | no |
 | `proto2sbe` | `.proto` source via `-p` | SBE XML | no |
+| `build <roots-or-files>...` | v1.2 (RFC-001) schema sources | lowered `FileDescriptorSet` binary | no |
+| `docs build <roots-or-files>...` | PXF topic sources (+ image, registry export) | doc pack binary | no |
+| `docs digest <roots-or-files>...` | PXF topic sources | one content digest per topic | no |
+| `openapi <image.binpb>` | lowered image (+ doc pack, generator config) | OpenAPI 3.1 YAML/JSON | no |
 
 ## Schema resolution chain
 
@@ -205,6 +214,74 @@ Inverse of `sbe2proto`: takes a `.proto` source via `-p` and emits SBE XML on st
 pxf proto2sbe -p trade.proto > trade-schema.xml
 ```
 
+### `pxf build <schema-root-or-file>...`
+
+Compiles Protowire v1.2 ([RFC-001](../../docs/RFC-001-schema-extensions.md)) schema sources with the reference compiler — the [trendvidia/protocompile](https://github.com/trendvidia/protocompile) fork — and writes a lowered `FileDescriptorSet` whose schema-extension semantics ride in the 50400–50404 carrier options. This is the **only v1.2-aware step** in the toolchain; the image it produces is stock protobuf, so everything downstream runs on unmodified buf/protoc:
+
+```bash
+pxf build -o image.binpb ./schemas/...   # the only step that parses v1.2 source
+buf generate image.binpb                 # stock buf + plugin chain (forked protoc-gen-go, protoc-gen-pxf-*)
+```
+
+Stock buf/protoc never see v1.2 *source* — only images. There is no buf fork, and none is planned.
+
+- Each **directory** argument is an import root; every `.proto` beneath it is compiled under its root-relative import path (a trailing `/...` is accepted and equivalent). A **file** argument is compiled under its base name, with its parent directory as import root.
+- The canonical annotation libraries (`protowire/schema/v1/annotations.proto`, `pxf/annotations.proto`) and the well-known types resolve from the bundled schemas — no `-p` needed.
+- Output is deterministic: the same sources produce a byte-identical image across runs, so it caches cleanly as a build artifact.
+- `--check` compiles and reports diagnostics without writing an image — the CI entry point (`ok` on stderr, exit `0` when clean; exit `1` on any error diagnostic).
+- `@http` lowers **twice** (RFC-001 §5.2): the annotation carrier keeps the whole operation surface (`summary`, `operation_id`, `tags`, `security`), and the routing skeleton is written again as the standard `google.api.http` option, so connect vanguard, grpc-gateway, Envoy's `grpc_json_transcoder` and buf's OpenAPI plugins bind the routes off a stock image with no protowire awareness. No `google/api/annotations.proto` import is added — the option rides in unknown-field bytes like the carriers. `--google-api-http=false` emits the carrier alone. A `{name}` path segment that binds no field of the request message — or binds a repeated one — is a compile error: it would be a route that 404s while the OpenAPI document promises it. A segment name is a dotted path from the request message's top level (`{order.id}`), optionally constrained by the `HttpRule` sub-path form (`{name=shelves/*}`); `pxf openapi` renders both (issue [#217](https://github.com/trendvidia/protowire/issues/217)). Two edges still refuse at render time although they compile and bind: a segment whose *leaf* is message-typed, and two bindings whose paths differ only in a sub-path constraint (they normalise to one OpenAPI path key) — see RFC-001 §5.2, "What the grammar above still leaves unsettled".
+
+Engine configuration (RFC-001 §9.4) is discovered by upward walk from the first argument's directory, honoring the normative precedence: per-setting flags (`--function-library`) > `--config <path>` > `PROTOWIRE_CONFIG` > discovered `protowire.config.textproto` > defaults. For `build`, the configuration's `function_libraries` are what matter: each listed import path is compiled into the image so downstream consumers (§9.3 function-stub codegen, engine startup) see the declarations. Engine-runtime knobs (`engine`, `default_mode`, …) are validation-time concerns and ignored here.
+
+```bash
+pxf build --check ./schemas/...                          # CI gate, no output
+pxf build -o image.binpb --config ci/protowire.config.textproto ./schemas/...
+protoc --descriptor_set_in=image.binpb --cpp_out=gen $(FILES)   # stock protoc accepts the image
+```
+
+### `pxf docs build <topic-root-or-file>...`
+
+Compiles PXF documentation topics (`@type protowire.docs.v1.TopicFile`) into a **doc pack** — the documentation analog of the lowered image: compiled topics, resolved anchors, redirects and an embedded full-text search index in one typed, byte-stable artifact. The model and the compiler contract are documented in [`docs/DOC-PACK.md`](../../docs/DOC-PACK.md).
+
+```bash
+pxf docs build -o docs.binpb --image image.binpb --registry registry.json ./topics/...
+```
+
+- Topic identity is `(key, locale)`, never the file path; directory arguments contribute every `.pxf` beneath them (a trailing `/...` is accepted and equivalent).
+- Anchors resolve against **data inputs only**: `--image` (the lowered schema image) for schema and descriptor-path anchors, `--registry` (the appviewer registry export, `.binpb` / `.pxf` / `.json`) for widget anchors. Either may be omitted when the corpus uses no anchors of that kind; an anchor with no input to resolve against is an error naming the flag it needs.
+- A **dangling anchor is a compile error**; a moved target is a redirect entry in the model. Descriptor paths are re-derived on every build and stamped with the image digest — never trusted from the source.
+- `--release` applies release policy: topics that are not `REVIEW_STATE_APPROVED`, approvals invalidated by a later edit, and topics that never chose an audience tier all become errors. The revisor gate is compiler policy, so no authoring tool can skip it.
+- `--stale-translations-fatal` escalates translation drift from warning to error.
+- Output is deterministic, and `--check` reports diagnostics without writing a pack. A build with errors emits no pack at all.
+
+```bash
+pxf docs build --check ./topics/...             # CI gate, no output
+pxf docs build --check --release ./topics/...   # the revisor gate
+pxf decode -p proto/docs/v1/pack.proto -m protowire.docs.v1.DocPack docs.binpb   # inspect a pack
+```
+
+### `pxf docs digest <topic-root-or-file>...`
+
+Prints the canonical content digest of each topic — `<digest>\t<key>\t<locale>\t<file>` — covering the title, summary and body a revisor reads. This is the value `review.approved_digest` and `translation.source_digest` record, so approving a topic or filing a translation means writing the digest printed here into the source; the authoring flow never reimplements the canonical encoding.
+
+### `pxf openapi <image.binpb>`
+
+Renders the OpenAPI boundary from a `pxf build` image and an optional `pxf docs build` pack (RFC-001 §#080, issue #173). Third member of the family: `build` (schemas → image), `docs build` (topics → pack), `openapi` (image + pack → boundary formats) — JSON/YAML exist only at this edge.
+
+```bash
+pxf openapi image.binpb                          # YAML on stdout
+pxf openapi -o api.json image.binpb              # JSON, inferred from the extension
+pxf openapi --pack docs.binpb --audience partner image.binpb
+pxf openapi --check image.binpb                  # CI gate, no output
+```
+
+- **Schema half.** Messages, enums and v1.2 type aliases become `components/schemas` entries keyed by FQN; alias chains compose with `allOf` and fields reference their alias by `$ref`. Common `@validate` shapes map to native keywords — `matches` → `pattern`, `size()` bounds → `minLength`/`maxLength` (`minItems`/`maxItems`, `minProperties`/`maxProperties` by subject), `this in [...]` → `enum`, numeric comparisons → `minimum`/`maximum`/`exclusive*` — and every non-mappable rule is carried through verbatim under `x-validation`, never dropped. `@description`/`@deprecated(reason)`/`@example`/`@default`/`@required` map to their counterparts; `optional` and wrapper fields are nullable per §6.1; `@sensitive` fields honor the §6.7 doc-emit minima (no values or examples, `x-sensitive`/`x-sensitive-class` markers only). Property and parameter names are the proto field names as written — the same names the §5.2 binding rules speak in.
+- **Operation half.** Methods carrying `@http` become operations: a `{…}` path segment binds a request field named from the top level as a dotted path (`{order_id}`, `{shelf.id}`) and optionally constrained by a sub-path pattern (`{name=shelves/*}`, dropped from the path key since OpenAPI has no such template form), remaining fields bind to the query string for bodyless methods (GET/HEAD/DELETE/OPTIONS) and to the request body otherwise — a nested binding removes only the leaf it names, so its siblings still bind under dotted names (`shelf.display_name`), a container's own message-typed members with nothing bound below them are refused as ever, and the §6.7 markers of a flattened container travel to whatever the flattening leaves behind, since the `$ref` that carried them is gone (issue [#218](https://github.com/trendvidia/protowire/issues/218)); `operation_id` defaults to `<Service>_<Method>`; `summary` falls back to the first sentence of `@description`. Responses are **derived, never authored** (GH #177): `200` from the return type, `default` from the §7 report model (`protowire.schema.v1.Report`, emitted into components), with the stable violation codes reachable from the request closure listed under `x-error-codes`.
+- **Generator config** (`protowire.openapi.textproto`, discovered upward from the image or named with `--config`): `info`, `servers`, security-scheme definitions (an `@http(security = [...])` name with no definition is a generation error), audience tiers as FQN globs, and protoregistry coordinates for `x-since`. All of it is deployment policy the §9.4/#112 line keeps out of descriptors.
+- **Audience tiers** (`--audience`, default public): elements at or below the tier are emitted; descriptors are never rewritten. Doc-pack topics anchored to an element contribute their own tier. An element whose schema closure reaches a more restricted element fails generation naming both ends — a dangling `$ref` and a silently inlined restricted definition are both worse than refusing.
+- **`x-since`** is stamped from protoregistry history (first registered version containing the element) when the config carries registry coordinates, and omitted otherwise; availability is never authored.
+- Output is byte-stable in both formats; `--check` reports diagnostics and writes nothing.
+
 ## Exit codes
 
 | Code | Meaning |
@@ -221,6 +298,7 @@ The exit-code contract is stable per [STABILITY.md](../../STABILITY.md). The 1-v
 |---|---|---|
 | `PROTOREGISTRY_SERVER` | unset | Default value for `-s` when the flag isn't passed |
 | `PROTOREGISTRY_NAMESPACE` | unset | Default value for `-n` when the flag isn't passed |
+| `PROTOWIRE_CONFIG` | unset | Path to an engine configuration file for `pxf build`; sits between `--config` and discovery in the §9.4 precedence chain |
 
 These let scripts treat the registry triple as ambient configuration. A combined CI step might set `PROTOREGISTRY_SERVER=registry.internal:50051` and `PROTOREGISTRY_NAMESPACE=billing` once, then every `pxf encode --schema invoice -m billing.v1.Invoice ...` call inherits the connection.
 

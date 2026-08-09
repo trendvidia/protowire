@@ -37,8 +37,12 @@ message EngineConfig {
   // Used by init-time verification (§9.2) and codegen (§9.3).
   repeated string function_libraries = 2;
 
-  // Locale catalog sources registered with the engine for i18n
-  // message rendering (§7).
+  // Paths to locale catalog files registered with the engine for i18n
+  // message rendering (§7): each is a text-format
+  // `protowire.schema.catalog.v1.Catalog` message, one locale per file.
+  // Filesystem paths, resolved relative to this config file's directory
+  // (absolute paths taken as-is) — not proto import paths; catalogs are
+  // loaded at engine init, never compiled into the image.
   repeated string catalog_libraries = 3;
 
   // When true, missing function implementations fail engine startup

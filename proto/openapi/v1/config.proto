@@ -1,0 +1,96 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Generator configuration for `pxf openapi` (RFC-001 §#080, issue #173).
+//
+// Everything in this file is GENERATOR configuration, deliberately kept
+// out of the schema and its descriptors: document-level metadata (info,
+// servers, security-scheme definitions), audience tier assignment, and
+// protoregistry coordinates are org-and-deployment facts, and the §9.4 /
+// #112 line keeps deployment topology out of artifacts that cross org
+// boundaries. The schema carries only what every port must carry
+// (§8.1); this file configures how ONE deployment renders its boundary.
+//
+// Authored as protowire.openapi.textproto next to the schema image (or
+// passed explicitly via --config). No extension numbers are allocated.
+
+syntax = "proto3";
+
+package protowire.openapi.v1;
+
+// GeneratorConfig is the root of protowire.openapi.textproto.
+message GeneratorConfig {
+  // The OpenAPI info block. Empty title/version fall back to
+  // "Protowire API" / "0.0.0" so a bare image still renders.
+  Info info = 1;
+
+  // OpenAPI servers, emitted in authored order.
+  repeated Server servers = 2;
+
+  // Security-scheme DEFINITIONS. `@http(security = ["name"])` use sites
+  // reference these by name; a referenced name with no definition here
+  // is a generation error (a dangling securityScheme $ref otherwise).
+  repeated SecurityScheme security_schemes = 3;
+
+  // Audience tier assignment: FQN globs to tier, first match in
+  // authored order wins, unmatched elements default to public
+  // (RFC-001 §#080 Gap 2). Tiers are protowire.docs.v1.Audience values
+  // written in lower case without the prefix: "public", "community",
+  // "partner", "enterprise", "internal".
+  repeated AudienceRule audiences = 4;
+
+  // Protoregistry coordinates for deriving x-since (RFC-001 §#080
+  // Gap 3): the first registered revision containing an element.
+  // Omitted coordinates omit x-since entirely — availability is never
+  // authored, only derived.
+  RegistryHistory registry = 5;
+}
+
+// Info maps onto the OpenAPI info object.
+message Info {
+  string title = 1;
+  string version = 2;
+  string description = 3;
+}
+
+// Server maps onto one entry of the OpenAPI servers array.
+message Server {
+  string url = 1;
+  string description = 2;
+}
+
+// SecurityScheme maps onto one components/securitySchemes entry. The
+// fields mirror the OpenAPI object; which are meaningful depends on
+// `type` ("http", "apiKey", ...) and the generator copies them through
+// without interpretation beyond dropping empty ones.
+message SecurityScheme {
+  // The scheme name `@http(security = [...])` references.
+  string name = 1;
+  // OpenAPI `type`: "http", "apiKey", "mutualTLS", "openIdConnect".
+  string type = 2;
+  // For type "http": "bearer", "basic", ...
+  string scheme = 3;
+  // For scheme "bearer": e.g. "JWT".
+  string bearer_format = 4;
+  // For type "apiKey": "header", "query" or "cookie".
+  string in = 5;
+  // For type "apiKey": the header/query/cookie parameter name.
+  string param_name = 6;
+}
+
+// AudienceRule assigns a visibility tier to the schema elements whose
+// fully-qualified name matches the glob (path.Match semantics over the
+// dotted FQN; `*` crosses dots).
+message AudienceRule {
+  string fqn_glob = 1;
+  string tier = 2;
+}
+
+// RegistryHistory names the protoregistry schema whose version history
+// stamps x-since.
+message RegistryHistory {
+  // gRPC address, e.g. "localhost:9090".
+  string server = 1;
+  string namespace = 2;
+  string schema = 3;
+}

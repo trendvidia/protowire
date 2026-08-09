@@ -1,0 +1,136 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Fixture: the `pxf openapi` reference schema (issue #173).
+// Exercises every arm of the §#080 boundary mapping: mappable and
+// unmappable @validate shapes, §8.2 type aliases (incl. a chain and a
+// field-level stacked rule), §6.7 sensitive doc-emit minima, presence
+// (@required / optional / wrapper), @default/@example/@deprecated,
+// derived error codes, and the §5.2 operation surface with path, query
+// and body binding.
+
+syntax = "proto3";
+
+package demo.store;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/wrappers.proto";
+import "protowire/schema/v1/annotations.proto";
+
+// Declared function: its [error_code] surfaces in x-error-codes.
+function is_zip(value: string) [error_code = "store.zip.invalid"];
+
+// Alias with a mappable rule: components/schemas/demo.store.Email
+// carries the pattern.
+type Email = string
+  @description("an email address")
+  @validate(matches(this, "^[^@]+@[^@]+$"), code = "store.email.malformed");
+
+// Alias chain: ShortName narrows string, Handle narrows ShortName.
+type ShortName = string
+  @validate(this.size() >= 2 && this.size() <= 32);
+type Handle = ShortName
+  @validate(matches(this, "^[a-z][a-z0-9_]*$"));
+
+@description("lifecycle of a customer account")
+enum Status {
+  STATUS_UNSPECIFIED = 0;
+  ACTIVE = 1;
+  SUSPENDED = 2;
+}
+
+@description("a customer of the store")
+message Customer {
+  // Alias-typed field plus @required: property $ref's the alias.
+  Email email = 1 @required;
+
+  // Field-level rule stacked atop the alias chain: allOf of the $ref
+  // and the field's own (unmappable) rule.
+  Handle handle = 2
+    @validate(this != "admin", code = "store.handle.reserved");
+
+  // Numeric bounds: inclusive minimum, exclusive maximum.
+  int32 age = 3 @validate(this >= 18 && this < 130);
+
+  // In-list rule plus @default and @example.
+  string country = 4
+    @validate(this in ["US", "CA", "GB"])
+    @default("US")
+    @example("CA");
+
+  // §6.7: no values or examples for sensitive fields — the @example
+  // here MUST NOT reach the document.
+  string tax_id = 5
+    @sensitive(class = "store.pii")
+    @example("000-00-0000");
+
+  // Declared-function rule: unmappable, but its error code surfaces.
+  string zip = 6 @validate(is_zip(this));
+
+  // Collection bound maps to maxItems.
+  repeated string tags = 7 @validate(this.size() <= 10);
+
+  map<string, string> attributes = 8;
+
+  // Explicit-null presence (§6.1): optional and wrapper fields are
+  // nullable at the boundary.
+  optional string nickname = 9;
+  google.protobuf.StringValue display_name = 10;
+
+  google.protobuf.Timestamp created_at = 11;
+  int64 loyalty_points = 12;
+  Status status = 13;
+
+  string legacy_ref = 14 @deprecated(reason = "use handle instead");
+}
+
+// Restricted to the internal tier by generator config (see
+// protowire.openapi.textproto): the *Audit* glob.
+@description("an audit record; internal operators only")
+message AuditRecord {
+  string actor = 1;
+  string action = 2;
+  google.protobuf.Timestamp at = 3;
+}
+
+message GetCustomerRequest {
+  string customer_id = 1;
+  bool include_closed = 2 @description("include closed accounts");
+}
+
+message CreateCustomerRequest {
+  Customer customer = 1 @required;
+}
+
+message ListAuditRequest {
+  int32 page_size = 1;
+}
+
+message ListAuditResponse {
+  repeated AuditRecord records = 1;
+}
+
+service Store {
+  // Two bindings for one RPC: the primary rule keeps the derived
+  // operation id, the alias names its own (issue #215).
+  @description("Fetch one customer by id. Path binds customer_id; the rest is query.")
+  @http("GET", "/customers/{customer_id}", security = ["bearerAuth"])
+  @http("GET", "/v2/customers/{customer_id}",
+        operation_id = "getCustomerV2",
+        security = ["bearerAuth"])
+  rpc GetCustomer(GetCustomerRequest) returns (Customer);
+
+  @http("POST", "/customers",
+        summary = "Create a customer",
+        operation_id = "createCustomer",
+        tags = ["customers"])
+  rpc CreateCustomer(CreateCustomerRequest) returns (Customer);
+
+  @http("DELETE", "/customers/{customer_id}")
+  rpc DeleteCustomer(GetCustomerRequest) returns (google.protobuf.Empty);
+
+  // Internal tier via the *Audit* glob, matching its response type.
+  @http("GET", "/audit")
+  rpc ListAudit(ListAuditRequest) returns (ListAuditResponse);
+}

@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Invalid fixture: untyped_list_element.
+// MUST NOT compile (RFC-001 §5.1 literal rule 1): a message literal
+// used where no message type is implied by the declaration MUST carry
+// an explicit type name. `samples`' parameter is `any`, so the list
+// element `{currency: "USD"}` has no declared type to inherit — it
+// must be written `Money{currency: "USD"}` (see the valid form in
+// ../10_literal_args.proto; protowire#176, trendvidia/protocompile#127).
+
+syntax = "proto3";
+
+package fixtures.invalid.untypedelem;
+
+import "protowire/schema/v1/annotations.proto";
+
+annotation samples(values: any);
+
+message Money {
+  string currency = 1;
+  int64 units = 2;
+}
+
+message Order {
+  repeated Money totals = 1 @samples([{currency: "USD"}]);
+}

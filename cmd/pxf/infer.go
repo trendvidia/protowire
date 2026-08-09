@@ -33,10 +33,11 @@ func inferSchemaCmd() *cobra.Command {
 			"aborts with a recovery hint. --full-scan walks the rest of the\n" +
 			"file collecting every contradiction before reporting.\n\n" +
 			"Output goes to stdout — pipe to a file or another tool.",
-		Args:          cobra.ExactArgs(1),
-		RunE:          runInferSchema,
-		SilenceUsage:  true,
-		SilenceErrors: true,
+		// Usage-on-parse-errors-only is inherited from the root command's
+		// PersistentPreRun (#188); SilenceErrors additionally left runtime
+		// failures unprinted.
+		Args: cobra.ExactArgs(1),
+		RunE: runInferSchema,
 	}
 	f := cmd.Flags()
 	f.StringVarP(&infer.messageName, "message", "m", "",

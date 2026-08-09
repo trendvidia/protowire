@@ -58,10 +58,15 @@ message Violation {
   string code = 1;
 
   // Structured parameters for locale-catalog interpolation
-  // ({pattern, min, max, ...}).
+  // ({pattern, min, max, ...}). Populated only by function
+  // implementations (RFC-001 §6.5) and spec-defined synthetic
+  // violations; violations from inline expression rules carry no
+  // params (RFC-001 §7, params provenance).
   map<string, Value> params = 2;
 
-  // Engine-author default message, used on catalog miss.
+  // Engine-author default message, used on catalog miss. For the
+  // reserved protowire.* codes the string is spec-pinned, not
+  // engine-authored (RFC-001 §7, reserved-code fallback messages).
   string fallback_message = 3;
 }
 
@@ -95,6 +100,24 @@ message EnrichedViolation {
   // key violation and a value violation on the same entry would serialize
   // to identical paths.
   bool for_key = 8;
+
+  // The violated rule's source-map join key (RFC-001 §8.3.1): the
+  // originating file plus the canonical descriptor path, exactly as the
+  // shared formatter renders it. Engines populate it whenever the rule
+  // resolved through an embedded source map (50404) and leave it unset
+  // otherwise. Wire consumers join violations back to lowered rules —
+  // and through the source map to editor ranges — by this key instead of
+  // fuzzy-matching `source` positions.
+  SourceRef source_ref = 9;
+}
+
+// The §8.3.1 rule identity: unique within a SourceMap; the cross-file
+// key is (file, descriptor_path).
+message SourceRef {
+  // SourceMap.file of the map that resolved the rule.
+  string file = 1;
+  // Canonical §8.3.1 grammar: elementPath [annotationAnchor [callAnchor]].
+  string descriptor_path = 2;
 }
 
 // Values are prefixed: descriptor.proto's EntryKind already claims
@@ -103,6 +126,11 @@ enum RuleKind {
   RULE_KIND_UNSPECIFIED     = 0;
   RULE_KIND_VALIDATE        = 1;
   RULE_KIND_REQUIRED        = 2;
+  // A rule failed against a @default-substituted value (RFC-001 §6.4):
+  // the schema's declared default itself violates the field's rules — a
+  // schema-authoring error, not an instance error. Supersedes VALIDATE /
+  // TYPE_REFINEMENT whenever the validated value came from @default
+  // substitution; actual_value carries the substituted default.
   RULE_KIND_DEFAULT         = 3;
   RULE_KIND_TYPE_REFINEMENT = 4;
 }

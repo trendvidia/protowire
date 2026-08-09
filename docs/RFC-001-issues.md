@@ -25,10 +25,10 @@ This is the umbrella tracking issue for [RFC-001 — Protowire Schema Extensions
 ### Spec (M0)
 - [x] #002 — Ratify RFC-001 — ratified 2026-07-16 (GH #56, PR #113)
 - [x] #003 — Draft IETF `draft-trendvidia-protowire-01` — document complete 2026-07-16 (GH #57, PR #114); Datatracker submission pending
-- [ ] #004 — Add `protowire/proto/schema/v1/annotations.proto`
-- [ ] #005 — Add `protowire/proto/schema/v1/descriptor.proto`
-- [ ] #006 — Update `STABILITY.md` for v1.2 additive surface
-- [ ] #007 — Add v1.2.0 `CHANGELOG.md` entry
+- [x] #004 — Add `protowire/proto/schema/v1/annotations.proto` — done (GH #54; round-trip verified 2026-07-17 against protocompile, GH #58)
+- [x] #005 — Add `protowire/proto/schema/v1/descriptor.proto` — done (GH #54; README layout listing added 2026-07-17, PR #115)
+- [x] #006 — Update `STABILITY.md` for v1.2 additive surface — done (GH #54; carriers renumbered to 50400–50499 by PR #78)
+- [x] #007 — Add v1.2.0 `CHANGELOG.md` entry — done (GH #54; v1.2.0 released 2026-07-20, PR #119)
 
 ### Open questions (resolved or deferred during M0)
 - [ ] #010 — Container-shaped type aliases (deferred to v1.3+)
@@ -38,9 +38,9 @@ This is the umbrella tracking issue for [RFC-001 — Protowire Schema Extensions
 - [x] #014 — Streaming RPC validation contract — resolved 2026-07-15 (GH #63, PR #98)
 - [x] #015 — `Literal` shape in `AnnotationArg` — resolved 2026-07-15 (GH #64, PR #99)
 - [x] #016 — Validation report wire shape — resolved 2026-07-15 (GH #65, PR #94)
-- [ ] #017 — protovalidate migration story
+- [x] #017 — protovalidate migration story — resolved 2026-07-24 (GH #66, PR #162): adapter-first via protocheck/protovalidate, RFC-001 Appendix C; `--compat` rejected, no rewriter
 - [ ] #018 — Performance budget + benchmark suite
-- [ ] #019 — Conformance test fixtures
+- [x] #019 — Conformance test fixtures — corpus expansion shipped 2026-07-24 (GH #68); §5.3 worked-example executable fixtures shipped 2026-07-23 (GH #135, PR #138)
 - [ ] #020 — Upstream `buf/protocompile` compatibility
 - [x] #021 — Secrets annotation story (`@sensitive`) — resolved 2026-07-16 (GH #90, PR #107)
 - [x] #022 — Engine-expression grammar scope (annotation-only v1.2) — resolved 2026-07-16 (GH #91, PR #109)
@@ -53,17 +53,17 @@ This is the umbrella tracking issue for [RFC-001 — Protowire Schema Extensions
 - [x] #033 — `protocompile`: option-interpretation hook for `@annot` → carrier — done (M1 direct emission in `fdp/annotations.go`; dual-emission box struck per #023)
 - [x] #034 — `protocompile`: descriptor lowering pass — done 2026-07-17 (M1 + finalized Literal carrier, protocompile#67/PR#70, #73/PR#77)
 - [x] #035 — `protocompile`: source-map emission — done 2026-07-17 (all entry kinds + canonical descriptor_path, protocompile#66/PR#72)
-- [ ] #040 — `protocheck`: engine SPI (Go interface)
-- [ ] #041 — `protocheck`: function registration + runtime-init verification
-- [ ] #042 — `protocheck`: validation execution (collect-all / fail-fast)
-- [ ] #043 — `protocheck`: catalog support + i18n
-- [ ] #050 — `protolsp`: extended grammar parsing
-- [ ] #051 — `protolsp`: source-map consumption + go-to-definition
-- [ ] #052 — `protolsp`: annotation-aware diagnostics
-- [ ] #060 — `protobuf-go`: function-stub codegen plugin (Go)
-- [ ] #061 — `protobuf-go`: annotation-aware codegen
-- [ ] #070 — `protowire-go`: M5 runtime wiring through `protocheck`
-- [ ] #080 — OpenAPI generator (M8) — separate tool consuming descriptors
+- [x] #040 — `protocheck`: engine SPI (Go interface) — done 2026-07-23 (M4 v2 module: Engine/Function/Catalog/Report per §9.1, protocheck PR#22, v2.0.0)
+- [x] #041 — `protocheck`: function registration + runtime-init verification — done 2026-07-23 (§9.2, protocheck PR#23)
+- [x] #042 — `protocheck`: validation execution (collect-all / fail-fast) — done 2026-07-23 (WithFailFast PR#21, wire-aligned EnrichedViolation model PR#24, carrier-rule dispatch + source-map enrichment PR#26; per-element repeated/map dispatch PR#35 in v2.1.0)
+- [x] #043 — `protocheck`: catalog support + i18n — done 2026-07-23 (M6: NewMapCatalog/WithCatalog per §7, protocheck PR#28, v2.0.0)
+- [x] #050 — `protolsp`: extended grammar parsing — done 2026-07-16 (semantic tokens + malformed-construct pins, completion/navigation, protolsp#218 Phases A/B)
+- [x] #051 — `protolsp`: source-map consumption + go-to-definition — done 2026-07-17 (type/function navigation + descriptor fallback, protolsp#219 Phase C; opaque-fragment navigation protolsp#220)
+- [x] #052 — `protolsp`: annotation-aware diagnostics — done 2026-07-17 (M7, protolsp#220; completion parity protolsp#228, runtime-violation overlay protolsp#231)
+- [x] #060 — `protobuf-go`: function-stub codegen plugin (Go) — done 2026-07-24 (§9.3 Functions/UnimplementedFunctions/RegisterFunctions onto a protocheck Engine; carriers decoded from unknown fields, protobuf-go#2/PR#4)
+- [x] #061 — `protobuf-go`: annotation-aware codegen — done 2026-07-24 (@description doc comments + @deprecated notices on enums/values/messages/fields/getters, function-level bracket options; example-as-test emission stays optional, protobuf-go#3/PR#4)
+- [x] #070 — `protowire-go`: M5 runtime wiring through `protocheck` — done 2026-07-23 (Validator seam through pxf/pb/sbe decoders, protowire-go#49/PR#59; protocheck-side adapter protocheck PR#38; protovalidate adapter PR#60; shipped v1.3.1)
+- [x] #080 — OpenAPI generator (M8) — landing site decided 2026-07-25: `pxf openapi` subcommand in this repo (GH #93); design gaps resolved 2026-07-25 (GH #173 — enriched `@http`, artifact filtering, derived `x-since`); implemented 2026-07-25 (GH #173): `internal/openapi` + `cmd/pxf/openapi.go`, generator config `protowire.openapi.v1.GeneratorConfig`, fixtures `testdata/openapi/`
 
 ### Per-port adoption (M9+)
 - [ ] `protowire-java`
@@ -213,8 +213,8 @@ Update `STABILITY.md` to document the v1.2 additive surface:
 - v1.2 schemas not back-compatible with v1.1 parsers; v1.1 schemas remain valid in v1.2 parsers
 
 **Acceptance criteria:**
-- [ ] Stability section added for "Schema language additions" mirroring the existing "Wire format" structure
-- [ ] Cross-link to RFC-001 and IETF draft `-01`
+- [x] Stability section added for "Schema language additions" mirroring the existing "Wire format" structure ("v1.2 — schema language additions" in `STABILITY.md`)
+- [x] Cross-link to RFC-001 and IETF draft `-01`
 
 ---
 
@@ -336,6 +336,12 @@ pre-send → `INTERNAL`; client-side receiver check → local error. gRPC
 reference mapping: `Report` in `google.rpc.Status.details` as `Any`.
 Stream-level invariants deferred (§13 row 12, GH #103).
 
+**Resolution (2026-07-24, GH #103, PR #159):** deferral re-affirmed.
+Stream-level invariants remain out of v1.2 — no design work, no spec
+commitment beyond the existing §13 row 12 pointer; the issue stays open
+with the `deferred` label (off the v1.2 board) and is revisited no
+earlier than v1.3 planning.
+
 ---
 
 ## #015 — `Literal` shape in `AnnotationArg`
@@ -404,6 +410,118 @@ map values. Mirrors protovalidate's `for_key`; protocheck's Go-side
 §7 and IETF draft `-01` (Error Model + Report Wire Shape) updated;
 golden fixture unchanged (worked example has no map field).
 
+**Resolution — RULE_KIND_DEFAULT semantics (2026-07-23, GH #133, PR #136):**
+Reading (a): rules evaluated against a `@default`-substituted value
+(§6.1 absent-with-default) report their violations with
+`rule_kind: RULE_KIND_DEFAULT`, superseding `VALIDATE`/`TYPE_REFINEMENT`;
+`actual_value` MUST be the substituted default. Marks a schema-authoring
+error — the declared default fails the field's own rules; no producer
+input triggers it, none fixes it — not an instance error. Rule origin
+stays recoverable via `cause.code`/`type_chain`. Compile-time rejection
+remains a MAY (annotation library); reserving the kind for compile-time
+tooling was rejected — report.proto is chartered runtime-only. New
+RFC-001 §6.4 **Default substitution** paragraph; draft `-01` mirrored.
+protocheck switches from emitting `VALIDATE`/`TYPE_REFINEMENT` on
+substituted defaults (trendvidia/protocheck#32/#34). Fixture-07 golden
+unchanged (its instance sets `country`; no substitution occurs).
+
+**Resolution — source_ref (2026-07-24, GH #142, PR #161):** wire
+`EnrichedViolation` gains `SourceRef source_ref = 9`
+(`{file, descriptor_path}`) — the §8.3.1 rule-identity join key, so wire
+consumers (protolsp's runtime-violation overlay via gRPC status details,
+registry report joins) recover the lowered rule without fuzzy
+source-location matching. Engines MUST populate it when the rule
+resolved through an embedded source map (50404), MUST leave it unset
+otherwise; the path comes from the shared §8.3.1 formatter, never
+hand-assembled. Deterministic from the descriptor → participates in
+cross-port equality with no carve-out. Rollout: protocompile re-vendors
+report.pb.go, then protocheck emits it in the wire conversion
+(dropping its documented lossy edge) and the fixture-07 golden gains
+the fields — tracked by follow-up issues cross-linked on GH #142.
+
+**Resolution — params provenance (2026-07-23, GH #134, PR #137):**
+Option (c): `Violation.params` is populated from exactly two sources —
+function-returned `Violation`s (§6.5, the implementation authors its
+params) and spec-defined synthetic violations
+(`protowire.depth_exceeded`'s `{limit}`). Engines MUST leave `params`
+empty on violations from inline expression rules. A normative
+operator→param table (option a) was rejected as contradicting §5.1
+expression opacity — unclosable over project-configurable engine
+languages; equality-carve-out discretionary params (option b) was
+rejected as weakening goal 5. Rules needing interpolable params declare
+a `function`. New RFC-001 §7 **Params provenance** paragraph; draft
+`-01` mirrored. Fixture-07 golden drops both engine-synthesized params
+blocks (`{suffix: "@acme.com"}`, `{allowed: [US, CA, GB]}`) — all three
+worked-example rules are inline expressions. Report equality keeps
+`params` with no carve-out; protocheck already synthesizes nothing
+(trendvidia/protocheck#34 gap 3).
+
+**Resolution — executable worked-example fixtures (2026-07-23, GH #135,
+PR #138):** `testdata/schema-extensions/07_report_golden/` ships the
+§5.3 schema (`myco/users/user.proto`, `myco/commons/types.proto` +
+`validator.proto`) and `instance.textproto` (email
+`alice@example.org`, phone absent, country `DE`) — the exact inputs the
+report golden was computed from. CompanyEmail keeps the literal inline
+`ends_with` rule (§6.3 style) with use-site code/message overrides;
+`matches`/`ends_with` are engine builtins, so all golden violations
+carry empty `params` per the #134 provenance rule. Conformance stubs
+pinned in the fixture README: `same_domain` and `valid_phone` register
+always-pass (§6.5 — bodies are engine-runtime concerns; the golden
+exercises plumbing). Golden `source` lines synced to the committed
+`user.proto` (32/36/38, col 3). Documented deltas from prose: qualified
+commons type references; `GetUserRequest` defined. Ports compile with
+protocompile ≥ 0.15 (trendvidia/protocheck#34 gap 2).
+
+**Resolution — country fallback_message schema-authored (2026-07-24,
+GH #140, PR #150):** the golden pinned
+`fallback_message: "country not supported"` on `user.invalid_country`,
+but the fixture (and §5.3 prose) authored the rule with only a `code`
+override — underivable by any engine, since fallback-message synthesis
+for inline expressions is engine-specific and non-normative. Use-site
+`message = "country not supported"` added on the same line in
+`user.proto` and the §5.3 prose (golden and cited source lines 32/36/38
+unchanged; fixture stays delta-free). Found by protocheck's
+golden-equality run (trendvidia/protocheck#34), which vendored the
+fixture with exactly this delta — now droppable. Open follow-up: pin
+`"field is required"` as the normative `protowire.required` fallback
+message in §6.1/§7, or golden equality on that string rests on
+convention. (Resolved: GH #151, PR #152, next record.)
+
+**Resolution — reserved-code fallback messages pinned (2026-07-24,
+GH #151, PR #152):** new §7 "Reserved-code fallback messages"
+paragraph — spec-defined violations have no schema author, so their
+`fallback_message` must come from the spec for cross-port equality
+(goal 5). Pinned: `protowire.required` → `field is required` (golden +
+protocheck already verbatim); `protowire.depth_exceeded` →
+`recursion depth limit exceeded` (static — limit travels in
+`params.limit`, §6.4); `protowire.function.unimplemented` →
+`<function>: not implemented`; `protowire.function.invalid_argument` →
+`<function>: expected <n> argument(s)` / `<function>: argument <i> is
+not <type>`. `<function>` = declared FQN; `<type>` = schema-declared
+parameter type (§6.5), never host-language — refined from the issue
+text after auditing protobuf-go's adapters (Go type names would break
+equality). Runtimes MUST expose strings/template helpers alongside the
+code constants. §9.3 reference shape reworked onto the helpers (old
+example used bare `is_e164` + ad-hoc `want …` wording). Pin-only for
+protowire alternatives rejected: required-only (leaves three codes to
+drift), equality carve-out (weakens goal 5, per #134). Port fan-out
+rides the pre-#147/#148 reserved-namespace rename pass in protocheck /
+protobuf-go.
+
+**Resolution — map per-element covers the key dimension (2026-07-24,
+GH #141, PR #153):** §6.4's "per-element" for `map<K,V>` now explicitly
+covers both dimensions — entry values against the value type's rules,
+entry keys against the key type's rules (carried on the synthetic
+entry's `key` field by the §8 lowering); key violations set
+`EnrichedViolation.for_key` (§7, #125) with the map subscript
+addressing the entry as usual. Ratifies positions the machinery had
+already taken: `for_key` shipped in v1.3.0 specifically for key
+violations, and protocompile pins key-type alias rule preservation on
+the entry's key field (`TestTypeAliasFieldMapKeyStaysOnEntryField`).
+Keys-out-of-scope alternative rejected — it would orphan both. Raised
+by protocheck's per-key dispatch work (trendvidia/protocheck#37),
+which implements behind this ruling.
+
 ---
 
 ## #017 — protovalidate migration story
@@ -416,6 +534,27 @@ Document how a project using `[(buf.validate.field).cel = "..."]` migrates to `@
 - Manual rewrite (acceptable for small projects)
 - `pxf migrate-validate` subcommand that transforms in-place
 - `--compat` flag in protocompile accepting both forms during transition
+
+**Resolution (2026-07-24, GH #66, PR #162):** Adapter-first, three
+phases, pinned as RFC-001 Appendix C. Phase 0: unchanged `buf.validate`
+schemas validate at the protowire seam via
+`github.com/trendvidia/protocheck/protovalidate` (canonical home per
+trendvidia/protocheck#54; the protowire-go nested module deprecated in
+trendvidia/protowire-go#61). Phase 1: per-file rewrite — custom CEL
+rules carry over verbatim under the default `cel` engine (§9.4);
+Appendix C's mapping table covers standard rules (→ stdlib expressions
+/ `type` aliases) and the `required`-vs-`@required` presence delta
+(§6.1). Phase 2: drop `buf/validate` imports and the adapter. Of the
+three scaffold options: manual rewrite is the supported path;
+`--compat` **rejected** — `buf.validate` options are ordinary custom
+options that already parse and round-trip opaquely (§8.5), so the
+compat problem is runtime-shaped and the adapter is the answer;
+`pxf migrate-validate` **not built** — Phase 0 removes urgency, revisit
+on demand (the mapping is mechanical; adding a rewriter later needs no
+spec change). One normative pin: protowire engines MUST NOT interpret
+`buf.validate` options, so mixed-form schemas during transition are
+well-defined — both validators may run at one seam, reports disjoint by
+rule-ID namespace. Docs + that sentence only; no wire change.
 
 ---
 
@@ -444,6 +583,26 @@ Build a corpus in `testdata/schema-extensions/` covering:
 
 Cross-port adoption (M9+) gates on this suite passing in each port.
 
+**Resolution (2026-07-24, GH #68).** Corpus expanded to comprehensive
+coverage: `13_declaration_shapes` (every remaining declaration shape,
+all annotation param types with defaults), `14_refinement_kinds`
+(enum/wrapper/message refinement + field-level stacking), report
+goldens `15`–`19` (collection/key validation with `for_key`,
+`@sensitive` redaction, `protowire.function.unimplemented`,
+`RULE_KIND_DEFAULT`, locale-catalog miss with a rendering golden), and
+`invalid/` (eight must-not-compile fixtures with an error-class
+manifest — arity mismatch is the "invalid signature" state). All
+positive fixtures compile and lower through the reference
+`protocompile` pipeline; the lowered FileDescriptorSet round-trips
+through stock `protoc` byte-identically (§8.5); runtime goldens were
+computed with `protocheck` and hand-audited against the spec (the
+`15` map-key violation is spec-authored: engine-side key validation
+is a tracked protocheck gap, trendvidia/protocheck#53; the
+`base_type_fqn` qualification drift the `14` fixture pins is
+trendvidia/protocompile#121). Executable-harness expansion over the
+new fixtures rides protocheck's `roundtrip/` package at the next
+protowire pin bump.
+
 ---
 
 ## #020 — Upstream `buf/protocompile` compatibility
@@ -458,6 +617,20 @@ This fork diverges from upstream `buf/protocompile` once v1.2 grammar lands. Dec
 - Maintain a clean fork point + cherry-pick upstream non-conflicting commits
 
 Outcome shapes how `protocompile`'s long-term maintenance is organized.
+
+**Resolution (2026-07-24, GH #69, PR #159):** **Stay forked** through
+stack stabilization. `trendvidia/protocompile` owns its divergence from
+upstream `buf/protocompile` while the RFC-001 stack (compiler → engine →
+codegen → ports) is still being validated end to end; no upstreaming
+attempts, and no obligation to track upstream releases. Opportunistic
+cherry-picks of non-conflicting upstream fixes are permitted but not
+required — a clean fork point is not maintained as a discipline.
+Re-evaluate once the v1.2 stack is stable and conformance-verified
+across ports; until then, fork maintenance cost is accepted as the price
+of grammar ownership. Consumers needing stock parsing behavior keep
+using upstream `bufbuild/protocompile` — the two modules coexist (e.g.
+protowire's `cmd/pxf` pins upstream; the schema-extensions pipeline pins
+the fork).
 
 ---
 
@@ -488,6 +661,43 @@ the standard 50400 carrier. Chameleon stays orthogonal (schema declares
 (§13 #13/#14): `class:` taxonomy parameter; schema-level
 `@encrypted(key_ref)`. Conformance fixtures ride the corpus expansion
 (#019 / GH #68).
+
+**Resolution (2026-07-25, GH #111, PR #163):** the `class:` taxonomy
+parameter is **accepted** — `annotation sensitive(class: string = "")`
+(RFC-001 §6.7). The deferral's "until a consumer needs to distinguish
+classes" clause fired: the planned chameleon editor's enterprise key
+management routes sensitive-field maintenance by key access, which
+needs a stable schema-side join key (field → class → key domain), and
+pxfed cloud needs one uniform surface across tenants rather than
+per-org stacked annotations. Design: open org-defined vocabulary (no
+fixed enum, no spec registry — taxonomies are org policy); `protowire.`
+prefix reserved with compile-time rejection (mirrors the §7 code
+reservation; `invalid/reserved_sensitive_class.proto`); single string,
+never a list (deterministic key routing — a one-way door pinned now
+since string → list is not additive); effective class = nearest
+`@sensitive` that specifies one (field > alias chain most-derived
+first > message), bare `@sensitive` reasserts without reclassifying;
+redaction minima stay class-invariant including `""` (= today's
+behavior, existing schemas untouched). Additive defaulted param on the
+standard `AnnotationArg` carrier — no grammar, wire, or report change.
+Fixture `20_sensitive_class.proto` pins every arm of the effective-
+class rule. Reference-toolchain gap: protocompile does not yet reject
+the reserved prefix (issue to file, precedent protocompile#121).
+
+**Resolution (2026-07-25, GH #112, PR #163):** `@encrypted(key_ref)`
+is **rejected** — protection metadata never enters the schema, now
+permanent §6.7 text rather than a provisional deferral. Key
+references, algorithms, and rotation state are deployment topology:
+they churn per environment and per tenant while the data's meaning is
+unchanged, and annotations lower into `FileDescriptorSet` artifacts
+(§8.1) that are committed, embedded, and shipped across org
+boundaries — pxfed cloud makes the leak concrete (schemas travel to
+the hosted service; key topology must not). Same reasoning as §9.4's
+config-out-of-file-options. The chameleon editor is served by the
+sanctioned split contract: schema declares *what* is sensitive and
+*which class* (#111); chameleon maps class → key domain in its own
+security-layer configuration, so enterprise key rotation and
+per-environment topology never touch the schema.
 
 ---
 
@@ -564,6 +774,66 @@ and fixture 04's header updated accordingly; the #033/#034
 dual-emission acceptance boxes above are struck. Shipped protocompile
 M1 carrier-only emission is ratified as-is — nothing reopens, and
 nothing is added to protocompile#69.
+
+---
+
+## #024 — §9.3 codegen contract vs §9.1 SPI; documentation layer
+
+**Repo:** `protowire`
+**Milestone:** M0
+**Labels:** `spec`, `schema-extensions`
+
+Surfaced by the #060/#061 protobuf-go codegen work (protobuf-go PR#4)
+and protocompile#117 service/RPC decoration scoping: the §9.3
+reference `RegisterFunctions` shape did not compile against the
+ratified §9.1 `Register(fqn string, impl Function) error` SPI; the
+generated guard code `function.invalid_argument` sat in user
+codespace despite being minted by spec-mandated tooling; and the RFC
+was silent on whether lowering may inject `@description` into
+`SourceCodeInfo` comments.
+
+**Resolution (2026-07-24, GH #145, PR #147):** three pins. (1) §9.3
+reference shape amended to the error-returning adapter form matching
+the §9.1 SPI: generated arity/type guards wrap the typed `Functions`
+methods, `Register` errors propagate. (2) §7 reserves
+`protowire.function.invalid_argument` as the third spec-defined code,
+minted only by generated adapters; runtimes MUST expose reserved
+codes as typed host-language constants and spec-mandated codegen MUST
+reference them — `Violation.code` stays a wire string (open
+namespace, catalog keying, forward compat), so no proto enum.
+protobuf-go's shipped `function.invalid_argument` spelling rename is
+tracked downstream. (3) §8.5 gains the normative rule: `SourceCodeInfo`
+is authorial — lowering MUST NOT synthesize comments from annotations;
+annotation-aware codegen reading the 50400 carrier is the canonical
+— and only — documentation-emission layer, so stock plugins do not
+surface `@description` and ports wanting generated-code docs need an
+annotation-aware plugin.
+
+---
+
+## #025 — Stub code `"unimplemented"` vs the §7 reserved namespace
+
+**Repo:** `protowire`
+**Milestone:** M0
+**Labels:** `spec`, `schema-extensions`
+
+Surfaced while resolving #024/GH #145: the §9.2 lenient missing-impl
+placeholders and §9.3 `UnimplementedFunctions` stubs return
+`Code: "unimplemented"` — minted by spec-mandated machinery, yet
+sitting in user codespace, collidable, and unpinned for cross-port
+report equality (goal 5). Decide: reserve, or record why not.
+
+**Resolution (2026-07-24, GH #148, PR #149):** reserved as
+**`protowire.function.unimplemented`** — the fourth §7 spec-defined
+code, spelled in the `protowire.function.*` family alongside
+`invalid_argument` since both are generated function machinery (the
+flat `protowire.unimplemented` spelling was rejected as reading like
+whole-validator state). §9.2 pins the code for lenient-mode
+placeholder failures; the §9.3 stub example references the
+`CodeFunctionUnimplemented` typed constant per the §7 constants
+mandate. Fan-out folded into existing downstream issues:
+protocheck#48 (fourth constant), protobuf-go#6 (stub-emission rename
+alongside the guard rename).
 
 ---
 
@@ -772,6 +1042,23 @@ helper, never string-splits. The sketch's `User#message_validate#0` hash
 form is dropped. Emission re-key + remaining entry kinds stay tracked in
 protocompile#66.
 
+**Resolution — EntryKind deprecation rejected (2026-07-24, GH #76, PR
+#160):** protowire#76 proposed deprecating/removing `FIELD_VALIDATE`,
+`MESSAGE_VALIDATE`, and `FUNCTION_CALL` on the grounds that emitting
+them would couple the compiler to one validator's annotation-name
+conventions. The concern was resolved by redefinition, not removal,
+when protocompile#66 landed the remaining kinds: classification is
+**placement-based** (field/extension carriers → `FIELD_VALIDATE`,
+message carriers → `MESSAGE_VALIDATE`, every other carrier →
+`ANNOTATION_USE`) — pure structure, no annotation-name knowledge — and
+`FUNCTION_CALL` entries derive from the compiler-extracted
+`Expression.calls` (§8.1), requiring no engine-language parsing. All
+five variants are emitted by the reference lowering, consumed by
+protolsp navigation, and normative in the §8.3.1 descriptor-path
+grammar (entry shape is keyed by kind; `FUNCTION_CALL` carries the
+`callAnchor`). Removal would break ratified surface; the enum stands
+as specified. Issue closed as obsolete.
+
 ---
 
 ## #040 — `protocheck`: engine SPI (Go interface)
@@ -908,6 +1195,32 @@ Current state: no locale awareness. `Violation.Message` is a single string; `Vio
 - [ ] Render path falls back to `fallback_message` on catalog miss (locale missing, code missing)
 - [ ] Template substitution interpolates `params` correctly
 - [ ] At least two locale catalogs (e.g., `en`, `fr`) exercised in tests against the conformance fixtures
+
+**Resolution — catalog library source format (2026-07-25, GH #194, PR
+#195):** `catalog_libraries` was a dangling pointer — nothing defined
+what a referenced file contains, blocking every consumer (protolsp#267
+localized violation messages, `pxf build` validator binaries). Pinned
+in §7: a catalog source is a **text-format
+`protowire.schema.catalog.v1.Catalog`** message (new
+`proto/schema/catalog/v1/catalog.proto`), per the #011/GH #60
+engine-config precedent — no-JSON/YAML, no grammar change, no carrier
+extension, nothing leaks into descriptors. A `catalog` *language*
+declaration was rejected: catalogs are translator-maintained runtime
+data, not schema, and lowering them would put localized strings in
+`FileDescriptorSet` artifacts (the §9.4/#112 argument). One locale per
+file (BCP 47 `locale` is the `RegisterCatalog` key); `entries` map
+violation code → `{param}` template, with interpolation/fallback
+semantics pinned from the reference `MapCatalog` (unmatched
+placeholders pass through verbatim); multiple files per locale merge,
+duplicate codes across files are a load error; paths resolve relative
+to the declaring config file — **not** proto import paths (contrast
+`function_libraries`), so `pxf build` ignores them and engines load
+them at init. Fixtures: `08_engine_config` values are now `.textproto`
+paths; the `19_catalog_miss` pinned catalog is a real source file
+(`catalog_de.textproto`), the loader-conformance target. Reference
+loader: `protocompile` beside `engineconfig`, returning plain
+`(locale → entries)` data that feeds `NewMapCatalog` with no new
+dependency edge. ICU/plural template forms deferred (§13 #15).
 
 ---
 
@@ -1088,14 +1401,250 @@ Wire `protocheck` into `protowire-go`'s decode path so that PXF / `pb` / SBE dec
 
 ---
 
-## #080 — OpenAPI generator (separate tool)
+## #080 — OpenAPI generator (`pxf openapi`)
 
-**Repo:** TBD (likely `pxfed` or new `protowire-openapi`)
+**Repo:** `protowire` (`cmd/pxf` — decided 2026-07-25, GH #93)
 **Milestone:** M8
 **Labels:** `openapi`, `tooling`, `schema-extensions`
 **Depends on:** #034
 
 Consume descriptors; map common `@validate` shapes to OpenAPI keywords (`matches` → `pattern`, `this.size()` → `minLength`/`maxLength`, `this in [...]` → `enum`, etc.). Emit `x-validation` extension for non-mappable rules. Type aliases become `components/schemas/<Name>`. Gnostic-style `@description` / `@example` / `@http` integrate.
+
+**Resolution (2026-07-25, GH #93, PR #172) — landing site:** **`pxf
+openapi` subcommand in `trendvidia/protowire`** — no new repo. `pxfed`
+was excluded at audit (deprecated, superseded by goed); a standalone
+`protowire-openapi` repo is rejected because the generator is a
+**boundary renderer** over artifacts this repo already owns and emits —
+the lowered schema image (`pxf build`, #164/PR #167) and the doc pack
+(`pxf docs build`, GH #170) — so a separate repo would split the `pxf`
+family and re-import the image-consumption machinery for no isolation
+benefit. `pxf` accretes the coherent family: `build` (schemas → image),
+`docs build` (topics → pack), `openapi` (image + pack → boundary
+formats). Binding format principle (decided 2026-07-25, recorded on GH
+#93): JSON/YAML are integration-boundary formats only — OpenAPI is
+emitted at the edge; no OpenAPI-shaped intermediate or JSON libraries
+in the doc pipeline (precedents: #164, #66/Appendix C). Scope note: the
+M8 design gaps recorded on GH #93 remain open design work for the
+implementation phase — operation surface (enrich `@http` with defaulted
+params vs. a generator-owned `openapi.*` annotation library);
+audience/visibility tiers (taxonomy defined once at the doc-model
+level, GH #170, so every renderer inherits it; transitive-consistency
+checking and artifact-filtering-vs-descriptor-stripping semantics
+designed up front); availability version (prefer derivation from
+registry history over authored `@since` claims). Inputs: #034 lowering
+output via the #164 image; doc-model inputs arrive with GH #170.
+
+**Resolution (2026-07-25, GH #173) — the three M8 design gaps.** #170
+landed (PR #174), so the doc pack the renderer reads is a real artifact
+and the design gaps recorded on GH #93 are answerable.
+
+*Gap 1 — operation surface: enrich canonical `@http`.* The added
+parameters are `summary`, `operation_id`, `tags` and `security`, all
+defaulted, so the v1.2.0 two-argument form is unchanged and no existing
+schema changes shape (§5.2; fixture `21_http_operation.proto`). Binding
+rules: `{name}` path segments bind to same-named top-level request
+fields; remaining fields bind to the query string for bodyless methods
+and to the request body otherwise; `operation_id` defaults to
+`<Service>_<Method>`, which is unique by construction; `summary` falls
+back to the first sentence of `@description`. `tags` and `security`
+take list literals of strings — the annotation grammar admits no
+`repeated` parameter type (§5.1 `paramType ::= qualifiedIdent`), so
+list-shaped values ride `any` plus a `Literal.list` (§8.1).
+
+The alternative — a generator-owned `openapi.*` annotation library with
+zero spec involvement, gnostic-style — was considered and **not**
+chosen. The cost of the chosen route is recorded rather than elided:
+OpenAPI vocabulary now sits in the library every port mirrors and the
+IETF draft describes, and the surface can only grow additively from
+here. What makes it tolerable is that the parameters carry no
+validation semantics and impose no port obligation beyond carrying them
+through the §8.1 carrier — a port that renders no REST surface parses
+them and interprets nothing.
+
+*No `responses` parameter.* Responses are **derived**: the success
+response from the method's return type, error responses from
+`@error_code` plus the §7 report model, which the settled schema half
+already maps. Authored per-status descriptions would need a list of
+message literals, and while the carrier represents that shape
+(`LiteralValue.literal`, §8.1), the reference parser rejects it at an
+annotation argument today — so the shape would have been specified
+ahead of the toolchain that can express it. Revisit when the parser gap
+closes and demand exists.
+
+*Responses deferral resolved (2026-07-25, GH #177) — derived-only
+stands.* The parser precondition closed the same day the gaps were
+recorded (trendvidia/protocompile#127 → #128, merged post-v0.21.0;
+corpus pinned by GH #176 / PR #178), which left demand — and none
+exists: `pxf openapi` has not yet run against the derived model to
+produce counter-evidence, and no consumer on the roadmap (doc packs,
+GH #170; the chameleon/pxfed product plans) authors per-status HTTP
+metadata. Decision: responses stay **derived-only**, and the deferral
+converts from two conditions into a principled bar. An authored
+per-status list is an unverifiable claim — the same test that rejected
+authored `@since` (Gap 3) and `@encrypted` (#112): nothing in the
+toolchain or runtime would check that an authored status corresponds
+to anything the service can actually do, so the parameter would invite
+schema/runtime drift with no consumer to justify it. A future proposal
+must arrive with a concrete consumer and clear that bar, and the
+narrower lever is preferred when it does — e.g. a defaulted scalar
+`success_status: int = 200` for 201/204-style success semantics —
+rather than an authored per-status vocabulary.
+
+*Gap 2 — audience/visibility tiers: artifact filtering, config-assigned
+tiers.* The taxonomy is `protowire.docs.v1.Audience` (GH #170):
+`PUBLIC` → `COMMUNITY` → `PARTNER` → `ENTERPRISE` → `INTERNAL`,
+widening in restriction. Three sub-decisions:
+
+- **Filtering, never stripping.** `pxf openapi --audience <tier>` emits
+  only elements at or below the requested tier. Descriptors are never
+  rewritten: descriptor stripping has spec implications — what a
+  conformant consumer may assume about an image's completeness — and
+  would need its own design pass, which nothing yet demands.
+- **Tiers are assigned by generator configuration** — FQN globs to
+  tier, defaulting to `PUBLIC` — not by a new canonical annotation.
+  Visibility is deployment policy: which audience sees an API is an
+  org-and-deployment fact, and the §9.4 / #112 reasoning keeps that out
+  of descriptors that cross org boundaries. Doc-pack topics anchoring
+  an element contribute their own tier, so documentation and API
+  surface cannot disagree.
+- **Transitive consistency is an error.** A `PUBLIC` element whose
+  schema closure reaches an `INTERNAL` one fails generation, naming
+  both ends. Emitting a public schema with a dangling `$ref`, or
+  silently inlining a restricted definition, are both worse than
+  refusing.
+
+*Gap 3 — availability version: derived, never authored.* `x-since` is
+stamped from **protoregistry history** — the first registered revision
+in which an element appears — when registry coordinates are configured,
+and omitted otherwise. No canonical `@since` annotation is added: an
+authored claim is unverifiable and nothing in the toolchain would check
+it, whereas the registry already knows. An org that annotates `@since`
+in its own namespace is user-space and the generator ignores it, which
+stays true unless a compatibility-checking MUST ever attaches to the
+value.
+
+*Document-level metadata* (`info`, `servers`, security-scheme
+definitions) remains generator configuration, per the #112 reasoning —
+unchanged by this resolution.
+
+**Resolution — repeated `@http`, and `operation_id` uniqueness
+(2026-08-09, GH #215, PR #216):** **one operation per binding; ids are
+authored after the first and checked document-wide.** #081 lowered a
+repeated `@http` to a rule plus `additional_bindings`, and the renderer
+still read only the first use site — so a document could describe fewer
+routes than the image binds, #081's failure pointed the other way.
+`pxf openapi` now emits an operation per use site, and `x-since` stamps
+every one.
+
+*Why authored rather than suffixed.* "`operation_id` defaults to
+`<Service>_<Method>`, which is unique by construction" holds only while
+a method has one `@http`; repetition dissolves the construction. An
+index-derived id (`Orders_GetOrder_2`) never fails, but it is
+positional: reordering two annotation lines renames a method in every
+generated client — a silent SDK break from an edit that changes no API.
+An authored id is stable under reordering and under path changes, so
+bindings after the first MUST name their own and omitting one is a
+generation error.
+
+*Uniqueness is now checked, not argued.* The construction argument was
+never verified, so two methods claiming one id rendered a colliding
+document in silence. The renderer rejects that independently of
+repetition — the same shape of defect as #081, one layer up.
+
+*Renderer, not compiler.* #081 made routing compiler-checked because a
+rule that cannot bind is unservable. `operation_id` is documentation
+metadata that §5.2 permits a port to parse and ignore, so checking it
+in the compiler would impose a rendering concern on ports that render
+nothing. Conformance fixture `22_http_additional_bindings.proto` states
+what repetition means for ports, and pins that the #200 coverage
+denominator counts methods, not bindings.
+
+---
+
+## #081 — `@http` lowering: carrier-only vs `google.api.http`
+
+**Repo:** `protowire` + `protocompile` (GH #213)
+**Milestone:** post-M8
+**Labels:** `spec`, `schema-extensions`, `tooling`
+**Depends on:** #080
+
+`@http` lowered to the `50400` carrier and nothing else. The routing
+information was complete and correct in an encoding no off-the-shelf
+consumer reads: every REST binder (connect vanguard, grpc-gateway,
+Envoy's `grpc_json_transcoder`, buf's OpenAPI plugins) reads
+`MethodOptions` field `72295728`. The failure was silent — zero rules
+found, zero routes bound, nothing reported — and worse beside the #080
+renderer, which described routes nothing served. Decide: is `@http`
+sugar over `google.api.http`, or a documentation-only annotation?
+
+**Resolution (2026-08-08, GH #213, PR #214 / protocompile#132):**
+**Sugar — dual lowering, both surfaces, default on.** RFC-001 §5.2
+gains the normative rule: the routing skeleton lowers to the §8.1
+carrier *and* to `google.api.http`. The two are complements — the
+carrier keeps `summary` / `operation_id` / `tags` / `security`, which
+`HttpRule` has no place for; the standard option carries the skeleton
+downstream acts on. §5.2 pins the mapping table, the rule that an
+author-written `(google.api.http)` is never joined by a competing rule,
+and the opt-out (`pxf build --google-api-http=false`).
+
+*Why this is not a reversal of #023.* That decision refused
+dual-emission into `(pxf.required)` / `(pxf.default)` — two competing
+surfaces for semantics **this project owns**, where back-filling one
+from the other would make neither authoritative and migration
+ambiguous. `72295728` is a number protowire does not own, in a
+vocabulary defined and versioned by googleapis, carrying a strictly
+narrower fact (verb and path) than the carrier. Nothing is back-filled
+in either direction: the carrier is never derived from an authored
+`HttpRule`, and an authored `HttpRule` is never overwritten. The test
+that separates the two cases is ownership, not arity of emission.
+
+*No import is added.* The option rides in the options message's
+unknown-field bytes exactly as the §8.1 carriers do. Adding
+`google/api/annotations.proto` to `dependency` would oblige every image
+to carry those files or fail `protodesc.NewFiles`, trading a
+self-contained image for a declaration nothing checks; consumers
+resolve the extension through their own type registry, as they do for
+any `protoc`-produced descriptor.
+
+*Lowered means checked.* Because the skeleton now produces a rule
+something will try to serve, `{name}` segments binding no request field
+— plus segments binding a repeated field, relative paths, unbalanced
+braces and empty verbs — are compile errors rather than image content
+(one fixture per class, `invalid/http_*.proto`). #080's renderer
+already rejected the naming-nothing case, so on that class the two ends
+of the toolchain stop disagreeing about what is servable. This narrows
+what v1.2 sources a v1.10.0 compiler accepts; the narrowing and its
+justification are recorded in `STABILITY.md`.
+
+*Landing site:* the lowering is in the reference compiler, not the CLI,
+so every image producer inherits it and the diagnostics carry source
+positions from the IR pass rather than arriving as a bare CLI error.
+
+**Left open by this resolution.** The agreement above held for the class
+the fixture pins and not yet for the whole template grammar; both gaps
+are the same shape as the one #213 closed, and neither was settled by
+the text §5.2 carried at the time. Each is tracked by its own issue and
+closes in its own change; a bullet records its resolution when it does:
+
+- *Template grammar* (GH #217) — **resolved: the renderer widens.** §5.2
+  now states the compiler's rule (a dotted path from the request
+  message's top level, optionally constrained by the `HttpRule` sub-path
+  form) and #080's renderer implements it, so `@http("GET",
+  "/things/{ref.id}")` and `{name=shelves/*}` document as well as they
+  bind. Widening rather than narrowing, on the same ownership argument
+  as this entry: the dotted form is legal `HttpRule` that grpc-gateway
+  serves and the compiler shipped in v0.24.0, so narrowing would be a
+  second source-level narrowing stacked on v1.10.0's five. The
+  agreement is not total, and §5.2 says where it stops: a message-typed
+  *leaf* still compiles and binds and then fails to render, two
+  bindings differing only in a sub-path constraint normalise to one
+  OpenAPI path key and collide, and the constraint itself reaches the
+  document nowhere. Those three are the open remainder of this bullet —
+  each names which end would have to move, and none is settled here.
+- *`additional_bindings`* (GH #215). Every use site lowers; #080's
+  renderer describes the first. The blocker is what `operation_id` a
+  second binding carries, since the derived `<Service>_<Method>` is no
+  longer unique.
 
 ---
 
@@ -1128,4 +1677,5 @@ Consume descriptors; map common `@validate` shapes to OpenAPI keywords (`matches
 - **M6** (i18n): #043.
 - **M7** (Tooling integration): #052, #061.
 - **M8** (OpenAPI): #080.
+- **Post-M8**: #081.
 - **M9+** (Per-port adoption): one issue per port repo following the same shape.

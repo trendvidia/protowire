@@ -1,0 +1,575 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Protowire Documentation Platform — the typed authoring model
+// (issue #170, layer 1 of the three-layer documentation direction;
+// runtime layer: trendvidia/appviewer#364, authoring layer:
+// trendvidia/goed#321).
+//
+// This file defines what a documentation *source* is. Topics are
+// authored as PXF documents (`@type protowire.docs.v1.TopicFile`) and
+// compiled by `pxf docs build` into the doc pack defined in the sibling
+// `pack.proto` — the docs analog of the lowered schema image (#164).
+//
+// Written in stock proto3, like `schema/v1/report.proto` and
+// `schema/v1/descriptor.proto`: the model is consumed by runtimes and
+// editors across every port, so it must be parseable without a v1.2
+// grammar. Structural rules that a v1.2 `@validate` would express are
+// enforced by the compiler instead (see docs/DOC-PACK.md § Validation) —
+// the revisor gate in particular is deliberately compiler policy, not
+// IDE machinery.
+//
+// Format rule (binding, 2026-07-25): JSON/YAML are integration-boundary
+// formats only. Topics, anchors, review metadata, the search index and
+// the pack are PXF/protobuf-typed end to end. Prose is typed too — a
+// tree of blocks and inline runs, never a markdown blob — because every
+// consumer (runtime help, the static-HTML renderer of #171, the search
+// indexer) needs structure, and a renderer that has to re-parse prose is
+// a renderer that disagrees with its siblings.
+
+syntax = "proto3";
+
+package protowire.docs.v1;
+
+// ── Document root ─────────────────────────────────────────────────────────
+
+// TopicFile is the root of one authored `.pxf` documentation source.
+//
+// A file may carry several topics (a small feature and its subtopics
+// travel together) and the redirects that keep old anchors resolvable
+// after a rename. Grouping is an authoring convenience only: topic
+// identity is `key` + `locale`, never the file path, so moving a topic
+// between files is not a breaking change for anything that links to it.
+message TopicFile {
+  // Topics defined by this file, in authoring order. Order is not
+  // meaningful to the compiler: the pack sorts by (key, locale).
+  repeated Topic topics = 1;
+
+  // Anchor redirects declared by this file (§ Anchor stability). A
+  // redirect is a *fact about the world* — "this schema element was
+  // renamed at version X" — so it lives beside the topics that record
+  // the same evolution rather than in a separate registry file.
+  repeated Redirect redirects = 2;
+}
+
+// ── Topic ─────────────────────────────────────────────────────────────────
+
+// Topic is one documentation unit: a stable key, a locale, the metadata
+// renderers filter on, and typed prose.
+message Topic {
+  // Stable dotted identity, e.g. "widgets.button.overview". The key is
+  // the contract every consumer holds — deep links, cross-references,
+  // runtime help lookups, the search index. Renaming a key requires a
+  // Redirect with `topic` targets, exactly as a schema rename does.
+  //
+  // Grammar: lowercase segments of [a-z0-9_], separated by ".", at least
+  // one segment, no empty segments.
+  string key = 1;
+
+  // BCP 47 language tag of this topic's prose, e.g. "en", "pt-BR". The
+  // pack's source locale is a build input; a topic whose locale differs
+  // from it is a translation and MUST carry `translation`.
+  string locale = 2;
+
+  // Human-readable title. Indexed with title weight; rendered as the
+  // topic's heading and as its search-result label.
+  string title = 3;
+
+  // One-sentence summary. Rendered in search results, hover cards and
+  // topic listings; indexed with body weight.
+  string summary = 4;
+
+  TopicMeta meta = 5;
+
+  // What the topic documents. Anchors are how a runtime answers "show
+  // help for what I am pointing at" (appviewer#364) and how a renderer
+  // links a violation, a schema element or a widget to its prose.
+  //
+  // Every anchor is resolved at build time; an anchor that resolves to
+  // nothing is a compile error, never a runtime shrug.
+  repeated Anchor anchors = 6;
+
+  // The prose body.
+  Prose body = 7;
+
+  // Review state. Required: an unreviewed topic is a legitimate working
+  // state, but it must say so — release builds refuse anything that is
+  // not APPROVED.
+  Review review = 8;
+
+  // Translation provenance. MUST be set when `locale` differs from the
+  // pack's source locale, and MUST be unset otherwise.
+  Translation translation = 9;
+}
+
+// TopicMeta carries the filtering and organisation facets. Split from
+// Topic so renderers that only need to decide *whether* to emit a topic
+// can traverse metadata without touching prose.
+message TopicMeta {
+  // Visibility tier. Defined once here and inherited by every renderer —
+  // runtime help, the static-HTML export (#171), the OpenAPI generator
+  // (#173, whose community/enterprise API filtering is the same
+  // taxonomy). Renderers filter; they never invent policy.
+  Audience audience = 1;
+
+  // Free-form tags for grouping and faceted search, e.g. "getting-started".
+  // Lowercase, [a-z0-9-]; duplicates are rejected.
+  repeated string tags = 2;
+
+  // Ordering hint within a parent listing. Lower sorts first; equal
+  // weights fall back to title order. 0 means unweighted (sorts last).
+  int32 order = 3;
+
+  // Parent topic key, for navigation trees. Must name a topic in the
+  // same build; cycles are a compile error.
+  string parent = 4;
+
+  // Product/runtime version this topic first described, e.g. "1.4.0".
+  // Distinct from an anchor target's own since-version: this is when the
+  // *documentation* became true, which is what a version-filtered docs
+  // site needs.
+  string since = 5;
+
+  // When set, the topic is retired: still compiled and still resolvable
+  // (old links keep working) but renderers mark it superseded and search
+  // deranks it. `superseded_by` names the replacement topic key.
+  string deprecated_reason = 6;
+  string superseded_by = 7;
+}
+
+// Audience is the visibility taxonomy shared by every renderer.
+//
+// Values carry the `AUDIENCE_` prefix because proto enum values share
+// package scope — the same reason `RuleKind` uses `RULE_KIND_` in
+// schema/v1/report.proto.
+//
+// The tiers are ordered by widening restriction: a topic is visible to a
+// build whose configured audience is at or below the topic's tier.
+// Transitive consistency (a PUBLIC topic anchoring an INTERNAL schema
+// element) is a compile error, not a rendering-time surprise.
+enum Audience {
+  // Unset. Treated as AUDIENCE_PUBLIC by the compiler, which also warns:
+  // visibility should be a decision, not a default. Release builds
+  // require it to be explicit.
+  AUDIENCE_UNSPECIFIED = 0;
+
+  AUDIENCE_PUBLIC = 1;     // anyone, including search engines
+  AUDIENCE_COMMUNITY = 2;  // authenticated users of the free tier
+  AUDIENCE_PARTNER = 3;    // named integration partners
+  AUDIENCE_ENTERPRISE = 4; // licensed enterprise deployments
+  AUDIENCE_INTERNAL = 5;   // never leaves the building
+}
+
+// ── Review ────────────────────────────────────────────────────────────────
+
+// Review is the state machine the goed authoring flow (trendvidia/goed#321)
+// drives and `pxf docs build` gates on.
+//
+// Approval is approval *of content*: `approved_digest` pins the topic
+// body the revisor signed off on. Editing an approved topic without
+// re-review leaves the digest stale, which the compiler reports — the
+// alternative (a bare APPROVED flag) makes approval a claim nobody can
+// check, and the whole point of the gate is that it is checkable.
+message Review {
+  ReviewState state = 1;
+
+  // Authoring identity (developer or technical writer).
+  //
+  // Identity convention (#197, normative — DOC-PACK.md § Review
+  // identity): the canonical form is the **git author email, normalized
+  // to lowercase**. Every producer — hand-authored topics, pxf tooling,
+  // editors, CI checks — MUST write and compare exactly that form. The
+  // release gate is a string comparison, so two spellings for one human
+  // defeat it in both directions; the compiler warns on values that do
+  // not look canonical. The same convention governs `reviewers`,
+  // `revisor` and Translation.translator.
+  string author = 2;
+
+  // Who requested changes or signed off, depending on `state`. Same
+  // identity convention as `author`.
+  repeated string reviewers = 3;
+
+  // The revisor whose approval gates release. Required when state is
+  // REVIEW_STATE_APPROVED, and MUST NOT be the author: self-approval
+  // defeats the gate. Same identity convention as `author` — the
+  // inequality check is a string comparison, which is exactly why the
+  // form is pinned.
+  string revisor = 4;
+
+  // Digest of the topic content this review decision applies to —
+  // lowercase hex SHA-256 over the canonical encoding of the topic's
+  // title, summary and body (see docs/DOC-PACK.md § Content digest).
+  // Required when state is REVIEW_STATE_APPROVED.
+  string approved_digest = 5;
+
+  // Product version the approval was recorded against, e.g. "1.4.0".
+  // Optional; renderers use it to show how current a sign-off is.
+  string approved_version = 6;
+
+  // Free-form note from the review round (what the revisor asked for).
+  string note = 7;
+}
+
+enum ReviewState {
+  REVIEW_STATE_UNSPECIFIED = 0;
+  REVIEW_STATE_DRAFT = 1;              // being written; not offered for review
+  REVIEW_STATE_IN_REVIEW = 2;          // submitted, awaiting a revisor
+  REVIEW_STATE_CHANGES_REQUESTED = 3;  // revisor sent it back
+  REVIEW_STATE_APPROVED = 4;           // signed off; the only releasable state
+}
+
+// ── Translation ───────────────────────────────────────────────────────────
+
+// Translation records what a localized topic was translated *from*, so
+// staleness is a compiler signal rather than tribal knowledge.
+//
+// The mechanism mirrors the §7 locale-catalog pattern of the error model:
+// one entity per (key, locale), no inheritance between locales, and the
+// source locale is the single origin of truth.
+message Translation {
+  // Digest of the source-locale topic content this translation was made
+  // from, in the same form as Review.approved_digest. When the source
+  // topic's current digest differs, the translation is stale:
+  // `pxf docs build` warns, and release policy may escalate to an error.
+  string source_digest = 1;
+
+  // Translator identity (Review.author's identity convention: git
+  // author email, lowercased) and the product version translated
+  // against.
+  string translator = 2;
+  string translated_version = 3;
+}
+
+// ── Anchors ───────────────────────────────────────────────────────────────
+
+// Anchor points a topic at the thing it documents.
+//
+// Anchor kinds are classified by *stability*, because the failure mode is
+// proven rather than hypothetical: protocompile v0.18.0 re-keyed
+// `elementPath[fqn#ordinal]` descriptor paths and broke exactly this
+// class of persisted reference (trendvidia/protolsp#260).
+//
+//   - Stable by construction — schema FQNs, registry widget IDs, topic
+//     keys, app routes. They carry since-version semantics and survive
+//     toolchain upgrades. Prefer these; the compiler steers authors
+//     toward them.
+//   - Derived and fragile — descriptor paths, valid only against the
+//     image they were resolved with. Authored in *element* terms
+//     (see DescriptorPathAnchor) and re-derived on every build; the pack
+//     records the toolchain and image provenance for each one.
+//
+// A dangling anchor is a compile error. A moved target is a Redirect.
+message Anchor {
+  oneof target {
+    SchemaAnchor schema = 1;
+    DescriptorPathAnchor descriptor_path = 2;
+    WidgetAnchor widget = 3;
+    RouteAnchor route = 4;
+    TopicAnchor topic = 5;
+    TransitionAnchor transition = 6;
+  }
+
+  // Optional human label for renderers that show the anchor inline
+  // ("see Button.on_tapped"). When empty, renderers derive a label from
+  // the resolved target.
+  string label = 10;
+}
+
+// SchemaAnchor targets a protowire schema element by fully-qualified
+// name — the preferred anchor kind for API documentation.
+//
+// FQNs are stable by construction: a rename is a schema-breaking change
+// that already goes through the compatibility process, and when it does
+// happen the doc model records it as a Redirect.
+message SchemaAnchor {
+  // FQN of a message, enum, service, field, enum value, method, or a
+  // v1.2 `type` alias (preserved as a named entity in FileTypeDecls, so
+  // `components/schemas/<Name>` anchors resolve — §8.2).
+  //
+  // Members are addressed with the ordinary dotted form:
+  //   "myco.orders.Order"          message
+  //   "myco.orders.Order.total"    field
+  //   "myco.orders.OrderService"   service
+  //   "myco.commons.Email"         type alias
+  string fqn = 1;
+}
+
+// DescriptorPathAnchor targets an individual lowered rule — the second
+// `@validate` on a field, one function-call site inside an expression.
+//
+// It is authored in element terms, never as a path string. The canonical
+// §8.3.1 `descriptor_path` is *derived* by the compiler against the image
+// being built, because the path grammar is a toolchain artifact: authored
+// path strings silently rot when the grammar is re-keyed, and the whole
+// point of this anchor kind is to be re-derivable.
+message DescriptorPathAnchor {
+  // FQN of the element carrying the annotation, e.g. "myco.User.email".
+  string element_fqn = 1;
+
+  // FQN of the annotation whose use site is targeted, e.g.
+  // "protowire.schema.v1.validate". Empty targets the element's bare
+  // TYPE_REFINEMENT entry.
+  string annotation_fqn = 2;
+
+  // Zero-based ordinal among that annotation's uses on that element.
+  uint32 ordinal = 3;
+}
+
+// WidgetAnchor targets an appviewer registry entry — a widget type, one
+// of its properties, or one of its events (trendvidia/appviewer#33).
+//
+// Registry IDs are stable by construction and carry per-entry
+// since-versions, which is what makes the bundle compatibility contract
+// (ADR-0011) checkable — and what lets a doc pack say honestly which
+// runtime version a topic applies to.
+message WidgetAnchor {
+  // Registry type name, PascalCase, e.g. "Button".
+  string type = 1;
+
+  // At most one of `prop` / `event` may be set, naming a member of that
+  // widget's catalog entry, e.g. prop "text", event "onTapped".
+  //
+  // A prop resolves against the widget's own props, the props its
+  // structural parent reads on children (`child_props`), the common
+  // node props every widget accepts, and — since #199 — the
+  // template-composition attributes (`template`, `slot`, `content_slot`),
+  // which are offered by context on any widget node.
+  string prop = 2;
+  string event = 3;
+}
+
+// RouteAnchor targets a plain application route — a screen the app
+// navigates to, addressed the way the app addresses it.
+//
+// Routes are app-owned strings and cannot be resolved against a data
+// input; the compiler checks their shape (leading "/", no whitespace,
+// no fragment) and records them for the runtime to bind. This is the one
+// anchor kind whose target the compiler cannot prove exists, which is
+// exactly why it is a distinct kind rather than a stringly escape hatch.
+message RouteAnchor {
+  string path = 1;
+}
+
+// TopicAnchor cross-references another topic. Resolved within the build:
+// a reference to an unknown key is a compile error, and a key that has
+// moved resolves through its Redirect.
+message TopicAnchor {
+  string key = 1;
+}
+
+// TransitionAnchor targets one entry of the runtime's screen-transition
+// vocabulary (appviewer#276; catalog schema v9) — "slide", "fade".
+//
+// Transitions are catalog-global: they belong to no widget type, so they
+// are a distinct anchor kind rather than a pseudo-member of one (#199).
+// Resolved against the registry export's `transitions` list; names are
+// stable by construction, like widget IDs.
+message TransitionAnchor {
+  // Transition name as the catalog spells it, e.g. "slide".
+  string name = 1;
+}
+
+// AnchorStability classifies how well an anchor survives evolution. It is
+// derived by the compiler from the anchor kind — never authored — and
+// recorded on every resolved anchor in the pack so consumers can tell a
+// durable reference from one pinned to a specific image.
+enum AnchorStability {
+  ANCHOR_STABILITY_UNSPECIFIED = 0;
+
+  // Schema FQNs, widget IDs, topic keys, routes: identity is the name.
+  ANCHOR_STABILITY_STABLE = 1;
+
+  // Descriptor paths: identity is derived from a specific image with a
+  // specific toolchain. Valid only against the provenance recorded
+  // alongside it in the pack.
+  ANCHOR_STABILITY_DERIVED = 2;
+}
+
+// ── Redirects ─────────────────────────────────────────────────────────────
+
+// Redirect records that an anchor target moved: the old anchor still
+// resolves, through this entry, to the new one.
+//
+// This is what makes a rename an ordinary, documented event instead of a
+// wave of dangling links. Redirects chain (A → B → C) but must not cycle;
+// the compiler resolves chains to their terminus and rejects cycles.
+message Redirect {
+  // The retired anchor. Its target need not exist in the current inputs —
+  // that is the point.
+  Anchor from = 1;
+
+  // The anchor it now means. Must resolve, like any other anchor.
+  Anchor to = 2;
+
+  // Version boundary at which the move happened, e.g. "1.4.0". Renderers
+  // use it to explain the redirect ("renamed in 1.4.0"); consumers
+  // pinning an older version can resolve `from` directly.
+  string since_version = 3;
+
+  // Optional note for humans ("split into two messages").
+  string note = 4;
+}
+
+// ── Prose ─────────────────────────────────────────────────────────────────
+
+// Prose is a topic body: an ordered sequence of typed blocks.
+//
+// The model is deliberately small — it covers what technical
+// documentation actually uses, not what a markup language can express.
+// Internal models need not be feature-complete against upstream
+// counterparts; boundary renderers map what they map (precedents: #164,
+// #66/Appendix C).
+message Prose {
+  repeated Block blocks = 1;
+}
+
+message Block {
+  oneof kind {
+    Paragraph paragraph = 1;
+    Heading heading = 2;
+    CodeBlock code = 3;
+    ListBlock list = 4;
+    Admonition admonition = 5;
+    ImageBlock image = 6;
+    TableBlock table = 7;
+    ExampleBlock example = 8;
+  }
+}
+
+message Paragraph {
+  repeated Inline runs = 1;
+}
+
+// Heading is a section heading within a topic body. Levels are relative
+// to the topic (whose title is the document heading) and must start at 1
+// and never skip a level — a rule the compiler enforces, because heading
+// structure is navigation and accessibility, not decoration.
+message Heading {
+  uint32 level = 1; // 1-based, relative to the topic title
+  repeated Inline runs = 2;
+
+  // Stable fragment identifier for deep links, e.g. "error-handling".
+  // Derived from the heading text when empty; unique within a topic.
+  string id = 3;
+}
+
+// CodeBlock is a verbatim sample. `language` selects highlighting and
+// tells the indexer to tokenize as code (identifier-preserving) rather
+// than as prose.
+message CodeBlock {
+  string language = 1; // "proto", "pxf", "go", "" for plain
+  string source = 2;
+  string caption = 3;
+}
+
+message ListBlock {
+  bool ordered = 1;
+  repeated ListItem items = 2;
+}
+
+// ListItem holds blocks, not just runs, so a list can carry code samples
+// and nested lists without a second, weaker prose model.
+message ListItem {
+  repeated Block blocks = 1;
+}
+
+// Admonition is a called-out aside. The severity taxonomy is fixed so
+// every renderer styles the same set — an open vocabulary here would
+// mean each surface inventing its own.
+message Admonition {
+  AdmonitionKind kind = 1;
+  repeated Block blocks = 2;
+}
+
+enum AdmonitionKind {
+  ADMONITION_KIND_UNSPECIFIED = 0;
+  ADMONITION_KIND_NOTE = 1;
+  ADMONITION_KIND_TIP = 2;
+  ADMONITION_KIND_IMPORTANT = 3;
+  ADMONITION_KIND_WARNING = 4;
+}
+
+// ImageBlock references an asset by pack-relative path. `alt` is
+// required — an image without alt text fails the build, because
+// accessibility is a property of the model, not of one renderer's
+// diligence.
+message ImageBlock {
+  string path = 1;
+  string alt = 2;
+  string caption = 3;
+}
+
+message TableBlock {
+  repeated TableRow header = 1; // zero or one row
+  repeated TableRow rows = 2;
+  string caption = 3;
+}
+
+message TableRow {
+  repeated TableCell cells = 1;
+}
+
+message TableCell {
+  repeated Inline runs = 1;
+}
+
+// ExampleBlock embeds a live example: a PXF source fragment the runtime
+// can instantiate (an appviewer widget demo) or a schema instance a
+// documentation surface can render.
+//
+// This is the interactive-island seam of #171: HTML pages are the
+// document, wasm-engine embeds are islands inside them, and both read
+// this same block. The compiler does not execute examples; it validates
+// that the anchor they belong to resolves, so a demo can never reference
+// a widget that no longer exists.
+message ExampleBlock {
+  // What the example demonstrates. Must be one of the topic's anchors or
+  // resolve on its own terms.
+  Anchor subject = 1;
+
+  // PXF source of the example.
+  string source = 2;
+
+  string caption = 3;
+
+  // When true, renderers that cannot run the example (static HTML with
+  // no wasm island, a plain-text export) must still show `source`.
+  // Default false means the example may be omitted by such renderers.
+  bool show_source_fallback = 4;
+}
+
+// Inline is one run of inline content.
+//
+// Runs are flat, not nested: emphasis inside a link is expressed as two
+// runs, not a tree. Flat runs keep the indexer, the renderers and the
+// authoring layer honest about what is representable, and no technical
+// documentation has yet needed the tree.
+message Inline {
+  oneof kind {
+    string text = 1;          // plain text
+    string emphasis = 2;      // emphasised text
+    string strong = 3;        // strongly emphasised text
+    string code = 4;          // inline code span
+    Link link = 5;            // external or in-pack link
+    AnchorRef anchor_ref = 6; // reference to an anchor target
+  }
+}
+
+// Link is an ordinary hyperlink. `topic` and `url` are exclusive: a link
+// either stays inside the pack (and is checked) or leaves it (and is
+// only shape-checked).
+message Link {
+  string text = 1;
+  string url = 2;   // absolute URL, http(s) only
+  string topic = 3; // topic key within this build
+  string fragment = 4; // heading id within the target topic
+}
+
+// AnchorRef renders as a link to whatever surface is showing the anchor's
+// target — schema reference, widget catalog entry, another topic. The
+// anchor is resolved at build time exactly like a topic-level anchor, so
+// prose cannot silently point at something that no longer exists.
+message AnchorRef {
+  Anchor anchor = 1;
+  string text = 2; // display text; derived from the target when empty
+}

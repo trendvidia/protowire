@@ -45,8 +45,26 @@ func newRootCmd() *cobra.Command {
 		Short: "Protowire toolchain — PXF text format, schemas, and queries",
 		Long: "pxf is the unified CLI for the protowire stack. Subcommands cover\n" +
 			"the encode/decode/validate/fmt/lint surface for the PXF text format,\n" +
-			"plus a jq-style `query` subcommand and a `.proto`-emitting\n" +
-			"`infer-schema` subcommand for tabular inputs (CSV, PXF @dataset).",
+			"plus a jq-style `query` subcommand, a `.proto`-emitting\n" +
+			"`infer-schema` subcommand for tabular inputs (CSV, PXF @dataset),\n" +
+			"a `build` subcommand compiling v1.2 (RFC-001) schema sources\n" +
+			"to a lowered FileDescriptorSet image for stock buf/protoc, and a\n" +
+			"`docs` subcommand compiling documentation topics to a doc pack.",
+		// The usage block is help for an invocation cobra could not parse,
+		// not a trailer for every failed run: a runtime error (a dangling
+		// anchor, an unreadable file) already says what went wrong, and
+		// appending forty lines of flags buries it — CI logs and anything
+		// consuming stderr have to skip everything from "Usage:" on (#188).
+		//
+		// Cobra has no direct "usage on parse errors only" switch, but its
+		// ordering provides one: flag parsing and positional-arg validation
+		// run before PersistentPreRun, so flipping SilenceUsage here leaves
+		// usage output for exactly the errors it can help with. Inherited
+		// by every subcommand; a subcommand that declares its own
+		// PersistentPreRun must re-set this.
+		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
+			cmd.SilenceUsage = true
+		},
 	}
 
 	pf := root.PersistentFlags()
@@ -59,7 +77,7 @@ func newRootCmd() *cobra.Command {
 	root.AddCommand(
 		encodeCmd(), decodeCmd(), validateCmd(), fmtCmd(), lintCmd(),
 		sbe2protoCmd(), proto2sbeCmd(),
-		queryCmd(), inferSchemaCmd(),
+		queryCmd(), inferSchemaCmd(), buildCmd(), docsCmd(), openapiCmd(),
 	)
 	return root
 }

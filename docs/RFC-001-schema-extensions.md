@@ -202,9 +202,53 @@ annotation description(text: string);
 annotation example(value: any);
 annotation error_code(code: string);
 annotation deprecated(reason: string = "");
-annotation sensitive;
-annotation http(method: string, path: string);
+annotation sensitive(class: string = "");
+annotation http(
+  method: string,
+  path: string,
+  summary: string = "",
+  operation_id: string = "",
+  tags: any = [],
+  security: any = []
+);
 ```
+
+**`@http` and the operation surface.** `method` and `path` are the routing skeleton; the remaining parameters carry the operation metadata a REST-surface generator needs (issue #173). `path` may contain `{…}` template segments, each binding a field of the request message named **from its top level as a dotted path** (`{order_id}`, `{shelf.id}`); remaining request fields bind to the query string for bodyless methods and to the request body otherwise. `summary` falls back to the first sentence of `@description`; `operation_id` is derived as `<Service>_<Method>` when empty; `tags` and `security` take list literals of strings (§8.1 `Literal.list`), and the security-*scheme definitions* they name are generator configuration rather than schema content — the same §9.4 argument that keeps engine configuration out of file options and that rejected `@encrypted` (§6.7).
+
+**The routing skeleton lowers twice.** `method` and `path` MUST lower both to the §8.1 annotation carrier *and* to the standard `google.api.http` option on `MethodOptions` (field `72295728`, `google.api.HttpRule`). The two are complements, not alternatives: the carrier keeps the whole operation surface — `summary`, `operation_id`, `tags`, `security` — which `HttpRule` has no place for, while the standard extension carries the skeleton that every off-the-shelf REST binder reads (connect vanguard, grpc-gateway, Envoy's `grpc_json_transcoder`, buf's OpenAPI plugins). Emitting only the carrier is the failure this rule exists to prevent, and it is a silent one: the binder finds no rules, binds no routes, reports nothing, and every REST URL 404s as though the endpoint were unimplemented (issue #213).
+
+The transform is mechanical, because `@http`'s model is already 1:1 with `HttpRule`:
+
+| `@http` | `HttpRule` |
+|---|---|
+| `method` ∈ {`GET`,`PUT`,`POST`,`DELETE`,`PATCH`}, case-insensitive | the same-named pattern field |
+| any other `method` | `custom = CustomHttpPattern{kind: <verb, upper-cased>, path}` |
+| `path` | the pattern field's value, verbatim including `{name}` segments |
+| bodyless method (`GET`/`HEAD`/`DELETE`/`OPTIONS`) | no `body` — unbound fields bind to the query string |
+| any other method | `body: "*"` — every field the path template did not bind |
+| several `@http` use sites on one method | first is the rule; the rest are `additional_bindings`, in source order |
+
+**Several bindings on one method.** A method MAY carry several `@http` use sites — the shape that expresses a versioned or aliased route for one RPC. Each is a binding, and a REST-surface renderer emits **one operation per binding**: describing only the first would document less than the image binds, which is the dual-lowering failure above (issue #213) pointed the other way (issue #215). Bindings after the first MUST name their own `operation_id`. The derived `<Service>_<Method>` spelling is document-unique *by construction* only while a method has one binding; an index-derived alternative (`…_2`) would rename a generated client's method whenever two annotation lines are reordered, so the name is authored instead. A renderer MUST also reject two operations claiming one `operation_id`, which repetition makes reachable and which nothing checked while the construction argument held. Both obligations are the **renderer's**, not the compiler's: `operation_id` is documentation metadata, and a port that renders no REST surface parses it and interprets nothing. Conformance fixture: `testdata/schema-extensions/22_http_additional_bindings.proto`.
+
+`selector` and `response_body` are never written: the rule is attached to its method, and responses are derived (below). A method that already carries an author-written `(google.api.http)` keeps it unchanged — the compiler MUST NOT add a second, competing rule; because the annotation's own path still reaches the §8.1 carrier, the two spellings can then describe different routes, and a compiler SHOULD warn at the use site (the reference compiler does). A compiler MAY offer an opt-out (the reference CLI spells it `pxf build --google-api-http=false`); emission is the default.
+
+The emitted option adds **no import** to the lowered file. Like the §8.1 carriers, it rides in the options message's unknown-field bytes, so the descriptor set stays self-contained and resolvable by stock `protodesc`; consumers that link `google.api` resolve it through their own type registry, exactly as they do for a `protoc`-produced descriptor.
+
+Because the skeleton is lowered rather than merely carried, it is also **checked**: a `{name}` segment that binds no field of the request message is a compile error, as are a template segment binding a repeated or map field, a non-absolute path, unbalanced template braces, and an empty `method`. Each of those would otherwise produce a rule that no binder can serve, and each has its own conformance fixture: `invalid/http_unbound_template.proto`, `http_repeated_template.proto`, `http_relative_path.proto`, `http_unbalanced_template.proto`, `http_empty_method.proto`.
+
+**Template grammar** (issue #217). A segment's variable is a **dotted field path from the top level** of the request message: each component names a field of the message the previous one resolved to, no component may descend through a scalar, and no component may be `repeated` — a repeated field has no single value a path segment could carry. A variable MAY additionally be constrained by the `HttpRule` sub-path form `{name=shelves/*}`; the constraint belongs to the routing skeleton and reaches `google.api.http` verbatim.
+
+A REST-surface renderer normalises only what its own format cannot express: OpenAPI has no `{name=pattern}` template form, so the **path key** drops the constraint and keeps the variable (`/named/{name}`), while a dotted variable carries through unchanged because OpenAPI parameter names admit dots (`/shelves/{shelf.id}`). A nested binding removes **only the leaf it names** from the remaining-field binding: the leaf's siblings still bind, under their dotted names, exactly where an `HttpRule` consumer places them (`shelf.display_name` in the query string beside a path-bound `{shelf.id}`; in the body, the container is carried minus that leaf). Descending into a container exposes that container's own message-typed members to the binding, and one with nothing bound below it is refused like any other message-typed field — a renderer flattens where a bound leaf forces it to, not everywhere. A binding that descends *through* a self-referential type has no finite flattening and MUST be refused rather than truncated; the request message is itself on that descent, so the rule does not begin one level down (issue #218). Flattening also dissolves the reference a container's own `@sensitive` marker would have sat on, so the §6.7 minima MUST travel with it: a leaf lifted out of a sensitive container is a sensitive declaration wherever it lands — path parameter, query parameter, or inlined body property — and an inlined container carries its own markers on the object that replaces the reference. Conformance fixture: `testdata/schema-extensions/23_http_template_paths.proto`.
+
+**What the grammar above still leaves unsettled.** The dotted-path and sub-path *shapes* now mean the same thing at both ends of the toolchain, but three edges of that agreement are open, and a port MUST NOT read any of them as settled spec. Each is stated where it is, rather than resolved by whichever end was written last:
+
+- *A message-typed leaf.* The grammar constrains interior components only, so `{mid.inner}` — and equally a bare top-level `{mid}` — compiles and lowers when `inner` is message-typed, and the reference renderer then refuses it: a path parameter has no flat encoding for a message. Either the compiler rejects a non-value-shaped leaf (a sixth source-level narrowing, on top of the five above) or the renderer acquires a spelling for one. The compile-and-bind-then-refuse shape is unchanged from what issue #217 describes; only its reach shrank.
+- *Two bindings differing only in a constraint.* `{name=shelves/*}` and `{name=shelves/*/books/*}` are distinct routes to a binder — the canonical shape for a nested resource — but normalise to the same OpenAPI path key, so the reference renderer reports a duplicate operation and refuses the pair. Rendering both would need the pattern expanded into distinct keys (`/v1/shelves/{shelf}` and `/v1/shelves/{shelf}/books/{book}`), which is a template-rewriting scheme the renderer has nowhere else and which has to decide what the expanded variables are named.
+- *The constraint reaches no reader.* Dropping the pattern from the path key drops it from the document entirely: the rendered parameter is an unconstrained string, and OpenAPI's default `style: simple` percent-encodes the `/` that a `shelves/*` value must contain. A JSON Schema `pattern` on the parameter would carry the constraint faithfully (`*` is one segment, `**` is zero or more), but it does not fix the encoding, so a document that claims a multi-segment path parameter is describing something OpenAPI cannot express either way.
+
+Operation *metadata* carries **no validation semantics**. A port that renders no REST surface parses `summary`, `operation_id`, `tags` and `security` like any other annotation arguments and interprets nothing; conformance requires carrying them through the §8.1 carrier, not acting on them. Responses are derived rather than authored — the success response from the method's return type, error responses from `@error_code` plus the §7 report model — so `@http` has no `responses` parameter (rationale: `docs/RFC-001-issues.md` §#080).
+
+Every parameter beyond `method` and `path` is defaulted, so the v1.2.0 two-argument form keeps its meaning and no existing schema changes shape. Conformance fixture: `testdata/schema-extensions/21_http_operation.proto`.
 
 The existing PXF annotations `(pxf.required)` and `(pxf.default)` retain their bracket forms and extension numbers (`50000`, `50001`): bracket-written options remain valid v1.2 input and lower identically to v1.1. `@required` and `@default(value)` are the canonical annotation form going forward, and they lower **exclusively** to the schema-extension carrier (§8.1) — the annotation forms never emit the legacy options (§8.5). A consumer that reads only `(pxf.required)`/`(pxf.default)` observes bracket-written options and nothing else; enforcing the annotation forms requires a carrier-aware (v1.2) consumer.
 
@@ -231,7 +275,7 @@ message User {
 
   string country = 3
     @default("US")
-    @validate(this in ["US", "CA", "GB"], code = "user.invalid_country");
+    @validate(this in ["US", "CA", "GB"], code = "user.invalid_country", message = "country not supported");
 }
 
 @description("user management operations")
@@ -254,7 +298,7 @@ This RFC inherits protowire's three-state presence model verbatim:
 | **Null** | Validation skipped; null is explicit "no value." The field already opted into nullability via wrapper / `optional`. |
 | **Absent** | Validation skipped; if `@required`, absence itself is the error (prior layer). If `@default(value)`, the default substitutes and validation runs on the default. |
 
-This eliminates the proto3 zero-value ambiguity in the validation layer: validation runs only on values the producer meant to set. `@required` is the separate "must be present" lever, orthogonal from "if present, must match."
+This eliminates the proto3 zero-value ambiguity in the validation layer: validation runs only on values the producer meant to set. `@required` is the separate "must be present" lever, orthogonal from "if present, must match." Absence of a `@required` field reports `code: "protowire.required"` with the spec-pinned fallback message (§7).
 
 ### 6.2 Wrapper and well-known type handling
 
@@ -319,7 +363,21 @@ Per-field validation runs in source-order through the type chain (base → deriv
 
 `oneof` validates only the active variant.
 
-`repeated` and `map<K,V>` validate per-element (using the element's type rules) plus any field-level `@validate` against the collection as a whole.
+`repeated` and `map<K,V>` validate per-element (using the element's type rules) plus any field-level `@validate` against the collection as a whole. For `map<K,V>`, per-element covers **both dimensions**: entry values validate against the value type's rules, and entry keys against the key type's rules (carried on the synthetic entry's `key` field by the §8 lowering). Key violations set `EnrichedViolation.for_key` (§7), with the path's map subscript addressing the entry as usual.
+
+**Default substitution.** When an absent field carries `@default(value)`,
+the default substitutes and the field's rules run against the substituted
+value (§6.1). Every violation those rules produce MUST carry
+`rule_kind: RULE_KIND_DEFAULT` — superseding the `VALIDATE` or
+`TYPE_REFINEMENT` kind the same rule would carry for a producer-set value
+— and `actual_value` MUST be the substituted default. The distinct kind
+marks the failure as a **schema-authoring error**: the declared default
+itself fails the field's rules, so no producer input can trigger it and
+no producer change can fix it. Rule origin stays recoverable from
+`cause.code` and `type_chain`. Tooling MAY additionally reject such
+defaults at compile time (the §5.2 annotation library documents the best
+practice); a schema that passes that check never yields
+`RULE_KIND_DEFAULT` at runtime.
 
 **Recursion depth.** Nested-message validation is depth-limited. The root
 instance is at depth 0; entering any message-typed value (a nested field,
@@ -328,7 +386,8 @@ scalar-collection elements do not. The limit is
 `EngineConfig.max_recursion_depth` (§9.4); `0` means the **normative
 default of 64**. When a value at depth greater than the limit would need
 validating, the engine does **not** descend: it records one synthetic
-violation for the subtree — `code: "protowire.depth_exceeded"`, `path` at
+violation for the subtree — `code: "protowire.depth_exceeded"`, the
+spec-pinned fallback message (§7), `path` at
 the field where descent stopped, `params: {limit: <the effective limit>}`,
 `rule_kind: RULE_KIND_VALIDATE` — sets `Report.truncated = true` (§7), and
 continues with siblings in collect-all mode. The instance therefore fails
@@ -435,10 +494,47 @@ Normative consumer minima:
 
 The annotation lowers through the standard `50400` `AnnotationList`
 carrier like every other annotation; no dedicated extension number or
-descriptor surface exists. A classification parameter (e.g. a
-secret / PII / confidential taxonomy) and a schema-level key-reference
-annotation are deferred (§13); adding optional parameters with defaults
-to a canonical annotation is an additive, minor-version change.
+descriptor surface exists.
+
+**Classification parameter.** `@sensitive` takes one optional
+parameter, `class: string = ""` (issue #111). The vocabulary is open
+and org-defined (`"credentials"`, `"pii"`, `"payment"`, …):
+sensitivity taxonomies are organizational policy, not cross-port
+interop, and protection-layer consumers (e.g. the chameleon editor's
+key management) map class names to key domains in their own
+runtime-layer configuration. The spec pins only the mechanics:
+
+1. **Reserved prefix.** Class names beginning with `protowire.` are
+   reserved for future spec-defined classes, mirroring the §7
+   violation-code reservation; compilers MUST reject them.
+2. **One class per field.** `class` is a single string, never a list:
+   consumers that route protection by class (field → class → key
+   domain) need that resolution to be deterministic. Orgs needing
+   intersections define composite classes.
+3. **Effective class.** Where sensitivity arrives from several sites
+   (field, type-alias chain, message), a field's *effective class* is
+   the class of the **nearest `@sensitive` that specifies one**: the
+   field's own annotation first, then the alias chain most-derived
+   first, then the message-level marker. A bare `@sensitive` (or an
+   explicit `class = ""`) never erases an outer class — it reasserts
+   sensitivity without reclassifying.
+4. **Minima are class-invariant.** Every consumer minimum above
+   applies identically to every class, including `""` (sensitive but
+   unclassified). Classes add routing granularity in consumers that
+   opt in; they never weaken the redaction floor.
+
+**No protection metadata in the schema.** A schema-level key-reference
+annotation (`@encrypted(key_ref)`) was considered and rejected (issue
+#112). Key references, algorithms, and rotation state are deployment
+topology: they vary per environment and per tenant while the data's
+meaning is unchanged, and annotations lower into `FileDescriptorSet`
+artifacts (§8.1) that are committed, embedded, and shipped across
+organizational boundaries — the same reasoning that keeps engine
+configuration out of file options (§9.4). The sanctioned contract is
+split: the schema declares *what* is sensitive and *which class* it
+belongs to; the protection layer (PXF / chameleon) maps class → key
+domain in its own configuration, so key rotation and per-environment
+key topology never touch the schema.
 
 ## 7. Error model
 
@@ -481,6 +577,12 @@ message EnrichedViolation {
   RuleKind rule_kind = 6;                 // RULE_KIND_{VALIDATE,REQUIRED,DEFAULT,TYPE_REFINEMENT}
   bool value_redacted = 7;                // @sensitive field: value withheld (§6.7)
   bool for_key = 8;                       // rule violated by the map key, not the entry's value
+  SourceRef source_ref = 9;               // §8.3.1 rule join key, when a source map resolved the rule
+}
+
+message SourceRef {
+  string file = 1;                        // SourceMap.file of the resolving map
+  string descriptor_path = 2;             // canonical §8.3.1 descriptor path
 }
 ```
 
@@ -493,6 +595,11 @@ never parsed back; map keys are typed, never coerced through strings.
 share package scope and `EntryKind.TYPE_REFINEMENT` in `descriptor.proto`
 already claims the bare name.)
 
+`RULE_KIND_DEFAULT` marks violations whose rule was evaluated against a
+`@default`-substituted value (§6.4): a schema-authoring error — the
+declared default fails the field's own rules — rather than an instance
+error.
+
 A subscripted map segment addresses the entry's **value**. When a rule is
 evaluated against the map key itself, the engine MUST set
 `for_key = true` on the enriched violation: a key violation and a value
@@ -502,6 +609,19 @@ alternative — appending a pseudo-segment for the entry's synthetic
 `key = 1` field — is rejected: the preceding subscripted segment already
 addresses the value, so `labels[k].key` would collide with a genuine
 `key` field on a message-typed map value.
+
+`source` and `source_ref` carry complementary provenance: `source` is a
+resolved position for display; `source_ref` is the rule's **identity** —
+the §8.3.1 join key `(SourceMap.file, descriptor_path)`, rendered by the
+single shared formatter, never hand-assembled. Engines MUST populate
+`source_ref` whenever the violated rule was resolved through an embedded
+source map (extension 50404) and MUST leave it unset otherwise.
+Consumers correlating a wire Report with lowered rules — an editor
+overlay mapping runtime violations onto source ranges, a registry
+joining reports to stored descriptors — join on `source_ref` rather than
+fuzzy-matching `source` positions. Both fields are deterministic from
+the descriptor, so they participate in cross-port report equality
+(goal 5) with no carve-out.
 
 A complete validation run produces a `Report` — the shape all 10 ports
 emit equivalently:
@@ -519,13 +639,117 @@ message Report {
 
 Localized messages are produced at format time from `code` + `params` through a registered catalog (one per locale, registered with the engine alongside function impls). Catalog miss falls back to `fallback_message`. Programmatic clients consume `code` + `params` directly; human consumers receive the localized rendering.
 
+**Catalog sources.** A locale catalog is data, not schema —
+translator-maintained strings loaded at engine init, never compiled
+into descriptors. The source format for a catalog referenced from the
+§9.4 `catalog_libraries` is a **text-format
+`protowire.schema.catalog.v1.Catalog` message** (normative schema
+`protowire/proto/schema/catalog/v1/catalog.proto` — stock proto3 with
+the same artifact status as the §9.4 engine config: consumed by
+validator binaries and tooling, never embedded in descriptors,
+allocates no extension numbers):
+
+```proto
+message Catalog {
+  string locale = 1;                // BCP 47 tag; the RegisterCatalog key (§9.1)
+  map<string, string> entries = 2;  // violation code → message template
+}
+```
+
+```textproto
+# myco/i18n/de.textproto — text-format protowire.schema.catalog.v1.Catalog
+locale: "de"
+entries { key: "string.min_len"     value: "mindestens {min_len} Zeichen erforderlich" }
+entries { key: "users.email.format" value: "keine gültige Adresse (Muster {pattern})" }
+```
+
+Normative rules:
+
+1. **One locale per file.** `locale` is a non-empty BCP 47 tag and is
+   the `RegisterCatalog` key (§9.1). Multiple `catalog_libraries`
+   entries MAY declare the same locale (per-domain catalogs); loaders
+   merge them into the single per-locale catalog before registration.
+   The same code in two files for one locale is a load error — never a
+   silent override. (Within one file, text format already rejects
+   duplicate map keys.)
+2. **Template interpolation.** `{name}` placeholders interpolate the
+   violation's `params`; a placeholder with no matching param — and any
+   brace that does not form a placeholder — passes through verbatim, so
+   a missing translation surfaces visibly rather than silently
+   vanishing. No escape syntax is defined. A catalog miss falls back to
+   `fallback_message`, as above.
+3. **Path resolution.** `catalog_libraries` values are filesystem paths
+   resolved relative to the directory of the config file that declares
+   them (absolute paths are taken as-is). They are **not** proto import
+   paths — contrast `function_libraries`, whose declarations compile
+   into the image (§9.4). Build tools do not compile or embed catalogs;
+   validator binaries and editors load them when the engine is
+   configured.
+4. **Locale negotiation** — matching a consumer's requested locale
+   (for example an LSP client's `InitializeParams.locale`) against
+   registered catalogs — is consumer policy; the spec pins only
+   registration keyed by the file's `locale`.
+
+Plural, gender, and ICU-MessageFormat-style template forms are
+deferred (§13).
+
 `@validate(...)` accepts optional `code` and `message` to override defaults at use sites.
+
+**Params provenance.** `cause.params` is populated from exactly two
+sources: the `Violation` returned by a declared function (§6.5) — the
+function implementation authors its params — and spec-defined synthetic
+violations (`protowire.depth_exceeded` carries `{limit}`, §6.4). For
+violations produced by **inline expression rules**, engines MUST leave
+`params` empty: expressions are opaque engine source (§5.1), and no
+mapping from operator shapes to parameter names could be normative
+across engine languages. A rule that needs structured params for
+catalog interpolation declares a `function`. (`@validate`'s use-site
+`code`/`message` overrides are author-supplied and unaffected.) With
+provenance pinned, `params` participates in cross-port report equality
+(goal 5) with no carve-out.
 
 Violation codes beginning with **`protowire.`** are reserved for
 spec-defined violations; user rules and function implementations MUST NOT
-mint codes in that namespace. This revision defines two:
-`protowire.required` (a `@required` field is absent, §6.1) and
-`protowire.depth_exceeded` (recursion depth limit reached, §6.4).
+mint codes in that namespace. This revision defines four:
+`protowire.required` (a `@required` field is absent, §6.1),
+`protowire.depth_exceeded` (recursion depth limit reached, §6.4),
+`protowire.function.invalid_argument` (a generated registration
+adapter's arity or argument-type guard failed before the user's
+function implementation was invoked, §9.3), and
+`protowire.function.unimplemented` (a declared function was invoked
+with no registered implementation: the §9.2 lenient placeholders and
+the §9.3 `UnimplementedFunctions` stubs). The `protowire.function.*`
+pair is minted by spec-mandated codegen and engine machinery, never
+by user code — a function implementation that wants to reject an
+argument returns its own code. Runtimes MUST
+expose the reserved codes as typed constants in their host language,
+and spec-mandated codegen MUST reference those constants rather than
+string literals.
+
+**Reserved-code fallback messages.** A spec-defined violation has no
+schema author, so cross-port report equality (goal 5) on its
+`fallback_message` requires the string to come from the spec itself —
+the same argument that makes engine-synthesized messages for inline
+rules non-normative. Each reserved code therefore carries a
+spec-pinned `fallback_message`:
+
+| Code | `fallback_message` |
+|---|---|
+| `protowire.required` | `field is required` |
+| `protowire.depth_exceeded` | `recursion depth limit exceeded` |
+| `protowire.function.unimplemented` | `<function>: not implemented` |
+| `protowire.function.invalid_argument` | `<function>: expected <n> argument(s)` (arity guard) or `<function>: argument <i> is not <type>` (argument-type guard, §9.3) |
+
+The first two are static — the effective limit already travels in
+`params.limit` (§6.4); where a param carries the datum, the fallback
+string stays static. In the templates, `<function>` is the declared
+function's fully-qualified name, `<n>` and `<i>` are decimal integers
+(`<i>` zero-based), and `<type>` is the parameter type **as declared
+in the schema** (§6.5 signature types, e.g. `string`, `int64`, a
+message FQN) — never a host-language type name, which would break
+cross-port equality. Runtimes MUST expose the static strings (and
+template helpers for the `protowire.function.*` pair) alongside the
+code constants, and spec-mandated codegen MUST reference them.
 
 ## 8. Descriptor lowering
 
@@ -734,6 +958,20 @@ runtimes upgrade **before** schemas migrate. Both forms of the same
 semantic MAY coexist on one field during migration; compilers MAY warn
 when the two carry conflicting values, but MUST NOT reconcile them.
 
+**`SourceCodeInfo` is authorial — no synthesized comments.** The
+lowering pass MUST NOT inject annotation-derived text (for example
+`@description`) into `SourceCodeInfo` leading or trailing comments,
+nor otherwise synthesize `SourceCodeInfo` entries: `SourceCodeInfo`
+carries exactly what the user wrote. Annotation-derived documentation
+is surfaced by annotation-aware codegen reading the `50400` carrier
+(the §9.3 plugins and per-port equivalents), which is the canonical
+— and only — layer for documentation emission. The consequence is
+deliberate: stock plugins and documentation generators that render
+only `SourceCodeInfo` comments do not surface `@description`; a port
+that wants annotation-derived documentation in generated code
+requires an annotation-aware plugin, not a compiler that rewrites
+the source record.
+
 ## 9. Engine integration
 
 ### 9.1 Engine SPI
@@ -755,19 +993,24 @@ A project selects one engine at validator-binary build time (CEL, Starlark, Go, 
 
 ### 9.2 Function registration model
 
-Functions referenced in the descriptor must be registered with the engine at startup. The engine walks the descriptor on init and verifies each FQN is present in its registry. Missing-impl default behavior is **lenient**: the engine starts with `Unimplemented` placeholders that fail at first call with a clear error. A `strict_validation=true` engine option turns missing impls into startup failures.
+Functions referenced in the descriptor must be registered with the engine at startup. The engine walks the descriptor on init and verifies each FQN is present in its registry. Missing-impl default behavior is **lenient**: the engine starts with `Unimplemented` placeholders that fail at first call with `protowire.function.unimplemented` (§7). A `strict_validation=true` engine option turns missing impls into startup failures.
 
 ### 9.3 Codegen contract
 
 Per-language codegen plugins emit, for each function declaration:
 
 1. An interface (`Functions`) with one method per declared function;
-2. A default struct (`UnimplementedFunctions`) returning `(false, "not implemented")` for every method;
+2. A default struct (`UnimplementedFunctions`) returning `(false, <the pinned protowire.function.unimplemented violation, §7>)` for every method;
 3. A registration helper (`RegisterFunctions(engine, impl)`) binding methods to FQNs.
 
 Users implement the interface (typically by embedding `UnimplementedFunctions` and overriding what they use) and call the helper at startup.
 
-This mirrors the gRPC server-stub pattern. Reference Go shape:
+This mirrors the gRPC server-stub pattern. The helper adapts each
+typed method to the untyped §9.1 `Function` signature: generated
+guards check arity and argument types before invoking the
+implementation, emitting `protowire.function.invalid_argument` (§7,
+via the runtime's typed constant) on mismatch, and `Register` errors
+are propagated. Reference Go shape:
 
 ```go
 type Functions interface {
@@ -777,12 +1020,27 @@ type Functions interface {
 
 type UnimplementedFunctions struct{}
 func (UnimplementedFunctions) IsE164(string) (bool, *Violation) {
-    return false, &Violation{Code: "unimplemented", FallbackMessage: "is_e164: not implemented"}
+    return false, &Violation{Code: CodeFunctionUnimplemented,
+        FallbackMessage: MsgFunctionUnimplemented("myco.commons.is_e164")} // "myco.commons.is_e164: not implemented"
 }
 
-func RegisterFunctions(eng Engine, impl Functions) {
-    eng.Register("myco.commons.is_e164", impl.IsE164)
-    eng.Register("myco.commons.matches", impl.Matches)
+func RegisterFunctions(eng Engine, impl Functions) error {
+    if err := eng.Register("myco.commons.is_e164", func(args []any) (bool, *Violation) {
+        if len(args) != 1 {
+            return false, &Violation{Code: CodeFunctionInvalidArgument,
+                FallbackMessage: MsgFunctionArity("myco.commons.is_e164", 1)} // "myco.commons.is_e164: expected 1 argument(s)"
+        }
+        a0, ok := args[0].(string)
+        if !ok {
+            return false, &Violation{Code: CodeFunctionInvalidArgument,
+                FallbackMessage: MsgFunctionArgType("myco.commons.is_e164", 0, "string")} // "myco.commons.is_e164: argument 0 is not string"
+        }
+        return impl.IsE164(a0)
+    }); err != nil {
+        return err
+    }
+    // matches: same adapter shape
+    return nil
 }
 ```
 
@@ -805,7 +1063,9 @@ message EngineConfig {
   string engine = 1;                       // registered identifier: "cel", "starlark", "go";
                                            //   unknown name = startup error, never a fallback
   repeated string function_libraries = 2;  // proto import paths of function-declaration files (§9.2, §9.3)
-  repeated string catalog_libraries = 3;   // locale catalog sources (§7)
+  repeated string catalog_libraries = 3;   // paths to locale catalog files (§7),
+                                           //   text-format catalog.v1.Catalog,
+                                           //   resolved relative to this config file
   bool strict_validation = 4;              // missing impls fail startup instead of first call (§9.2)
   protowire.schema.v1.ExecutionMode default_mode = 5;  // UNSPECIFIED ⇒ COLLECT_ALL (§6.4)
   uint32 max_recursion_depth = 6;          // 0 ⇒ normative default 64 (§6.4)
@@ -875,13 +1135,14 @@ Items deferred for separate resolution. Each becomes a tracked issue.
 | 5 | ~~Streaming RPC validation contract~~ **Resolved 2026-07-15** (issue #63): per-message validation, fail-closed stream termination, direction-asymmetric status mapping, see §6.6 | spec |
 | 6 | ~~`Literal` shape detail in `AnnotationArg` (enum names, message literals, lists)~~ **Resolved 2026-07-15** (issue #64): resolved `EnumLiteral`, `Any` message literals, homogeneous `ListLiteral` of `LiteralValue`, see §8.1 | spec |
 | 7 | ~~Validation report wire shape (`Report` carrying `EnrichedViolation`s)~~ **Resolved 2026-07-15** (issue #65): pinned in `proto/schema/v1/report.proto`, see §7 | spec |
-| 8 | Migration story for existing `protovalidate`-using projects | tooling |
+| 8 | ~~Migration story for existing `protovalidate`-using projects~~ **Resolved 2026-07-24** (issue #66): adapter-first migration, see Appendix C; no compiler compat mode, no in-place rewriter | tooling |
 | 9 | Performance budget + benchmark suite | per-port |
 | 10 | Conformance test fixtures in `protowire/testdata/schema-extensions/` | spec |
 | 11 | Upstream `buf/protocompile` compatibility (this codebase is a fork) | protocompile |
 | 12 | Stream-level validation invariants (aggregate rules across a stream's messages, ordering constraints) — deferred from §6.6, needs its own design pass like container-shaped aliases (#1) | spec |
-| 13 | Sensitivity-class taxonomy (`@sensitive(class: ...)` — secret / PII / confidential) — deferred from §6.7 until a consumer needs to distinguish classes; additive parameter (tracked: GH #111) | spec |
-| 14 | Schema-level encryption / key-reference annotation (e.g. `@encrypted(key_ref)`) and chameleon interplay — deferred from §6.7; today the schema stays orthogonal to key management (tracked: GH #112) | spec / chameleon |
+| 13 | ~~Sensitivity-class taxonomy (`@sensitive(class: ...)`)~~ **Resolved 2026-07-25** (issue #111): additive `class: string = ""` parameter — open org-defined vocabulary, `protowire.` prefix reserved, single class, effective-class rule; see §6.7. The consumer that triggered the deferral's "until needed" clause is the chameleon editor's key management | spec |
+| 14 | ~~Schema-level encryption / key-reference annotation (`@encrypted(key_ref)`)~~ **Rejected 2026-07-25** (issue #112): protection metadata never enters the schema — key refs are deployment topology and would leak through descriptor artifacts (§8.1, same reasoning as §9.4); the class → key-domain mapping lives in the protection layer's configuration, see §6.7 | spec / chameleon |
+| 15 | Plural / gender / ICU-MessageFormat template forms in locale catalogs (`catalog.v1.Catalog` templates are plain `{param}` interpolation for now, §7) — revisit when a consumer needs plural rules | spec |
 
 ## 14. References
 
@@ -903,7 +1164,7 @@ Items deferred for separate resolution. Each becomes a tracked issue.
 |---|---|---|
 | `[(pxf.required) = true]` | `@required` | Both forms valid; disjoint lowering (§8.5) — the annotation form is carrier-only, so legacy-option consumers see only the bracket |
 | `[(pxf.default) = "viewer"]` | `@default("viewer")` | Same; migrate consumers to the carrier before migrating schemas |
-| `[(buf.validate.field).cel = "..."]` | `@validate(<expression>)` | Conceptual equivalent; protovalidate-using projects migrate or use `--compat` mode (TBD) |
+| `[(buf.validate.field).cel = "..."]` | `@validate(<expression>)` | Conceptual equivalent; migration path in Appendix C — a `--compat` compiler mode was rejected (#66) |
 | n/a | `@description("...")` | Was prose comments; now structured |
 | n/a | `@example(value)` | New; doubles as test fixture |
 | n/a | `@error_code("...")` | New; structured error attribution |
@@ -920,3 +1181,46 @@ Items deferred for separate resolution. Each becomes a tracked issue.
 | `protowire-java` | M9+ — per-port adoption schedule TBD |
 | `protowire-typescript` | M9+ |
 | `protowire-python` / `cpp` / `rust` / `csharp` / `kotlin` / `swift` / `dart` | M9+ |
+
+## Appendix C — Migrating from protovalidate
+
+Projects using `buf.validate` options migrate in three phases; each
+phase is independently shippable and per-file incremental. (Resolved
+2026-07-24, issue #66. The `--compat` compiler flag contemplated at
+ratification was rejected — `buf.validate` options are ordinary custom
+options in stock proto3, which protowire tooling already parses and
+round-trips opaquely per §8.5, so there is no parse-level
+incompatibility to bridge; compatibility during transition is a
+runtime concern and the Phase 0 adapter is that answer. An in-place
+rewriter (`pxf migrate-validate`) is not built: Phase 0 removes
+migration urgency, and the Phase 1 mapping below is mechanical enough
+that a rewriter can be added later without spec change if demand
+appears.)
+
+**Phase 0 — adapter, zero schema change.** Keep `buf.validate` schemas
+as-is and validate at the protowire seam via
+`github.com/trendvidia/protocheck/protovalidate`
+(`pxf.UnmarshalOptions{Validator: v}`). Violation rule IDs are
+namespaced `buf.validate.*`.
+
+**Phase 1 — per-file rewrite.** Under the default `cel` engine (§9.4),
+expressions carry over verbatim:
+
+| protovalidate form | protowire v1.2 form | Notes |
+|---|---|---|
+| `(buf.validate.field).cel = {id, message, expression}` | `@validate(<expression>, code = <id>, message = <message>)` | Same `this` binding: field value, wrapper unwrap, native temporals (§6.2). `id` must not use the reserved `protowire.` prefix (§7). |
+| `(buf.validate.message).cel` | leading `@validate` on the message | `this` binds to the message in both systems. |
+| `(buf.validate.field).required = true` | `@required` | **Semantic delta:** protovalidate rejects zero values on implicit-presence scalars; protowire `@required` checks *presence* only (§6.1) and null counts as present. Fields relying on zero-rejection need an explicit rule (e.g. `@validate(this != "")`) or explicit presence. |
+| Standard rules (`string.min_len`, `int32.gt`, …) | `@validate` with the equivalent stdlib expression; shared shapes become `type` aliases (`type NonEmptyString = string @validate(this.size() >= 1)`) | Type aliases (§6.3) are the idiomatic replacement for rule sets repeated across fields. |
+| `ignore` / zero-value knobs | none needed | protowire never evaluates rules on unset fields (§6.1); the knob's job disappears. |
+
+**Phase 2 — retire.** Drop `buf/validate/validate.proto` imports and
+the adapter dependency; the protocheck engine is the single validator.
+
+**Coexistence (normative).** protowire engines MUST NOT interpret
+`buf.validate` options; they are foreign custom options preserved
+opaquely (§8.5). During transition both validators MAY run at the same
+seam; a field carrying both forms is validated by both, and reports
+remain distinguishable by rule-ID namespace (`buf.validate.*` never
+collides with `protowire.*` or schema-authored codes). Migrate
+file-at-a-time rather than rule-at-a-time to avoid double-maintenance.

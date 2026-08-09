@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Invalid fixture: positional_after_named.
+// MUST NOT compile (IETF draft -01, Annotation Use Sites): named
+// arguments MAY follow positional ones; positional MUST NOT follow
+// named. Here `message = ...` is named and the trailing "US" is
+// positional.
+
+syntax = "proto3";
+
+package fixtures.invalid.argorder;
+
+import "protowire/schema/v1/annotations.proto";
+
+annotation bounded(pattern: string, message: string, fallback: string);
+
+message Account {
+  string country = 1
+    @bounded("^[A-Z]{2}$", message = "bad country", "US");
+}

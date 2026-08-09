@@ -1,0 +1,24 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 TrendVidia, LLC.
+#
+# Invalid: two topics claiming the same (key, locale). Identity is
+# (key, locale), so this is a real ambiguity.
+@type protowire.docs.v1.TopicFile
+topics = [
+  {
+    key = "dup.topic"
+    locale = "en"
+    title = "First"
+    meta { audience = AUDIENCE_PUBLIC }
+    body { blocks = [{ paragraph { runs = [{ text = "One." }] } }] }
+    review { state = REVIEW_STATE_DRAFT author = "a@example.com" }
+  }
+  {
+    key = "dup.topic"
+    locale = "en"
+    title = "Second"
+    meta { audience = AUDIENCE_PUBLIC }
+    body { blocks = [{ paragraph { runs = [{ text = "Two." }] } }] }
+    review { state = REVIEW_STATE_DRAFT author = "a@example.com" }
+  }
+]
