@@ -998,13 +998,39 @@ extend google.protobuf.FieldOptions {
 
 pxf.required: when true, decoders MUST reject a PXF document in which the annotated field is absent. A field bound to "null" is considered present for the purpose of this check; null-rejection for non-nullable types is governed by {{booleans-null-and-identifier-values}}.
 
-pxf.default: when set, the value is a PXF literal (parsed by the same rules as a value in any entry). Decoders MUST treat an absent annotated field as if the document had supplied the default literal. The default applies only to absent fields, not to fields explicitly set to "null" or to the proto3 zero value.
+pxf.default: when set, the value is a PXF literal (parsed by the same rules as a value in any entry). Decoders MUST treat an absent annotated field as if the document had supplied the default literal. The default applies only to absent fields, not to fields explicitly set to "null" or to the proto3 zero value. The annotation carries exactly one literal, so it is valid only on fields a single literal can denote; placement constraints are specified in {{default-schema-placement}}.
 
 pxf.key: names the key field of a keyed repeated field. The value is the proto field name of a singular string-typed field of the element message. The annotation is valid only on repeated message-typed fields; placement constraints and the decode, encode, and canonicalization semantics it enables are specified in {{keyed-repeated-fields}}. The annotation affects only the PXF text surface — pb and SBE wire outputs are unchanged.
 
 The schema-level constraints of {{schema-constraints}} apply independently of these annotations: a field, oneof, or enum value whose name collides with a reserved PXF keyword is non-conforming regardless of whether pxf.required or pxf.default is set.
 
 The well-known types pxf.BigInt, pxf.Decimal, and pxf.BigFloat are defined in {{PROTOWIRE-BIGNUM}} (this is the proto/pxf/bignum.proto file in the canonical repository). They provide arbitrary-precision signed integer, exact decimal, and binary floating-point representations respectively, encoded over PB as length-delimited unsigned big-endian magnitudes plus sign and scale fields.
+
+### Default Placement {#default-schema-placement}
+
+pxf.default carries exactly one PXF literal, so the fields it can populate are the fields a single literal can denote. Like pxf.key ({{keyed-schema-placement}}), it is subject to bind-time checks in the sense of {{schema-constraints}}; tools that bind a descriptor for PXF use MUST reject a schema in which pxf.default is set on:
+
+* a repeated field. One literal cannot denote a list, and the annotation has no grammar for element separation or for the empty list;
+
+* a map field. One literal cannot denote a map, and the annotation has no grammar for keys;
+
+* a group field; or
+
+* a message-typed field whose type is not one of google.protobuf.Timestamp, google.protobuf.Duration, the nine google.protobuf wrapper types (BoolValue, BytesValue, DoubleValue, FloatValue, Int32Value, Int64Value, StringValue, UInt32Value, UInt64Value), pxf.BigInt, pxf.Decimal, or pxf.BigFloat. These are the message types a PXF literal can denote ({{timestamps-and-durations}}; the wrapper types take the literal of the type they wrap, and the arbitrary-precision types take a numeric literal). For any other message type there is no literal for the annotation to carry.
+
+pxf.default is valid on every singular scalar field, on every enum field, and on the message types enumerated above. On an enum field the literal is either a value name or the decimal value number.
+
+The constraint is on placement, not on the literal. A literal that does not parse as the annotated field's type — "abc" on an int32 field — is a decode-time error raised where the default is applied, not a bind-time rejection. Placement is determinable from the descriptor alone, whereas rejecting the literal at bind time would oblige every binding tool to implement the value parser.
+
+Conformance:
+
+* Tools that bind a protobuf descriptor for PXF use MUST reject a non-conforming placement at bind time, independently of what any document contains. A decoder MUST NOT defer the diagnostic to the first document that leaves the annotated field absent: a schema whose annotated field happens to be present in every document it decodes would then carry a meaningless annotation indefinitely without one.
+
+* Implementations SHOULD report the offending field by its fully-qualified protobuf name (e.g. "trades.v1.Order.tags") and SHOULD point at this section.
+
+* Implementations MUST NOT invent a semantics for a rejected placement. In particular, a single literal on a repeated field MUST NOT be applied as a one-element list: the resulting PB output would differ from that of an implementation that rejects the schema, for the same schema and the same document.
+
+* A pxf.default in one of these placements never had honorable semantics — there was no literal the decoder could have applied. Rejecting it on upgrade surfaces a pre-existing latent bug rather than introducing one; as with {{schema-constraints}}, this document defines no migration accommodation.
 
 ## SBE Annotations {#sbe-annotations}
 
