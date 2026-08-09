@@ -215,7 +215,26 @@ annotation http(
 
 **`@http` and the operation surface.** `method` and `path` are the routing skeleton; the remaining parameters carry the operation metadata a REST-surface generator needs (issue #173). `path` may contain `{name}` template segments, each binding to the same-named **top-level** field of the request message; remaining request fields bind to the query string for bodyless methods and to the request body otherwise. `summary` falls back to the first sentence of `@description`; `operation_id` is derived as `<Service>_<Method>` when empty; `tags` and `security` take list literals of strings (§8.1 `Literal.list`), and the security-*scheme definitions* they name are generator configuration rather than schema content — the same §9.4 argument that keeps engine configuration out of file options and that rejected `@encrypted` (§6.7).
 
-Operation metadata carries **no validation semantics**. A port that renders no REST surface parses these arguments like any other annotation and interprets nothing; conformance requires carrying them through the §8.1 carrier, not acting on them. Responses are derived rather than authored — the success response from the method's return type, error responses from `@error_code` plus the §7 report model — so `@http` has no `responses` parameter (rationale: `docs/RFC-001-issues.md` §#080).
+**The routing skeleton lowers twice.** `method` and `path` MUST lower both to the §8.1 annotation carrier *and* to the standard `google.api.http` option on `MethodOptions` (field `72295728`, `google.api.HttpRule`). The two are complements, not alternatives: the carrier keeps the whole operation surface — `summary`, `operation_id`, `tags`, `security` — which `HttpRule` has no place for, while the standard extension carries the skeleton that every off-the-shelf REST binder reads (connect vanguard, grpc-gateway, Envoy's `grpc_json_transcoder`, buf's OpenAPI plugins). Emitting only the carrier is the failure this rule exists to prevent, and it is a silent one: the binder finds no rules, binds no routes, reports nothing, and every REST URL 404s as though the endpoint were unimplemented (issue #213).
+
+The transform is mechanical, because `@http`'s model is already 1:1 with `HttpRule`:
+
+| `@http` | `HttpRule` |
+|---|---|
+| `method` ∈ {`GET`,`PUT`,`POST`,`DELETE`,`PATCH`}, case-insensitive | the same-named pattern field |
+| any other `method` | `custom = CustomHttpPattern{kind: <verb, upper-cased>, path}` |
+| `path` | the pattern field's value, verbatim including `{name}` segments |
+| bodyless method (`GET`/`HEAD`/`DELETE`/`OPTIONS`) | no `body` — unbound fields bind to the query string |
+| any other method | `body: "*"` — every field the path template did not bind |
+| several `@http` use sites on one method | first is the rule; the rest are `additional_bindings`, in source order |
+
+`selector` and `response_body` are never written: the rule is attached to its method, and responses are derived (below). A method that already carries an author-written `(google.api.http)` keeps it unchanged — the compiler MUST NOT add a second, competing rule. A compiler MAY offer an opt-out (the reference CLI spells it `pxf build --google-api-http=false`); emission is the default.
+
+The emitted option adds **no import** to the lowered file. Like the §8.1 carriers, it rides in the options message's unknown-field bytes, so the descriptor set stays self-contained and resolvable by stock `protodesc`; consumers that link `google.api` resolve it through their own type registry, exactly as they do for a `protoc`-produced descriptor.
+
+Because the skeleton is lowered rather than merely carried, it is also **checked**: a `{name}` segment that names no top-level field of the request message is a compile error, as are a non-absolute path, unbalanced template braces, and an empty `method`. Each of those would otherwise produce a rule that no binder can serve (fixture: `invalid/http_unbound_template.proto`).
+
+Operation *metadata* carries **no validation semantics**. A port that renders no REST surface parses `summary`, `operation_id`, `tags` and `security` like any other annotation arguments and interprets nothing; conformance requires carrying them through the §8.1 carrier, not acting on them. Responses are derived rather than authored — the success response from the method's return type, error responses from `@error_code` plus the §7 report model — so `@http` has no `responses` parameter (rationale: `docs/RFC-001-issues.md` §#080).
 
 Every parameter beyond `method` and `path` is defaulted, so the v1.2.0 two-argument form keeps its meaning and no existing schema changes shape. Conformance fixture: `testdata/schema-extensions/21_http_operation.proto`.
 

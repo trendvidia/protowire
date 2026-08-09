@@ -126,15 +126,27 @@ annotation sensitive(class: string = "");
 // http — attach HTTP routing and operation metadata to an RPC method.
 //
 // Used by OpenAPI / Swagger generators to produce REST-bound surface
-// descriptions. Pairs naturally with the `google.api.http` option in
-// schemas that prefer it; either form is accepted by tooling that
-// understands both.
+// descriptions, and by REST binders to serve the routes.
 //
 // `method` and `path` are the routing skeleton. `path` may carry
 // `{name}` template segments; each binds to the same-named top-level
 // field of the request message, and remaining fields bind to the query
 // string (bodyless methods) or the request body (RFC-001 §5.2, issue
 // #173).
+//
+// The skeleton lowers twice: to the standard annotation carrier, and
+// to the `google.api.http` option on MethodOptions (field 72295728) —
+// `@http` is sugar over `google.api.http`, not a documentation-only
+// annotation. The two are complements, not alternatives: the carrier
+// keeps the operation metadata below, which HttpRule has no place for,
+// while the standard option is what off-the-shelf REST binders read
+// (connect vanguard, grpc-gateway, Envoy, buf's OpenAPI plugins). A
+// method that writes `option (google.api.http)` by hand keeps its own
+// rule; the compiler never adds a competing one (issue #213).
+//
+// Because the skeleton is lowered rather than merely carried, it is
+// checked: a `{name}` segment naming no field of the request message
+// is a compile error, as are a relative path and an empty method.
 //
 // The remaining parameters are documentation metadata: they carry no
 // validation semantics, and a port that does not render REST surfaces

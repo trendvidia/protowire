@@ -26,13 +26,15 @@ github.com/trendvidia/protobuf-go v1.36.14 h1:ocdT5sMzV613A/O08F/z+NeXPv+f0yTuGC
 github.com/trendvidia/protobuf-go v1.36.14/go.mod h1:HTf+CrKn2C3g5S8VImy6tdcUvCska2kB7j23XfzDpco=
 github.com/trendvidia/protocheck/v2 v2.3.0 h1:7m6ZHfi8wHXnAZqeJzhwFUnv5208ZQZZtsRbODmrgfw=
 github.com/trendvidia/protocheck/v2 v2.3.0/go.mod h1:OYUHdm8f7LdH7oXTH5pYGnjCFKqzX5843eVtqsEJh9A=
-github.com/trendvidia/protocompile v0.23.0 h1:kyb0A5U6Bgws9bouABI1bd5z4Tp1xePczL8R7zkOJno=
-github.com/trendvidia/protocompile v0.23.0/go.mod h1:yklFB/kz4qOmeOEJrX1wtq+zV8yyzhDRYqX/Tn/nJUA=
+github.com/trendvidia/protocompile v0.23.1-0.20260809042801-5426adb52c7e h1:orhbxF+vscUhmsuHHYaN/hFEFTgHz8lZn3HsxDYJxsQ=
+github.com/trendvidia/protocompile v0.23.1-0.20260809042801-5426adb52c7e/go.mod h1:pbylwFhrPT7ksIiWyWp6hTwrrtUeYQ7PO9BdGZSc3Wc=
 github.com/trendvidia/protowire-go v1.3.1 h1:g+IljiUi3HJ3ay/0WqD2/PGyb5WNrMEGaJsDGCGMLDo=
 github.com/trendvidia/protowire-go v1.3.1/go.mod h1:YIJF4pBDfBPCpntd+l/6NIuZ1CIuWM0dLa2s87gG2Gw=
 golang.org/x/exp v0.0.0-20250911091902-df9299821621 h1:2id6c1/gto0kaHYyrixvknJ8tUK/Qs5IsmBtrc+FtgU=
 golang.org/x/exp v0.0.0-20250911091902-df9299821621/go.mod h1:TwQYMMnGpvZyc+JpB/UAuTNIsVJifOlSkrZkhcvpVUk=
 golang.org/x/sync v0.22.0 h1:SZjpbeLmrCk4xhRSZFNZW5gFUeCeFgjekvI/+gfScek=
 golang.org/x/sync v0.22.0/go.mod h1:9xrNwdLfx4jkKbNva9FpL6vEN7evnE43NNNJQ2LF3+0=
+google.golang.org/genproto/googleapis/api v0.0.0-20260807164820-c8921c73eeea h1:Jifw/kjs/r3B0uszvls/m3c3tmZs2YHGM9C+rvxP9gY=
+google.golang.org/genproto/googleapis/api v0.0.0-20260807164820-c8921c73eeea/go.mod h1:K/+WGbmBY7aNW1HDw1fJnKYo10i0DkAX6pows00dLig=
 gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=
 gopkg.in/yaml.v3 v3.0.1/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
