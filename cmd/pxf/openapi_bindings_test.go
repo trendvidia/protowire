@@ -182,3 +182,14 @@ func TestCoverageCountsMethodsNotBindings(t *testing.T) {
 		t.Errorf("HTTPMethods() = %v, want exactly [fixtures.bindings.Orders.GetOrder]", got)
 	}
 }
+
+// buildTempImage compiles one corpus fixture into a temp dir, away from
+// the repo so generator-config discovery finds nothing.
+func buildTempImage(t *testing.T, fixture string) string {
+	t.Helper()
+	image := filepath.Join(t.TempDir(), "image.binpb")
+	if err := runPxf(t, "build", "-o", image, fixture); err != nil {
+		t.Fatalf("pxf build %s: %v", fixture, err)
+	}
+	return image
+}
