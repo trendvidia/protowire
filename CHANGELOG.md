@@ -10,6 +10,8 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+## [1.10.0] – 2026-08-09
+
 `@http` becomes what it always claimed to be: sugar over `google.api.http`, not a documentation-only annotation. Driven by the REST surface of trendvidia/voya, which adopts `connectrpc.com/vanguard` in-process per service and could not work at all until this landed. **Descriptor output changes** — that is the release — while PXF, `pb`, SBE, envelope and report outputs are byte-identical to v1.9.0 for every schema, document and topic corpus; doc packs are too, apart from the image SHA-256 they stamp into provenance and descriptor-path anchors. Two distinct things move the descriptor bytes, and only the first is about `@http`: the new `google.api.http` option on annotated methods, and the `50402` source spans of the bundled `protowire/schema/v1/annotations.proto`, whose `annotation http(` declaration shifted when its doc comment grew. That library ships inside **every** image, so every image's bytes change and every downstream image cache invalidates — a schema that uses no `@http` at all still rebuilds to different bytes. See [`STABILITY.md`](STABILITY.md) for what is and is not promised about the foreign extension number this now writes.
 
 ### Added
