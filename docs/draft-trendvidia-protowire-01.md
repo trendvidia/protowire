@@ -996,7 +996,7 @@ extend google.protobuf.FieldOptions {
 }
 ~~~
 
-pxf.required: when true, decoders MUST reject a PXF document in which the annotated field is absent. A field bound to "null" is considered present for the purpose of this check; null-rejection for non-nullable types is governed by {{booleans-null-and-identifier-values}}.
+pxf.required: when true, decoders MUST reject a PXF document in which the annotated field is absent. A field bound to "null" is considered present for the purpose of this check; null-rejection for non-nullable types is governed by {{booleans-null-and-identifier-values}}. The annotation is not valid on a member of a oneof; see {{oneof-annotation-placement}}.
 
 pxf.default: when set, the value is a PXF literal (parsed by the same rules as a value in any entry). Decoders MUST treat an absent annotated field as if the document had supplied the default literal. The default applies only to absent fields, not to fields explicitly set to "null" or to the proto3 zero value. The annotation carries exactly one literal, so it is valid only on fields a single literal can denote; placement constraints are specified in {{default-schema-placement}}.
 
@@ -1031,6 +1031,30 @@ Conformance:
 * Implementations MUST NOT invent a semantics for a rejected placement. In particular, a single literal on a repeated field MUST NOT be applied as a one-element list: the resulting PB output would differ from that of an implementation that rejects the schema, for the same schema and the same document.
 
 * A pxf.default in one of these placements never had honorable semantics — there was no literal the decoder could have applied. Rejecting it on upgrade surfaces a pre-existing latent bug rather than introducing one; as with {{schema-constraints}}, this document defines no migration accommodation.
+
+A field that satisfies the above but is a member of a oneof carries the additional constraints of {{oneof-annotation-placement}}.
+
+### Oneof Members {#oneof-annotation-placement}
+
+Setting any member of a oneof clears the others, so the per-field reading of "absent" that pxf.required and pxf.default are otherwise defined against does not hold inside a oneof: a member is absent whenever a sibling was chosen. Both annotations therefore take additional constraints there.
+
+pxf.default MAY be set on a member of a oneof, subject to:
+
+* the default applies only when NO member of the oneof is present in the document. When any member is present the default MUST NOT be applied — applying it would clear the member the document supplied, destroying input;
+
+* a member bound to "null" counts as present for this test, consistent with the rule above that "null" suppresses a default; and
+
+* at most one member of any one oneof may carry pxf.default. Tools that bind a descriptor for PXF use MUST reject a schema in which two or more members of the same oneof carry it.
+
+The last constraint exists because the alternative is an ordering rule. With two annotated members and an empty document, some member's default must win; deciding by declaration order would make reordering two field declarations silently change what a document decodes to, and deciding by field number would do the same on renumbering. Rejecting the schema is the only outcome that does not attach meaning to a detail authors are free to change.
+
+pxf.required MUST NOT be set on a member of a oneof; tools that bind a descriptor for PXF use MUST reject such a schema. Read per-field, it requires that one specific arm always be chosen, which makes every other arm of the oneof undecodable. Its only coherent reading — that the oneof must be set to something — is a property of the oneof rather than of any member, and this revision defines no annotation at that scope. A future revision MAY add one; forbidding the member placement now keeps that addition additive rather than a reinterpretation of an existing annotation.
+
+Conformance:
+
+* A decoder MUST NOT apply a oneof member's pxf.default over a present sibling. An implementation that tests presence per field without regard to oneof membership does exactly that, and is non-conforming.
+
+* These placements bound cleanly before this revision and decoded destructively: a document choosing one arm decoded as though it had chosen another, and a document choosing a valid arm was rejected for the absence of a different one. As with {{schema-constraints}}, rejecting such a schema on upgrade surfaces a pre-existing latent bug rather than introducing one.
 
 ## SBE Annotations {#sbe-annotations}
 
