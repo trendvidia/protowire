@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Invalid fixture: http-repeated-template
+// Violates: RFC-001 §5.2 — a `{name}` segment expands to a single path
+// value, so it cannot bind a repeated or map field. `google.api.HttpRule`
+// rejects such a binding outright, so the lowered rule would be
+// unservable in every REST binder (issue #213).
+
+syntax = "proto3";
+
+package fixtures.badhttprepeated;
+
+import "protowire/schema/v1/annotations.proto";
+
+message GetOrderRequest {
+  repeated string order_id = 1;
+}
+
+message Order {
+  string order_id = 1;
+}
+
+service Orders {
+  // ERROR: `order_id` is repeated; a path variable binds one value.
+  @http("GET", "/orders/{order_id}")
+  rpc GetOrder(GetOrderRequest) returns (Order);
+}

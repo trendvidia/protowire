@@ -2,8 +2,8 @@
 // Copyright (c) 2026 TrendVidia, LLC.
 
 plugins {
-    id("org.jetbrains.kotlin.jvm") version "2.4.0"
-    id("org.jetbrains.intellij.platform") version "2.17.0"
+    id("org.jetbrains.kotlin.jvm") version "2.4.10"
+    id("org.jetbrains.intellij.platform") version "2.18.1"
 }
 
 group = "com.trendvidia.pxf"

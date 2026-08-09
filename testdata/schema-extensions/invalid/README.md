@@ -25,6 +25,11 @@ NOT include this directory when compiling the positive corpus.
 | `unbalanced_expression.proto` | `unbalanced-capture` | Expression-argument capture requires `()`/`[]`/`{}` to balance at the argument boundary (RFC-001 §5.1, capture step). |
 | `undeclared_annotation.proto` | `undeclared-annotation` | An annotation use site must resolve to a visible `annotation` declaration. |
 | `reserved_sensitive_class.proto` | `reserved-sensitive-class` | `@sensitive` class names beginning with `protowire.` are reserved for future spec-defined classes; compilers MUST reject them (RFC-001 §6.7 classification rule 1, issue #111). |
+| `http_unbound_template.proto` | `http-unbound-template` | Every `{name}` segment of an `@http` path binds a field of the request message. Since the skeleton lowers to a standard `google.api.http` rule, a segment that binds nothing is an unservable route, and compilers MUST reject it rather than emit it (RFC-001 §5.2, issue #213). This fixture pins only the binds-nothing class: whether a segment may name a *nested* field as a dotted path is unsettled between the reference implementations (issue #217), so no fixture asserts either answer. |
+| `http_repeated_template.proto` | `http-repeated-template` | A `{name}` segment expands to a single path value, so it MUST NOT bind a repeated or map field; `google.api.HttpRule` rejects such a binding outright (RFC-001 §5.2, issue #213). |
+| `http_relative_path.proto` | `http-relative-path` | An `@http` path is absolute — it lowers to a `HttpRule` pattern field matched against a request path that starts at `/` (RFC-001 §5.2, issue #213). |
+| `http_unbalanced_template.proto` | `http-unbalanced-template` | Every `{` in an `@http` path opens a template segment and MUST be closed by a `}`; an unclosed brace names a variable that can be neither bound nor checked (RFC-001 §5.2, issue #213). |
+| `http_empty_method.proto` | `http-empty-method` | `method` selects the `HttpRule` pattern field the route binds under, so it MUST NOT be empty — an empty verb selects no pattern and binds the method to nothing (RFC-001 §5.2, issue #213). |
 
 Runtime error states (missing implementation, unsatisfiable `@default`,
 locale-catalog miss) are **valid** schemas whose behavior is pinned by

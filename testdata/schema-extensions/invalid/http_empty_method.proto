@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Invalid fixture: http-empty-method
+// Violates: RFC-001 §5.2 — `method` selects the `google.api.HttpRule`
+// pattern field the route binds under, so an empty verb selects none
+// and the method is bound by nothing (issue #213).
+
+syntax = "proto3";
+
+package fixtures.badhttpverb;
+
+import "protowire/schema/v1/annotations.proto";
+
+message ListOrdersRequest {
+  string page_token = 1;
+}
+
+message ListOrdersResponse {
+  repeated string order_id = 1;
+}
+
+service Orders {
+  // ERROR: `method` is empty; no pattern field can be selected.
+  @http("", "/orders")
+  rpc ListOrders(ListOrdersRequest) returns (ListOrdersResponse);
+}

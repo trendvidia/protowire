@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Invalid fixture: http-relative-path
+// Violates: RFC-001 §5.2 — an `@http` path is absolute. The skeleton
+// lowers to a `google.api.http` pattern field, which a REST binder
+// matches against a request path that always starts at `/`, so a
+// relative path binds nothing (issue #213).
+
+syntax = "proto3";
+
+package fixtures.badhttppath;
+
+import "protowire/schema/v1/annotations.proto";
+
+message GetOrderRequest {
+  string order_id = 1;
+}
+
+message Order {
+  string order_id = 1;
+}
+
+service Orders {
+  // ERROR: the path does not start with `/`.
+  @http("GET", "orders/{order_id}")
+  rpc GetOrder(GetOrderRequest) returns (Order);
+}
