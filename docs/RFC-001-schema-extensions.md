@@ -252,6 +252,8 @@ Every parameter beyond `method` and `path` is defaulted, so the v1.2.0 two-argum
 
 The existing PXF annotations `(pxf.required)` and `(pxf.default)` retain their bracket forms and extension numbers (`50000`, `50001`): bracket-written options remain valid v1.2 input and lower identically to v1.1. `@required` and `@default(value)` are the canonical annotation form going forward, and they lower **exclusively** to the schema-extension carrier (§8.1) — the annotation forms never emit the legacy options (§8.5). A consumer that reads only `(pxf.required)`/`(pxf.default)` observes bracket-written options and nothing else; enforcing the annotation forms requires a carrier-aware (v1.2) consumer.
 
+`@default(value)` inherits the placement constraint the draft states for `(pxf.default)` (draft `-01` §annotation-extensions, "Default Placement"): the annotation carries one literal, so it is valid only on singular scalar fields, enum fields, and the message types a PXF literal can denote — never on a `repeated` field, a `map<K,V>` field, a group, or any other message type. The constraint is on the annotation, not on the surface that writes it, so the compiler rejects a misplaced `@default(value)` at the use site with the same force a PXF binding tool rejects a misplaced bracket option. Note this is the one place `@default` and `@validate` diverge in their treatment of collections: §6.4's per-element rule makes `@validate` meaningful on a `repeated` or `map<K,V>` field, whereas `@default` has no per-element reading — a single literal cannot denote a collection, and the annotation grammar has no element or key separator to give it one.
+
 ### 5.3 Worked example
 
 ```proto
