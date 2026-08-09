@@ -232,7 +232,7 @@ The transform is mechanical, because `@http`'s model is already 1:1 with `HttpRu
 
 The emitted option adds **no import** to the lowered file. Like the §8.1 carriers, it rides in the options message's unknown-field bytes, so the descriptor set stays self-contained and resolvable by stock `protodesc`; consumers that link `google.api` resolve it through their own type registry, exactly as they do for a `protoc`-produced descriptor.
 
-Because the skeleton is lowered rather than merely carried, it is also **checked**: a `{name}` segment that binds no field of the request message is a compile error, as are a template segment binding a repeated or map field, a non-absolute path, unbalanced template braces, and an empty `method`. Each of those would otherwise produce a rule that no binder can serve (fixture: `invalid/http_unbound_template.proto`).
+Because the skeleton is lowered rather than merely carried, it is also **checked**: a `{name}` segment that binds no field of the request message is a compile error, as are a template segment binding a repeated or map field, a non-absolute path, unbalanced template braces, and an empty `method`. Each of those would otherwise produce a rule that no binder can serve, and each has its own conformance fixture: `invalid/http_unbound_template.proto`, `http_repeated_template.proto`, `http_relative_path.proto`, `http_unbalanced_template.proto`, `http_empty_method.proto`.
 
 Two divergences between the reference implementations are open at the time of writing, and a port MUST NOT read either as settled spec:
 

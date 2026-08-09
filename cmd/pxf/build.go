@@ -140,12 +140,13 @@ func runBuild(cmd *cobra.Command, args []string, opts buildOptions) error {
 	}
 	chain = append(chain, source.WKTs())
 
-	// The zero fdp.Options emits google.api.http; the flag only ever
-	// turns it off (RFC-001 §5.2, issue #213).
+	// Stated in both directions rather than only suppressing: the
+	// default lives in fdp (the zero Options emits), and a flip there
+	// would otherwise silently turn --google-api-http=true into a no-op
+	// (RFC-001 §5.2, issue #213). EmitGoogleAPIHTTP(true) is the zero
+	// value, so Options stays comparable for the incremental query key.
 	var fdpOpts fdp.Options
-	if !opts.googleAPIHTTP {
-		fdpOpts.Apply(fdp.EmitGoogleAPIHTTP(false))
-	}
+	fdpOpts.Apply(fdp.EmitGoogleAPIHTTP(opts.googleAPIHTTP))
 
 	results, rep, err := incremental.Run(cmd.Context(), incremental.New(), queries.FDS{
 		Opener:    &chain,

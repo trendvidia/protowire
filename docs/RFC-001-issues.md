@@ -1578,9 +1578,11 @@ any `protoc`-produced descriptor.
 something will try to serve, `{name}` segments binding no request field
 — plus segments binding a repeated field, relative paths, unbalanced
 braces and empty verbs — are compile errors rather than image content
-(fixture `invalid/http_unbound_template.proto`). #080's renderer
+(one fixture per class, `invalid/http_*.proto`). #080's renderer
 already rejected the naming-nothing case, so on that class the two ends
-of the toolchain stop disagreeing about what is servable.
+of the toolchain stop disagreeing about what is servable. This narrows
+what v1.2 sources a v1.10.0 compiler accepts; the narrowing and its
+justification are recorded in `STABILITY.md`.
 
 *Landing site:* the lowering is in the reference compiler, not the CLI,
 so every image producer inherits it and the diagnostics carry source

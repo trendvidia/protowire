@@ -145,8 +145,15 @@ annotation sensitive(class: string = "");
 // rule; the compiler never adds a competing one (issue #213).
 //
 // Because the skeleton is lowered rather than merely carried, it is
-// checked: a `{name}` segment naming no field of the request message
-// is a compile error, as are a relative path and an empty method.
+// checked. Each of these is a compile error, since each would reach an
+// image as a route no binder can serve (RFC-001 §5.2; fixtures in
+// testdata/schema-extensions/invalid/):
+//
+//   - a `{name}` segment that binds no field of the request message
+//   - a `{name}` segment that binds a repeated or map field
+//   - a path that is not absolute
+//   - a path whose `{` is never closed
+//   - an empty `method`
 //
 // The remaining parameters are documentation metadata: they carry no
 // validation semantics, and a port that does not render REST surfaces

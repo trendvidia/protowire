@@ -3,11 +3,10 @@
 //
 // Invalid fixture: http-unbound-template
 // Violates: RFC-001 §5.2 — every `{name}` segment of an `@http` path
-// binds to the same-named top-level field of the request message. The
-// skeleton lowers to a standard `google.api.http` rule, so a segment
-// that binds nothing is a route that 404s in every REST binder while
-// the schema and the generated OpenAPI document both promise it
-// (issue #213).
+// binds a field of the request message. The skeleton lowers to a
+// standard `google.api.http` rule, so a segment that binds nothing is
+// a route that 404s in every REST binder while the schema and the
+// generated OpenAPI document both promise it (issue #213).
 
 syntax = "proto3";
 

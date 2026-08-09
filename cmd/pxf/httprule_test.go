@@ -134,8 +134,14 @@ func fileDeps(t *testing.T, image []byte, name string) []string {
 }
 
 // TestBuildGoogleAPIHTTPOptOut verifies --google-api-http=false drops
-// the standard extension and leaves the annotation carrier — and every
-// other byte of the image — alone.
+// the standard extension and leaves the rest of the image alone.
+//
+// "The rest" is asserted rather than assumed: strip field 72295728 from
+// every method of the emitting image and the two must be equal. Merely
+// asserting that the images differ would still pass if the opt-out path
+// also perturbed, say, the source-map carrier — which is the shape of
+// promise STABILITY.md makes for the flag, and the reason it is worth a
+// comparison rather than a count.
 func TestBuildGoogleAPIHTTPOptOut(t *testing.T) {
 	withRules := buildImage(t, httpFixture)
 	without := buildImage(t, "--google-api-http=false", httpFixture)
@@ -146,6 +152,10 @@ func TestBuildGoogleAPIHTTPOptOut(t *testing.T) {
 	if bytes.Equal(withRules, without) {
 		t.Error("--google-api-http=false produced a byte-identical image")
 	}
+	if stripped, want := stripHTTPRules(t, withRules), stripHTTPRules(t, without); !bytes.Equal(stripped, want) {
+		t.Errorf("the opt-out changed more than the google.api.http rules (%d vs %d bytes with rules removed)",
+			len(stripped), len(want))
+	}
 
 	// The carrier is untouched by the opt-out: the annotation still
 	// lowers, so `pxf openapi` and `pxf docs` see exactly what they did.
@@ -154,6 +164,32 @@ func TestBuildGoogleAPIHTTPOptOut(t *testing.T) {
 			t.Errorf("expected 3 method annotation carriers, got %d", n)
 		}
 	}
+}
+
+// stripHTTPRules re-encodes an image with the google.api.http extension
+// removed from every method, so two images can be compared for
+// everything *but* the rules. Both sides go through the same clear +
+// deterministic re-marshal, so any normalization applies equally.
+func stripHTTPRules(t *testing.T, image []byte) []byte {
+	t.Helper()
+	fds := new(descriptorpb.FileDescriptorSet)
+	if err := proto.Unmarshal(image, fds); err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range fds.GetFile() {
+		for _, s := range f.GetService() {
+			for _, m := range s.GetMethod() {
+				if opts := m.GetOptions(); opts != nil {
+					proto.ClearExtension(opts, annotations.E_Http)
+				}
+			}
+		}
+	}
+	raw, err := proto.MarshalOptions{Deterministic: true}.Marshal(fds)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return raw
 }
 
 // countAnnotationCarriers counts methods carrying the 50400 annotation
@@ -209,14 +245,11 @@ func hasField(b []byte, want protowire.Number) bool {
 	return false
 }
 
-// TestBuildGoogleAPIHTTPByteStable pins that emission does not cost the
-// image its byte-stability across runs — the acceptance bar for caching
-// it as a build artifact (#164).
-func TestBuildGoogleAPIHTTPByteStable(t *testing.T) {
-	if !bytes.Equal(buildImage(t, httpFixture), buildImage(t, httpFixture)) {
-		t.Error("image with google.api.http rules is not byte-stable across runs")
-	}
-}
+// Byte-stability of an image carrying google.api.http rules is not
+// asserted here: TestBuildPositiveCorpus builds every top-level fixture
+// — 21_http_operation.proto among them — twice and fails on any
+// difference, so the rule bytes are already pinned as stable by the
+// #164 acceptance test.
 
 // TestHTTPRulesMatchOpenAPIPaths is the invariant #213 exists for: the
 // document `pxf openapi` renders and the routes an image actually binds
@@ -267,8 +300,15 @@ func TestHTTPRulesMatchOpenAPIPaths(t *testing.T) {
 	}
 
 	// The published document is a subset of what is bound, never a
-	// superset: a route the reader is told about must exist.
-	for op := range renderedOperations(t, image, "") {
+	// superset: a route the reader is told about must exist. Guarded for
+	// emptiness like the internal tier above — an audience-filter
+	// regression that emptied the public document would otherwise make
+	// this loop pass by never running.
+	public := renderedOperations(t, image, "")
+	if len(public) == 0 {
+		t.Fatal("the public document describes no operations; the subset check would be vacuous")
+	}
+	for op := range public {
 		if !fromImage[op] {
 			t.Errorf("the public document promises %q, which the image does not bind", op)
 		}
