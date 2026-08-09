@@ -9,7 +9,7 @@ go 1.26.2
 
 require (
 	github.com/trendvidia/protocheck/v2 v2.3.0
-	github.com/trendvidia/protocompile v0.23.1-0.20260809042801-5426adb52c7e
+	github.com/trendvidia/protocompile v0.24.0
 	google.golang.org/protobuf v1.36.11
 )
 

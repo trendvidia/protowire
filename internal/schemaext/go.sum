@@ -26,8 +26,8 @@ github.com/trendvidia/protobuf-go v1.36.14 h1:ocdT5sMzV613A/O08F/z+NeXPv+f0yTuGC
 github.com/trendvidia/protobuf-go v1.36.14/go.mod h1:HTf+CrKn2C3g5S8VImy6tdcUvCska2kB7j23XfzDpco=
 github.com/trendvidia/protocheck/v2 v2.3.0 h1:7m6ZHfi8wHXnAZqeJzhwFUnv5208ZQZZtsRbODmrgfw=
 github.com/trendvidia/protocheck/v2 v2.3.0/go.mod h1:OYUHdm8f7LdH7oXTH5pYGnjCFKqzX5843eVtqsEJh9A=
-github.com/trendvidia/protocompile v0.23.1-0.20260809042801-5426adb52c7e h1:orhbxF+vscUhmsuHHYaN/hFEFTgHz8lZn3HsxDYJxsQ=
-github.com/trendvidia/protocompile v0.23.1-0.20260809042801-5426adb52c7e/go.mod h1:pbylwFhrPT7ksIiWyWp6hTwrrtUeYQ7PO9BdGZSc3Wc=
+github.com/trendvidia/protocompile v0.24.0 h1:5L47JE87pa/BF9j5sjZANuYOK/ICh14FLYDwznjzYIA=
+github.com/trendvidia/protocompile v0.24.0/go.mod h1:pbylwFhrPT7ksIiWyWp6hTwrrtUeYQ7PO9BdGZSc3Wc=
 github.com/trendvidia/protowire-go v1.3.1 h1:g+IljiUi3HJ3ay/0WqD2/PGyb5WNrMEGaJsDGCGMLDo=
 github.com/trendvidia/protowire-go v1.3.1/go.mod h1:YIJF4pBDfBPCpntd+l/6NIuZ1CIuWM0dLa2s87gG2Gw=
 golang.org/x/exp v0.0.0-20250911091902-df9299821621 h1:2id6c1/gto0kaHYyrixvknJ8tUK/Qs5IsmBtrc+FtgU=
