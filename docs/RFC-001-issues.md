@@ -1620,21 +1620,27 @@ justification are recorded in `STABILITY.md`.
 so every image producer inherits it and the diagnostics carry source
 positions from the IR pass rather than arriving as a bare CLI error.
 
-**Left open by this resolution.** The agreement above holds for the
-class the fixture pins and not yet for the whole template grammar; both
-gaps are the same shape as the one #213 closed, and neither is settled
-by the text §5.2 now carries:
+**Left open by this resolution.** The agreement above held for the class
+the fixture pins and not yet for the whole template grammar; both gaps
+are the same shape as the one #213 closed, and neither was settled by
+the text §5.2 carried at the time. Each is tracked by its own issue and
+closes in its own change; a bullet records its resolution when it does:
 
-- *Template grammar* (GH #217). The reference compiler resolves a
-  segment name as a dotted path from the request message's top level
-  and accepts the `HttpRule` sub-path form `{name=segments/**}`; §5.2
-  as written, and #080's renderer, admit only a same-named top-level
-  field. So `@http("GET", "/things/{ref.id}")` compiles, binds, and
-  then fails `pxf openapi` on the image it produced. Either the
-  renderer widens to `HttpRule`'s grammar (and §5.2 with it) or the
-  compiler narrows to §5.2 — the decision belongs with the same
-  ownership argument as this entry, not with whichever end was written
-  last.
+- *Template grammar* (GH #217) — **resolved: the renderer widens.** §5.2
+  now states the compiler's rule (a dotted path from the request
+  message's top level, optionally constrained by the `HttpRule` sub-path
+  form) and #080's renderer implements it, so `@http("GET",
+  "/things/{ref.id}")` and `{name=shelves/*}` document as well as they
+  bind. Widening rather than narrowing, on the same ownership argument
+  as this entry: the dotted form is legal `HttpRule` that grpc-gateway
+  serves and the compiler shipped in v0.24.0, so narrowing would be a
+  second source-level narrowing stacked on v1.10.0's five. The
+  agreement is not total, and §5.2 says where it stops: a message-typed
+  *leaf* still compiles and binds and then fails to render, two
+  bindings differing only in a sub-path constraint normalise to one
+  OpenAPI path key and collide, and the constraint itself reaches the
+  document nowhere. Those three are the open remainder of this bullet —
+  each names which end would have to move, and none is settled here.
 - *`additional_bindings`* (GH #215). Every use site lowers; #080's
   renderer describes the first. The blocker is what `operation_id` a
   second binding carries, since the derived `<Service>_<Method>` is no
