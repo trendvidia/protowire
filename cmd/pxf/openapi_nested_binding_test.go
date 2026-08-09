@@ -208,3 +208,166 @@ service S {
 		t.Errorf("want the message-typed refusal, got: %v", err)
 	}
 }
+
+// TestOpenAPINestedBindingSelfReferentialRequest pins the cycle guard at
+// the request message itself. A request type that contains itself is on
+// the descent chain from the first step, so `{self.x}` is refused by the
+// same rule as the deeper `{self.self.x}` — §5.2 says a binding that
+// descends *through* a self-referential type MUST be refused, and the
+// depth at which the type recurs is not part of that rule.
+func TestOpenAPINestedBindingSelfReferentialRequest(t *testing.T) {
+	image := buildTempSchema(t, `syntax = "proto3";
+package t;
+
+import "protowire/schema/v1/annotations.proto";
+
+message Req {
+  Req self = 1;
+  string x = 2;
+}
+
+message Res { string ok = 1; }
+
+service S {
+  @http("PATCH", "/x/{self.x}")
+  rpc Do(Req) returns (Res);
+}
+`)
+
+	err := runPxf(t, "openapi", "--check", image)
+	if err == nil {
+		t.Fatal("expected a refusal for a self-referential request message, got a document")
+	}
+	for _, want := range []string{"recursive", "t.Req"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error %q does not mention %q", err, want)
+		}
+	}
+}
+
+// TestOpenAPINestedBindingBodyKeepsContainerKeywords covers what the
+// inlining must not lose. A container rendered as a `$ref` composes the
+// field's own keywords beside it with `allOf`; inlined minus its bound
+// leaf there is no reference left, so they have to land on the object
+// itself. `x-validation` is the sharpest case — §#080 promises no rule
+// ever disappears at the boundary.
+func TestOpenAPINestedBindingBodyKeepsContainerKeywords(t *testing.T) {
+	image := buildTempSchema(t, `syntax = "proto3";
+package t;
+
+import "protowire/schema/v1/annotations.proto";
+
+message Shelf {
+  string id = 1;
+  string display_name = 2;
+}
+
+message UpdateShelfRequest {
+  Shelf shelf = 1
+    @description("the shelf being updated")
+    @deprecated("use shelf_ref")
+    @validate(populated(this));
+  bool dry_run = 2;
+}
+
+message Res { string ok = 1; }
+
+service S {
+  @http("PATCH", "/shelves/{shelf.id}")
+  rpc UpdateShelf(UpdateShelfRequest) returns (Res);
+}
+`)
+
+	schema := bodySchema(t, image, "/shelves/{shelf.id}", "patch")
+	props, _ := schema["properties"].(map[string]any)
+	shelf, ok := props["shelf"].(map[string]any)
+	if !ok {
+		t.Fatalf("body lost the container of the bound leaf: %v", props)
+	}
+	if got := shelf["description"]; got != "the shelf being updated" {
+		t.Errorf("the inlined container lost its @description: %v", shelf)
+	}
+	if shelf["deprecated"] != true || shelf["x-deprecated-reason"] != "use shelf_ref" {
+		t.Errorf("the inlined container lost its @deprecated: %v", shelf)
+	}
+	if _, ok := shelf["x-validation"]; !ok {
+		t.Errorf("the inlined container dropped a rule §#080 says is never dropped: %v", shelf)
+	}
+}
+
+// TestOpenAPINestedBindingSensitiveContainer covers §6.7 across both
+// halves of the binding. Flattening dissolves the reference that would
+// have carried a sensitive container's marker, so the marker travels to
+// what the flattening leaves behind — and the doc-emit minima follow it,
+// which is why the member's @example must not survive.
+func TestOpenAPINestedBindingSensitiveContainer(t *testing.T) {
+	const decls = `
+message Shelf {
+  string id = 1;
+  string display_name = 2 @example("main");
+}
+
+message Res { string ok = 1; }
+`
+
+	t.Run("query", func(t *testing.T) {
+		image := buildTempSchema(t, `syntax = "proto3";
+package t;
+
+import "protowire/schema/v1/annotations.proto";
+`+decls+`
+message GetShelfRequest {
+  Shelf shelf = 1 @sensitive(class = "pii");
+}
+
+service S {
+  @http("GET", "/shelves/{shelf.id}")
+  rpc Get(GetShelfRequest) returns (Res);
+}
+`)
+		// Only the operation: the `t.Shelf` *component* is not itself
+		// sensitive — the marker sits on the reference to it — so its
+		// own example stays where the reference can still carry one.
+		doc := string(renderOpenAPI(t, image))
+		ops, _, _ := strings.Cut(doc, "\ncomponents:")
+		if strings.Contains(ops, "example: main") {
+			t.Errorf("§6.7: an example survived the flattening out of a @sensitive container:\n%s", ops)
+		}
+		if n := strings.Count(ops, "x-sensitive: true"); n < 2 {
+			t.Errorf("want the marker on both the path leaf and the flattened sibling, got %d:\n%s", n, ops)
+		}
+	})
+
+	t.Run("body", func(t *testing.T) {
+		image := buildTempSchema(t, `syntax = "proto3";
+package t;
+
+import "protowire/schema/v1/annotations.proto";
+`+decls+`
+message UpdateShelfRequest {
+  Shelf shelf = 1 @sensitive(class = "pii");
+}
+
+service S {
+  @http("PATCH", "/shelves/{shelf.id}")
+  rpc Do(UpdateShelfRequest) returns (Res);
+}
+`)
+		schema := bodySchema(t, image, "/shelves/{shelf.id}", "patch")
+		props, _ := schema["properties"].(map[string]any)
+		shelf, ok := props["shelf"].(map[string]any)
+		if !ok {
+			t.Fatalf("body lost the container of the bound leaf: %v", props)
+		}
+		if shelf["x-sensitive"] != true || shelf["x-sensitive-class"] != "pii" {
+			t.Errorf("the inlined container lost its §6.7 markers: %v", shelf)
+		}
+		member, _ := shelf["properties"].(map[string]any)["display_name"].(map[string]any)
+		if _, ok := member["example"]; ok {
+			t.Errorf("§6.7: an example survived inside a @sensitive container: %v", member)
+		}
+		if member["x-sensitive"] != true {
+			t.Errorf("the marker did not reach the inlined member: %v", member)
+		}
+	})
+}

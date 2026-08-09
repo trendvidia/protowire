@@ -272,12 +272,12 @@ func (ob *operationsBuilder) operation(svc *serviceInfo, mth *methodInfo, use *h
 	for _, name := range templateParams(use.path) {
 		// declaring, not owner: the operation's own `owner` description
 		// is still live below, at the path-key collision check.
-		declaring, fi := resolveFieldPath(ob.m, req, name)
+		declaring, fi, sensitive := ob.resolveFieldPath(req, name)
 		if fi == nil {
 			return fmt.Errorf("path template {%s} names no field of %s", name, mth.input)
 		}
 		bound[name] = true
-		ps, err := ob.paramSchema(declaring, fi)
+		ps, err := ob.paramSchema(declaring, fi, sensitive)
 		if err != nil {
 			return err
 		}
@@ -289,7 +289,7 @@ func (ob *operationsBuilder) operation(svc *serviceInfo, mth *methodInfo, use *h
 	}
 
 	if bodyless(use.method) {
-		query, err := ob.queryParams(req, bound, "", nil)
+		query, err := ob.queryParams(req, rootDescent(req, bound))
 		if err != nil {
 			return err
 		}
@@ -357,7 +357,12 @@ func (ob *operationsBuilder) operation(svc *serviceInfo, mth *methodInfo, use *h
 // paramSchema renders a request field as a parameter schema. Fields the
 // binding rules place in the path or query are value-shaped; a
 // message-typed field here has no canonical flat encoding and errors.
-func (ob *operationsBuilder) paramSchema(req *messageInfo, fi *fieldInfo) (*omap, error) {
+//
+// msgSensitive is the §6.7 sensitivity of the field's surroundings, not
+// just of the message that declares it: a dotted binding flattens its
+// containers away, and the marker they would have carried has nowhere
+// left to sit but the parameter itself (issue #218).
+func (ob *operationsBuilder) paramSchema(mi *messageInfo, fi *fieldInfo, msgSensitive bool) (*omap, error) {
 	if fi.desc.GetType() == descriptorpb.FieldDescriptorProto_TYPE_MESSAGE &&
 		!ob.sb.isMapField(fi.desc) {
 		fqn := strings.TrimPrefix(fi.desc.GetTypeName(), ".")
@@ -367,7 +372,7 @@ func (ob *operationsBuilder) paramSchema(req *messageInfo, fi *fieldInfo) (*omap
 			}
 		}
 	}
-	s, err := ob.sb.propertySchema(req, fi, ob.sb.messageSensitive(req.fqn))
+	s, err := ob.sb.propertySchema(mi, fi, msgSensitive)
 	if err != nil {
 		return nil, err
 	}
@@ -399,6 +404,56 @@ func (b boundPaths) under(name string) boundPaths {
 	return out
 }
 
+// descent is the state one level of the remaining-field binding carries
+// down: what stays bound below this message, the dotted prefix its
+// names take, the §6.7 sensitivity inherited from the containers
+// already walked through, and the message FQNs on this chain.
+type descent struct {
+	bound     boundPaths
+	prefix    string
+	sensitive bool
+	seen      map[string]bool
+}
+
+// rootDescent starts a descent at the request message. The request is
+// already on the chain, so a request type that contains itself is
+// refused by the same rule as any deeper revisit rather than descending
+// one level further than the rest.
+func rootDescent(req *messageInfo, bound boundPaths) descent {
+	return descent{bound: bound, seen: map[string]bool{req.fqn: true}}
+}
+
+// into resolves the container fi of mi and returns the state for
+// descending into it, with below staying bound underneath. Both halves
+// of the remaining-field binding descend the same way, so the
+// bookkeeping — the model lookup, the cycle refusal and the inherited
+// sensitivity — lives here once (issue #218).
+func (ob *operationsBuilder) into(d descent, mi *messageInfo, fi *fieldInfo, below boundPaths, msgSensitive bool) (*messageInfo, descent, error) {
+	name := fi.desc.GetName()
+	sub := ob.m.messages[strings.TrimPrefix(fi.desc.GetTypeName(), ".")]
+	if sub == nil {
+		// resolveFieldPath already walked this path, so the container
+		// resolves; a nil here would be a model gap.
+		return nil, descent{}, fmt.Errorf("field %s%s is not in the image", d.prefix, name)
+	}
+	if d.seen[sub.fqn] {
+		return nil, descent{}, fmt.Errorf("field %s%s binds through a recursive message (%s); "+
+			"a binding that descends through a self-referential type has no finite flattening (§5.2, issue #218)",
+			d.prefix, name, sub.fqn)
+	}
+	seen := make(map[string]bool, len(d.seen)+1)
+	for f := range d.seen {
+		seen[f] = true
+	}
+	seen[sub.fqn] = true
+	return sub, descent{
+		bound:     below,
+		prefix:    d.prefix + name + ".",
+		sensitive: msgSensitive || ob.sb.fieldSensitive(fi, ob.m.chainOf(mi.fqn, name)),
+		seen:      seen,
+	}, nil
+}
+
 // queryParams renders the unbound fields of a message as query
 // parameters. A field whose leaf the path template bound is skipped; a
 // container holding one is descended into, so its siblings keep binding
@@ -407,33 +462,21 @@ func (b boundPaths) under(name string) boundPaths {
 // existing treatment: value-shaped ones render, message-typed ones are
 // refused, because flattening every message into the query string is a
 // wider change than a bound leaf forces.
-//
-// seen carries the message FQNs on the current descent, so a container
-// that reaches itself is refused rather than recursed forever.
-func (ob *operationsBuilder) queryParams(mi *messageInfo, bound boundPaths, prefix string, seen map[string]bool) ([]any, error) {
+func (ob *operationsBuilder) queryParams(mi *messageInfo, d descent) ([]any, error) {
 	var out []any
+	msgSensitive := d.sensitive || ob.sb.messageSensitive(mi.fqn)
 	for _, fi := range mi.fields {
 		name := fi.desc.GetName()
-		if bound.exact(name) {
+		if d.bound.exact(name) {
 			continue
 		}
 
-		if below := bound.under(name); below != nil {
-			sub := ob.m.messages[strings.TrimPrefix(fi.desc.GetTypeName(), ".")]
-			if sub == nil {
-				// resolveFieldPath already walked this path, so the
-				// container resolves; a nil here would be a model gap.
-				return nil, fmt.Errorf("field %s%s is not in the image", prefix, name)
+		if below := d.bound.under(name); below != nil {
+			sub, next, err := ob.into(d, mi, fi, below, msgSensitive)
+			if err != nil {
+				return nil, err
 			}
-			if seen[sub.fqn] {
-				return nil, fmt.Errorf("field %s%s binds through a recursive message (%s); "+
-					"the query string has no finite spelling for it", prefix, name, sub.fqn)
-			}
-			next := map[string]bool{sub.fqn: true}
-			for f := range seen {
-				next[f] = true
-			}
-			nested, err := ob.queryParams(sub, below, prefix+name+".", next)
+			nested, err := ob.queryParams(sub, next)
 			if err != nil {
 				return nil, err
 			}
@@ -441,18 +484,18 @@ func (ob *operationsBuilder) queryParams(mi *messageInfo, bound boundPaths, pref
 			continue
 		}
 
-		ps, err := ob.paramSchema(mi, fi)
+		ps, err := ob.paramSchema(mi, fi, msgSensitive)
 		if err != nil {
 			return nil, err
 		}
 		p := newOmap().
-			set("name", prefix+name).
+			set("name", d.prefix+name).
 			set("in", "query")
 		if findAnn(fi.anns, annRequired).valid() {
 			p.set("required", true)
 		}
-		if d := description(fi.anns); d != "" {
-			p.set("description", d)
+		if desc := description(fi.anns); desc != "" {
+			p.set("description", desc)
 		}
 		p.set("schema", ps)
 		out = append(out, p)
@@ -473,7 +516,7 @@ func (ob *operationsBuilder) requestBody(req *messageInfo, bound boundPaths) (*o
 		schema = ref(req.fqn)
 	} else {
 		var err error
-		if schema, err = ob.bodyObject(req, bound, nil); err != nil {
+		if schema, err = ob.bodyObject(req, rootDescent(req, bound)); err != nil {
 			return nil, err
 		}
 	}
@@ -484,36 +527,33 @@ func (ob *operationsBuilder) requestBody(req *messageInfo, bound boundPaths) (*o
 // bodyObject inlines a message as an object schema minus whatever the
 // path bound below it. Fields with nothing bound below keep their
 // ordinary property schema, `$ref`s included.
-func (ob *operationsBuilder) bodyObject(mi *messageInfo, bound boundPaths, seen map[string]bool) (*omap, error) {
+func (ob *operationsBuilder) bodyObject(mi *messageInfo, d descent) (*omap, error) {
 	schema := newOmap().set("type", "object")
 	props := newOmap()
 	var required []any
-	msgSensitive := ob.sb.messageSensitive(mi.fqn)
+	msgSensitive := d.sensitive || ob.sb.messageSensitive(mi.fqn)
 
 	for _, fi := range mi.fields {
 		name := fi.desc.GetName()
-		if bound.exact(name) {
+		if d.bound.exact(name) {
 			continue
 		}
 
 		var ps *omap
-		if below := bound.under(name); below != nil {
-			sub := ob.m.messages[strings.TrimPrefix(fi.desc.GetTypeName(), ".")]
-			if sub == nil {
-				return nil, fmt.Errorf("field %s is not in the image", name)
-			}
-			if seen[sub.fqn] {
-				return nil, fmt.Errorf("field %s binds through a recursive message (%s)", name, sub.fqn)
-			}
-			next := map[string]bool{sub.fqn: true}
-			for f := range seen {
-				next[f] = true
-			}
-			nested, err := ob.bodyObject(sub, below, next)
+		if below := d.bound.under(name); below != nil {
+			sub, next, err := ob.into(d, mi, fi, below, msgSensitive)
 			if err != nil {
 				return nil, err
 			}
-			ps = nested
+			if ps, err = ob.bodyObject(sub, next); err != nil {
+				return nil, err
+			}
+			// An inlined container has no $ref left for the field's own
+			// keywords to compose with, so they go onto the object
+			// itself: dropping them would lose the @description, the
+			// x-validation carry-through and the §6.7 markers along with
+			// the reference.
+			ob.sb.mergeFieldKeywords(ps, mi, fi, msgSensitive)
 		} else {
 			var err error
 			if ps, err = ob.sb.propertySchema(mi, fi, msgSensitive); err != nil {
@@ -658,21 +698,29 @@ func (ob *operationsBuilder) emitPaths() *omap {
 }
 
 // resolveFieldPath walks a dotted field path from a request message and
-// returns the message that declares the leaf together with the leaf
-// itself, or (nil, nil) when any component names nothing or the path
-// descends through a non-message. The compiler resolves the same shape
-// (§5.2, issue #217); disagreeing here is what made a schema compile,
-// bind, and then fail to document.
-func resolveFieldPath(m *model, mi *messageInfo, path string) (*messageInfo, *fieldInfo) {
+// returns the message that declares the leaf, the leaf itself, and
+// whether the leaf's surroundings are §6.7-sensitive — or (nil, nil,
+// false) when any component names nothing or the path descends through
+// a non-message. The compiler resolves the same shape (§5.2, issue
+// #217); disagreeing here is what made a schema compile, bind, and then
+// fail to document.
+//
+// Sensitivity belongs to the walk because a dotted path is flattened
+// into a single parameter name: the containers it descends through
+// leave no reference behind to carry their marker, so a leaf under a
+// sensitive one has to inherit it or the document would emit values out
+// of a declaration the author marked (§6.7, issue #218).
+func (ob *operationsBuilder) resolveFieldPath(mi *messageInfo, path string) (*messageInfo, *fieldInfo, bool) {
 	components := strings.Split(path, ".")
 	owner := mi
+	sensitive := false
 	for i, component := range components {
 		if owner == nil {
-			return nil, nil
+			return nil, nil, false
 		}
 		fi := fieldByName(owner, component)
 		if fi == nil {
-			return nil, nil
+			return nil, nil, false
 		}
 		// No component may be repeated, map entries included: a repeated
 		// field has no single value a path segment could carry (§5.2).
@@ -681,17 +729,19 @@ func resolveFieldPath(m *model, mi *messageInfo, path string) (*messageInfo, *fi
 		// documented rule rather than whatever descending happens to
 		// allow, which is the disagreement issue #217 was about.
 		if fi.desc.GetLabel() == descriptorpb.FieldDescriptorProto_LABEL_REPEATED {
-			return nil, nil
+			return nil, nil, false
 		}
+		sensitive = sensitive || ob.sb.messageSensitive(owner.fqn)
 		if i == len(components)-1 {
-			return owner, fi
+			return owner, fi, sensitive
 		}
 		if fi.desc.GetType() != descriptorpb.FieldDescriptorProto_TYPE_MESSAGE {
-			return nil, nil // Descending through a scalar names nothing.
+			return nil, nil, false // Descending through a scalar names nothing.
 		}
-		owner = m.messages[strings.TrimPrefix(fi.desc.GetTypeName(), ".")]
+		sensitive = sensitive || ob.sb.fieldSensitive(fi, ob.m.chainOf(owner.fqn, component))
+		owner = ob.m.messages[strings.TrimPrefix(fi.desc.GetTypeName(), ".")]
 	}
-	return nil, nil
+	return nil, nil, false
 }
 
 func fieldByName(mi *messageInfo, name string) *fieldInfo {
