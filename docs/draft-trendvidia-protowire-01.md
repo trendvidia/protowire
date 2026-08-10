@@ -842,7 +842,7 @@ The annotation makes the field's collection-of-named-elements semantics visible 
 
 ### Schema Placement {#keyed-schema-placement}
 
-pxf.key is subject to bind-time checks in the sense of {{schema-constraints}}; tools that bind a descriptor for PXF use MUST reject a schema in which:
+pxf.key is subject to bind-time checks in the sense of {{schema-constraints}}, over the scope of {{bind-check-scope}}; tools that bind a descriptor for PXF use MUST reject a schema in which:
 
 * pxf.key is set on a field that is not a repeated field of message type (scalar fields, map fields, and singular message fields do not accept it);
 
@@ -938,6 +938,28 @@ Conformance:
 
 * Schemas that violate this constraint were never round-trippable through PXF. Rejecting them on upgrade surfaces a pre-existing latent bug rather than introducing one; this document therefore defines no migration accommodation.
 
+## Scope of Bind-Time Checks {#bind-check-scope}
+
+The constraints above, and every other check this document requires at bind time — the pxf.key placement rules of {{keyed-schema-placement}}, the pxf.default placement rules of {{default-schema-placement}}, and the oneof rules of {{oneof-annotation-placement}} — are stated against "a schema". A protobuf descriptor spans more than one file, so this section fixes what that means.
+
+The schema a bind-time check covers is the .proto file declaring the bound descriptor together with its transitive imports. A tool binding a descriptor MUST apply every bind-time check of this document to each file in that closure, and MUST report a violation found in any of them.
+
+A file reached more than once through the import graph is checked once. A violation is attributed to the file that declares the offending element, not to the file that was bound.
+
+The narrower reading — that a check covers only the file declaring the bound descriptor — does not satisfy the conformance requirements those checks state. A decoder recurses into message-typed fields whose types are declared in imported files, and a misplaced annotation on such a type is as unhonorable there as it is in the bound file, but no document need ever make the diagnostic appear: the annotated field is only consulted when its containing message is present. The result is precisely the outcome {{default-schema-placement}} forbids in its first conformance bullet, reached by a different route.
+
+A third reading was considered and rejected: covering only the message types a decoder can reach from the bound descriptor by following message-typed fields. It cannot be evaluated at bind time. A field of type google.protobuf.Any names its payload type in the document, and the binding tool resolves it through a type resolver at decode time, so the reachable set is not a function of the descriptor. The import closure is a property of the descriptor alone, and is therefore the only scope a bind-time check can be stated against.
+
+Conformance:
+
+* A tool that binds a descriptor MUST NOT report a schema conformant on the basis of having checked only the declaring file.
+
+* The closure is the *import* closure, not the set of files a document happens to exercise. A file in the closure is checked whether or not any field of the bound message refers to a type it declares.
+
+* This scope makes one non-conforming file poison every file that transitively imports it. That is intended: an annotation no implementation can honor is worth surfacing wherever it is reachable, and a widely-imported file is where a dead annotation does the most damage.
+
+Non-normative: the closure of any file that uses these annotations includes pxf/annotations.proto and, through it, google/protobuf/descriptor.proto, which no PXF document can reference. Implementations that re-check on every decode rather than once per bound descriptor will pay for that traversal repeatedly; memoizing the result per file descriptor is the expected implementation and costs less than the single-file traversal it replaces.
+
 # PB Binary Encoding {#pb-binary-encoding}
 
 The protowire PB encoding is the Protocol Buffers binary wire format {{PROTOBUF-WIRE}} with no protowire-specific changes to the wire grammar. This document does not redefine PB.
@@ -1008,7 +1030,7 @@ The well-known types pxf.BigInt, pxf.Decimal, and pxf.BigFloat are defined in {{
 
 ### Default Placement {#default-schema-placement}
 
-pxf.default carries exactly one PXF literal, so the fields it can populate are the fields a single literal can denote. Like pxf.key ({{keyed-schema-placement}}), it is subject to bind-time checks in the sense of {{schema-constraints}}; tools that bind a descriptor for PXF use MUST reject a schema in which pxf.default is set on:
+pxf.default carries exactly one PXF literal, so the fields it can populate are the fields a single literal can denote. Like pxf.key ({{keyed-schema-placement}}), it is subject to bind-time checks in the sense of {{schema-constraints}}, over the scope of {{bind-check-scope}}; tools that bind a descriptor for PXF use MUST reject a schema in which pxf.default is set on:
 
 * a repeated field. One literal cannot denote a list, and the annotation has no grammar for element separation or for the empty list;
 
@@ -1024,7 +1046,7 @@ The constraint is on placement, not on the literal. A literal that does not pars
 
 Conformance:
 
-* Tools that bind a protobuf descriptor for PXF use MUST reject a non-conforming placement at bind time, independently of what any document contains. A decoder MUST NOT defer the diagnostic to the first document that leaves the annotated field absent: a schema whose annotated field happens to be present in every document it decodes would then carry a meaningless annotation indefinitely without one.
+* Tools that bind a protobuf descriptor for PXF use MUST reject a non-conforming placement at bind time, independently of what any document contains, and over the whole scope of {{bind-check-scope}}. A decoder MUST NOT defer the diagnostic to the first document that leaves the annotated field absent: a schema whose annotated field happens to be present in every document it decodes would then carry a meaningless annotation indefinitely without one. Restricting the check to the file that declares the bound message reaches that same outcome for an annotated field of an imported type, and is equally non-conforming.
 
 * Implementations SHOULD report the offending field by its fully-qualified protobuf name (e.g. "trades.v1.Order.tags") and SHOULD point at this section.
 
@@ -1044,7 +1066,7 @@ pxf.default MAY be set on a member of a oneof, subject to:
 
 * a member bound to "null" counts as present for this test, consistent with the rule above that "null" suppresses a default; and
 
-* at most one member of any one oneof may carry pxf.default. Tools that bind a descriptor for PXF use MUST reject a schema in which two or more members of the same oneof carry it.
+* at most one member of any one oneof may carry pxf.default. Tools that bind a descriptor for PXF use MUST reject a schema in which two or more members of the same oneof carry it, over the scope of {{bind-check-scope}}.
 
 The last constraint exists because the alternative is an ordering rule. With two annotated members and an empty document, some member's default must win; deciding by declaration order would make reordering two field declarations silently change what a document decodes to, and deciding by field number would do the same on renumbering. Rejecting the schema is the only outcome that does not attach meaning to a detail authors are free to change.
 
