@@ -261,7 +261,7 @@ add(
 
 add(
     "duration",
-    OneOrMore(n("duration_segment")),
+    Sequence(Optional(t("-")), OneOrMore(n("duration_segment"))),
 )
 
 add(

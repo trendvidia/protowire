@@ -274,7 +274,7 @@ exponent      = ( 'e' | 'E' ) , [ '+' | '-' ] , digit , { digit } ;
 timestamp     = ?RFC 3339 date-time? ;
 
 (* Go time.ParseDuration syntax. Examples: 30s, 1h30m, 500ms, 1.5h. *)
-duration      = duration_segment , { duration_segment } ;
+duration      = [ '-' ] , duration_segment , { duration_segment } ;
 duration_segment = digit , { digit } , [ '.' , digit , { digit } ] , time_unit ;
 time_unit     = 'ns' | 'us' | 'µs' | 'ms' | 's' | 'm' | 'h' ;
 

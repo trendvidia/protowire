@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg class="railroad-diagram" width="1100" height="7677" viewBox="0 0 1100 7677" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" font-family="monospace" font-size="14">
+<svg class="railroad-diagram" width="1100" height="7686" viewBox="0 0 1100 7686" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" font-family="monospace" font-size="14">
 <style>
   .railroad-diagram { background: #fff; }
   .railroad-diagram path { stroke-width: 2; stroke: black; fill: rgba(0,0,0,0); }
@@ -1283,10 +1283,14 @@
 <g transform="translate(20,4307)">
 <g transform="translate(.5 .5)">
 <g>
-<path d="M20 21v20m10 -20v20m-10 -10h20" /></g><path d="M40 31h10" /><g>
-<path d="M50 31h0.0" /><path d="M226.0 31h0.0" /><path d="M50.0 31h10" /><g class="non-terminal ">
-<path d="M60.0 31h0.0" /><path d="M216.0 31h0.0" /><rect height="22" width="156" x="60" y="20"></rect><text x="138" y="35">duration_segment</text></g><path d="M216.0 31h10" /><path d="M60.0 31a10 10 0 0 0 -10 10v0a10 10 0 0 0 10 10" /><g>
-<path d="M60.0 51h156.0" /></g><path d="M216.0 51a10 10 0 0 0 10 -10v0a10 10 0 0 0 -10 -10" /></g><path d="M226.0 31h10" /><path d="M 236.0 31 h 20 m -10 -10 v 20 m 10 -20 v 20"></path></g><style>/* <![CDATA[ */
+<path d="M20 30v20m10 -20v20m-10 -10h20" /></g><path d="M40 40h10" /><g>
+<path d="M50 40h0.0" /><path d="M304.5 40h0.0" /><g>
+<path d="M50.0 40h0.0" /><path d="M118.5 40h0.0" /><path d="M50.0 40a10 10 0 0 0 10 -10v0a10 10 0 0 1 10 -10" /><g>
+<path d="M70.0 20h28.5" /></g><path d="M98.5 20a10 10 0 0 1 10 10v0a10 10 0 0 0 10 10" /><path d="M50.0 40h20" /><g class="terminal ">
+<path d="M70.0 40h0.0" /><path d="M98.5 40h0.0" /><rect height="22" rx="10" ry="10" width="28.5" x="70" y="29"></rect><text x="84.25" y="44">-</text></g><path d="M98.5 40h20" /></g><path d="M118.5 40h10" /><g>
+<path d="M128.5 40h0.0" /><path d="M304.5 40h0.0" /><path d="M128.5 40h10" /><g class="non-terminal ">
+<path d="M138.5 40h0.0" /><path d="M294.5 40h0.0" /><rect height="22" width="156" x="138.5" y="29"></rect><text x="216.5" y="44">duration_segment</text></g><path d="M294.5 40h10" /><path d="M138.5 40a10 10 0 0 0 -10 10v0a10 10 0 0 0 10 10" /><g>
+<path d="M138.5 60h156.0" /></g><path d="M294.5 60a10 10 0 0 0 10 -10v0a10 10 0 0 0 -10 -10" /></g></g><path d="M304.5 40h10" /><path d="M 314.5 40 h 20 m -10 -10 v 20 m 10 -20 v 20"></path></g><style>/* <![CDATA[ */
 	svg.railroad-diagram {
 		background-color:hsl(30,20%,95%);
 	}
@@ -1318,8 +1322,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,4406)"><text x="0" y="0" font-weight="bold" font-size="16">duration_segment</text></g>
-<g transform="translate(20,4420)">
+<g transform="translate(20,4415)"><text x="0" y="0" font-weight="bold" font-size="16">duration_segment</text></g>
+<g transform="translate(20,4429)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 30v20m10 -20v20m-10 -10h20" /></g><path d="M40 40h10" /><g>
@@ -1366,8 +1370,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,4528)"><text x="0" y="0" font-weight="bold" font-size="16">time_unit</text></g>
-<g transform="translate(20,4542)">
+<g transform="translate(20,4537)"><text x="0" y="0" font-weight="bold" font-size="16">time_unit</text></g>
+<g transform="translate(20,4551)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 21v20m10 -20v20m-10 -10h20" /></g><g>
@@ -1410,8 +1414,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,4812)"><text x="0" y="0" font-weight="bold" font-size="16">timestamp</text></g>
-<g transform="translate(20,4826)">
+<g transform="translate(20,4821)"><text x="0" y="0" font-weight="bold" font-size="16">timestamp</text></g>
+<g transform="translate(20,4835)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 20v20m10 -20v20m-10 -10h20" /></g><path d="M40 30h10" /><g class="non-terminal ">
@@ -1447,8 +1451,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,4914)"><text x="0" y="0" font-weight="bold" font-size="16">string</text></g>
-<g transform="translate(20,4928)">
+<g transform="translate(20,4923)"><text x="0" y="0" font-weight="bold" font-size="16">string</text></g>
+<g transform="translate(20,4937)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 21v20m10 -20v20m-10 -10h20" /></g><g>
@@ -1486,8 +1490,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,5048)"><text x="0" y="0" font-weight="bold" font-size="16">simple_string</text></g>
-<g transform="translate(20,5062)">
+<g transform="translate(20,5057)"><text x="0" y="0" font-weight="bold" font-size="16">simple_string</text></g>
+<g transform="translate(20,5071)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 30v20m10 -20v20m-10 -10h20" /></g><path d="M40 40h10" /><g>
@@ -1532,8 +1536,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,5199)"><text x="0" y="0" font-weight="bold" font-size="16">string_char</text></g>
-<g transform="translate(20,5213)">
+<g transform="translate(20,5208)"><text x="0" y="0" font-weight="bold" font-size="16">string_char</text></g>
+<g transform="translate(20,5222)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 20v20m10 -20v20m-10 -10h20" /></g><path d="M40 30h10" /><g class="non-terminal ">
@@ -1569,8 +1573,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,5301)"><text x="0" y="0" font-weight="bold" font-size="16">triple_string</text></g>
-<g transform="translate(20,5315)">
+<g transform="translate(20,5310)"><text x="0" y="0" font-weight="bold" font-size="16">triple_string</text></g>
+<g transform="translate(20,5324)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 21v20m10 -20v20m-10 -10h20" /></g><path d="M40 31h10" /><g>
@@ -1609,8 +1613,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,5405)"><text x="0" y="0" font-weight="bold" font-size="16">escape_seq</text></g>
-<g transform="translate(20,5419)">
+<g transform="translate(20,5414)"><text x="0" y="0" font-weight="bold" font-size="16">escape_seq</text></g>
+<g transform="translate(20,5428)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 21v20m10 -20v20m-10 -10h20" /></g><path d="M40 31h10" /><g>
@@ -1653,8 +1657,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,5629)"><text x="0" y="0" font-weight="bold" font-size="16">simple_escape</text></g>
-<g transform="translate(20,5643)">
+<g transform="translate(20,5638)"><text x="0" y="0" font-weight="bold" font-size="16">simple_escape</text></g>
+<g transform="translate(20,5652)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 21v20m10 -20v20m-10 -10h20" /></g><g>
@@ -1701,8 +1705,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,6033)"><text x="0" y="0" font-weight="bold" font-size="16">hex_escape</text></g>
-<g transform="translate(20,6047)">
+<g transform="translate(20,6042)"><text x="0" y="0" font-weight="bold" font-size="16">hex_escape</text></g>
+<g transform="translate(20,6056)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 21v20m10 -20v20m-10 -10h20" /></g><path d="M40 31h10" /><g>
@@ -1741,8 +1745,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,6137)"><text x="0" y="0" font-weight="bold" font-size="16">octal_escape</text></g>
-<g transform="translate(20,6151)">
+<g transform="translate(20,6146)"><text x="0" y="0" font-weight="bold" font-size="16">octal_escape</text></g>
+<g transform="translate(20,6160)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 21v20m10 -20v20m-10 -10h20" /></g><path d="M40 31h10" /><g>
@@ -1781,8 +1785,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,6241)"><text x="0" y="0" font-weight="bold" font-size="16">unicode_4_escape</text></g>
-<g transform="translate(20,6255)">
+<g transform="translate(20,6250)"><text x="0" y="0" font-weight="bold" font-size="16">unicode_4_escape</text></g>
+<g transform="translate(20,6264)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 21v20m10 -20v20m-10 -10h20" /></g><path d="M40 31h10" /><g>
@@ -1823,8 +1827,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,6345)"><text x="0" y="0" font-weight="bold" font-size="16">unicode_8_escape</text></g>
-<g transform="translate(20,6359)">
+<g transform="translate(20,6354)"><text x="0" y="0" font-weight="bold" font-size="16">unicode_8_escape</text></g>
+<g transform="translate(20,6368)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 21v20m10 -20v20m-10 -10h20" /></g><path d="M40 31h10" /><g>
@@ -1869,8 +1873,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,6449)"><text x="0" y="0" font-weight="bold" font-size="16">bytes</text></g>
-<g transform="translate(20,6463)">
+<g transform="translate(20,6458)"><text x="0" y="0" font-weight="bold" font-size="16">bytes</text></g>
+<g transform="translate(20,6472)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 30v20m10 -20v20m-10 -10h20" /></g><path d="M40 40h10" /><g>
@@ -1914,8 +1918,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,6571)"><text x="0" y="0" font-weight="bold" font-size="16">base64_char</text></g>
-<g transform="translate(20,6585)">
+<g transform="translate(20,6580)"><text x="0" y="0" font-weight="bold" font-size="16">base64_char</text></g>
+<g transform="translate(20,6594)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 21v20m10 -20v20m-10 -10h20" /></g><g>
@@ -1956,8 +1960,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,6795)"><text x="0" y="0" font-weight="bold" font-size="16">comment</text></g>
-<g transform="translate(20,6809)">
+<g transform="translate(20,6804)"><text x="0" y="0" font-weight="bold" font-size="16">comment</text></g>
+<g transform="translate(20,6818)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 21v20m10 -20v20m-10 -10h20" /></g><g>
@@ -1995,8 +1999,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,6929)"><text x="0" y="0" font-weight="bold" font-size="16">line_comment</text></g>
-<g transform="translate(20,6943)">
+<g transform="translate(20,6938)"><text x="0" y="0" font-weight="bold" font-size="16">line_comment</text></g>
+<g transform="translate(20,6952)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 21v20m10 -20v20m-10 -10h20" /></g><path d="M40 31h10" /><g>
@@ -2036,8 +2040,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,7063)"><text x="0" y="0" font-weight="bold" font-size="16">block_comment</text></g>
-<g transform="translate(20,7077)">
+<g transform="translate(20,7072)"><text x="0" y="0" font-weight="bold" font-size="16">block_comment</text></g>
+<g transform="translate(20,7086)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 21v20m10 -20v20m-10 -10h20" /></g><path d="M40 31h10" /><g>
@@ -2076,8 +2080,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,7167)"><text x="0" y="0" font-weight="bold" font-size="16">hex_digit</text></g>
-<g transform="translate(20,7181)">
+<g transform="translate(20,7176)"><text x="0" y="0" font-weight="bold" font-size="16">hex_digit</text></g>
+<g transform="translate(20,7190)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 20v20m10 -20v20m-10 -10h20" /></g><path d="M40 30h10" /><g class="non-terminal ">
@@ -2113,8 +2117,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,7269)"><text x="0" y="0" font-weight="bold" font-size="16">oct_digit</text></g>
-<g transform="translate(20,7283)">
+<g transform="translate(20,7278)"><text x="0" y="0" font-weight="bold" font-size="16">oct_digit</text></g>
+<g transform="translate(20,7292)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 20v20m10 -20v20m-10 -10h20" /></g><path d="M40 30h10" /><g class="non-terminal ">
@@ -2150,8 +2154,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,7371)"><text x="0" y="0" font-weight="bold" font-size="16">oct_lead</text></g>
-<g transform="translate(20,7385)">
+<g transform="translate(20,7380)"><text x="0" y="0" font-weight="bold" font-size="16">oct_lead</text></g>
+<g transform="translate(20,7394)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 20v20m10 -20v20m-10 -10h20" /></g><path d="M40 30h10" /><g class="non-terminal ">
@@ -2187,8 +2191,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,7473)"><text x="0" y="0" font-weight="bold" font-size="16">digit</text></g>
-<g transform="translate(20,7487)">
+<g transform="translate(20,7482)"><text x="0" y="0" font-weight="bold" font-size="16">digit</text></g>
+<g transform="translate(20,7496)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 20v20m10 -20v20m-10 -10h20" /></g><path d="M40 30h10" /><g class="non-terminal ">
@@ -2224,8 +2228,8 @@
 
 /* ]]> */
 </style></g>
-<g transform="translate(20,7575)"><text x="0" y="0" font-weight="bold" font-size="16">letter</text></g>
-<g transform="translate(20,7589)">
+<g transform="translate(20,7584)"><text x="0" y="0" font-weight="bold" font-size="16">letter</text></g>
+<g transform="translate(20,7598)">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 20v20m10 -20v20m-10 -10h20" /></g><path d="M40 30h10" /><g class="non-terminal ">
