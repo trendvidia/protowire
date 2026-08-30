@@ -225,7 +225,7 @@ func stripHTTPRules(t *testing.T, image []byte) []byte {
 	return raw
 }
 
-// countAnnotationCarriers counts methods carrying the 50400 annotation
+// countAnnotationCarriers counts methods carrying the 1327 annotation
 // list. It scans field numbers rather than decoding, so the count needs
 // no carrier schema — the same read a stock consumer performs.
 func countAnnotationCarriers(t *testing.T, image []byte) int {
@@ -255,7 +255,7 @@ func countAnnotationCarriers(t *testing.T, image []byte) int {
 }
 
 // annotationCarrierField is the RFC-001 §8.1 method_annotations carrier.
-const annotationCarrierField = protowire.Number(50400)
+const annotationCarrierField = protowire.Number(1327)
 
 // hasField reports whether a field number appears at the top level of an
 // encoded message.

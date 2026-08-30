@@ -237,7 +237,7 @@ func fileFunctions(t *testing.T, h *harness, protoPath string) []*pwsv1.Function
 	}
 	list := proto.GetExtension(fd.GetOptions(), pwsv1.E_Functions).(*pwsv1.FileFunctions)
 	if list == nil {
-		t.Fatalf("%s carries no FileFunctions (ext 50401)", protoPath)
+		t.Fatalf("%s carries no FileFunctions (ext 1328)", protoPath)
 	}
 	return list.GetDeclarations()
 }
@@ -246,7 +246,7 @@ func annotationList(t *testing.T, opts proto.Message, ext protoreflect.Extension
 	t.Helper()
 	list := proto.GetExtension(opts, ext).(*pwsv1.AnnotationList)
 	if list == nil {
-		t.Fatal("options carry no AnnotationList (ext 50400)")
+		t.Fatal("options carry no AnnotationList (ext 1327)")
 	}
 	return list
 }
