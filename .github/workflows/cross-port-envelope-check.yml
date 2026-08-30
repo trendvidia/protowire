@@ -97,7 +97,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            cmake ninja-build protobuf-compiler libprotobuf-dev
+            cmake ninja-build protobuf-compiler libprotobuf-dev libprotoc-dev
 
       - name: Cross-port envelope byte equality
         env:
