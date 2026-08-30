@@ -417,7 +417,7 @@ bytes           = %x62 DQUOTE *base64-char DQUOTE   ; 'b' "..."
 base64-char     = ALPHA / DIGIT / "+" / "/" / "="
 timestamp       = date-time     ; per RFC 3339, Section 5.6
 
-duration        = 1*duration-segment
+duration        = ["-"] 1*duration-segment
 duration-segment = 1*DIGIT [ "." 1*DIGIT ] time-unit
 time-unit       = "ns" / "us" / micro-us / "ms"
                 / "s" / "m" / "h"
@@ -436,9 +436,9 @@ The grammar is LL(1) modulo the lexical disambiguation rules in {{numeric-litera
 
 * An input that begins with four DIGIT followed by "-" is tokenized as a timestamp, not as a negative integer or a bare identifier-prefix.
 
-* An input matching 1\*DIGIT \[ "." 1\*DIGIT \] time-unit, where the time-unit is one of the literal strings in the grammar above, is tokenized as a duration. An identifier whose initial characters happen to match a duration prefix (for example "5seconds") is tokenized as an identifier because identifier productions extend through ALPHA / "\_".
+* An input matching \["-"\] 1\*DIGIT \[ "." 1\*DIGIT \] time-unit, where the time-unit is one of the literal strings in the grammar above, is tokenized as a duration; the optional leading "-" appears once, before the first segment, never per segment ("-1h30m" is a duration, "1h-30m" is not). A DIGIT-led token that continues past a time-unit into further ALPHA (for example "5seconds", "5sx", "1.5min") is an invalid duration and MUST be rejected as such; it is never an identifier, because identifier productions cannot begin with a DIGIT.
 
-* Numeric literals take precedence over identifiers: a leading DIGIT or "-" forces the numeric branch.
+* Numeric literals take precedence over identifiers: a leading DIGIT or "-" forces the numeric branch, within which a token that ends in a time-unit is a duration and one that does not is an integer or float. "+" is not a numeric-branch prefix: the only token it may begin is the identifier "+inf" ({{numeric-literals}}), so "+30s" is not a duration.
 
 ## Documents and Directives
 
@@ -782,7 +782,10 @@ A duration literal is a sequence of one or more segments, each consisting of a n
 500ms        ; 500 milliseconds
 1.5h         ; 1.5 hours
 2µs          ; 2 microseconds (alternative form: 2us)
+-1.5s        ; minus 1.5 seconds
 ~~~
+
+google.protobuf.Duration is signed, and so is the literal: a negative duration is written with a single leading "-" before its first segment, applying to the whole literal ("-1h30m" is minus ninety minutes). Encoders MUST emit a negative Duration in that form and MUST NOT emit a sign per segment or a "+"; a decoder MUST bind "-1h30m" to seconds = -5400 and, when a fractional segment yields nanoseconds, to seconds and nanos of the same sign, as google.protobuf.Duration requires. "-0s" denotes zero. Whether a leading "+" is admitted is not settled by this revision; it is not part of the grammar, no encoder writes it, and decoders that accept it are lenient rather than conformant.
 
 The defined units are "ns", "us", "µs", "ms", "s", "m", and "h", denoting nanoseconds, microseconds (twice; "us" and "µs" are semantic equivalents), milliseconds, seconds, minutes, and hours respectively. Day, week, month, and year units are NOT defined and MUST NOT be inferred.
 
