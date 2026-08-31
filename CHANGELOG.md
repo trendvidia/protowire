@@ -10,6 +10,29 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+### Changed
+
+- **Extension numbers move to protowire's registered block, `1314`–`1363`** (issue [#244](https://github.com/trendvidia/protowire/issues/244), decision [#242](https://github.com/trendvidia/protowire/issues/242)). Every number the family owns leaves the unregistered `50000`–`59999` range this project had been squatting and moves into the block the global extension registry granted protowire in [protocolbuffers/protobuf#28919](https://github.com/protocolbuffers/protobuf/pull/28919). An unregistered range is a squat: nothing prevented another project from claiming the same integers, and a collision would have been silent and unrecoverable.
+
+  | Range | Family | Allocated |
+  |---|---|---|
+  | `1314`–`1318` | PXF text annotations | `1314` `required`, `1315` `default`, `1316` `key` |
+  | `1319`–`1326` | SBE binary annotations | `1319` `schema_id`, `1320` `version`, `1321` `template_id`, `1322` `length`, `1323` `encoding` |
+  | `1327`–`1346` | Schema-extension carriers | `1327` `*_annotations`, `1328` `functions`, `1329` `annotation_decls`, `1330` `type_decls`, `1331` `source_map` |
+  | `1347`–`1354` | Validation constraints | `1347`–`1349` (protocheck) |
+  | `1355`–`1359` | OpenAPI generation | none yet |
+  | `1360`–`1363` | Unallocated reserve | — |
+
+  **This is a descriptor-contract break, and it contradicted [`STABILITY.md`](STABILITY.md) promise 3 as written.** It was taken deliberately, for one reason that will not be available again: the promise's premise — that the numbers are baked into blobs *in the wild* — was false, because the family had no deployed consumers. That was checked, not assumed. Promise 3 is amended to record the break, name the retired ranges as dead, and re-arm from the next tagged release; after that a renumber needs a major bump.
+
+  Carrier headroom shrinks as a consequence: the old text reserved `50405`–`50499` (95 numbers) for future carriers, and the whole registered block is 50. Carriers get 20, weighted above the other families because they are the ones RFC-001 is actively growing. The `50405`–`50499` reservation is void.
+
+  **PXF text, `pb`, SBE and envelope wire formats are unchanged** — these numbers live in descriptors, not encoded payloads, which is why `cross_envelope_check.sh` still shows Go, C++, TypeScript and Java byte-identical across the change. What breaks is reading an old descriptor: the surfaces are disjoint, there is no dual-read, and schemas must be recompiled against the matching `annotations.proto`.
+
+  Landed leaves-first, because the build graph inverts the spec: this repo *consumes* `protowire-go` and `protocompile`, so they renumbered and released ([protowire-go v1.5.0](https://github.com/trendvidia/protowire-go/releases/tag/v1.5.0), [protocompile v0.25.0](https://github.com/trendvidia/protocompile/releases/tag/v0.25.0)) before this repo could bump onto the numbers its own canonical `.proto` declares.
+
+- **`go.mod`**: `protowire-go` v1.4.1 → v1.5.0, `protocompile` v0.24.0 → v0.25.0.
+
 ### Fixed
 
 - **The duration grammar admits the sign every port already writes** (issue [#234](https://github.com/trendvidia/protowire/issues/234)). `google.protobuf.Duration` is signed, and every encoder in the family emits a negative Duration with a leading `-` because each mirrors `time.Duration.String()` — Go `-1.5s` (pinned in `TestNegativeDuration` / `TestFullRoundTripNegativeDuration`), Rust `format_go_duration`, TypeScript `formatGoDuration` (pinned in `duration.test.ts`), Java, C++ — and every parser accepts it. Draft `-01` §3.3's production, `duration = 1*duration-segment`, admitted no sign, so a conformant encoder emitted a token the grammar could not derive and a strictly grammar-driven decoder would have rejected the family's own output for every negative Duration. The production is now `duration = ["-"] 1*duration-segment`, and §"Timestamps and Durations" says what that means: one leading `-` before the first segment applying to the whole literal (`-1h30m` is minus ninety minutes), never a sign per segment or a `+`; a decoder binds a fractional negative to seconds and nanos of the same sign, as `google.protobuf.Duration` requires; `-0s` is zero. **No port changes**: the text now derives what the ports have always emitted and accepted. Additive at a minor per [`STABILITY.md`](STABILITY.md).
