@@ -23,15 +23,12 @@
 # cannot compile a schema the canonical surface permits — or worse, assigns
 # a different number to the same name.
 #
-# Set WITH_CHAMELEON=0 / WITH_ORG=0 / WITH_STEWARD=0 to skip the downstream
-# consumers, which are not ports and may legitimately lag a release.
 #
 # SOURCE=local (default) reads sibling checkouts next to this repo.
 # SOURCE=remote fetches each copy from GitHub at HEAD, so the check runs in
-# CI without checking out eleven repos. Private repos (protolsp, chameleon,
-# steward, org-protowire) are SKIPped in remote mode unless GH_TOKEN grants
-# access — CI therefore gates the public ports, and a local run before a
-# release covers the rest. Both modes compare against this working tree's
+# CI without checking out twelve repos. Private repos (protolsp, chameleon)
+# are SKIPped in remote mode unless GH_TOKEN grants access — CI therefore
+# gates the public ports, and a local run before a release covers the rest. Both modes compare against this working tree's
 # canonical files, which is the point: a PR that changes proto/ sees, in
 # that PR, every copy it is about to invalidate.
 
@@ -64,11 +61,7 @@ is_waived() {
   [[ "$STRICT" == "1" ]] && return 1
   grep -qxF "$(printf '%-20s %s' "$1" "$2")" <<<"$KNOWN_DIVERGENCES"
 }
-PRIVATE_REPOS=" protolsp chameleon steward org-protowire "
 
-WITH_CHAMELEON="${WITH_CHAMELEON:-1}"
-WITH_ORG="${WITH_ORG:-1}"
-WITH_STEWARD="${WITH_STEWARD:-1}"
 
 # Repos that may carry a vendored copy. Only the REPO is listed -- the paths
 # inside it are DISCOVERED, because a hand-maintained path list silently
@@ -81,9 +74,24 @@ WITH_STEWARD="${WITH_STEWARD:-1}"
 REPOS=(
   protowire-go protowire-cpp protowire-csharp protowire-dart
   protowire-rust protowire-swift protowire-typescript protowire-java
-  protocheck protocompile protolsp chameleon org-protowire steward
+  protocheck protocompile protolsp chameleon
 )
-PRIVATE_REPOS=" protolsp chameleon steward org-protowire "
+PRIVATE_REPOS=" protolsp chameleon "
+
+# Two repos were listed here and are deliberately NOT:
+#
+#   steward        carries no extension numbers of its own. Its only copy is
+#                  node_modules/@trendvidia/protowire/proto/..., an npm install
+#                  artifact -- gitignored, zero files tracked. Checking it
+#                  reports whatever a developer last installed, so it could go
+#                  red or green for reasons unrelated to any repo's content.
+#                  steward picks the numbers up by bumping its dependency on
+#                  the published @trendvidia/protowire package, which is built
+#                  from protowire-typescript -- already in the list above.
+#
+#   org-protowire  is an archive preserving pre-open-source history. It is
+#                  SUPPOSED to hold the retired numbers; flagging it as drift
+#                  flags it for being correct.
 
 # A discovered path is classified by the family it belongs to.
 #   */pxf/annotations.proto        -> PXF
@@ -116,8 +124,6 @@ discover_remote() {
   if [[ " $PRIVATE_REPOS " == *" $repo "* && -z "${GH_TOKEN:-}${GITHUB_TOKEN:-}" ]]; then
     return 0
   fi
-  # steward vendors via npm; it has no repo path of its own to read.
-  [[ "$repo" == "steward" ]] && return 0
   local branch
   branch="$(gh api "repos/trendvidia/${repo}" --jq .default_branch 2>/dev/null)" || return 0
   gh api "repos/trendvidia/${repo}/git/trees/${branch}?recursive=1" \
@@ -143,8 +149,6 @@ resolve_copy() {
     [[ -f "$p" ]] && echo "$p"
     return 0
   fi
-  # Remote: steward vendors via npm, so its copy has no repo path of its own.
-  [[ "$repo" == "steward" ]] && return 0
   if [[ " $PRIVATE_REPOS " == *" $repo "* && -z "${GH_TOKEN:-}" ]]; then
     return 0
   fi
