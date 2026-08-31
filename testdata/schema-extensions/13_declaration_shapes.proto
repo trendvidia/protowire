@@ -13,7 +13,7 @@
 //
 // Expected behavior:
 //   - Every `annotation` declaration lowers to a FileAnnotationDecls
-//     (50402) entry recording its params, param types, and defaults;
+//     (1329) entry recording its params, param types, and defaults;
 //     `approved` (paren-less) and `flagged()` (empty list) both lower
 //     to a declaration with zero params.
 //   - `function feature_enabled` lowers with an empty param list;
@@ -26,7 +26,7 @@
 //     have no carrier surface and documentation tooling reads them from
 //     source.
 //   - `type RawId = string;` (no annotation list) lowers to a
-//     FileTypeDecls (50403) entry contributing no rules at use sites.
+//     FileTypeDecls (1330) entry contributing no rules at use sites.
 //   - Use sites: `@approved` (no parens), `@flagged()` (empty parens),
 //     `@retry` with every param defaulted, positional, named, and
 //     mixed positional-then-named argument lists, a negative integer

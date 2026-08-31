@@ -128,7 +128,7 @@ func buildHarness() (*harness, error) {
 
 // compile parses the fixtures with the v1.2 parser and lowers them to a
 // FileDescriptorSet through the real protocompile pipeline — the same
-// carriers (ext 50400–50404) every downstream consumer reads.
+// carriers (ext 1327–1331) every downstream consumer reads.
 func (h *harness) compile() error {
 	files := make(map[string]*source.File)
 	add := func(importPath, diskPath string) error {

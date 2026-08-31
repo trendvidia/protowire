@@ -155,9 +155,9 @@ func qualify(prefix, name string) string {
 }
 
 // indexFileCarriers reads the file-scope schema-extension carriers: the
-// `type` declarations that make aliases resolvable by name (50403) and
+// `type` declarations that make aliases resolvable by name (1330) and
 // the source map whose entries are the only authority on which
-// descriptor paths exist (50404).
+// descriptor paths exist (1331).
 func (im *Image) indexFileCarriers(fd *descriptorpb.FileDescriptorProto) {
 	opts := fd.GetOptions()
 	if opts == nil {

@@ -31,7 +31,7 @@ const (
 	annHTTP        = "protowire.schema.v1.http"
 )
 
-// carrierTypes resolves the §8.1 extension carriers (50400–50404)
+// carrierTypes resolves the §8.1 extension carriers (1327–1331)
 // dynamically from the bundled schema/v1/descriptor.proto, following the
 // docpack pattern: the repository ships no generated Go for its own
 // schemas.
