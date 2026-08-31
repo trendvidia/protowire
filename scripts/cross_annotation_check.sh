@@ -45,16 +45,55 @@ SOURCE="${SOURCE:-local}"
 # (pxf.key) = 50002; that gap is subsumed by the 1314-1363 renumber
 # (#244), since every copy gains `key` when it is renumbered.
 #
-# During the renumber the whole surface diverges by design, and that is
-# handled by continue-on-error on the CI job, not by waivers -- one
-# mechanism, not two. Emptying this list is half the completion criterion:
-# the migration is done when the gate passes STRICT, green and unwaived
-# with continue-on-error removed.
+# It stayed empty through the 1314-1363 renumber: the migration window was
+# handled by continue-on-error on the CI job, which has now been removed.
+# The gate is blocking again.
+#
+# Note STRICT=1 does NOT pass today and is not expected to -- eight copies
+# omit (pxf.key) deliberately, declared in NOT_IMPLEMENTED below. "No
+# undeclared divergence" is the passing condition, not "no difference".
 #
 # Add an entry only for a divergence that is deliberate and permanent,
 # with a comment saying why. Set STRICT=1 to ignore waivers entirely.
 KNOWN_DIVERGENCES=""
 STRICT="${STRICT:-0}"
+
+# NOT_IMPLEMENTED — declarations a copy omits because the port has not
+# built the feature, as opposed to a copy that fell out of sync.
+#
+# The distinction matters because the two look identical to a surface
+# comparison and mean opposite things. A stale copy is a bug the moment it
+# appears. An omission is correct: adding the declaration without the
+# semantics would make the port advertise support it does not have.
+#
+# Reporting them the same way was the problem (#253). Seven ports were
+# permanently DIVERGED on (pxf.key), which teaches a reader to skim past
+# the one status that should always mean something is wrong.
+#
+# An entry here is a claim that the omission is DELIBERATE. Anything not
+# listed still fails. Format: "<repo> <extendee>|<type>|<name>|<number>"
+# followed by the reason on the same line after two spaces.
+#
+# These clear when the ports implement keyed repeated fields (#116); the
+# entry is deleted in the same PR that adds the support.
+NOT_IMPLEMENTED="$(cat <<'NI'
+chameleon            google.protobuf.FieldOptions|string|key|1316  keyed repeated fields (#116) not implemented
+protowire-cpp        google.protobuf.FieldOptions|string|key|1316  keyed repeated fields (#116) not implemented
+protowire-csharp     google.protobuf.FieldOptions|string|key|1316  keyed repeated fields (#116) not implemented
+protowire-dart       google.protobuf.FieldOptions|string|key|1316  keyed repeated fields (#116) not implemented
+protowire-java       google.protobuf.FieldOptions|string|key|1316  keyed repeated fields (#116) not implemented
+protowire-rust       google.protobuf.FieldOptions|string|key|1316  keyed repeated fields (#116) not implemented
+protowire-swift      google.protobuf.FieldOptions|string|key|1316  keyed repeated fields (#116) not implemented
+protowire-typescript google.protobuf.FieldOptions|string|key|1316  keyed repeated fields (#116) not implemented
+NI
+)"
+
+# is_declared_missing REPO TUPLE -> 0 if the omission is declared above.
+# STRICT=1 ignores the declarations and shows the true surface difference.
+is_declared_missing() {
+  [[ "$STRICT" == "1" ]] && return 1
+  grep -qE "^$1[[:space:]]+$(sed 's/[|.]/\\&/g' <<<"$2")([[:space:]]|$)" <<<"$NOT_IMPLEMENTED"
+}
 
 # is_waived REPO TUPLE
 is_waived() {
@@ -255,7 +294,9 @@ for repo in "${REPOS[@]}"; do
     unwaived=0
     while IFS= read -r line; do
       [[ -z "$line" ]] && continue
-      if is_waived "$repo" "$line"; then
+      if is_declared_missing "$repo" "$line"; then
+        printf "  %-34s not-impl missing: %s\n" "$label" "$line"
+      elif is_waived "$repo" "$line"; then
         printf "  %-34s waived  missing: %s\n" "$label" "$line"
       else
         printf "  %-34s DIVERGED missing from copy: %s\n" "$label" "$line"
@@ -292,8 +333,11 @@ Update the copy from the canonical file (comments may differ; the tuples
 above may not), or record the omission deliberately per issue #243.
 MSG
 else
+  ni=$(grep -c '[^[:space:]]' <<<"$NOT_IMPLEMENTED" || true)
   if [[ "$STRICT" != "1" ]] && grep -q '[^[:space:]]' <<<"$KNOWN_DIVERGENCES"; then
-    echo "OK: no new drift. $(grep -c '[^[:space:]]' <<<"$KNOWN_DIVERGENCES") waived divergence(s) remain — see #243, cleared by #244."
+    echo "OK: no undeclared divergence. $(grep -c '[^[:space:]]' <<<"$KNOWN_DIVERGENCES") waived divergence(s) and ${ni} declared omission(s) remain."
+  elif [[ "$STRICT" != "1" && $ni -gt 0 ]]; then
+    echo "OK: no undeclared divergence. ${ni} copies omit a declaration deliberately (see NOT_IMPLEMENTED); every other copy matches canonical exactly."
   else
     echo "OK: every present copy matches its canonical extension surface."
   fi
