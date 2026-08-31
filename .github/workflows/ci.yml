@@ -17,6 +17,26 @@ permissions:
   contents: read
 
 jobs:
+  # Vendored-copy drift check (#243). The canonical .proto files under
+  # proto/ are hand-copied into every port; nothing else verifies the
+  # copies, and (pxf.key) was missing from ten of eleven when this landed.
+  #
+  # Runs in SOURCE=remote so it needs no sibling checkouts: each copy is
+  # fetched from GitHub at HEAD. The private consumers (protolsp,
+  # chameleon, steward, org-protowire) are SKIPped here — GITHUB_TOKEN
+  # does not reach them — so this gates the seven public ports, and a
+  # local run before a release covers the rest.
+  annotation-surface:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: cross-repo annotation surface
+        env:
+          SOURCE: remote
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./scripts/cross_annotation_check.sh
+
   test:
     runs-on: ubuntu-latest
     steps:
