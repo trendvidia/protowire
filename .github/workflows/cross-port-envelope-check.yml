@@ -1,0 +1,110 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 TrendVidia, LLC.
+
+name: Cross-port envelope check
+
+# Enforces STABILITY.md promise 2: every port must produce byte-identical
+# `pb` output for the same canonical Envelope. ROADMAP.md M1 step 1.
+#
+# Scope is the four ports scripts/cross_envelope_check.sh marks `required`
+# — Go, C++, TypeScript, Java. The optional ports (Rust, Swift, Dart, C#,
+# Java/Android-lite) are opted out here and still run locally; Swift and
+# the Android modules in particular need a toolchain that is not a cheap
+# add on ubuntu-latest. STABILITY.md says which ports this gate covers, so
+# the promise is not overstated again.
+#
+# This job is deliberately NOT hermetic: it fetches every port at its
+# default branch, so a wire regression pushed to a port turns this red
+# without any change here. That is the point — it is the only thing that
+# looks across repos. The daily schedule exists for the same reason: a
+# divergence introduced in a port is otherwise invisible until someone
+# happens to touch this repo.
+
+on:
+  pull_request:
+    paths:
+      - 'proto/**'
+      - 'scripts/cross_*'
+      - '.github/workflows/cross-port-envelope-check.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'proto/**'
+      - 'scripts/cross_*'
+      - '.github/workflows/cross-port-envelope-check.yml'
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cross-port-envelope-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  envelope-bytes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      # The script resolves ports as siblings of its own repo, so the
+      # checkout layout has to mirror a developer's working tree.
+      - name: Checkout protowire
+        uses: actions/checkout@v7
+        with:
+          path: protowire
+
+      - name: Checkout protowire-go
+        uses: actions/checkout@v7
+        with:
+          repository: trendvidia/protowire-go
+          path: protowire-go
+
+      - name: Checkout protowire-cpp
+        uses: actions/checkout@v7
+        with:
+          repository: trendvidia/protowire-cpp
+          path: protowire-cpp
+
+      - name: Checkout protowire-typescript
+        uses: actions/checkout@v7
+        with:
+          repository: trendvidia/protowire-typescript
+          path: protowire-typescript
+
+      - name: Checkout protowire-java
+        uses: actions/checkout@v7
+        with:
+          repository: trendvidia/protowire-java
+          path: protowire-java
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: protowire-go/go.mod
+          cache-dependency-path: protowire-go/go.sum
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install C++ build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake ninja-build protobuf-compiler libprotobuf-dev libprotoc-dev
+
+      - name: Cross-port envelope byte equality
+        env:
+          WITH_RUST: '0'
+          WITH_SWIFT: '0'
+          WITH_DART: '0'
+          WITH_CSHARP: '0'
+          WITH_JAVA_LITE: '0'
+          WITH_JAVA_PXF_LITE: '0'
+        run: ./protowire/scripts/cross_envelope_check.sh
