@@ -55,7 +55,7 @@ func buildCmd() *cobra.Command {
 		Short: "Compile v1.2 schemas to a lowered FileDescriptorSet image",
 		Long: "build compiles Protowire v1.2 (RFC-001) schema sources with the\n" +
 			"reference compiler and writes a lowered FileDescriptorSet whose\n" +
-			"schema-extension semantics ride in the 50400-50404 carrier options.\n" +
+			"schema-extension semantics ride in the 1327-1331 carrier options.\n" +
 			"The image is stock protobuf: feed it to `buf generate` or\n" +
 			"`protoc --descriptor_set_in` — no v1.2-aware buf/protoc needed.\n\n" +
 			"Each directory argument is an import root; every .proto beneath it\n" +

@@ -193,18 +193,18 @@ Internet-Draft                  protowire                      July 2026
    10. Media Types . . . . . . . . . . . . . . . . . . . . . . . . .  60
    11. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  61
      11.1.  Media Type Registrations . . . . . . . . . . . . . . . .  61
-     11.2.  Annotation Field Number Range  . . . . . . . . . . . . .  62
+     11.2.  Annotation Field Number Range  . . . . . . . . . . . . .  63
    12. Security Considerations . . . . . . . . . . . . . . . . . . .  63
-   13. References  . . . . . . . . . . . . . . . . . . . . . . . . .  64
-     13.1.  Normative References . . . . . . . . . . . . . . . . . .  64
-     13.2.  Informative References . . . . . . . . . . . . . . . . .  65
-   Appendix A.  ABNF Additions in -01  . . . . . . . . . . . . . . .  66
+   13. References  . . . . . . . . . . . . . . . . . . . . . . . . .  65
+     13.1.  Normative References . . . . . . . . . . . . . . . . . .  65
+     13.2.  Informative References . . . . . . . . . . . . . . . . .  66
+   Appendix A.  ABNF Additions in -01  . . . . . . . . . . . . . . .  67
      A.1.  New Productions . . . . . . . . . . . . . . . . . . . . .  67
-     A.2.  Contextual Keywords . . . . . . . . . . . . . . . . . . .  68
-   Appendix B.  Acknowledgments  . . . . . . . . . . . . . . . . . .  68
-   Appendix C.  Implementation Status  . . . . . . . . . . . . . . .  68
-   Appendix D.  Open Issues  . . . . . . . . . . . . . . . . . . . .  69
-   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  69
+     A.2.  Contextual Keywords . . . . . . . . . . . . . . . . . . .  69
+   Appendix B.  Acknowledgments  . . . . . . . . . . . . . . . . . .  69
+   Appendix C.  Implementation Status  . . . . . . . . . . . . . . .  69
+   Appendix D.  Open Issues  . . . . . . . . . . . . . . . . . . . .  70
+   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  70
 
 1.  Introduction
 
@@ -1886,9 +1886,9 @@ Internet-Draft                  protowire                      July 2026
    The PXF annotations apply to FieldOptions:
 
    extend google.protobuf.FieldOptions {
-     bool   required = 50000;
-     string default  = 50001;
-     string key      = 50002;
+     bool   required = 1314;
+     string default  = 1315;
+     string key      = 1316;
    }
 
    pxf.required: when true, decoders MUST reject a PXF document in which
@@ -2103,17 +2103,17 @@ Internet-Draft                  protowire                      July 2026
    SBE annotations apply at three scopes:
 
    extend google.protobuf.FileOptions {
-     uint32 schema_id = 50100;
-     uint32 version   = 50101;
+     uint32 schema_id = 1319;
+     uint32 version   = 1320;
    }
 
    extend google.protobuf.MessageOptions {
-     uint32 template_id = 50200;
+     uint32 template_id = 1321;
    }
 
    extend google.protobuf.FieldOptions {
-     uint32 length   = 50300;
-     string encoding = 50301;
+     uint32 length   = 1322;
+     string encoding = 1323;
    }
 
    sbe.schema_id and sbe.version identify the schema as a whole.
@@ -2214,10 +2214,13 @@ Internet-Draft                  protowire                      July 2026
                                  Table 1
 
    The bracket-form annotations (pxf.required) and (pxf.default) defined
-   in -00 retain their assigned extension field numbers (50000 and 50001
-   respectively) and their semantics. @required and @default defined
-   here are the canonical surface forms going forward; the bracket forms
-   remain valid input that decoders MUST accept indefinitely.
+   in -00 retain their semantics unchanged.  Their extension field
+   numbers did change: -00 assigned them 50000 and 50001, inside an
+   unregistered range; they are 1314 and 1315 in this revision, within
+   the block registered to protowire (see Section 11.2). @required and
+   @default defined here are the canonical surface forms going forward;
+   the bracket forms remain valid input that decoders MUST accept
+   indefinitely.
 
 7.  Schema Language Extensions
 
@@ -2231,9 +2234,6 @@ Internet-Draft                  protowire                      July 2026
    schema MAY contain:
 
    type  A named refinement alias bundling a base type with zero or more
-      validation rules.  See Section 7.3.
-
-   function  A signature for a named validation predicate whose body is
 
 
 
@@ -2242,6 +2242,9 @@ Franco Jr.               Expires 24 January 2027               [Page 40]
 Internet-Draft                  protowire                      July 2026
 
 
+      validation rules.  See Section 7.3.
+
+   function  A signature for a named validation predicate whose body is
       provided by the consuming runtime.  See Section 7.4.
 
    annotation  A declaration of a metadata attachment usable via the
@@ -2287,9 +2290,6 @@ Internet-Draft                  protowire                      July 2026
    The word expression is a parameter-type designator usable only inside
    annotation X(arg: expression) declarations (Section 7.5); elsewhere
    it MUST be treated as a regular identifier.
-
-
-
 
 
 
@@ -2972,14 +2972,14 @@ Internet-Draft                  protowire                      July 2026
 
 7.11.1.  Extension Number Allocation
 
-   The number range 50400 through 50499 is reserved by -01 for schema-
+   The number range 1327 through 1346 is reserved by -01 for schema-
    extension carriers.  Allocated in this revision:
 
    +========+======================================+===================+
    | Number | Carrier                              | Target Options    |
    |        |                                      | Messages          |
    +========+======================================+===================+
-   | 50400  | AnnotationList (named per            | FileOptions,      |
+   | 1327   | AnnotationList (named per            | FileOptions,      |
    |        | kind: file_annotations,              | MessageOptions,   |
    |        | message_annotations,                 | FieldOptions,     |
    |        | field_annotations,                   | EnumOptions,      |
@@ -2989,27 +2989,27 @@ Internet-Draft                  protowire                      July 2026
    |        | method_annotations,                  | OneofOptions      |
    |        | oneof_annotations)                   |                   |
    +--------+--------------------------------------+-------------------+
-   | 50401  | FileFunctions functions              | FileOptions       |
+   | 1328   | FileFunctions functions              | FileOptions       |
    +--------+--------------------------------------+-------------------+
-   | 50402  | FileAnnotationDecls                  | FileOptions       |
+   | 1329   | FileAnnotationDecls                  | FileOptions       |
    |        | annotation_decls                     |                   |
    +--------+--------------------------------------+-------------------+
-   | 50403  | FileTypeDecls type_decls             | FileOptions       |
+   | 1330   | FileTypeDecls type_decls             | FileOptions       |
    +--------+--------------------------------------+-------------------+
-   | 50404  | SourceMap source_map                 | FileOptions       |
+   | 1331   | SourceMap source_map                 | FileOptions       |
    +--------+--------------------------------------+-------------------+
 
                                   Table 5
 
-   The annotation carrier shares wire number 50400 across all eight
+   The annotation carrier shares wire number 1327 across all eight
    target messages; each extend field carries a per-kind name so that
    the fully-qualified extension names remain unique within the
-   protowire.schema.v1 package.  Numbers 50100 and 50101 are
-   intentionally not used by this allocation because the SBE annotations
+   protowire.schema.v1 package.  Numbers 1319 and 1320 are intentionally
+   not used by this allocation because the SBE annotations
    (sbe.schema_id, sbe.version) already occupy them on FileOptions, and
    an extension number may be used only once per extended message.
 
-   Numbers 50405 through 50499 are reserved for future schema-extension
+   Numbers 1332 through 1346 are reserved for future schema-extension
    carriers and MUST NOT be allocated by user schemas.  Renumbering any
    of the above allocations is a wire break per the rules defined in
    STABILITY.md of [PROTOWIRE-RFC-001]'s source repository.
@@ -3459,13 +3459,13 @@ Internet-Draft                  protowire                      July 2026
    Author/Change controller: IETF.
    Provisional registration: yes.
 
-11.2.  Annotation Field Number Range
 
-   This document allocates Protocol Buffers extension field numbers in
-   the range 50000-59999 to the protowire family.  Field numbers in this
-   range are reserved for the extensions defined in Section 6 and for
-   future extensions of this document; they MUST NOT be reused for
-   unrelated extensions.  The currently assigned numbers are:
+
+
+
+
+
+
 
 
 
@@ -3474,14 +3474,38 @@ Franco Jr.               Expires 24 January 2027               [Page 62]
 Internet-Draft                  protowire                      July 2026
 
 
-   pxf.required          50000
-   pxf.default           50001
-   pxf.key               50002
-   sbe.schema_id         50100
-   sbe.version           50101
-   sbe.template_id       50200
-   sbe.length            50300
-   sbe.encoding          50301
+11.2.  Annotation Field Number Range
+
+   Protocol Buffers extension field numbers 1314-1363 are registered to
+   the protowire family in the Protocol Buffers global extension
+   registry [PROTOBUF-REGISTRY].  This document does not allocate them
+   -- that registry is maintained by the Protocol Buffers project -- it
+   records the assignments protowire has made within the range it was
+   granted.  Field numbers in this range are reserved for the extensions
+   defined in Section 6 and for future extensions of this document; they
+   MUST NOT be reused for unrelated extensions.  The currently assigned
+   numbers are:
+
+   pxf.required          1314
+   pxf.default           1315
+   pxf.key               1316
+   sbe.schema_id         1319
+   sbe.version           1320
+   sbe.template_id       1321
+   sbe.length            1322
+   sbe.encoding          1323
+
+   The schema-extension carriers defined in Section 6 occupy 1327-1331
+   within the same range; 1332-1346 are held for future carriers, and
+   1347-1354 for validation constraints.
+
+   Earlier revisions of this work used extension numbers in an
+   unregistered 50000-59999 range that the project had squatted rather
+   than been granted: 50000-50002 (PXF), 50100-50301 (SBE), and
+   50400-50404 (carriers).  Those numbers are retired and MUST NOT be
+   reused; an implementation encountering them is reading a descriptor
+   produced before the registered block was adopted, and SHOULD diagnose
+   it as such rather than interpret it.
 
    Future protowire extensions SHOULD allocate within this range and
    document the assignment in a successor of this document.
@@ -3493,6 +3517,18 @@ Internet-Draft                  protowire                      July 2026
    that follow from this objective.  This section addresses the
    considerations that do not reduce to a single conformance
    requirement.
+
+
+
+
+
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 63]
+
+Internet-Draft                  protowire                      July 2026
+
 
    Resource exhaustion.  Without the limits in Section 9.1, every
    protowire encoding admits trivial denial-of-service inputs: deeply
@@ -3522,14 +3558,6 @@ Internet-Draft                  protowire                      July 2026
    the producer's intent.  Implementations MUST use strict, error-
    returning UTF-8 decoders on string fields (Section 9.3).
 
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 63]
-
-Internet-Draft                  protowire                      July 2026
-
-
    Schema input.  An implementation that accepts a FileDescriptorSet or
    SBE schema XML at runtime, where the descriptor or XML is, or may be,
    attacker-controlled, MUST apply the limits of Section 9.1 to the
@@ -3548,6 +3576,15 @@ Internet-Draft                  protowire                      July 2026
    It does not provide confidentiality, integrity, or origin
    authentication; transports carrying protowire payloads SHOULD use TLS
    [RFC8446] or an equivalent.
+
+
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 64]
+
+Internet-Draft                  protowire                      July 2026
+
 
    Application-level error metadata.  AppError.metadata (Section 8) is a
    free-form string-to-string map.  Servers SHOULD NOT place sensitive
@@ -3569,6 +3606,12 @@ Internet-Draft                  protowire                      July 2026
               (proto3)", n.d.,
               <https://protobuf.dev/reference/protobuf/proto3-spec/>.
 
+   [PROTOBUF-REGISTRY]
+              Google, "Protocol Buffers Global Extension Registry",
+              n.d.,
+              <https://github.com/protocolbuffers/protobuf/blob/main/
+              docs/options.md>.
+
    [PROTOBUF-WIRE]
               Google, "Protocol Buffers Encoding", n.d.,
               <https://protobuf.dev/programming-guides/encoding/>.
@@ -3577,14 +3620,6 @@ Internet-Draft                  protowire                      July 2026
               Requirement Levels", BCP 14, RFC 2119,
               DOI 10.17487/RFC2119, March 1997,
               <https://www.rfc-editor.org/rfc/rfc2119>.
-
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 64]
-
-Internet-Draft                  protowire                      July 2026
-
 
    [RFC3339]  Klyne, G. and C. Newman, "Date and Time on the Internet:
               Timestamps", RFC 3339, DOI 10.17487/RFC3339, July 2002,
@@ -3597,6 +3632,15 @@ Internet-Draft                  protowire                      July 2026
    [RFC4648]  Josefsson, S., "The Base16, Base32, and Base64 Data
               Encodings", RFC 4648, DOI 10.17487/RFC4648, October 2006,
               <https://www.rfc-editor.org/rfc/rfc4648>.
+
+
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 65]
+
+Internet-Draft                  protowire                      July 2026
+
 
    [RFC5234]  Crocker, D., Ed. and P. Overell, "Augmented BNF for Syntax
               Specifications: ABNF", STD 68, RFC 5234,
@@ -3635,13 +3679,6 @@ Internet-Draft                  protowire                      July 2026
    [CEL]      Google, "Common Expression Language", n.d.,
               <https://github.com/google/cel-spec>.
 
-
-
-Franco Jr.               Expires 24 January 2027               [Page 65]
-
-Internet-Draft                  protowire                      July 2026
-
-
    [DEFUSEDXML]
               Heimes, C., "defusedxml: Defuses XML bombs and other
               exploits", n.d., <https://pypi.org/project/defusedxml/>.
@@ -3653,6 +3690,14 @@ Internet-Draft                  protowire                      July 2026
    [I-D.ietf-dispatch-mime-protobuf]
               Kucherawy, M., Kumari, W., and R. Sloan, "Media Type
               Registration for Protocol Buffers", Work in Progress,
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 66]
+
+Internet-Draft                  protowire                      July 2026
+
+
               Internet-Draft, draft-ietf-dispatch-mime-protobuf-07, 1
               December 2025, <https://datatracker.ietf.org/doc/html/
               draft-ietf-dispatch-mime-protobuf-07>.
@@ -3691,18 +3736,23 @@ Appendix A.  ABNF Additions in -01
    field-entry     = ( identifier / string )
                      ( assignment-tail / block-tail )
 
-
-
-Franco Jr.               Expires 24 January 2027               [Page 66]
-
-Internet-Draft                  protowire                      July 2026
-
-
    The remaining productions below are additions to the *schema
    language* grammar: they extend the file-body and declaration-body
    productions and define the new constructs.
 
 A.1.  New Productions
+
+
+
+
+
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 67]
+
+Internet-Draft                  protowire                      July 2026
+
 
  file-body       =/ type-decl / function-decl / annotation-decl
 
@@ -3746,20 +3796,19 @@ A.1.  New Productions
                    *( ws "," ws literal-value ) ] ws "]"
  message-literal = [ qualified-ident ws ] "{" ws
                    [ field-init *( ws "," ws field-init ) ] ws "}"
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 67]
-
-Internet-Draft                  protowire                      July 2026
-
-
  field-init      = name ws ":" ws literal-value
 
  expression-body = ; engine-specific subgrammar; captured verbatim as
                    ; balanced-delimiter text per {{engine-expressions}},
                    ; with function references extracted per
                    ; {{function-references}}
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 68]
+
+Internet-Draft                  protowire                      July 2026
+
 
    field-base and enum-value-base denote the productions defined in -00
    for fields and enum values respectively, retained for delta clarity.
@@ -3801,15 +3850,6 @@ Appendix C.  Implementation Status
       reference extraction per Section 7.4.3) is tracked and in
       progress.
 
-
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 68]
-
-Internet-Draft                  protowire                      July 2026
-
-
    *  *Specification artifacts* — the canonical carrier schemas
       (descriptor.proto), the report shape (report.proto,
       Section 7.10.1), the engine configuration (config.proto,
@@ -3817,6 +3857,14 @@ Internet-Draft                  protowire                      July 2026
       (annotations.proto), and a conformance fixture corpus are
       published in the protowire source repository
       ([PROTOWIRE-RFC-001]).
+
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 69]
+
+Internet-Draft                  protowire                      July 2026
+
 
    *  *Validation engine, language server, and code generation* — not
       started at the time of this revision; tracked in the protowire
@@ -3861,4 +3909,12 @@ Author's Address
 
 
 
-Franco Jr.               Expires 24 January 2027               [Page 69]
+
+
+
+
+
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 70]
