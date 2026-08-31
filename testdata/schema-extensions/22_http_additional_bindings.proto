@@ -8,7 +8,7 @@
 //
 // Expected behavior:
 //   - `GetOrder` carries three use sites. They lower to three entries
-//     in the method's `50400` carrier, in source order: repetition is
+//     in the method's `1327` carrier, in source order: repetition is
 //     ordinary annotation repetition at the carrier level.
 //   - The standard `google.api.http` option carries the same three: the
 //     first as the rule's own pattern, the rest as `additional_bindings`

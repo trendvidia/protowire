@@ -42,30 +42,21 @@ SIBLING_DIR="$(dirname "$REPO_DIR")"
 
 SOURCE="${SOURCE:-local}"
 
-# Known divergences, waived so CI is green on drift that already existed
-# and RED on anything new. Each line is "<repo> <extendee>|<type>|<name>|<number>".
+# Known divergences, waived individually so CI is red on anything NEW.
 #
-# These exist because (pxf.key) shipped in protowire-go and the canonical
-# file (v1.2, issue #116) but was never copied outward — the drift this
-# script was written to catch, recorded rather than hidden (#243).
+# EMPTY, deliberately. The list previously held ten copies missing
+# (pxf.key) = 50002; that gap is subsumed by the 1314-1363 renumber
+# (#244), since every copy gains `key` when it is renumbered.
 #
-# Every one of these copies is touched by the 1314-1363 renumber (#244), so
-# this list is expected to reach zero there. Deleting an entry is how a fix
-# is proven: remove the line, run the check, watch it pass.
-# Set STRICT=1 to ignore the waivers and see the true state.
-KNOWN_DIVERGENCES="$(cat <<'WAIVED'
-protowire-cpp        google.protobuf.FieldOptions|string|key|50002
-protowire-csharp     google.protobuf.FieldOptions|string|key|50002
-protowire-dart       google.protobuf.FieldOptions|string|key|50002
-protowire-rust       google.protobuf.FieldOptions|string|key|50002
-protowire-swift      google.protobuf.FieldOptions|string|key|50002
-protowire-typescript google.protobuf.FieldOptions|string|key|50002
-protowire-java       google.protobuf.FieldOptions|string|key|50002
-chameleon            google.protobuf.FieldOptions|string|key|50002
-org-protowire        google.protobuf.FieldOptions|string|key|50002
-steward              google.protobuf.FieldOptions|string|key|50002
-WAIVED
-)"
+# During the renumber the whole surface diverges by design, and that is
+# handled by continue-on-error on the CI job, not by waivers -- one
+# mechanism, not two. Emptying this list is half the completion criterion:
+# the migration is done when the gate passes STRICT, green and unwaived
+# with continue-on-error removed.
+#
+# Add an entry only for a divergence that is deliberate and permanent,
+# with a comment saying why. Set STRICT=1 to ignore waivers entirely.
+KNOWN_DIVERGENCES=""
 STRICT="${STRICT:-0}"
 
 # is_waived REPO TUPLE
@@ -79,37 +70,63 @@ WITH_CHAMELEON="${WITH_CHAMELEON:-1}"
 WITH_ORG="${WITH_ORG:-1}"
 WITH_STEWARD="${WITH_STEWARD:-1}"
 
-# canonical-relative-path : copy-path-relative-to-SIBLING_DIR ...
-# Kept as a flat table so adding a port is one line, and so the set of
-# places a number lives is readable in one screen.
-PXF_COPIES=(
-  "protolsp/proto/pxf/annotations.proto"
-  "protowire-cpp/proto/pxf/annotations.proto"
-  "protowire-csharp/proto/pxf/annotations.proto"
-  "protowire-dart/proto/pxf/annotations.proto"
-  "protowire-rust/proto/pxf/annotations.proto"
-  "protowire-swift/proto/pxf/annotations.proto"
-  "protowire-typescript/proto/pxf/annotations.proto"
-  "protowire-java/proto-annotations/src/main/proto/pxf/annotations.proto"
+# Repos that may carry a vendored copy. Only the REPO is listed -- the paths
+# inside it are DISCOVERED, because a hand-maintained path list silently
+# misses copies, which is the exact failure this check exists to catch.
+#
+# It missed one: protocheck/testdata/pxf/annotations.proto was absent from
+# the original manifest, so the 1314-1363 renumber broke protocheck's keyed
+# tests with the gate green (trendvidia/protowire#244). Forgetting a whole
+# repo is at least visible in this list; forgetting a path inside one was not.
+REPOS=(
+  protowire-go protowire-cpp protowire-csharp protowire-dart
+  protowire-rust protowire-swift protowire-typescript protowire-java
+  protocheck protocompile protolsp chameleon org-protowire steward
 )
-SBE_COPIES=(
-  "protowire-cpp/proto/sbe/annotations.proto"
-  "protowire-csharp/proto/sbe/annotations.proto"
-  "protowire-dart/proto/sbe/annotations.proto"
-  "protowire-rust/proto/sbe/annotations.proto"
-  "protowire-swift/proto/sbe/annotations.proto"
-  "protowire-typescript/proto/sbe/annotations.proto"
-  "protowire-java/proto-annotations/src/main/proto/sbe/annotations.proto"
-)
-CARRIER_COPIES=(
-  "protocompile/proto/protowire/schema/v1/descriptor.proto"
-)
+PRIVATE_REPOS=" protolsp chameleon steward org-protowire "
 
-[[ "$WITH_CHAMELEON" == "1" ]] && PXF_COPIES+=("chameleon/proto/pxf/annotations.proto")
-[[ "$WITH_ORG" == "1" ]] && PXF_COPIES+=("org-protowire/proto/pxf/annotations.proto")
-[[ "$WITH_ORG" == "1" ]] && SBE_COPIES+=("org-protowire/proto/sbe/annotations.proto")
-[[ "$WITH_STEWARD" == "1" ]] && PXF_COPIES+=("steward/node_modules/@trendvidia/protowire/proto/pxf/annotations.proto")
-[[ "$WITH_STEWARD" == "1" ]] && SBE_COPIES+=("steward/node_modules/@trendvidia/protowire/proto/sbe/annotations.proto")
+# A discovered path is classified by the family it belongs to.
+#   */pxf/annotations.proto        -> PXF
+#   */sbe/annotations.proto        -> SBE
+#   */schema/v1/descriptor.proto   -> CARRIERS
+classify() {
+  case "$1" in
+    */pxf/annotations.proto)      echo PXF ;;
+    */sbe/annotations.proto)      echo SBE ;;
+    */schema/v1/descriptor.proto) echo CARRIERS ;;
+    *)                            echo "" ;;
+  esac
+}
+
+# discover_local REPO -> paths relative to SIBLING_DIR
+discover_local() {
+  local repo="$1" root="${SIBLING_DIR}/$1"
+  [[ -d "$root" ]] || return 0
+  find "$root" \( -name annotations.proto -o -name descriptor.proto \) \
+       -not -path '*/.git/*' -not -path '*/build/*' -not -path '*/.build/*' \
+       -not -path '*/.tmp/*' 2>/dev/null \
+    | while read -r f; do
+        [[ -n "$(classify "$f")" ]] && echo "${f#$SIBLING_DIR/}"
+      done
+}
+
+# discover_remote REPO -> paths relative to the repo root
+discover_remote() {
+  local repo="$1"
+  if [[ " $PRIVATE_REPOS " == *" $repo "* && -z "${GH_TOKEN:-}${GITHUB_TOKEN:-}" ]]; then
+    return 0
+  fi
+  # steward vendors via npm; it has no repo path of its own to read.
+  [[ "$repo" == "steward" ]] && return 0
+  local branch
+  branch="$(gh api "repos/trendvidia/${repo}" --jq .default_branch 2>/dev/null)" || return 0
+  gh api "repos/trendvidia/${repo}/git/trees/${branch}?recursive=1" \
+      --jq '.tree[] | select(.type=="blob") | .path' 2>/dev/null \
+    | while read -r path; do
+        case "$path" in */build/*|*/.build/*|*/.tmp/*) continue ;; esac
+        [[ -n "$(classify "$path")" ]] && echo "$path"
+      done
+}
 
 FETCH_TMP=""
 # Must end in a success: an EXIT trap's last status replaces the
@@ -173,65 +190,91 @@ print("\n".join(sorted(out)))
 PY
 }
 
-check_family() {
-  local label="$1" canonical="$2"; shift 2
-  local copies=("$@")
-  local canon_surface rc=0
+canonical_for() {
+  case "$1" in
+    PXF)      echo "${REPO_DIR}/proto/pxf/annotations.proto" ;;
+    SBE)      echo "${REPO_DIR}/proto/sbe/annotations.proto" ;;
+    CARRIERS) echo "${REPO_DIR}/proto/schema/v1/descriptor.proto" ;;
+  esac
+}
 
-  if [[ ! -f "$canonical" ]]; then
-    echo "FATAL: canonical $label file not found: $canonical" >&2
-    return 1
+declare -A CANON_SURFACE
+for fam in PXF SBE CARRIERS; do
+  cf="$(canonical_for "$fam")"
+  if [[ ! -f "$cf" ]]; then
+    echo "FATAL: canonical $fam file not found: $cf" >&2; exit 1
   fi
-  canon_surface="$(extract_surface "$canonical")"
-
-  echo "=== $label — canonical: ${canonical#$SIBLING_DIR/}  [source: $SOURCE]"
-  echo "$canon_surface" | sed 's/^/    /'
+  CANON_SURFACE[$fam]="$(extract_surface "$cf")"
+  echo "=== $fam canonical: ${cf#$SIBLING_DIR/}  [source: $SOURCE]"
+  echo "${CANON_SURFACE[$fam]}" | sed 's/^/    /'
   echo
+done
 
-  for rel in "${copies[@]}"; do
-    local repo="${rel%%/*}"
-    local path
-    path="$(resolve_copy "$rel")"
-    if [[ -z "$path" ]]; then
-      printf "  %-24s SKIP (unavailable in %s mode: %s)\n" "$repo" "$SOURCE" "$rel"
-      continue
+status=0
+found_any=0
+
+for repo in "${REPOS[@]}"; do
+  if [[ "$SOURCE" == "local" ]]; then
+    mapfile -t paths < <(discover_local "$repo")
+  else
+    mapfile -t paths < <(discover_remote "$repo")
+  fi
+
+  if [[ ${#paths[@]} -eq 0 ]]; then
+    printf "  %-22s SKIP (no copies visible in %s mode)\n" "$repo" "$SOURCE"
+    continue
+  fi
+
+  for rel in "${paths[@]}"; do
+    [[ -z "$rel" ]] && continue
+    fam="$(classify "$rel")"
+    [[ -z "$fam" ]] && continue
+    found_any=1
+
+    if [[ "$SOURCE" == "local" ]]; then
+      path="${SIBLING_DIR}/${rel}"
+    else
+      [[ -z "$FETCH_TMP" ]] && FETCH_TMP="$(mktemp -d)"
+      path="${FETCH_TMP}/${repo}_${rel//\//_}"
+      gh api "repos/trendvidia/${repo}/contents/${rel}" \
+         -H "Accept: application/vnd.github.raw" > "$path" 2>/dev/null || continue
     fi
-    local copy_surface
+    [[ -f "$path" ]] || continue
+
     copy_surface="$(extract_surface "$path")"
-    if [[ "$copy_surface" == "$canon_surface" ]]; then
-      printf "  %-24s ok\n" "$repo"
+    label="${repo} (${fam})"
+    if [[ "$copy_surface" == "${CANON_SURFACE[$fam]}" ]]; then
+      printf "  %-34s ok\n" "$label"
       continue
     fi
 
-    # Only-in-canonical => the copy is missing a declaration.
-    # Only-in-copy      => the copy invented or kept a stale one.
-    local unwaived=0 line
+    unwaived=0
     while IFS= read -r line; do
       [[ -z "$line" ]] && continue
       if is_waived "$repo" "$line"; then
-        printf "  %-24s waived  missing: %s\n" "$repo" "$line"
+        printf "  %-34s waived  missing: %s\n" "$label" "$line"
       else
-        printf "  %-24s DIVERGED missing from copy: %s\n" "$repo" "$line"
+        printf "  %-34s DIVERGED missing from copy: %s\n" "$label" "$line"
         unwaived=1
       fi
-    done < <(comm -23 <(echo "$canon_surface") <(echo "$copy_surface"))
+    done < <(comm -23 <(echo "${CANON_SURFACE[$fam]}") <(echo "$copy_surface"))
 
     while IFS= read -r line; do
       [[ -z "$line" ]] && continue
-      printf "  %-24s DIVERGED unexpected in copy: %s\n" "$repo" "$line"
+      printf "  %-34s DIVERGED unexpected in copy: %s\n" "$label" "$line"
       unwaived=1
-    done < <(comm -13 <(echo "$canon_surface") <(echo "$copy_surface"))
+    done < <(comm -13 <(echo "${CANON_SURFACE[$fam]}") <(echo "$copy_surface"))
 
-    [[ $unwaived -eq 1 ]] && rc=1
+    [[ $unwaived -eq 1 ]] && status=1
   done
-  echo
-  return $rc
-}
+done
+echo
 
-status=0
-check_family "PXF"      "${REPO_DIR}/proto/pxf/annotations.proto"        "${PXF_COPIES[@]}"     || status=1
-check_family "SBE"      "${REPO_DIR}/proto/sbe/annotations.proto"        "${SBE_COPIES[@]}"     || status=1
-check_family "CARRIERS" "${REPO_DIR}/proto/schema/v1/descriptor.proto"   "${CARRIER_COPIES[@]}" || status=1
+if [[ $found_any -eq 0 ]]; then
+  echo "FATAL: discovery found no vendored copies at all -- the check is not" >&2
+  echo "actually looking at anything. Treat as a failure, not a pass." >&2
+  exit 1
+fi
 
 if [[ $status -ne 0 ]]; then
   cat >&2 <<'MSG'

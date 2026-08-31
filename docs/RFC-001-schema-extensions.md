@@ -11,7 +11,7 @@
 
 ## Abstract
 
-This RFC proposes three new top-level declarations to the protowire schema language — `type`, `function`, and `annotation` — together with a general-purpose annotation framework (`@name(args)`) and a structured error model. The additions promote validation from a sidecar concern (today fragmented across `protovalidate`, `protocheck`, and ad-hoc proto options) to a first-class language feature. All additions are strictly additive: every existing v1.x schema parses and validates unchanged. Lowering targets standard `FileDescriptorSet` plus custom options in protowire's reserved extension range (`50400`–`50404`), so downstream tooling (stock `protoc`, `protobuf-go`, every existing port) round-trips the new constructs as opaque options without source-level changes.
+This RFC proposes three new top-level declarations to the protowire schema language — `type`, `function`, and `annotation` — together with a general-purpose annotation framework (`@name(args)`) and a structured error model. The additions promote validation from a sidecar concern (today fragmented across `protovalidate`, `protocheck`, and ad-hoc proto options) to a first-class language feature. All additions are strictly additive: every existing v1.x schema parses and validates unchanged. Lowering targets standard `FileDescriptorSet` plus custom options in protowire's reserved extension range (`1327`–`1331`), so downstream tooling (stock `protoc`, `protobuf-go`, every existing port) round-trips the new constructs as opaque options without source-level changes.
 
 ## 1. Motivation
 
@@ -250,7 +250,7 @@ Operation *metadata* carries **no validation semantics**. A port that renders no
 
 Every parameter beyond `method` and `path` is defaulted, so the v1.2.0 two-argument form keeps its meaning and no existing schema changes shape. Conformance fixture: `testdata/schema-extensions/21_http_operation.proto`.
 
-The existing PXF annotations `(pxf.required)` and `(pxf.default)` retain their bracket forms and extension numbers (`50000`, `50001`): bracket-written options remain valid v1.2 input and lower identically to v1.1. `@required` and `@default(value)` are the canonical annotation form going forward, and they lower **exclusively** to the schema-extension carrier (§8.1) — the annotation forms never emit the legacy options (§8.5). A consumer that reads only `(pxf.required)`/`(pxf.default)` observes bracket-written options and nothing else; enforcing the annotation forms requires a carrier-aware (v1.2) consumer.
+The existing PXF annotations `(pxf.required)` and `(pxf.default)` keep their bracket forms and their semantics: bracket-written options remain valid v1.2 input and lower the same way v1.1 lowered them. Their extension numbers are `1314` and `1315` — renumbered from `50000`/`50001` when the family moved to its registered block (§8.4), which is a change to the descriptors, not to what the bracket form means. `@required` and `@default(value)` are the canonical annotation form going forward, and they lower **exclusively** to the schema-extension carrier (§8.1) — the annotation forms never emit the legacy options (§8.5). A consumer that reads only `(pxf.required)`/`(pxf.default)` observes bracket-written options and nothing else; enforcing the annotation forms requires a carrier-aware (v1.2) consumer.
 
 `@default(value)` inherits the placement constraint the draft states for `(pxf.default)` (draft `-01` §annotation-extensions, "Default Placement"): the annotation carries one literal, so it is valid only on singular scalar fields, enum fields, and the message types a PXF literal can denote — never on a `repeated` field, a `map<K,V>` field, a group, or any other message type. The constraint is on the annotation, not on the surface that writes it, so the compiler rejects a misplaced `@default(value)` at the use site with the same force a PXF binding tool rejects a misplaced bracket option. Note this is the one place `@default` and `@validate` diverge in their treatment of collections: §6.4's per-element rule makes `@validate` meaningful on a `repeated` or `map<K,V>` field, whereas `@default` has no per-element reading — a single literal cannot denote a collection, and the annotation grammar has no element or key separator to give it one.
 
@@ -498,7 +498,7 @@ Normative consumer minima:
    sensitive fields; `@example` on a sensitive declaration is a
    compile-time warning.
 
-The annotation lowers through the standard `50400` `AnnotationList`
+The annotation lowers through the standard `1327` `AnnotationList`
 carrier like every other annotation; no dedicated extension number or
 descriptor surface exists.
 
@@ -579,7 +579,7 @@ message EnrichedViolation {
   FieldPath path = 2;                     // structured path into the message
   repeated string type_chain = 3;         // ["string", "Email", "CompanyEmail"], base first
   Value actual_value = 4;                 // unset = field absent — or redacted
-  SourceLocation source = 5;              // from the embedded source map (50404)
+  SourceLocation source = 5;              // from the embedded source map (1331)
   RuleKind rule_kind = 6;                 // RULE_KIND_{VALIDATE,REQUIRED,DEFAULT,TYPE_REFINEMENT}
   bool value_redacted = 7;                // @sensitive field: value withheld (§6.7)
   bool for_key = 8;                       // rule violated by the map key, not the entry's value
@@ -621,7 +621,7 @@ resolved position for display; `source_ref` is the rule's **identity** —
 the §8.3.1 join key `(SourceMap.file, descriptor_path)`, rendered by the
 single shared formatter, never hand-assembled. Engines MUST populate
 `source_ref` whenever the violated rule was resolved through an embedded
-source map (extension 50404) and MUST leave it unset otherwise.
+source map (extension 1331) and MUST leave it unset otherwise.
 Consumers correlating a wire Report with lowered rules — an editor
 overlay mapping runtime violations onto source ranges, a registry
 joining reports to stored descriptors — join on `source_ref` rather than
@@ -822,17 +822,17 @@ message Expression {
   SourceLocation location = 3;
 }
 
-extend google.protobuf.FileOptions      { AnnotationList file_annotations       = 50400; }
-extend google.protobuf.MessageOptions   { AnnotationList message_annotations    = 50400; }
-extend google.protobuf.FieldOptions     { AnnotationList field_annotations      = 50400; }
-extend google.protobuf.EnumOptions      { AnnotationList enum_annotations       = 50400; }
-extend google.protobuf.EnumValueOptions { AnnotationList enum_value_annotations = 50400; }
-extend google.protobuf.ServiceOptions   { AnnotationList service_annotations    = 50400; }
-extend google.protobuf.MethodOptions    { AnnotationList method_annotations     = 50400; }
-extend google.protobuf.OneofOptions     { AnnotationList oneof_annotations      = 50400; }
+extend google.protobuf.FileOptions      { AnnotationList file_annotations       = 1327; }
+extend google.protobuf.MessageOptions   { AnnotationList message_annotations    = 1327; }
+extend google.protobuf.FieldOptions     { AnnotationList field_annotations      = 1327; }
+extend google.protobuf.EnumOptions      { AnnotationList enum_annotations       = 1327; }
+extend google.protobuf.EnumValueOptions { AnnotationList enum_value_annotations = 1327; }
+extend google.protobuf.ServiceOptions   { AnnotationList service_annotations    = 1327; }
+extend google.protobuf.MethodOptions    { AnnotationList method_annotations     = 1327; }
+extend google.protobuf.OneofOptions     { AnnotationList oneof_annotations      = 1327; }
 ```
 
-The annotation carrier shares wire number `50400` across all eight Options
+The annotation carrier shares wire number `1327` across all eight Options
 messages, but each `extend` field is named per kind (`file_annotations`,
 `message_annotations`, …) so every extension has a unique fully-qualified
 name within the `protowire.schema.v1` package.
@@ -875,9 +875,9 @@ rely on `calls` being complete with respect to declared functions.
 
 ```proto
 extend google.protobuf.FileOptions {
-  FileFunctions       functions        = 50401;
-  FileAnnotationDecls annotation_decls = 50402;
-  FileTypeDecls       type_decls       = 50403;
+  FileFunctions       functions        = 1328;
+  FileAnnotationDecls annotation_decls = 1329;
+  FileTypeDecls       type_decls       = 1330;
 }
 ```
 
@@ -886,7 +886,7 @@ extend google.protobuf.FileOptions {
 ### 8.3 Embedded source map
 
 ```proto
-extend google.protobuf.FileOptions { SourceMap source_map = 50404; }
+extend google.protobuf.FileOptions { SourceMap source_map = 1331; }
 ```
 
 The `SourceMap` carries entries mapping descriptor positions back to source-file locations and capturing the type-refinement chain that produced each rule. Embedded (not sidecar) — one artifact, no sync-drift between descriptor and map.
@@ -936,13 +936,15 @@ the string.
 
 | Number | Carrier | Targets |
 |---|---|---|
-| `50400` | `AnnotationList` (`file_annotations`, `message_annotations`, …) | all 8 Options messages |
-| `50401` | `FileFunctions functions` | FileOptions |
-| `50402` | `FileAnnotationDecls annotation_decls` | FileOptions |
-| `50403` | `FileTypeDecls type_decls` | FileOptions |
-| `50404` | `SourceMap source_map` | FileOptions |
+| `1327` | `AnnotationList` (`file_annotations`, `message_annotations`, …) | all 8 Options messages |
+| `1328` | `FileFunctions functions` | FileOptions |
+| `1329` | `FileAnnotationDecls annotation_decls` | FileOptions |
+| `1330` | `FileTypeDecls type_decls` | FileOptions |
+| `1331` | `SourceMap source_map` | FileOptions |
 
-Range `50400`–`50499` is allocated in this revision for future schema-extension carriers, within protowire's documented `50000`–`59999` family range (per `STABILITY.md`). The `50100`–`50101` numbers are skipped because SBE already claims them on `FileOptions` (`sbe.schema_id`, `sbe.version`), and an extension number may be used only once per extended message.
+Range `1327`–`1346` is allocated to schema-extension carriers within protowire's registered block `1314`–`1363` (per `STABILITY.md`), granted by protocolbuffers/protobuf#28919; `1332`–`1346` are held for future carriers. The block is partitioned by family — PXF at `1314`–`1318`, SBE at `1319`–`1326`, carriers here, validation constraints at `1347`–`1354` — because an extension number may be used only once per extended message, and `FileOptions` in particular carries SBE's `sbe.schema_id` / `sbe.version` alongside four of the five carriers below.
+
+These numbers replaced `50400`–`50404`, and before that a pre-merge draft of this RFC used `50100`–`50104`. Both ranges are retired and MUST NOT be reused: the earlier one collided with SBE on `FileOptions`, and the later one sat in an unregistered `50000`–`59999` range the project had squatted rather than been granted.
 
 ### 8.5 Backward compatibility with stock tooling
 
@@ -951,9 +953,9 @@ The carrier extensions are well-formed proto. Stock `protoc`, `protobuf-go`, and
 `protocompile`'s existing option-interpretation pipeline (see `options/options.go:14`) handles arbitrary extension numbers without modification. The lowering pass produces uninterpreted options that the existing interpreter populates into the carrier extensions; no new descriptor pathway is required.
 
 **Legacy PXF options — no dual-emission.** The annotation forms
-`@required` and `@default(value)` lower only to the `50400` carrier;
-the compiler MUST NOT synthesize `(pxf.required)` (`50000`) or
-`(pxf.default)` (`50001`) from them. The two surfaces are disjoint:
+`@required` and `@default(value)` lower only to the `1327` carrier;
+the compiler MUST NOT synthesize `(pxf.required)` (`1314`) or
+`(pxf.default)` (`1315`) from them. The two surfaces are disjoint:
 brackets lower to the legacy options exactly as written, annotations
 lower to the carrier, and neither is back-filled from the other. The
 consequence is deliberate: a v1.1 consumer of the legacy options (for
@@ -969,7 +971,7 @@ lowering pass MUST NOT inject annotation-derived text (for example
 `@description`) into `SourceCodeInfo` leading or trailing comments,
 nor otherwise synthesize `SourceCodeInfo` entries: `SourceCodeInfo`
 carries exactly what the user wrote. Annotation-derived documentation
-is surfaced by annotation-aware codegen reading the `50400` carrier
+is surfaced by annotation-aware codegen reading the `1327` carrier
 (the §9.3 plugins and per-port equivalents), which is the canonical
 — and only — layer for documentation emission. The consequence is
 deliberate: stock plugins and documentation generators that render

@@ -148,13 +148,13 @@ func parseParameters(raw string) pluginOptions {
 // proto/sbe/annotations.proto. Wire-format-stable per the project's
 // "load-bearing — do not change" comment in those files.
 const (
-	extPxfRequired    int32 = 50000 // bool   on FieldOptions
-	extPxfDefault     int32 = 50001 // string on FieldOptions
-	extSbeSchemaID    int32 = 50100 // uint32 on FileOptions
-	extSbeVersion     int32 = 50101 // uint32 on FileOptions
-	extSbeTemplateID  int32 = 50200 // uint32 on MessageOptions
-	extSbeFieldLength int32 = 50300 // uint32 on FieldOptions
-	extSbeFieldEncode int32 = 50301 // string on FieldOptions
+	extPxfRequired    int32 = 1314 // bool   on FieldOptions
+	extPxfDefault     int32 = 1315 // string on FieldOptions
+	extSbeSchemaID    int32 = 1319 // uint32 on FileOptions
+	extSbeVersion     int32 = 1320 // uint32 on FileOptions
+	extSbeTemplateID  int32 = 1321 // uint32 on MessageOptions
+	extSbeFieldLength int32 = 1322 // uint32 on FieldOptions
+	extSbeFieldEncode int32 = 1323 // string on FieldOptions
 )
 
 func main() {

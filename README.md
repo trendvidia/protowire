@@ -685,7 +685,7 @@ protowire/
 │   ├── pxf/bignum.proto                       # arbitrary-precision number wrapper types
 │   ├── sbe/annotations.proto                  # (sbe.schema_id), (sbe.template_id), (sbe.length), (sbe.encoding)
 │   ├── schema/v1/annotations.proto            # v1.2 framework annotation library (@validate, @required, …; v1.2 grammar)
-│   ├── schema/v1/descriptor.proto             # v1.2 carrier extensions 50400–50404 (parses with stock protoc)
+│   ├── schema/v1/descriptor.proto             # v1.2 carrier extensions 1327–1331 (parses with stock protoc)
 │   ├── schema/v1/report.proto                 # validation Report / EnrichedViolation wire shape (runtime artifact)
 │   ├── schema/config/v1/config.proto          # EngineConfig for protowire.config.textproto
 │   ├── schema/catalog/v1/catalog.proto        # locale catalog source format (§7 catalog_libraries files)
