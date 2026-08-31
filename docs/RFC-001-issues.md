@@ -27,7 +27,7 @@ This is the umbrella tracking issue for [RFC-001 — Protowire Schema Extensions
 - [x] #003 — Draft IETF `draft-trendvidia-protowire-01` — document complete 2026-07-16 (GH #57, PR #114); Datatracker submission pending
 - [x] #004 — Add `protowire/proto/schema/v1/annotations.proto` — done (GH #54; round-trip verified 2026-07-17 against protocompile, GH #58)
 - [x] #005 — Add `protowire/proto/schema/v1/descriptor.proto` — done (GH #54; README layout listing added 2026-07-17, PR #115)
-- [x] #006 — Update `STABILITY.md` for v1.2 additive surface — done (GH #54; carriers renumbered to 50400–50499 by PR #78)
+- [x] #006 — Update `STABILITY.md` for v1.2 additive surface — done (GH #54; carriers renumbered to 1327–1346 by PR #78)
 - [x] #007 — Add v1.2.0 `CHANGELOG.md` entry — done (GH #54; v1.2.0 released 2026-07-20, PR #119)
 
 ### Open questions (resolved or deferred during M0)
@@ -177,7 +177,7 @@ Note: this file uses v1.2 grammar (the `annotation` keyword), so it can only be 
 **Acceptance criteria:**
 - [x] File added at `protowire/proto/schema/v1/annotations.proto`
 - [x] Listed in `README.md` repository-layout section
-- [x] Round-trips through `protocompile` (once parser support lands, see #030) — verified 2026-07-17 against protocompile @ 03ef9d8 (GH #58): parses clean, all 9 declarations lower into `FileAnnotationDecls` (50402)
+- [x] Round-trips through `protocompile` (once parser support lands, see #030) — verified 2026-07-17 against protocompile @ 03ef9d8 (GH #58): parses clean, all 9 declarations lower into `FileAnnotationDecls` (1329)
 
 ---
 
@@ -188,13 +188,13 @@ Note: this file uses v1.2 grammar (the `annotation` keyword), so it can only be 
 **Labels:** `spec`, `proto`, `schema-extensions`
 **Depends on:** #002
 
-Add the descriptor lowering schemas as specified in RFC-001 §8 — `AnnotationList`, `Annotation`, `AnnotationArg`, `Expression`, `FileFunctions`, `FileAnnotationDecls`, `FileTypeDecls`, `SourceMap`, plus the `extend google.protobuf.*Options` blocks at numbers `50400`–`50404`.
+Add the descriptor lowering schemas as specified in RFC-001 §8 — `AnnotationList`, `Annotation`, `AnnotationArg`, `Expression`, `FileFunctions`, `FileAnnotationDecls`, `FileTypeDecls`, `SourceMap`, plus the `extend google.protobuf.*Options` blocks at numbers `1327`–`1331`.
 
 This file is parseable by stock `protoc` — it does not use v1.2 grammar. It is the lowering target, not a user-facing surface.
 
 **Acceptance criteria:**
 - [x] File added at `protowire/proto/schema/v1/descriptor.proto`
-- [x] All 5 extension numbers (`50400`–`50404`) reserved per spec
+- [x] All 5 extension numbers (`1327`–`1331`) reserved per spec
 - [x] Parses with stock `protoc` (verified in the 2026-07-15 audit)
 - [x] Listed in `README.md` repository-layout section (added 2026-07-17)
 
@@ -209,7 +209,7 @@ This file is parseable by stock `protoc` — it does not use v1.2 grammar. It is
 
 Update `STABILITY.md` to document the v1.2 additive surface:
 - New reserved keywords (`type`, `function`, `annotation`, `expression`, `this`, `@` sigil)
-- New extension numbers (`50400`–`50499` reserved for schema-extension carriers; `50400`–`50404` allocated in v1.2.0)
+- New extension numbers (`1327`–`1346` reserved for schema-extension carriers; `1327`–`1331` allocated in v1.2.0)
 - v1.2 schemas not back-compatible with v1.1 parsers; v1.1 schemas remain valid in v1.2 parsers
 
 **Acceptance criteria:**
@@ -431,7 +431,7 @@ unchanged (its instance sets `country`; no substitution occurs).
 consumers (protolsp's runtime-violation overlay via gRPC status details,
 registry report joins) recover the lowered rule without fuzzy
 source-location matching. Engines MUST populate it when the rule
-resolved through an embedded source map (50404), MUST leave it unset
+resolved through an embedded source map (1331), MUST leave it unset
 otherwise; the path comes from the shared §8.3.1 formatter, never
 hand-assembled. Deterministic from the descriptor → participates in
 cross-port equality with no carve-out. Rollout: protocompile re-vendors
@@ -656,7 +656,7 @@ engines withhold offending values from reports
 (`EnrichedViolation.value_redacted = 7` keeps redaction distinguishable
 from three-state absence); doc generators emit no values or examples
 (`@example` on a sensitive declaration is a compile-time warning). Rides
-the standard 50400 carrier. Chameleon stays orthogonal (schema declares
+the standard 1327 carrier. Chameleon stays orthogonal (schema declares
 *what* is sensitive, never *how* it is protected). Deferred additively
 (§13 #13/#14): `class:` taxonomy parameter; schema-level
 `@encrypted(key_ref)`. Conformance fixtures ride the corpus expansion
@@ -751,15 +751,15 @@ catch-up tracked in protocompile#69. Fixture:
 **Labels:** `spec`, `schema-extensions`
 
 The #033/#034 acceptance criteria required dual-emission of the legacy
-`(pxf.required)` / `(pxf.default)` bracket options (50000/50001) when
+`(pxf.required)` / `(pxf.default)` bracket options (1314/1315) when
 the `@required` / `@default(...)` annotation forms are used, so v1.1
 consumers keep working against v1.2-compiled descriptors. protocompile
-M1 emits only the new 50400 carriers. Decide: back-compat shim, or
+M1 emits only the new 1327 carriers. Decide: back-compat shim, or
 carrier-only posture — and document either way in STABILITY.md.
 
 **Resolution (2026-07-16, GH #92, PR #110):** **Carrier-only — no
 dual-emission.** RFC-001 §8.5 gains the normative rule: `@required` /
-`@default(value)` lower exclusively to the 50400 carrier; the compiler
+`@default(value)` lower exclusively to the 1327 carrier; the compiler
 MUST NOT synthesize `(pxf.required)`/`(pxf.default)` from them.
 Brackets and annotations are disjoint surfaces — brackets lower exactly
 as written, annotations to the carrier, neither back-filled from the
@@ -804,7 +804,7 @@ namespace, catalog keying, forward compat), so no proto enum.
 protobuf-go's shipped `function.invalid_argument` spelling rename is
 tracked downstream. (3) §8.5 gains the normative rule: `SourceCodeInfo`
 is authorial — lowering MUST NOT synthesize comments from annotations;
-annotation-aware codegen reading the 50400 carrier is the canonical
+annotation-aware codegen reading the 1327 carrier is the canonical
 — and only — documentation-emission layer, so stock plugins do not
 surface `@description` and ports wanting generated-code docs need an
 annotation-aware plugin.
@@ -945,7 +945,7 @@ Function-call sites in engine expressions must verify:
 **Labels:** `protocompile`, `options`, `schema-extensions`
 **Depends on:** #031, #032, #005
 
-Hook into the existing option-interpretation pipeline (`options/options.go`) so that every `@annot(...)` use site lowers into uninterpreted options on the appropriate target's `Options` message, in the carrier extension at `50400`.
+Hook into the existing option-interpretation pipeline (`options/options.go`) so that every `@annot(...)` use site lowers into uninterpreted options on the appropriate target's `Options` message, in the carrier extension at `1327`.
 
 The lowering produces standard `UninterpretedOption` entries that the existing interpreter then resolves against the carrier schemas from #005.
 
@@ -975,7 +975,7 @@ The lowering produces standard `UninterpretedOption` entries that the existing i
 **Labels:** `protocompile`, `lowering`, `schema-extensions`
 **Depends on:** #033
 
-Emit `FileFunctions` (`50401`), `FileAnnotationDecls` (`50402`), and `FileTypeDecls` (`50403`) extensions on `FileOptions` from the IR. Each `type` declaration is preserved verbatim in the descriptor (not just macro-expanded) so consumers can resolve named types.
+Emit `FileFunctions` (`1328`), `FileAnnotationDecls` (`1329`), and `FileTypeDecls` (`1330`) extensions on `FileOptions` from the IR. Each `type` declaration is preserved verbatim in the descriptor (not just macro-expanded) so consumers can resolve named types.
 
 Type-alias use sites expand the refinement chain into the field's annotation list at lower time.
 
@@ -983,7 +983,7 @@ Type-alias use sites expand the refinement chain into the field's annotation lis
 
 | Step | File | Pattern |
 |---|---|---|
-| File-scope decl lowering | extend `options/lower_annotations.go` from #033 (or new `options/lower_file_decls.go`) | Walk the IR `File.Functions()`, `File.AnnotationDecls()`, `File.TypeDecls()` iterators; emit one `UninterpretedOption` per file-scope decl, targeting the corresponding carrier extension (`50401`/`50402`/`50403`) on `FileOptions`. Same uninterpreted-option-feeds-existing-pipeline pattern as #033. |
+| File-scope decl lowering | extend `options/lower_annotations.go` from #033 (or new `options/lower_file_decls.go`) | Walk the IR `File.Functions()`, `File.AnnotationDecls()`, `File.TypeDecls()` iterators; emit one `UninterpretedOption` per file-scope decl, targeting the corresponding carrier extension (`1328`/`1329`/`1330`) on `FileOptions`. Same uninterpreted-option-feeds-existing-pipeline pattern as #033. |
 | Type-alias expansion at use sites | extend the field-annotation lowering from #033 | For each field whose declared type resolves through one or more `type` aliases, walk the type chain base-to-derived and prepend each alias's `validate`/etc. annotations to the field's annotation list before lowering. |
 | Hook point | `options/options.go:104` `InterpretOptions` | Same pre-loop slot as #033 — these passes run in a defined order before main interpretation. |
 | ~~Backward-compat shim~~ | — | Struck per #023 resolution (GH #92, PR #110): no dual-emission; annotations are carrier-only. |
@@ -1008,14 +1008,14 @@ Type-alias use sites expand the refinement chain into the field's annotation lis
 **Labels:** `protocompile`, `source-map`, `schema-extensions`
 **Depends on:** #034
 
-Populate the embedded `SourceMap` (`50404` on `FileOptions`) during the lowering pass. Each annotation, type-refinement expansion, and function-call gets a `SourceEntry` with `descriptor_path`, `source_location`, and (for refinements) `type_chain`.
+Populate the embedded `SourceMap` (`1331` on `FileOptions`) during the lowering pass. Each annotation, type-refinement expansion, and function-call gets a `SourceEntry` with `descriptor_path`, `source_location`, and (for refinements) `type_chain`.
 
 ### Implementation notes — entry points
 
 | Step | File | Pattern |
 |---|---|---|
 | Source-map accumulator | extend the lowering pass from #033/#034 | Thread a `*SourceMap` accumulator through the lowering walk. Every time the pass emits a carrier `UninterpretedOption` (annotation, file-scope decl, type expansion, function-call site), it also appends a `SourceEntry` capturing `kind`, `descriptor_path`, `source_location`, and (for `TYPE_REFINEMENT`) `type_chain`. |
-| Final emission | end of the lowering pass | After all annotations are lowered, emit one final `UninterpretedOption` carrying the accumulated `SourceMap` as the carrier-extension value on `FileOptions.source_map = 50404`. |
+| Final emission | end of the lowering pass | After all annotations are lowered, emit one final `UninterpretedOption` carrying the accumulated `SourceMap` as the carrier-extension value on `FileOptions.source_map = 1331`. |
 | Descriptor-path scheme | new file `options/descriptor_path.go` | Define the canonical string form (`"User.email[validate#1]"`, `"User#message_validate#0"`, etc.) used in `SourceEntry.descriptor_path`. Stable across versions because `protolsp`/`pxfed` parse it. |
 | `protolsp` consumer parity | coordinate with #051 | The descriptor-path string format is the implicit contract with `protolsp`. Both repos need to agree; consider exporting a parser helper. |
 
@@ -1109,7 +1109,7 @@ Current state: `options.go` already has `WithFunction(name, fn)` and `wrapFuncti
 | Step | File | Pattern |
 |---|---|---|
 | Registration entry point | extend `options.go` | Add `WithFunction(fqn, impl)` alias if needed and route through to the existing `Validator.funcs` map keyed by FQN. `Engine.Register(fqn, impl)` from #040 delegates to this. |
-| Descriptor-walk verification | new file `validation_init.go` | Function `verifyRegisteredFunctions(desc protoreflect.FileDescriptor, registry map[string]Function, strict bool) error`. Walks the descriptor tree (uses `protoreflect`), extracts FQN references from `Expression.calls` (carrier extension `50400`) and from `FileFunctions` entries (carrier extension `50401`), checks each FQN exists in the registry. In strict mode, returns an error on any miss; in lenient mode, logs and registers a placeholder that returns `Violation{Code: "unimplemented", ...}` on call. |
+| Descriptor-walk verification | new file `validation_init.go` | Function `verifyRegisteredFunctions(desc protoreflect.FileDescriptor, registry map[string]Function, strict bool) error`. Walks the descriptor tree (uses `protoreflect`), extracts FQN references from `Expression.calls` (carrier extension `1327`) and from `FileFunctions` entries (carrier extension `1328`), checks each FQN exists in the registry. In strict mode, returns an error on any miss; in lenient mode, logs and registers a placeholder that returns `Violation{Code: "unimplemented", ...}` on call. |
 | Init hook | extend `protocheck.New()` | After option processing, run `verifyRegisteredFunctions` against any descriptors passed at construction time. Lenient is the default; the option `WithStrictValidation(true)` flips to strict. |
 | Lenient placeholder | extend `eval.FuncDef` invocation path | If a registry lookup misses in lenient mode, synthesize a placeholder `FuncDef` that returns the unimplemented Violation rather than failing the validator startup. |
 
@@ -1149,11 +1149,11 @@ Current state in `protocheck.go:46–143` (`validate()`, `validateField()`) alre
 | Step | File | Pattern |
 |---|---|---|
 | Fail-fast config | `protocheck.go` `validatorConfig` (and corresponding `Option`) | Add `failFast bool` flag (default false). In `validate()` / `validateField()`, after appending a violation, check the flag and short-circuit the walk. |
-| Enriched Violation fields | `violations.go` | Add `SourceFile string`, `SourceLine int32`, `SourceColumn int32`, `TypeChain []string`, `RuleKind RuleKind` to the existing `Violation` struct. Populate from the carrier source map (`50404`) during evaluation. |
+| Enriched Violation fields | `violations.go` | Add `SourceFile string`, `SourceLine int32`, `SourceColumn int32`, `TypeChain []string`, `RuleKind RuleKind` to the existing `Violation` struct. Populate from the carrier source map (`1331`) during evaluation. |
 | Source-map lookup | new helper in `validation_init.go` (from #041) | Build a `descriptorPath → SourceEntry` index from the embedded `SourceMap` at init time; lookup during violation construction. |
 | Type-chain population | extend `validate()` field walk | When evaluating a rule that originated from a type alias (kind `TYPE_REFINEMENT` in the source map), populate `Violation.TypeChain` from `SourceEntry.type_chain`. |
 | Report wrapper | `Report` struct from #040 | Aggregate violations into the `Report` shape; add `Format(locale string)` to render via the catalog from #043. |
-| New schema-extension rules | extend the field-validation loop | For each annotation in the field's `AnnotationList` (carrier extension `50400`), dispatch to the appropriate evaluator: built-in `@required`/`@default` handlers run inline; `@validate(expression)` calls into GoVM as today. |
+| New schema-extension rules | extend the field-validation loop | For each annotation in the field's `AnnotationList` (carrier extension `1327`), dispatch to the appropriate evaluator: built-in `@required`/`@default` handlers run inline; `@validate(expression)` calls into GoVM as today. |
 
 ### Acceptance criteria
 
@@ -1270,7 +1270,7 @@ Current state: protolsp reads **no FileOptions today**. The schema resolver (`in
 
 | Step | File | Pattern |
 |---|---|---|
-| Compile-time source-map extraction | `internal/schema/protofiles.go` (compile path, around line 100+) | After `protocompile.Compile()` succeeds, walk the resulting `FileDescriptor`'s `FileOptions`, look up extension `50404` (`validator.v1.source_map`), unmarshal it, and pass it through to the index entry. |
+| Compile-time source-map extraction | `internal/schema/protofiles.go` (compile path, around line 100+) | After `protocompile.Compile()` succeeds, walk the resulting `FileDescriptor`'s `FileOptions`, look up extension `1331` (`validator.v1.source_map`), unmarshal it, and pass it through to the index entry. |
 | Index entry extension | `internal/protoindex/protoindex.go` `entry` struct (line 82) | Add `SourceMap *validatorv1.SourceMap` field. Populate during `AST()` load (line 96) by reading from the FileOptions. Use the descriptor.proto schema from issue #005. |
 | Symbol extraction during indexing | `internal/protoindex/protoindex.go` `entry.AST()` (line 96) | Extend the existing AST walk to collect `type`/`function`/`annotation` declarations into the entry's symbol map. Mirrors how messages and enums are indexed today. |
 | Cross-file go-to-definition | `internal/server/proto_definition.go` `resolveProtoImport()` (line 54) | When a definition request targets a `type`/`function`/`annotation` reference, look up the FQN in the importing file's `protoindex` chain, consult the entry's `SourceMap` for the declaration's source range, return as `protocol.Location`. |
@@ -1338,14 +1338,14 @@ Current state: this fork is **mostly upstream-compatible** with `google.golang.o
 |---|---|---|
 | Generation entry | `cmd/protoc-gen-go/main.go:27` (`main()` → `protogen.Options.Run()`) | No change to the entry; existing dispatch already covers per-file processing. |
 | Per-file driver | `cmd/protoc-gen-go/internal_gengo/main.go:87` (`gengo.GenerateFile()`) | Drop a new call to `genFunctionStubs(g, f)` into the emission sequence after `genExtensions(g, f)` (around line 147). |
-| FileOptions parsing | new helper `cmd/protoc-gen-go/internal_gengo/schema_extensions.go` | Read `FileOptions` extension `50401` (`FileFunctions`) from `f.Desc.Options().ProtoReflect().GetUnknown()` using the existing `protowire.ConsumeTag`/`ConsumeBytes` pattern. Decode into an in-memory `[]functionDecl` view. No dependency on `validator.v1` proto types — wire-format parsing avoids the circular module concern. |
+| FileOptions parsing | new helper `cmd/protoc-gen-go/internal_gengo/schema_extensions.go` | Read `FileOptions` extension `1328` (`FileFunctions`) from `f.Desc.Options().ProtoReflect().GetUnknown()` using the existing `protowire.ConsumeTag`/`ConsumeBytes` pattern. Decode into an in-memory `[]functionDecl` view. No dependency on `validator.v1` proto types — wire-format parsing avoids the circular module concern. |
 | Stub emitter | new `cmd/protoc-gen-go/internal_gengo/function_stubs.go` | Function `genFunctionStubs(g *protogen.GeneratedFile, f *fileInfo)`. Emits via the existing `g.P(...)` builder pattern (no templates). Produces in order: (a) `type Functions interface { ... }`, (b) `type UnimplementedFunctions struct{}` with one method per declared function, (c) `func RegisterFunctions(eng Engine, impl Functions)` binding by FQN. |
 | Engine import | `function_stubs.go` | The generated code imports an `Engine` interface; canonical home is `protocheck` (issue #040). Use `g.QualifiedGoIdent(...)` to resolve the import lazily so the dependency is opt-in for files without functions. |
 | Output layout | same `.pb.go` per the existing convention | Function stubs land in the main `.pb.go` alongside messages and enums. No separate `_validator.pb.go` file needed. |
 
 ### Acceptance criteria
 
-- [ ] `FileOptions.functions` (50401) parsed without dependency on the `validator.v1` Go module
+- [ ] `FileOptions.functions` (1328) parsed without dependency on the `validator.v1` Go module
 - [ ] Generated `Functions` interface contains one method per declared function with the correct `(bool, *Violation)` return signature
 - [ ] `UnimplementedFunctions` methods return `(false, &Violation{Code: "unimplemented", ...})` and embed naturally into user structs
 - [ ] `RegisterFunctions(eng, impl)` binds every method by FQN
@@ -1372,7 +1372,7 @@ Integrates inline with the existing per-construct emitters rather than as a sepa
 
 | Step | File | Pattern |
 |---|---|---|
-| Shared annotation reader | extend `cmd/protoc-gen-go/internal_gengo/schema_extensions.go` from #060 | Add `readAnnotations(opts proto.Message) []annotation` — generic helper reading extension `50400` (`AnnotationList`) from any of the 8 Options messages. Same wire-format parsing pattern, factored as a single function. |
+| Shared annotation reader | extend `cmd/protoc-gen-go/internal_gengo/schema_extensions.go` from #060 | Add `readAnnotations(opts proto.Message) []annotation` — generic helper reading extension `1327` (`AnnotationList`) from any of the 8 Options messages. Same wire-format parsing pattern, factored as a single function. |
 | Enum decoration | `cmd/protoc-gen-go/internal_gengo/main.go:289` `genEnum()` | Before emitting the enum type declaration, read annotations from `EnumOptions`. Prepend `// Deprecated: <reason>` for `@deprecated`; append `@description` text into the leading `g.P()` comment block. Same for `EnumValueOptions` on each value. |
 | Message decoration | `cmd/protoc-gen-go/internal_gengo/main.go:403` `genMessage()` | Same pattern for `MessageOptions`. Field-level annotations read from `FieldOptions` inside the field-emission loop. |
 | Service / RPC decoration | wherever services emit | Same pattern for `ServiceOptions`, `MethodOptions`. |
@@ -1568,7 +1568,7 @@ denominator counts methods, not bindings.
 **Labels:** `spec`, `schema-extensions`, `tooling`
 **Depends on:** #080
 
-`@http` lowered to the `50400` carrier and nothing else. The routing
+`@http` lowered to the `1327` carrier and nothing else. The routing
 information was complete and correct in an encoding no off-the-shelf
 consumer reads: every REST binder (connect vanguard, grpc-gateway,
 Envoy's `grpc_json_transcoder`, buf's OpenAPI plugins) reads

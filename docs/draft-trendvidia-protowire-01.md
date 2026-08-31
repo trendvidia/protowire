@@ -48,6 +48,11 @@ normative:
     author:
       - org: Google
     target: https://protobuf.dev/reference/protobuf/proto3-spec/
+  PROTOBUF-REGISTRY:
+    title: Protocol Buffers Global Extension Registry
+    author:
+      - org: Google
+    target: https://github.com/protocolbuffers/protobuf/blob/main/docs/options.md
   PROTOBUF-WIRE:
     title: Protocol Buffers Encoding
     author:
@@ -1015,9 +1020,9 @@ The PXF annotations apply to FieldOptions:
 
 ~~~
 extend google.protobuf.FieldOptions {
-  bool   required = 50000;
-  string default  = 50001;
-  string key      = 50002;
+  bool   required = 1314;
+  string default  = 1315;
+  string key      = 1316;
 }
 ~~~
 
@@ -1087,17 +1092,17 @@ SBE annotations apply at three scopes:
 
 ~~~
 extend google.protobuf.FileOptions {
-  uint32 schema_id = 50100;
-  uint32 version   = 50101;
+  uint32 schema_id = 1319;
+  uint32 version   = 1320;
 }
 
 extend google.protobuf.MessageOptions {
-  uint32 template_id = 50200;
+  uint32 template_id = 1321;
 }
 
 extend google.protobuf.FieldOptions {
-  uint32 length   = 50300;
-  string encoding = 50301;
+  uint32 length   = 1322;
+  string encoding = 1323;
 }
 ~~~
 
@@ -1132,8 +1137,10 @@ The framework-defined annotations are:
 | `http` | `method: string, path: string` | rpc |
 
 The bracket-form annotations `(pxf.required)` and `(pxf.default)` defined
-in `-00` retain their assigned extension field numbers (`50000` and
-`50001` respectively) and their semantics. `@required` and `@default`
+in `-00` retain their semantics unchanged. Their extension field numbers
+did change: `-00` assigned them 50000 and 50001, inside an unregistered
+range; they are `1314` and `1315` in this revision, within the block
+registered to protowire (see {{annotation-field-number-range}}). `@required` and `@default`
 defined here are the canonical surface forms going forward; the bracket
 forms remain valid input that decoders MUST accept indefinitely.
 
@@ -1711,26 +1718,26 @@ numbers. The schemas for these extensions are specified in
 
 ### Extension Number Allocation
 
-The number range 50400 through 50499 is reserved by `-01` for
+The number range 1327 through 1346 is reserved by `-01` for
 schema-extension carriers. Allocated in this revision:
 
 | Number | Carrier | Target Options Messages |
 |---|---|---|
-| 50400 | `AnnotationList` (named per kind: `file_annotations`, `message_annotations`, `field_annotations`, `enum_annotations`, `enum_value_annotations`, `service_annotations`, `method_annotations`, `oneof_annotations`) | FileOptions, MessageOptions, FieldOptions, EnumOptions, EnumValueOptions, ServiceOptions, MethodOptions, OneofOptions |
-| 50401 | `FileFunctions functions` | FileOptions |
-| 50402 | `FileAnnotationDecls annotation_decls` | FileOptions |
-| 50403 | `FileTypeDecls type_decls` | FileOptions |
-| 50404 | `SourceMap source_map` | FileOptions |
+| 1327 | `AnnotationList` (named per kind: `file_annotations`, `message_annotations`, `field_annotations`, `enum_annotations`, `enum_value_annotations`, `service_annotations`, `method_annotations`, `oneof_annotations`) | FileOptions, MessageOptions, FieldOptions, EnumOptions, EnumValueOptions, ServiceOptions, MethodOptions, OneofOptions |
+| 1328 | `FileFunctions functions` | FileOptions |
+| 1329 | `FileAnnotationDecls annotation_decls` | FileOptions |
+| 1330 | `FileTypeDecls type_decls` | FileOptions |
+| 1331 | `SourceMap source_map` | FileOptions |
 
-The annotation carrier shares wire number 50400 across all eight target
+The annotation carrier shares wire number 1327 across all eight target
 messages; each `extend` field carries a per-kind name so that the
 fully-qualified extension names remain unique within the
-`protowire.schema.v1` package. Numbers 50100 and 50101 are intentionally
+`protowire.schema.v1` package. Numbers 1319 and 1320 are intentionally
 not used by this allocation because the SBE annotations
 (`sbe.schema_id`, `sbe.version`) already occupy them on FileOptions, and
 an extension number may be used only once per extended message.
 
-Numbers 50405 through 50499 are reserved for future schema-extension
+Numbers 1332 through 1346 are reserved for future schema-extension
 carriers and MUST NOT be allocated by user schemas. Renumbering any of
 the above allocations is a wire break per the rules defined in
 `STABILITY.md` of {{PROTOWIRE-RFC-001}}'s source repository.
@@ -2014,18 +2021,22 @@ Provisional registration: yes.
 
 ## Annotation Field Number Range {#annotation-field-number-range}
 
-This document allocates Protocol Buffers extension field numbers in the range 50000-59999 to the protowire family. Field numbers in this range are reserved for the extensions defined in {{annotation-extensions}} and for future extensions of this document; they MUST NOT be reused for unrelated extensions. The currently assigned numbers are:
+Protocol Buffers extension field numbers 1314-1363 are registered to the protowire family in the Protocol Buffers global extension registry {{PROTOBUF-REGISTRY}}. This document does not allocate them -- that registry is maintained by the Protocol Buffers project -- it records the assignments protowire has made within the range it was granted. Field numbers in this range are reserved for the extensions defined in {{annotation-extensions}} and for future extensions of this document; they MUST NOT be reused for unrelated extensions. The currently assigned numbers are:
 
 ~~~
-pxf.required          50000
-pxf.default           50001
-pxf.key               50002
-sbe.schema_id         50100
-sbe.version           50101
-sbe.template_id       50200
-sbe.length            50300
-sbe.encoding          50301
+pxf.required          1314
+pxf.default           1315
+pxf.key               1316
+sbe.schema_id         1319
+sbe.version           1320
+sbe.template_id       1321
+sbe.length            1322
+sbe.encoding          1323
 ~~~
+
+The schema-extension carriers defined in {{annotation-extensions}} occupy 1327-1331 within the same range; 1332-1346 are held for future carriers, and 1347-1354 for validation constraints.
+
+Earlier revisions of this work used extension numbers in an unregistered 50000-59999 range that the project had squatted rather than been granted: 50000-50002 (PXF), 50100-50301 (SBE), and 50400-50404 (carriers). Those numbers are retired and MUST NOT be reused; an implementation encountering them is reading a descriptor produced before the registered block was adopted, and SHOULD diagnose it as such rather than interpret it.
 
 Future protowire extensions SHOULD allocate within this range and document the assignment in a successor of this document.
 
