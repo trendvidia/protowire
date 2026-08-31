@@ -137,7 +137,7 @@ is valid only against the image it was resolved with.
 element FQN, annotation FQN, ordinal — never as a path string. The
 compiler derives the canonical §8.3.1 path through the shared
 `fdp.DescriptorPath` formatter, verifies it against the image's own
-embedded source map (extension 50404), and stamps the resolved anchor
+embedded source map (extension 1331), and stamps the resolved anchor
 with the image digest. A toolchain that re-keys the grammar therefore
 invalidates these anchors instead of silently serving stale ones.
 
@@ -359,8 +359,8 @@ walked as `FileDescriptorProto`s rather than hydrated through
 legitimately omit files it does not need, and a documentation build must
 not fail because a transitive import is absent from an image whose names
 it can read perfectly well. Type aliases come from the `FileTypeDecls`
-carrier (50403) so `components/schemas/<Name>` anchors resolve (§8.2);
-descriptor paths come from the embedded source maps (50404).
+carrier (1330) so `components/schemas/<Name>` anchors resolve (§8.2);
+descriptor paths come from the embedded source maps (1331).
 
 **`--registry`** is the appviewer registry export
 ([appviewer#33](https://github.com/trendvidia/appviewer/issues/33)) in

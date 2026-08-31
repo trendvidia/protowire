@@ -154,7 +154,7 @@ func buildModel(fds *descriptorpb.FileDescriptorSet) (*model, error) {
 			}
 		}
 		if f.GetOptions() != nil {
-			// §8.2 type aliases (50403).
+			// §8.2 type aliases (1330).
 			decls, err := ct.reparse(f.GetOptions(), "type_decls")
 			if err != nil {
 				return nil, err
@@ -168,7 +168,7 @@ func buildModel(fds *descriptorpb.FileDescriptorSet) (*model, error) {
 				}
 				m.aliases[a.fqn] = a
 			}
-			// §8.2 function declarations (50401), for @error_code.
+			// §8.2 function declarations (1328), for @error_code.
 			fns, err := ct.reparse(f.GetOptions(), "functions")
 			if err != nil {
 				return nil, err
