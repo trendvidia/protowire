@@ -28,6 +28,21 @@ jobs:
   # local run before a release covers the rest.
   annotation-surface:
     runs-on: ubuntu-latest
+    # MIGRATION MODE — advisory until the 1314-1363 renumber completes
+    # (#244). The gate compares this tree's canonical .proto against every
+    # copy at its default branch, so during a renumber it reports drift
+    # that is deliberate: whichever side moves first diverges from the
+    # other, and there is no ordering that avoids it.
+    #
+    # Concretely, merging trendvidia/protocompile#145 makes protocompile's
+    # HEAD carriers 1327 while this repo is still on 50400 -- main would go
+    # red with no change here.
+    #
+    # This comes back off in the final PR of the renumber, together with
+    # emptying the waiver list. That is the completion criterion: the
+    # migration is done exactly when this gate passes strict, green and
+    # unwaived. Do not remove this line without that.
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v7
 

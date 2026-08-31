@@ -180,7 +180,7 @@ func CompileSources(reg *Registry, opts CompileOptions) error {
 // file-level descriptors — extensions, in particular, which a message
 // map cannot carry — use this instead: `pxf docs build` builds dynamic
 // extension types from schema/v1/descriptor.proto so it can read the
-// 50400-50404 carriers out of a lowered image.
+// 1327-1331 carriers out of a lowered image.
 func CompileBundledFiles(files ...string) ([]protoreflect.FileDescriptor, error) {
 	accessor := func(filename string) (io.ReadCloser, error) {
 		return readBundled(filename)

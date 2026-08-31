@@ -10,7 +10,7 @@
 //
 // Expected behavior (compile + lowering only; class never appears in
 // reports, so there is no golden):
-//   - Every @sensitive use site lowers to a standard 50400 Annotation
+//   - Every @sensitive use site lowers to a standard 1327 Annotation
 //     carrying its class argument (or no args for the bare form);
 //     consumers compute the effective class per §6.7.
 //   - Effective classes for fixtures.sensclass.Vault:
