@@ -127,6 +127,26 @@ skip() {
 # Build each port's check-decode binary on demand. Sets PORT_BIN to the
 # resolved path or empty if the binary isn't present. Empty path → port
 # auto-skips this run.
+# run_build CMD...  — run a port's build, keeping a passing run quiet and
+# printing everything a failing one wrote.
+#
+# These builds used to redirect to /dev/null, which meant a failure in CI
+# produced the port name, an exit code and nothing else (#255). The build
+# log is the only evidence available for an environment-specific failure,
+# and that is exactly the kind this script exists to surface.
+run_build() {
+  local log rc=0
+  log="$(mktemp -t protowire-build.XXXXXX)"
+  "$@" > "$log" 2>&1 || rc=$?
+  if [[ $rc -ne 0 ]]; then
+    echo "--- build failed (exit $rc): $* ---" >&2
+    cat "$log" >&2
+    echo "--- end build output ---" >&2
+  fi
+  rm -f "$log"
+  return $rc
+}
+
 build_port() {
   local port="$1"
   PORT_BIN=""
@@ -136,7 +156,7 @@ build_port() {
       [[ -d "$GO_DIR/scripts/check_decode" ]] || return 0
       echo "→ Go build" >&2
       PORT_BIN="$(mktemp -t check-decode-go.XXXXXX)"
-      (cd "$GO_DIR" && go build -o "$PORT_BIN" ./scripts/check_decode)
+      (cd "$GO_DIR" && run_build go build -o "$PORT_BIN" ./scripts/check_decode)
       ;;
     cpp)
       [[ -f "$CPP_DIR/cmd/check_decode/main.cc" ]] || return 0
@@ -144,11 +164,11 @@ build_port() {
         # Skip the test suite — it pulls in libprotoc (Importer/DiskSourceTree)
         # which Ubuntu's libprotobuf-dev doesn't ship, and we only need
         # check_decode for the conformance corpus anyway.
-        cmake -S "$CPP_DIR" -B "$CPP_DIR/build" \
-              -DPROTOWIRE_BUILD_TESTS=OFF > /dev/null
+        run_build cmake -S "$CPP_DIR" -B "$CPP_DIR/build" \
+              -DPROTOWIRE_BUILD_TESTS=OFF
       fi
       echo "→ C++ build" >&2
-      cmake --build "$CPP_DIR/build" --target check_decode -j > /dev/null
+      run_build cmake --build "$CPP_DIR/build" --target check_decode -j
       PORT_BIN="$CPP_DIR/build/bin/check_decode"
       ;;
     ts)
@@ -158,7 +178,7 @@ build_port() {
     java)
       [[ -d "$JAVA_DIR/check-decode" ]] || return 0
       echo "→ Java build" >&2
-      (cd "$JAVA_DIR" && ./gradlew --quiet :check-decode:installDist > /dev/null)
+      (cd "$JAVA_DIR" && run_build ./gradlew --quiet :check-decode:installDist)
       PORT_BIN="$JAVA_DIR/check-decode/build/install/check-decode/bin/check-decode"
       ;;
     rust)
@@ -170,7 +190,7 @@ build_port() {
     swift)
       grep -q '"check-decode"' "$SWIFT_DIR/Package.swift" 2>/dev/null || return 0
       echo "→ Swift build" >&2
-      (cd "$SWIFT_DIR" && swift build -c release --product check-decode > /dev/null)
+      (cd "$SWIFT_DIR" && run_build swift build -c release --product check-decode)
       PORT_BIN="$SWIFT_DIR/.build/release/check-decode"
       ;;
     dart)
@@ -180,8 +200,8 @@ build_port() {
     csharp)
       [[ -d "$CSHARP_DIR/cmd/Protowire.CheckDecode" ]] || return 0
       echo "→ C# build" >&2
-      (cd "$CSHARP_DIR" && dotnet build -c Release --nologo -v quiet \
-         cmd/Protowire.CheckDecode > /dev/null)
+      (cd "$CSHARP_DIR" && run_build dotnet build -c Release --nologo -v quiet \
+         cmd/Protowire.CheckDecode)
       PORT_BIN="$CSHARP_DIR/cmd/Protowire.CheckDecode/bin/Release/net10.0/check-decode"
       ;;
     python)
