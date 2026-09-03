@@ -88,6 +88,36 @@ protowire-typescript google.protobuf.FieldOptions|string|key|1316  keyed repeate
 NI
 )"
 
+# NOT_A_COPY -- paths that match the discovery glob but are not vendored
+# copies of anything.
+#
+# A fixture is not a copy. It is written to model some OTHER repo, and
+# often to model one that is wrong on purpose, so comparing it to canonical
+# reports a divergence that is the point of the file rather than a bug in
+# it.
+#
+# Excluding testdata/ wholesale is wrong: protocheck's real vendored copy
+# lives at testdata/pxf/annotations.proto and matches canonical exactly, so
+# a blanket rule silently drops a repo from the gate. Naming the paths is
+# the difference between "not checked" and "not checked, and here is why".
+#
+# Format: "<repo> <path-prefix, repo-relative>" then the reason after two
+# spaces. Anything not listed is still compared.
+NOT_A_COPY="$(cat <<'NAC'
+protocompile         collide/testdata/  protocollide fixtures modelling two third-party repos squatting the unregistered 50000-59999 range; that squat is the collision under test (protocompile vendors no pxf/annotations.proto of its own)
+NAC
+)"
+
+# is_not_a_copy REPO REL_PATH -> 0 if REL_PATH is a declared fixture path.
+is_not_a_copy() {
+  local repo="$1" rel="$2" r prefix
+  while read -r r prefix _; do
+    [[ -z "$r" ]] && continue
+    [[ "$r" == "$repo" && "$rel" == "$prefix"* ]] && return 0
+  done <<<"$NOT_A_COPY"
+  return 1
+}
+
 # is_declared_missing REPO TUPLE -> 0 if the omission is declared above.
 # STRICT=1 ignores the declarations and shows the true surface difference.
 is_declared_missing() {
@@ -153,6 +183,7 @@ discover_local() {
        -not -path '*/.git/*' -not -path '*/build/*' -not -path '*/.build/*' \
        -not -path '*/.tmp/*' 2>/dev/null \
     | while read -r f; do
+        is_not_a_copy "$repo" "${f#$root/}" && continue
         [[ -n "$(classify "$f")" ]] && echo "${f#$SIBLING_DIR/}"
       done
 }
@@ -169,6 +200,7 @@ discover_remote() {
       --jq '.tree[] | select(.type=="blob") | .path' 2>/dev/null \
     | while read -r path; do
         case "$path" in */build/*|*/.build/*|*/.tmp/*) continue ;; esac
+        is_not_a_copy "$repo" "$path" && continue
         [[ -n "$(classify "$path")" ]] && echo "$path"
       done
 }
