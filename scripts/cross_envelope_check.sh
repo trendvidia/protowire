@@ -307,7 +307,12 @@ for port in "${fixture_ports[@]}"; do
     if [[ "$expect" == "REJECT" ]]; then
       case "$rc" in
         1) printf "  %-48s ok (%s)\n" "$label" "$err" ;;
-        0) printf "  %-48s ACCEPTED, must reject: %s\n" "$label" "$out"; fixtures_ok=0 ;;
+        0) if [[ "$out" == "$go_hex" ]]; then
+             printf "  %-48s NO --%s MODE: dumper printed the envelope instead\n" "$label" "$mode"
+           else
+             printf "  %-48s ACCEPTED, must reject: %s\n" "$label" "$out"
+           fi
+           fixtures_ok=0 ;;
         *) printf "  %-48s ERROR rc=%s: %s\n" "$label" "$rc" "$err"; fixtures_ok=0 ;;
       esac
       continue
@@ -317,6 +322,11 @@ for port in "${fixture_ports[@]}"; do
       0)
         if [[ "$out" == "$golden" ]]; then
           printf "  %-48s ok\n" "$label"
+        elif [[ "$out" == "$go_hex" ]]; then
+          # A dumper without the fixture modes ignores its arguments and
+          # prints the envelope: the port's default branch predates them.
+          printf "  %-48s NO --%s MODE: dumper printed the envelope instead\n" "$label" "$mode"
+          fixtures_ok=0
         else
           printf "  %-48s DIVERGED from %s\n" "$label" "$expect"
           printf "    want %s\n    got  %s\n" "$golden" "$out"
