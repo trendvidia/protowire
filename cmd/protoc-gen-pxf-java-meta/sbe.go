@@ -196,7 +196,7 @@ type sbeFieldLayout struct {
 	field       *descriptorpb.FieldDescriptorProto
 	fieldNumber int32
 	name        string
-	kind        int32  // FieldDescriptorProto.Type integer
+	kind        int32 // FieldDescriptorProto.Type integer
 	offset      int
 	size        int
 	encoding    string // empty for composite
@@ -1044,4 +1044,3 @@ func sbeGroupEntryTypedFqn(parentFqn string, g sbeGroupLayout) string {
 	}
 	return nestedJavaName(parentFqn, simple)
 }
-
