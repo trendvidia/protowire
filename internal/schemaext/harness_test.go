@@ -59,15 +59,15 @@ var fixtureFiles = []string{
 // goPackages maps every file protoc-gen-go generates for to its Go import
 // path inside the driver module (the plugin's M parameter).
 var goPackages = map[string]string{
-	"01_basic.proto":                          driverModule + "/gen/basic",
-	"02_composition.proto":                    driverModule + "/gen/compose",
-	"03_message_and_field_annotations.proto":  driverModule + "/gen/placement",
-	"04_required_and_default.proto":           driverModule + "/gen/presence",
-	"05_error_overrides.proto":                driverModule + "/gen/errorspb",
-	"06_cross_file_lib.proto":                 driverModule + "/gen/lib",
-	"06_cross_file_main.proto":                driverModule + "/gen/app",
-	annotationsPath:                           driverModule + "/gen/schemav1",
-	pxfLegacyPath:                             driverModule + "/gen/pxflegacy",
+	"01_basic.proto":                         driverModule + "/gen/basic",
+	"02_composition.proto":                   driverModule + "/gen/compose",
+	"03_message_and_field_annotations.proto": driverModule + "/gen/placement",
+	"04_required_and_default.proto":          driverModule + "/gen/presence",
+	"05_error_overrides.proto":               driverModule + "/gen/errorspb",
+	"06_cross_file_lib.proto":                driverModule + "/gen/lib",
+	"06_cross_file_main.proto":               driverModule + "/gen/app",
+	annotationsPath:                          driverModule + "/gen/schemav1",
+	pxfLegacyPath:                            driverModule + "/gen/pxflegacy",
 }
 
 // harness carries the shared round-trip state: the lowered descriptor set
