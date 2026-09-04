@@ -156,6 +156,39 @@ v1.11 states, for the first time, where `(pxf.default)` and `@default(value)` ma
 
 - **Ports were diverging on the placement rule, which is why that half is normative rather than advisory.** Measured across the family before the constraint existed: protowire-go panicked on a `repeated` placement, protowire-java threw `ClassCastException`, protowire-typescript reported an error, and protowire-rust **silently applied the literal as a one-element list** — emitting `pb` bytes for that schema and document that no other port emitted, against promise 2 above. The last is now explicitly forbidden: an implementation MUST NOT invent a semantics for a rejected placement. `scripts/cross_envelope_check.sh` does not yet cover the shape.
 
+### v1.13 — arbitrary-precision annotation arguments
+
+`AnnotationArg` and `LiteralValue` gain three members so an annotation
+argument on a `pxf.BigInt`, `pxf.Decimal` or `pxf.BigFloat` element can be
+represented at all ([#263](https://github.com/trendvidia/protowire/issues/263)).
+Additive: no existing member changes number or meaning, and a descriptor
+that uses none of them is byte-identical to v1.12.
+
+- **Field numbers claimed.** `16` (`big_int_value`), `17` (`decimal_value`)
+  and `18` (`big_float_value`) in both `AnnotationArg.value` and
+  `LiteralValue.kind`, in
+  [`proto/schema/v1/descriptor.proto`](proto/schema/v1/descriptor.proto).
+  `LiteralValue`'s numbers mirror `AnnotationArg`'s by construction, as its
+  comment has always said. `19` remains free; `20` is `expression`. The
+  renumbering prohibition of promise 3 applies to all three.
+- **New dependency.** `proto/schema/v1/descriptor.proto` now imports
+  `proto/pxf/bignum.proto`. The schema-extension surface had depended only
+  on `google/protobuf`; a consumer that generates from it now also needs
+  the pxf big-number types. This is the cost of describing those values
+  with the project's own types rather than restating them.
+- **Descriptor output changes for annotations on those three types.** An
+  argument on a `pxf.BigInt`, `pxf.Decimal` or `pxf.BigFloat` element now
+  uses the matching member, *whatever the magnitude* — `@default(42)` on a
+  `pxf.BigInt` moves from `int_value: 42` to `big_int_value`. Those types
+  exist to carry what `int64` and `double` cannot, so routing them through
+  either is the loss they were declared to avoid, and a consumer reading
+  them has one case rather than two. No other element type changes: a
+  literal on a scalar, wrapper, enum or message element is unaffected.
+- **What this does not fix.** A value in `(MaxInt64, MaxUint64]` on a
+  signed 64-bit element is still out of range for that element and still
+  rejected, which is correct — the element cannot hold it either. Only the
+  arbitrary-precision types gain a faithful representation here.
+
 ### CLI surface — evolves
 
 The shared CLI in [`cmd/pxf`](cmd/pxf) follows looser rules. New subcommands and flags can be added at any minor version. Existing flags are deprecated with one minor-version notice before removal at the next major. CLI exit codes are stable (`0` success, `1` user error, `2` internal error), and the JSON output schema produced by `bench-pxf` / `bench-sbe` is stable per [point 6](#promises) below.
