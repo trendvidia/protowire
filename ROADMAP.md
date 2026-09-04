@@ -29,7 +29,7 @@ These ship together — each gates a release across all 9 ports.
 **Plan.**
 1. ✅ GitHub Actions workflow in this repo that runs on PRs touching anything wire-format-relevant (`proto/**`, `scripts/cross_*`), plus a daily schedule and `workflow_dispatch`. See [`.github/workflows/cross-port-envelope-check.yml`](.github/workflows/cross-port-envelope-check.yml). **Covers the four ports the script marks required — Go, C++, TypeScript, Java.**
 2. ⬜ Extend the gate to the optional ports: Rust, Dart and C# are cheap setup actions; Swift needs a Linux toolchain container and the Java/Android lite paths need the Android SDK. Until then those five are covered only by a local run.
-3. ⬜ Same workflow in each port repo — runs the local test suite and (where applicable) `dump_envelope` against the spec testdata. A port cannot currently detect that it has broken wire equality from its own CI; it finds out from this repo's daily run.
+3. ⬜ Same workflow in each port repo — runs the local test suite and (where applicable) `dump_envelope` against the spec testdata. A port cannot currently detect that it has broken wire equality from its own CI; it finds out from this repo's daily run. Since v1.12 each descriptor-driven port's `dump-envelope` does take spec testdata directly (`--pb` / `--sbe` against a descriptor set and a PXF document, #244), so the harness half of this step exists; the per-port workflow does not.
 4. ⬜ Cross-port equivalence as a *required* check before merge. **`main` is not branch-protected today** (`gh api repos/trendvidia/protowire/branches/main/protection` → 404), so no check is required anywhere in this repo; a rule has to exist before one can be added to it.
 5. ⬜ Cache toolchains; total wall-clock target ≤ 8 min.
 
@@ -59,7 +59,7 @@ These ship together — each gates a release across all 9 ports.
 
 ### M3 — Wire format stability (target: 0.73.0)
 
-**Problem.** PXF's grammar lives in `docs/grammar.ebnf` (~150 lines) — that's the spec. Nothing commits the project to backwards compatibility. Annotation extension numbers in the 50000s are reserved but the syntax could still evolve, and the Envelope schema is `v1` with no formal contract.
+**Problem.** PXF's grammar lives in `docs/grammar.ebnf` (~150 lines) — that's the spec. Nothing commits the project to backwards compatibility. Annotation extension numbers sat in an unregistered 50000s squat (moved into the registered `1314`–`1363` block in v1.12, #244) and the syntax could still evolve, and the Envelope schema is `v1` with no formal contract.
 
 **Plan.**
 1. ✅ **`STABILITY.md`** in this repo defining: which surfaces are stable (wire format, envelope schema, annotation field numbers), which surfaces evolve (CLI flags, grammar productions added in a backwards-compatible way), and the deprecation policy. Includes an explicit subsection on **runtime tier exclusions**: targets that strip descriptor reflection at runtime (notably the Java/Android `*-android` modules built on `protobuf-javalite`) drop `DynamicMessage`-style schema-agnostic unmarshal, `TextFormat`, `JsonFormat`, runtime descriptor compilation, and schema-agnostic `Any.unpack()`. Lite-mode emitted code is wire-equivalent to full-mode for the same `.proto` input — this is a CI-enforced invariant, not a documentation promise.
