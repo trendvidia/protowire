@@ -301,7 +301,9 @@ for port in "${fixture_ports[@]}"; do
     else
       rc=$?
     fi
-    err="$(grep -v -i 'deprecat' "$err_tmp" | head -1)"
+    # `|| true`: with pipefail, grep's "no lines" status would end the run
+    # on the first port whose stderr is empty -- i.e. on the first success.
+    err="$(grep -v -i 'deprecat' "$err_tmp" | head -1 || true)"
     if [[ "$expect" == "REJECT" ]]; then
       case "$rc" in
         1) printf "  %-48s ok (%s)\n" "$label" "$err" ;;
