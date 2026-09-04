@@ -96,9 +96,9 @@ func TestSchema_EmptyArgsReturnsBundled(t *testing.T) {
 		t.Fatal("expected non-nil schema; bundled set should always seed")
 	}
 	for _, want := range []string{
-		"pxf.Decimal",            // proto/pxf/bignum.proto
-		"envelope.v1.Envelope",   // proto/envelope/v1/envelope.proto
-		"envelope.v1.AppError",   // same file, sibling message
+		"pxf.Decimal",          // proto/pxf/bignum.proto
+		"envelope.v1.Envelope", // proto/envelope/v1/envelope.proto
+		"envelope.v1.AppError", // same file, sibling message
 	} {
 		if sch.find(want) == nil {
 			t.Errorf("bundled type %q not registered", want)
