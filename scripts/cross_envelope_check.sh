@@ -157,6 +157,18 @@ if [[ "$WITH_CSHARP" == "1" ]]; then
   csharp_hex=$("$CSHARP_DIR/cmd/Protowire.DumpEnvelope/bin/Release/net10.0/dump-envelope")
 fi
 
+if [[ "$WITH_JAVA_LITE" == "1" && ! -d "$JAVA_LITE_DIR/dump-envelope-android" ]]; then
+  # The lite modules are not in every protowire-java checkout (see
+  # cross_sbe_bench.sh, which auto-skips on the same test). Missing, they
+  # used to fail the Gradle selection and abort the run here.
+  echo "→ Java/Android (lite) dumper: SKIP — dump-envelope-android module absent from $JAVA_LITE_DIR"
+  WITH_JAVA_LITE=0
+fi
+if [[ "$WITH_JAVA_PXF_LITE" == "1" && ! -d "$JAVA_LITE_DIR/dump-envelope-pxf-android" ]]; then
+  echo "→ Java/Android (PXF→lite) dumper: SKIP — dump-envelope-pxf-android module absent from $JAVA_LITE_DIR"
+  WITH_JAVA_PXF_LITE=0
+fi
+
 if [[ "$WITH_JAVA_LITE" == "1" ]]; then
   echo "→ Java/Android (lite) dumper (build + run)"
   build "Java/Android (lite) dumper" bash -c "cd '$JAVA_LITE_DIR' && ./gradlew --quiet :dump-envelope-android:installDist"
