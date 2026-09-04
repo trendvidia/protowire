@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	registrypb "github.com/trendvidia/protoregistry/proto/protoregistry/v1"
 	"context"
+	registrypb "github.com/trendvidia/protoregistry/proto/protoregistry/v1"
 
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/descriptorpb"

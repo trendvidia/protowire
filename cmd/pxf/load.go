@@ -18,9 +18,9 @@ import (
 // don't accidentally trip over synthetic keys; pxf_directive(name)
 // reaches them at runtime via the loadedDoc carried in the gojq env.
 type loadedDoc struct {
-	body       any                  // map[string]any for the typical document; nil if empty
-	typeURL    string               // from @type, empty if absent
-	directives []pxf.Directive      // generic @<name> directives (excludes @type/@dataset/@proto)
+	body       any             // map[string]any for the typical document; nil if empty
+	typeURL    string          // from @type, empty if absent
+	directives []pxf.Directive // generic @<name> directives (excludes @type/@dataset/@proto)
 	datasets   []pxf.DatasetDirective
 	protos     []pxf.ProtoDirective
 }
