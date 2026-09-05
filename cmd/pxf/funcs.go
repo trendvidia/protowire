@@ -28,11 +28,12 @@ type funcEnv struct {
 
 // registerFuncs returns the gojq.CompilerOption set that registers the
 // pxf_* extension namespace against env. Five functions per the README:
-//   pxf_directive(name)  — directive list by name
-//   pxf_fieldnames       — declared field names per bound schema
-//   pxf_type             — proto type of input value
-//   pxf_has(field)       — schema-aware has
-//   pxf_proto(name; obj) — typed object construction
+//
+//	pxf_directive(name)  — directive list by name
+//	pxf_fieldnames       — declared field names per bound schema
+//	pxf_type             — proto type of input value
+//	pxf_has(field)       — schema-aware has
+//	pxf_proto(name; obj) — typed object construction
 func registerFuncs(env *funcEnv) []gojq.CompilerOption {
 	return []gojq.CompilerOption{
 		gojq.WithFunction("pxf_directive", 1, 1,
@@ -103,10 +104,10 @@ func registerFuncs(env *funcEnv) []gojq.CompilerOption {
 // matches. Recognised names map onto the spec's three directive
 // productions plus the generic `@<name>` form:
 //
-//   "type"       → []map with {value: typeURL}   (max one entry)
-//   "dataset"    → []map with dataset-shaped entries
-//   "proto"      → []map with proto-shaped entries
-//   "<other>"    → generic `@<name>` directives filtered by name
+//	"type"       → []map with {value: typeURL}   (max one entry)
+//	"dataset"    → []map with dataset-shaped entries
+//	"proto"      → []map with proto-shaped entries
+//	"<other>"    → generic `@<name>` directives filtered by name
 func directiveList(env *funcEnv, name string) []any {
 	switch name {
 	case "type":
@@ -235,8 +236,8 @@ func cellToTypedValue(c pxf.Value, md protoreflect.MessageDescriptor, col string
 
 // protoTypeOfValue infers the proto type-name for an arbitrary jq
 // value. Resolution order:
-//   1. embedded `@type` key on the value (pxf_proto-constructed objects)
-//   2. jq-level type ("string", "int", "list", …) as a fallback
+//  1. embedded `@type` key on the value (pxf_proto-constructed objects)
+//  2. jq-level type ("string", "int", "list", …) as a fallback
 //
 // pxf_proto re-binds explicitly so users have a deterministic path to
 // a typed value when this heuristic isn't enough.

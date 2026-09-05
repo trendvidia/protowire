@@ -46,7 +46,7 @@ func buildDescriptor() *descriptorpb.FileDescriptorProto {
 						Name: proto.String("Side"),
 						Value: []*descriptorpb.EnumValueDescriptorProto{
 							{Name: proto.String("SIDE_UNSPECIFIED"), Number: proto.Int32(0)},
-							{Name: proto.String("null"), Number: proto.Int32(1)},   // VIOLATION (enum value)
+							{Name: proto.String("null"), Number: proto.Int32(1)}, // VIOLATION (enum value)
 							{Name: proto.String("BUY"), Number: proto.Int32(2)},
 						},
 					},
