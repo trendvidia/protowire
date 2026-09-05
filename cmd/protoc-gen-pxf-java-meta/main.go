@@ -17,18 +17,18 @@
 //   - FIELD_NUMBERS — field name → field number, in declaration order.
 //   - FIELD_KINDS   — field number → FieldDescriptorProto.Type integer (1..18).
 //   - WIRE_TYPES    — field number → wire type integer (0=varint, 1=i64,
-//                     2=length-delimited, 5=i32).
+//     2=length-delimited, 5=i32).
 //   - REPEATED_FIELDS / PACKED_FIELDS — sets of field numbers.
 //   - MESSAGE_TYPES — for message-typed fields, the fully-qualified Java
-//                     class name (resolves java_package + java_outer_classname
-//                     + java_multiple_files conventions).
+//     class name (resolves java_package + java_outer_classname
+//   - java_multiple_files conventions).
 //   - ENUM_TYPES    — same shape, for enum-typed fields.
 //   - NESTED_METAS  — for message-typed fields, a direct reference to the
-//                     target type's {@code <Sub>PxfMeta.INSTANCE}. The
-//                     runtime walks the meta graph through this map without
-//                     a registry lookup.
+//     target type's {@code <Sub>PxfMeta.INSTANCE}. The
+//     runtime walks the meta graph through this map without
+//     a registry lookup.
 //   - ENUM_METAS    — same shape, for enum-typed fields, pointing at
-//                     {@code <Sub>PxfEnum.INSTANCE}.
+//     {@code <Sub>PxfEnum.INSTANCE}.
 //
 // For each enum it emits BarPxfEnum.java implementing {@code PxfEnum} (in
 // :pxf-runtime) with:
@@ -41,26 +41,26 @@
 //
 //   - REQUIRED_FIELDS      — Set<Integer> of fields with (pxf.required).
 //   - DEFAULTS             — Map<Integer, String> of (pxf.default) literals
-//                            (PXF text literals; the runtime parses them).
+//     (PXF text literals; the runtime parses them).
 //   - SBE_TEMPLATE_ID      — int constant from (sbe.template_id), or -1 if
-//                            the message is not an SBE template.
+//     the message is not an SBE template.
 //   - SBE_FIELD_LENGTHS    — Map<Integer, Integer> from (sbe.length).
 //   - SBE_FIELD_ENCODINGS  — Map<Integer, String> from (sbe.encoding).
 //   - ONEOF_OF             — Map<Integer, String> of field number → declaring
-//                            oneof name. Synthetic oneofs around proto3
-//                            `optional` fields are excluded.
+//     oneof name. Synthetic oneofs around proto3
+//     `optional` fields are excluded.
 //   - MAP_FIELDS           — Set<Integer> of fields declared as
-//                            `map<K, V>` (vs. plain `repeated SomeMessage`).
-//                            Wire shapes are identical; this codegen-time
-//                            distinction is what lets the runtime dispatch
-//                            to its map encoder.
+//     `map<K, V>` (vs. plain `repeated SomeMessage`).
+//     Wire shapes are identical; this codegen-time
+//     distinction is what lets the runtime dispatch
+//     to its map encoder.
 //   - WELL_KNOWN_KINDS     — Map<Integer, Integer> from field number to a
-//                            WKT-kind constant defined on PxfMeta
-//                            (WKT_TIMESTAMP, WKT_BIG_INT, etc.). The lite
-//                            decoder uses this to emit canonical bare
-//                            literals (e.g. an RFC3339 timestamp string)
-//                            instead of recursing into the WKT submessage
-//                            as a generic block.
+//     WKT-kind constant defined on PxfMeta
+//     (WKT_TIMESTAMP, WKT_BIG_INT, etc.). The lite
+//     decoder uses this to emit canonical bare
+//     literals (e.g. an RFC3339 timestamp string)
+//     instead of recursing into the WKT submessage
+//     as a generic block.
 //
 // Per-file SBE companion: when a .proto declares (sbe.schema_id) or
 // (sbe.version) at file scope, an additional <Pascal>SbeFileMeta.java is
@@ -338,8 +338,8 @@ func allEnums(file *descriptorpb.FileDescriptorProto) []*flatEnum {
 	for _, msg := range allMessages(file.MessageType, nil) {
 		for _, e := range msg.desc.EnumType {
 			out = append(out, &flatEnum{
-				desc:       e,
-				fullName:   msg.fullName + "." + e.GetName(),
+				desc:      e,
+				fullName:  msg.fullName + "." + e.GetName(),
 				classStem: msg.classStem + "_" + e.GetName(),
 			})
 		}
