@@ -29,9 +29,9 @@
 # which builds the dump-envelope-android target out of protowire-java/. The
 # expected wire bytes match the JVM Java port exactly (any divergence is a
 # CI-blocking regression). Defaults to 1 but skips itself when the module is
-# absent: the *-android modules are not in the public protowire-java
-# release (trendvidia/protowire-java#58), so on a public checkout the two
-# lite rows never run.
+# absent -- the lite tier returns to protowire-java main through the PRs
+# listed on trendvidia/protowire-java#60; before them, a public checkout
+# has no *-android module and the two lite rows do not run.
 # Set WITH_JAVA_PXF_LITE=0 to skip the PXF-driven java-lite path:
 # dump-envelope-pxf-android constructs the canonical envelope from PXF text
 # rather than via the typed builder API, exercising the full Parser →
@@ -307,6 +307,8 @@ dumper() {
     rust)  (cd "$RUST_DIR" && cargo run --quiet --release -p dump-envelope -- "$@") ;;
     swift) "$SWIFT_DIR/.build/release/dump-envelope" "$@" ;;
     dart)  (cd "$DART_DIR" && dart run bin/dump_envelope.dart "$@") ;;
+    java-lite)     "$JAVA_LITE_DIR/dump-envelope-android/build/install/dump-envelope-android/bin/dump-envelope-android" "$@" ;;
+    java-pxf-lite) "$JAVA_LITE_DIR/dump-envelope-pxf-android/build/install/dump-envelope-pxf-android/bin/dump-envelope-pxf-android" "$@" ;;
   esac
 }
 
@@ -314,6 +316,12 @@ fixture_ports=(go cpp ts java)
 [[ "$WITH_RUST" == "1" ]] && fixture_ports+=(rust)
 [[ "$WITH_SWIFT" == "1" ]] && fixture_ports+=(swift)
 [[ "$WITH_DART" == "1" ]] && fixture_ports+=(dart)
+# The two lite dumpers are codegen consumers of the same fixtures (the
+# generated types live in protowire-java's lite-fixtures module, protowire-
+# java#69); WITH_JAVA_LITE / WITH_JAVA_PXF_LITE were already cleared above
+# when the modules are absent from the checkout.
+[[ "$WITH_JAVA_LITE" == "1" ]] && fixture_ports+=(java-lite)
+[[ "$WITH_JAVA_PXF_LITE" == "1" ]] && fixture_ports+=(java-pxf-lite)
 
 fixtures_ok=1
 err_tmp="$TMP_DIR/dumper.err"
@@ -379,8 +387,6 @@ done
 # Codegen ports: no descriptor set at runtime, so no fixture mode yet.
 # Each line cites the issue whose done-when replaces it with a dumper call.
 [[ "$WITH_CSHARP" == "1" ]]        && echo "  csharp           SKIP  codegen port; fixture modes tracked in trendvidia/protowire-csharp#26"
-[[ "$WITH_JAVA_LITE" == "1" ]]     && echo "  java-lite        SKIP  protobuf-javalite has no runtime descriptors; tracked in trendvidia/protowire-java#58"
-[[ "$WITH_JAVA_PXF_LITE" == "1" ]] && echo "  java-pxf-lite    SKIP  protobuf-javalite has no runtime descriptors; tracked in trendvidia/protowire-java#58"
 
 echo
 if [[ "$fixtures_ok" == "1" ]]; then
