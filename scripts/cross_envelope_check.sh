@@ -28,8 +28,10 @@
 # Set WITH_JAVA_LITE=0 to skip the Java/Android (protobuf-javalite) port,
 # which builds the dump-envelope-android target out of protowire-java/. The
 # expected wire bytes match the JVM Java port exactly (any divergence is a
-# CI-blocking regression). Defaults to 1 — the *-android Gradle modules are
-# stable as of 0.74.0; opt out only when protowire-java is unavailable.
+# CI-blocking regression). Defaults to 1 but skips itself when the module is
+# absent: the *-android modules are not in the public protowire-java
+# release (trendvidia/protowire-java#58), so on a public checkout the two
+# lite rows never run.
 # Set WITH_JAVA_PXF_LITE=0 to skip the PXF-driven java-lite path:
 # dump-envelope-pxf-android constructs the canonical envelope from PXF text
 # rather than via the typed builder API, exercising the full Parser →
