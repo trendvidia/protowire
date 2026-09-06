@@ -52,15 +52,17 @@ fi
 
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 SIBLING_DIR="$(dirname "$REPO_DIR")"
-GO_DIR="${SIBLING_DIR}/protowire-go"
-CPP_DIR="${SIBLING_DIR}/protowire-cpp"
-TS_DIR="${SIBLING_DIR}/protowire-typescript"
-JAVA_DIR="${SIBLING_DIR}/protowire-java"
+# Each port defaults to the sibling checkout and can be pointed elsewhere
+# (a worktree on a PR branch, say) when that checkout is busy on other work.
+GO_DIR="${GO_DIR:-${SIBLING_DIR}/protowire-go}"
+CPP_DIR="${CPP_DIR:-${SIBLING_DIR}/protowire-cpp}"
+TS_DIR="${TS_DIR:-${SIBLING_DIR}/protowire-typescript}"
+JAVA_DIR="${JAVA_DIR:-${SIBLING_DIR}/protowire-java}"
 JAVA_LITE_DIR="${JAVA_LITE_DIR:-$JAVA_DIR}"
-RUST_DIR="${SIBLING_DIR}/protowire-rust"
-SWIFT_DIR="${SIBLING_DIR}/protowire-swift"
-DART_DIR="${SIBLING_DIR}/protowire-dart"
-CSHARP_DIR="${SIBLING_DIR}/protowire-csharp"
+RUST_DIR="${RUST_DIR:-${SIBLING_DIR}/protowire-rust}"
+SWIFT_DIR="${SWIFT_DIR:-${SIBLING_DIR}/protowire-swift}"
+DART_DIR="${DART_DIR:-${SIBLING_DIR}/protowire-dart}"
+CSHARP_DIR="${CSHARP_DIR:-${SIBLING_DIR}/protowire-csharp}"
 
 WITH_RUST="${WITH_RUST:-1}"
 WITH_SWIFT="${WITH_SWIFT:-1}"
