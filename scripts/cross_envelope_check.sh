@@ -10,10 +10,12 @@
 # bytes are identical. Divergence indicates a wire-format regression in
 # one of the ports.
 #
-# Then, for the descriptor-driven ports (Go, C++, TypeScript, Java, Rust),
-# feeds each port's `dump-envelope --pb|--sbe` the same descriptor set and
-# PXF document from testdata/ and compares the bytes with a golden. That is
-# the leg that proves every port reads the annotation extension numbers of
+# Then feeds each port's `dump-envelope --pb|--sbe` the same descriptor set
+# and PXF document from testdata/ and compares the bytes with a golden:
+# Go, C++, TypeScript, Java and Rust bind the message from the descriptor
+# set; Swift and Dart use a type generated ahead of time and read the ids
+# from the set; a leg a port has not built is declared, not skipped. That
+# is what proves every port reads the annotation extension numbers of
 # STABILITY.md promise 3 (issue #244) — see the block near the end.
 #
 # The canonical value uses a single metadata entry to avoid map-iteration
@@ -258,10 +260,17 @@ fi
 # port's own vendored annotations.proto, so reader and copy agree with each
 # other whatever number they hold.
 #
-# Ports whose codecs are generated ahead of time cannot load a descriptor
-# set at runtime and are listed as SKIP with the issue tracking their
-# harness. Python inherits protowire-cpp's numbers at wheel-build time and
-# is covered by the C++ leg.
+# Codegen ports (Swift, Dart) take part with the message type generated
+# ahead of time and the ids read from the descriptor set; C# and the
+# Java/Android lite modules are still SKIP lines citing the issue that
+# tracks their harness. Python inherits protowire-cpp's numbers at
+# wheel-build time and is covered by the C++ leg.
+#
+# A dumper may exit 3 with "not-implemented: <reason>" for a leg the port
+# does not have. That counts as ok only when the omission is declared in
+# FIXTURE_NOT_IMPLEMENTED below, with the issue that tracks the feature --
+# the same distinction cross_annotation_check.sh draws between a stale copy
+# and a feature a port has not built (#253). An undeclared exit 3 fails.
 
 TESTDATA_DIR="$REPO_DIR/testdata"
 
@@ -272,20 +281,35 @@ FIXTURES=(
   "sbe sbe-bench.binpb            bench.v1.Order       sbe-bench.pxf                    sbe-bench.expected.hex"
 )
 
+# Declared omissions: "<port> <mode>  <why, with the tracking issue>".
+FIXTURE_NOT_IMPLEMENTED="$(cat <<'NI'
+swift pb  the PXF decoder is a Codable bridge and reads no (pxf.required)/(pxf.default) annotation (trendvidia/protowire-swift#11)
+dart  pb  the PXF decoder reads no (pxf.required)/(pxf.default) annotation (trendvidia/protowire-dart#14)
+NI
+)"
+
+is_declared_not_implemented() {
+  grep -qE "^$1[[:space:]]+$2([[:space:]]|$)" <<<"$FIXTURE_NOT_IMPLEMENTED"
+}
+
 # dumper PORT ARGS... — runs PORT's dump-envelope, built above, with ARGS.
 dumper() {
   local port="$1"; shift
   case "$port" in
-    go)   (cd "$GO_DIR" && go run ./scripts/dump_envelope "$@") ;;
-    cpp)  "$CPP_DIR/build/bin/dump_envelope" "$@" ;;
-    ts)   (cd "$TS_DIR" && npx --yes tsx scripts/dump-envelope.ts "$@") ;;
-    java) "$JAVA_DIR/dump-envelope/build/install/dump-envelope/bin/dump-envelope" "$@" ;;
-    rust) (cd "$RUST_DIR" && cargo run --quiet --release -p dump-envelope -- "$@") ;;
+    go)    (cd "$GO_DIR" && go run ./scripts/dump_envelope "$@") ;;
+    cpp)   "$CPP_DIR/build/bin/dump_envelope" "$@" ;;
+    ts)    (cd "$TS_DIR" && npx --yes tsx scripts/dump-envelope.ts "$@") ;;
+    java)  "$JAVA_DIR/dump-envelope/build/install/dump-envelope/bin/dump-envelope" "$@" ;;
+    rust)  (cd "$RUST_DIR" && cargo run --quiet --release -p dump-envelope -- "$@") ;;
+    swift) "$SWIFT_DIR/.build/release/dump-envelope" "$@" ;;
+    dart)  (cd "$DART_DIR" && dart run bin/dump_envelope.dart "$@") ;;
   esac
 }
 
 fixture_ports=(go cpp ts java)
 [[ "$WITH_RUST" == "1" ]] && fixture_ports+=(rust)
+[[ "$WITH_SWIFT" == "1" ]] && fixture_ports+=(swift)
+[[ "$WITH_DART" == "1" ]] && fixture_ports+=(dart)
 
 fixtures_ok=1
 err_tmp="$TMP_DIR/dumper.err"
@@ -307,6 +331,11 @@ for port in "${fixture_ports[@]}"; do
     if [[ "$expect" == "REJECT" ]]; then
       case "$rc" in
         1) printf "  %-48s ok (%s)\n" "$label" "$err" ;;
+        3) if is_declared_not_implemented "$port" "$mode"; then
+             printf "  %-48s not-impl (%s)\n" "$label" "${err#not-implemented: }"
+           else
+             printf "  %-48s NOT IMPLEMENTED, undeclared: %s\n" "$label" "$err"; fixtures_ok=0
+           fi ;;
         0) if [[ "$out" == "$go_hex" ]]; then
              printf "  %-48s NO --%s MODE: dumper printed the envelope instead\n" "$label" "$mode"
            else
@@ -333,6 +362,11 @@ for port in "${fixture_ports[@]}"; do
           fixtures_ok=0
         fi ;;
       1) printf "  %-48s REJECTED, must accept: %s\n" "$label" "$err"; fixtures_ok=0 ;;
+      3) if is_declared_not_implemented "$port" "$mode"; then
+           printf "  %-48s not-impl (%s)\n" "$label" "${err#not-implemented: }"
+         else
+           printf "  %-48s NOT IMPLEMENTED, undeclared: %s\n" "$label" "$err"; fixtures_ok=0
+         fi ;;
       *) printf "  %-48s ERROR rc=%s: %s\n" "$label" "$rc" "$err"; fixtures_ok=0 ;;
     esac
   done
@@ -341,14 +375,12 @@ done
 # Codegen ports: no descriptor set at runtime, so no fixture mode yet.
 # Each line cites the issue whose done-when replaces it with a dumper call.
 [[ "$WITH_CSHARP" == "1" ]]        && echo "  csharp           SKIP  codegen port; fixture modes tracked in trendvidia/protowire-csharp#26"
-[[ "$WITH_SWIFT" == "1" ]]         && echo "  swift            SKIP  codegen port; fixture modes tracked in trendvidia/protowire-swift#10"
-[[ "$WITH_DART" == "1" ]]          && echo "  dart             SKIP  codegen port; fixture modes tracked in trendvidia/protowire-dart#13"
 [[ "$WITH_JAVA_LITE" == "1" ]]     && echo "  java-lite        SKIP  protobuf-javalite has no runtime descriptors; tracked in trendvidia/protowire-java#58"
 [[ "$WITH_JAVA_PXF_LITE" == "1" ]] && echo "  java-pxf-lite    SKIP  protobuf-javalite has no runtime descriptors; tracked in trendvidia/protowire-java#58"
 
 echo
 if [[ "$fixtures_ok" == "1" ]]; then
-  echo "✓ All ${#fixture_ports[@]} descriptor-driven ports read the registered extension numbers."
+  echo "✓ All ${#fixture_ports[@]} ports read the registered extension numbers (declared omissions listed as not-impl)."
 else
   echo "✗ Annotation extension-number divergence detected." >&2
 fi
