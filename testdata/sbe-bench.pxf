@@ -1,0 +1,27 @@
+// The canonical bench.v1.Order every port's bench-sbe constructs in code,
+// as PXF text, so scripts/cross_envelope_check.sh can feed one document to
+// every port's `dump-envelope --sbe` and compare the SBE bytes with
+// sbe-bench.expected.hex. The 8-byte SBE header carries template_id,
+// schema_id and version read from (sbe.template_id) = 1321,
+// (sbe.schema_id) = 1319 and (sbe.version) = 1320 in sbe-bench.binpb, and
+// the fixed-width `symbol` block from (sbe.length) = 1322.
+order_id = 1001
+symbol = "AAPL"
+price = 19150
+quantity = 100
+side = SIDE_SELL
+active = true
+weight = 0.85
+score = 2.5
+fills = [
+  {
+    fill_price = 19155
+    fill_qty = 25
+    fill_id = 5001
+  },
+  {
+    fill_price = 19160
+    fill_qty = 50
+    fill_id = 5002
+  }
+]

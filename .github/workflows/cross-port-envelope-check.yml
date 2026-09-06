@@ -73,6 +73,13 @@ jobs:
           repository: trendvidia/protowire-typescript
           path: protowire-typescript
 
+      # The TypeScript dumper's --pb/--sbe modes read the descriptor set with
+      # @bufbuild/protobuf, so the port's dependencies have to be installed
+      # before `npx tsx` runs it; the envelope-only dumper had none.
+      - name: Install protowire-typescript dependencies
+        run: npm ci
+        working-directory: protowire-typescript
+
       - name: Checkout protowire-java
         uses: actions/checkout@v7
         with:
