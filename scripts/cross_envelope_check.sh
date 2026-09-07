@@ -18,6 +18,11 @@
 # is what proves every port reads the annotation extension numbers of
 # STABILITY.md promise 3 (issue #244) — see the block near the end.
 #
+# Then runs each port's `dump-envelope --vector NAME` and compares the bytes
+# with the golden in testdata/envelope/ (issue #295): a vector isolates one
+# layout question — today, whether a map entry carries a zero-valued key or
+# value — that the canonical envelope cannot show.
+#
 # The canonical value uses a single metadata entry to avoid map-iteration
 # order ambiguity (proto3 doesn't mandate map entry order on the wire).
 #
@@ -394,7 +399,98 @@ else
   echo "✗ Annotation extension-number divergence detected." >&2
 fi
 
-if [[ "$ok" == "1" && "$fixtures_ok" == "1" ]]; then
+# ── Wire vectors (STABILITY.md promise 2, issue #295) ─────────────────────
+#
+# The canonical envelope above is compared port to port. A vector is
+# compared with a golden in testdata/envelope/ (see its README), because
+# ports that all write the same wrong layout agree with each other — the
+# argument the annotation legs made for the extension numbers. Each
+# dumper prints `dump-envelope --vector NAME` encoded by its pb codec, or
+# exits 3 with "not-implemented: NAME"; a dumper that predates the mode
+# fails the flag with its usage error. Either counts as ok only for a port
+# declared in VECTOR_NOT_IMPLEMENTED with its tracking issue. An undeclared
+# miss fails, and so does a declared port whose bytes diverge — a
+# declaration covers not having the mode, not writing the wrong bytes.
+
+# name  expected (hex file under testdata/)
+VECTORS=(
+  "zero-map-entry envelope/zero-map-entry.expected.hex"
+)
+
+# Declared omissions: "<port> <vector>  <why, with the tracking issue>".
+# Every port is declared for zero-map-entry until its PR lands the mode
+# and, where needed, the layout (#295); the port's spec-repo PR removes
+# its line, and the leg then holds it to the golden.
+VECTOR_NOT_IMPLEMENTED="$(cat <<'NI'
+go            zero-map-entry  reference omits a zero key/value; trendvidia/protowire-go#105
+cpp           zero-map-entry  omits a zero key/value; trendvidia/protowire-cpp#24
+ts            zero-map-entry  omits a zero key; trendvidia/protowire-typescript#42
+java          zero-map-entry  omits a zero key/value, zigzag ints; trendvidia/protowire-java#78 after #77
+rust          zero-map-entry  omits a zero key/value; trendvidia/protowire-rust#32
+swift         zero-map-entry  mode not built; trendvidia/protowire-swift#15
+dart          zero-map-entry  mode not built; trendvidia/protowire-dart#22
+csharp        zero-map-entry  mode not built; trendvidia/protowire-csharp#31
+java-lite     zero-map-entry  mode not built; trendvidia/protowire-java#78
+java-pxf-lite zero-map-entry  mode not built; trendvidia/protowire-java#78
+NI
+)"
+
+is_declared_vector_not_implemented() {
+  grep -qE "^$1[[:space:]]+$2([[:space:]]|$)" <<<"$VECTOR_NOT_IMPLEMENTED"
+}
+declared_vector_reason() {
+  grep -E "^$1[[:space:]]+$2([[:space:]]|$)" <<<"$VECTOR_NOT_IMPLEMENTED" \
+    | sed -E 's/^[^[:space:]]+[[:space:]]+[^[:space:]]+[[:space:]]+//'
+}
+
+vectors_ok=1
+echo
+echo "Wire vectors — testdata/envelope/ goldens through dump-envelope --vector:"
+for port in "${fixture_ports[@]}"; do
+  for line in "${VECTORS[@]}"; do
+    read -r name expect <<<"$line"
+    label="$(printf '%-5s vector %s' "$port" "$name")"
+    golden="$(tr -d '[:space:]' < "$TESTDATA_DIR/$expect")"
+    if out="$(dumper "$port" --vector "$name" 2>"$err_tmp")"; then
+      rc=0
+    else
+      rc=$?
+    fi
+    err="$(grep -v -i 'deprecat' "$err_tmp" | head -1 || true)"
+    if [[ "$rc" == "0" && "$out" == "$golden" ]]; then
+      if is_declared_vector_not_implemented "$port" "$name"; then
+        printf "  %-48s ok — declared not-impl; remove the declaration\n" "$label"
+      else
+        printf "  %-48s ok\n" "$label"
+      fi
+      continue
+    fi
+    if is_declared_vector_not_implemented "$port" "$name"; then
+      reason="$(declared_vector_reason "$port" "$name")"
+      if [[ "$rc" == "0" ]]; then
+        printf "  %-48s not-impl (%s): got %s\n" "$label" "$reason" "$out"
+      else
+        printf "  %-48s not-impl (%s): rc=%s %s\n" "$label" "$reason" "$rc" "$err"
+      fi
+      continue
+    fi
+    case "$rc" in
+      0) printf "  %-48s DIVERGED from %s\n    want %s\n    got  %s\n" "$label" "$expect" "$golden" "$out" ;;
+      3) printf "  %-48s NOT IMPLEMENTED, undeclared: %s\n" "$label" "$err" ;;
+      *) printf "  %-48s ERROR rc=%s: %s\n" "$label" "$rc" "$err" ;;
+    esac
+    vectors_ok=0
+  done
+done
+
+echo
+if [[ "$vectors_ok" == "1" ]]; then
+  echo "✓ Wire vectors match their goldens on every undeclared port (declared omissions listed as not-impl)."
+else
+  echo "✗ Wire-vector divergence detected." >&2
+fi
+
+if [[ "$ok" == "1" && "$fixtures_ok" == "1" && "$vectors_ok" == "1" ]]; then
   exit 0
 fi
 exit 1
