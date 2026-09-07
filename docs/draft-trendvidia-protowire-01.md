@@ -1867,7 +1867,7 @@ Conforming decoders MUST enforce the following limits. Defaults are recommended;
 |-------|---------|------------|
 | MaxNestingDepth | 100 | PXF block/list nesting; PB submessage / group / map-entry nesting |
 | MaxMessageSize | 67108864 (64 MiB) | Total input length to a single decode call |
-| MaxNumericLiteralDigits | 4096 | Digit count of any PXF numeric literal |
+| MaxNumericLiteralDigits | 4096 | Digit count of any PXF numeric literal; magnitude of pxf.Decimal.scale on the PB wire |
 | MaxBytesLiteralLength | = MaxMessageSize | Decoded byte length of any PXF b"..." literal |
 | MaxVarintBytes | 10 (fixed) | Every PB varint read. NOT configurable. |
 | MaxRepeatedCount | = MaxMessageSize | Element count of any repeated, map, or SBE group field |
@@ -1875,6 +1875,8 @@ Conforming decoders MUST enforce the following limits. Defaults are recommended;
 A decoder presented with input that requires exceeding any limit MUST return an error before allocating memory proportional to the violating quantity. It MUST NOT abort, panic, raise an uncatchable exception, or unwind into a state from which the caller cannot recover.
 
 Length arithmetic MUST be performed in 64-bit unsigned arithmetic and checked against the buffer length before any narrowing conversion to a native integer width and before any allocation.
+
+Arbitrary-precision magnitudes. MaxNumericLiteralDigits also bounds the magnitude of pxf.Decimal.scale as encoded over PB ({{pxf-annotations}}): a scale is a digit count, and a decoder that materialises the value computes 10^scale, which costs time and memory proportional to a quantity the input sets directly. A decoder MUST reject a Decimal whose scale magnitude exceeds the limit before materialising anything. pxf.BigFloat.exponent is a binary exponent and has no limit; a decoder MUST NOT perform work proportional to it. Rendering such a value in decimal is the consumer's operation, and where the result is a PXF literal it is bounded by MaxNumericLiteralDigits like any other literal. A numeric literal, or a big-number message, whose value the decoder's arbitrary-precision type cannot represent MUST be rejected with an error; a decoder MUST NOT substitute an infinity or a truncated value.
 
 ## Recursion
 
