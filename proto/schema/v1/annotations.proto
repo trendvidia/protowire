@@ -27,7 +27,11 @@ package protowire.schema.v1;
 
 // validate — attach a validation rule to a type, field, or message.
 //
-// `rule` is engine-language source (CEL by default; project-configurable).
+// `rule` is an expression in the one language RFC-001 section 5.4 defines,
+// the same for every engine: comparisons, `in`, `&&` `||` `!`, literals,
+// `this`, the builtins size / starts_with / ends_with / contains / matches
+// / now, and calls to declared functions. A misspelled function or
+// builtin is a compile error.
 // `code` is an optional stable identifier used by the i18n catalog and by
 // programmatic error consumers.
 // `message` is an optional fallback message used when no catalog entry
