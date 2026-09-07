@@ -144,11 +144,11 @@ if [[ "$WITH_SWIFT" == "1" ]]; then
 fi
 
 if [[ "$WITH_DART" == "1" && ! -f "$DART_DIR/bin/dump_envelope.dart" ]]; then
-  # protowire-dart has never carried the dumper this step runs
-  # (trendvidia/protowire-dart#13). Under set -e the missing file aborted
-  # every full local run at this point, which is how STABILITY.md promise 2
-  # came to name a Dart check that could not run. Skip, and say so.
-  echo "→ Dart dumper: SKIP — bin/dump_envelope.dart absent (trendvidia/protowire-dart#13)"
+  # protowire-dart gained its dumper in trendvidia/protowire-dart#16; a
+  # checkout older than that has no file here, and under set -e the
+  # missing file used to abort every full local run at this point. Skip,
+  # and say so.
+  echo "→ Dart dumper: SKIP — bin/dump_envelope.dart absent (checkout predates trendvidia/protowire-dart#16)"
   WITH_DART=0
 fi
 
@@ -264,11 +264,11 @@ fi
 # port's own vendored annotations.proto, so reader and copy agree with each
 # other whatever number they hold.
 #
-# Codegen ports (Swift, Dart) take part with the message type generated
-# ahead of time and the ids read from the descriptor set; C# and the
-# Java/Android lite modules are still SKIP lines citing the issue that
-# tracks their harness. Python inherits protowire-cpp's numbers at
-# wheel-build time and is covered by the C++ leg.
+# Codegen ports (Swift, Dart, C#, the Java/Android lite modules) take
+# part with the message type generated ahead of time and the ids read from
+# the descriptor set or the type's embedded descriptor. Python inherits
+# protowire-cpp's numbers at wheel-build time and is covered by the C++
+# leg.
 #
 # A dumper may exit 3 with "not-implemented: <reason>" for a leg the port
 # does not have. That counts as ok only when the omission is declared in
