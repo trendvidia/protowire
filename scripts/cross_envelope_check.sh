@@ -287,7 +287,6 @@ FIXTURES=(
 
 # Declared omissions: "<port> <mode>  <why, with the tracking issue>".
 FIXTURE_NOT_IMPLEMENTED="$(cat <<'NI'
-swift pb  the PXF decoder is a Codable bridge and reads no (pxf.required)/(pxf.default) annotation (trendvidia/protowire-swift#11)
 dart  pb  the PXF decoder reads no (pxf.required)/(pxf.default) annotation (trendvidia/protowire-dart#14)
 NI
 )"
