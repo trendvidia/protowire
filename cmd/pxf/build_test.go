@@ -22,7 +22,13 @@ const fixtureDir = "../../testdata/schema-extensions"
 // yet reject to the upstream issue tracking the gap. Entries here are
 // asserted to still pass --check so a fork upgrade that closes the gap
 // flips the test and forces the entry's removal.
-var checkKnownGaps = map[string]string{}
+var checkKnownGaps = map[string]string{
+	// RFC-001 §5.4 (issue #282) made the expression language normative;
+	// the pinned fork still tokenizes the capture and presumes an
+	// unresolved call is an engine builtin (protocompile#202).
+	"unresolved_expression_call.proto": "trendvidia/protocompile#211",
+	"expression_syntax.proto":          "trendvidia/protocompile#211",
+}
 
 // runPxf drives a fresh command tree exactly like the shell would. The
 // PROTOWIRE_CONFIG tier is neutralized (empty means unset to the

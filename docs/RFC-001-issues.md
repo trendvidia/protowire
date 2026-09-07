@@ -1648,6 +1648,57 @@ closes in its own change; a bullet records its resolution when it does:
 
 ---
 
+## #082 — `@validate` expression language is normative (GH #282)
+
+**Repo:** `protowire` (spec) + `protocompile` + `protocheck`
+**Milestone:** post-M4
+**Labels:** `spec`, `schema-extensions`, `protocompile`, `protocheck`
+
+RFC-001 left the body of an expression argument to "the engine": §5.1
+captured it opaquely, §8.1 presumed any unresolvable name was an
+engine builtin, §9.4 selected among `cel` / `starlark` / `go` with
+`cel` as the default, and Appendix C promised protovalidate CEL rules
+carry over verbatim under that default.
+
+Measured 2026-09-07 against what evaluates the carrier: `@validate`
+lowers only to the `1327` carrier (never to `buf.validate.field`), so
+protovalidate never sees it; the only runtime evaluating the carrier is
+protocheck, with its own dialect; nothing reads `engine:` from the
+config; no CEL engine for the carrier exists or is planned. The spec
+described a pluggable language with one implementation and a default
+that did not exist — and, the language being undefined, nothing could
+check a rule at compile time or say what language a shared alias's
+rule was written in.
+
+**Resolution (2026-09-07, GH #282):** one normative language, RFC-001
+§5.4 — the reference engine's dialect plus `now()`, which §6.2 already
+promised. A compiler parses the fragment and rejects unresolved calls
+and syntax errors (§5.1, §8.1). `EngineConfig.engine` is reserved and
+the `cel` default retired (§9.4). protovalidate users keep
+`buf.validate` options, a separate rule system; Appendix C's migration
+is a rewrite, not a carry-over.
+
+### Follow-ups
+
+- `protocompile` (GH protocompile#211): parse expression arguments against §5.4; report
+  syntax errors, unresolved calls and builtin arity at the fragment /
+  call span (closes protocompile#202 at the source); drop the `cel`
+  default and `KnownEngines` validation from `engineconfig`; re-vendor
+  fixture 24 and the two `invalid/` fixtures.
+- `protocheck` (GH protocheck#64): add the `now()` builtin and temporal ordering (§6.2
+  rule 2 — comparison between temporal values of the same kind); reject
+  any name outside §5.4 (already the behavior for calls).
+- `protolsp`: surface the compiler's findings and a nearest-declared-
+  function quick-fix (trendvidia/protolsp#276).
+
+### Acceptance criteria
+
+- [ ] `24_expression_language.proto` compiles in every conformant compiler; `invalid/unresolved_expression_call.proto` and `invalid/expression_syntax.proto` are rejected with the diagnostic at the named span
+- [ ] The reference engine evaluates fixture 24 with `now()` and temporal comparison implemented
+- [ ] No other fixture or RFC example changes meaning — every existing `@validate` in the corpus already parses under §5.4
+
+---
+
 ## Labels suggested
 
 | Label | Use |

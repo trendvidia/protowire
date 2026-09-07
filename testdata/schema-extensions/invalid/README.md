@@ -30,6 +30,8 @@ NOT include this directory when compiling the positive corpus.
 | `http_relative_path.proto` | `http-relative-path` | An `@http` path is absolute — it lowers to a `HttpRule` pattern field matched against a request path that starts at `/` (RFC-001 §5.2, issue #213). |
 | `http_unbalanced_template.proto` | `http-unbalanced-template` | Every `{` in an `@http` path opens a template segment and MUST be closed by a `}`; an unclosed brace names a variable that can be neither bound nor checked (RFC-001 §5.2, issue #213). |
 | `http_empty_method.proto` | `http-empty-method` | `method` selects the `HttpRule` pattern field the route binds under, so it MUST NOT be empty — an empty verb selects no pattern and binds the method to nothing (RFC-001 §5.2, issue #213). |
+| `unresolved_expression_call.proto` | `unresolved-expression-call` | A call inside an expression argument must resolve to a visible `function` declaration or to a §5.4 builtin; any other name is a compile error at the call's span (RFC-001 §5.1, §5.4, §8.1, issue #282). Until 2026-09-07 such a name was presumed an engine builtin and compiled clean (protocompile#202). |
+| `expression_syntax.proto` | `expression-syntax` | An expression argument must parse under the §5.4 grammar; a fragment that balances its delimiters (so it passes §5.1 capture) but is not an expression is a compile error at the fragment's span (RFC-001 §5.1, §5.4, issue #282). |
 
 Runtime error states (missing implementation, unsatisfiable `@default`,
 locale-catalog miss) are **valid** schemas whose behavior is pinned by
