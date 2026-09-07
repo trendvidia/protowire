@@ -308,6 +308,7 @@ dumper() {
     rust)  (cd "$RUST_DIR" && cargo run --quiet --release -p dump-envelope -- "$@") ;;
     swift) "$SWIFT_DIR/.build/release/dump-envelope" "$@" ;;
     dart)  (cd "$DART_DIR" && dart run bin/dump_envelope.dart "$@") ;;
+    csharp) "$CSHARP_DIR/cmd/Protowire.DumpEnvelope/bin/Release/net10.0/dump-envelope" "$@" ;;
     java-lite)     "$JAVA_LITE_DIR/dump-envelope-android/build/install/dump-envelope-android/bin/dump-envelope-android" "$@" ;;
     java-pxf-lite) "$JAVA_LITE_DIR/dump-envelope-pxf-android/build/install/dump-envelope-pxf-android/bin/dump-envelope-pxf-android" "$@" ;;
   esac
@@ -317,6 +318,7 @@ fixture_ports=(go cpp ts java)
 [[ "$WITH_RUST" == "1" ]] && fixture_ports+=(rust)
 [[ "$WITH_SWIFT" == "1" ]] && fixture_ports+=(swift)
 [[ "$WITH_DART" == "1" ]] && fixture_ports+=(dart)
+[[ "$WITH_CSHARP" == "1" ]] && fixture_ports+=(csharp)
 # The two lite dumpers are codegen consumers of the same fixtures (the
 # generated types live in protowire-java's lite-fixtures module, protowire-
 # java#69); WITH_JAVA_LITE / WITH_JAVA_PXF_LITE were already cleared above
@@ -384,10 +386,6 @@ for port in "${fixture_ports[@]}"; do
     esac
   done
 done
-
-# Codegen ports: no descriptor set at runtime, so no fixture mode yet.
-# Each line cites the issue whose done-when replaces it with a dumper call.
-[[ "$WITH_CSHARP" == "1" ]]        && echo "  csharp           SKIP  codegen port; fixture modes tracked in trendvidia/protowire-csharp#26"
 
 echo
 if [[ "$fixtures_ok" == "1" ]]; then

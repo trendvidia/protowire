@@ -14,6 +14,7 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 - **Swift's pb leg of `cross_envelope_check.sh` is a real check now** (trendvidia/protowire-swift#10). protowire-swift#13 made the port's PXF decoder apply `(pxf.required)` / `(pxf.default)` from a descriptor set, so the `swift pb` declared omission is removed from `FIXTURE_NOT_IMPLEMENTED`; the gate reports `ok` for Swift on all three fixtures.
 - **Dart's pb leg, too** (trendvidia/protowire-dart#13): protowire-dart#20 applies both annotations from a descriptor set through `unmarshalFull`, and `dump_envelope --pb` decodes into a generated `settings.v1.Settings`. `FIXTURE_NOT_IMPLEMENTED` is empty — every port with a dumper runs both legs for real.
+- **And C#'s two legs** (trendvidia/protowire-csharp#26): protowire-csharp#28 gives `dump-envelope` the `--pb` / `--sbe` modes over its generated types (its decoder and SBE codec already read every annotation family from descriptors), so the last `SKIP` line leaves the gate; ten ports now run all three fixture rows.
 
 ## [1.12.0] – 2026-09-07
 
