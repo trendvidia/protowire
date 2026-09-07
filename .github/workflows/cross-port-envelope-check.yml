@@ -91,7 +91,7 @@ jobs:
           go-version-file: protowire-go/go.mod
           cache-dependency-path: protowire-go/go.sum
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: '20'
 
