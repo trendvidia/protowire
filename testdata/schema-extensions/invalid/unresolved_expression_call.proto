@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Invalid fixture: unresolved_expression_call — a call inside an
+// expression argument that resolves to neither a visible `function`
+// declaration nor a §5.4 builtin. MUST NOT compile (RFC-001 §5.1,
+// §5.4, §8.1; issue #282): `mathces` is a misspelling of the declared
+// `matches`, and the error is reported at the call's source span.
+// Until 2026-09-07 such a name was presumed an engine builtin and
+// compiled clean (protocompile#202); the runtime then rejected it at
+// descriptor load, or — with no runtime linked — never ran it.
+
+syntax = "proto3";
+
+package fixtures.invalid.unresolved_call;
+
+import "protowire/schema/v1/annotations.proto";
+
+function matches(value: string, pattern: string);
+
+message Account {
+  string email = 1
+    @validate(mathces(this, "^[^@]+@[^@]+$"), code = "account.email");
+}

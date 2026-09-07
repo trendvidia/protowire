@@ -7,7 +7,7 @@
 | IETF draft | Companion to `draft-trendvidia-protowire-01` (in preparation) |
 | Authors | TrendVidia |
 | Created | 2026-06-04 |
-| Last updated | 2026-07-16 |
+| Last updated | 2026-09-07 |
 
 ## Abstract
 
@@ -39,7 +39,7 @@ Public-API platforms — the principal driver for this RFC — feel each of thes
 
 - **No wire-format changes.** PXF, `pb`, and SBE outputs are byte-identical to v1.1 for any schema not using the new constructs.
 - **Not replacing protobuf.** Lowering targets standard `FileDescriptorSet`; stock `protoc` and every existing tool consume the descriptors transparently.
-- **Not standardizing engine internals.** CEL/Starlark/Go evaluation semantics remain engine-specific; the spec defines the *contract* between the schema and the engine, not the engine's internals.
+- **Not standardizing engine internals.** Evaluation strategy, host language and the mechanism behind a `function` implementation (native code, a sandboxed VM, …) remain engine-specific; the spec defines the *contract* between the schema and the engine — since 2026-09-07 that contract includes the expression language itself (§5.4, issue #282), which is the same in every engine — not the engine's internals.
 - **Not introducing a parallel type system.** `type` declarations are macro-style refinement aliases that lower to the underlying primitive/message/enum, not new wire-level types.
 
 ## 4. Design overview
@@ -181,9 +181,15 @@ linker resolves the annotation declaration, argument parsing is
    other argument MUST re-parse under `literal | qualifiedIdent`; any
    other shape is a compile error.
 
-The fragment's inner syntax belongs to the engine (§9): the compiler
-never interprets it beyond the tokenization used for function-call
-extraction (§8.1).
+The fragment's syntax is the expression language of §5.4, the same
+for every engine. A compiler MUST parse the capture against that
+grammar and reject a fragment that does not conform — a syntax error,
+a call to a name that is neither a visible `function` declaration nor
+a §5.4 builtin, a builtin called with the wrong arity — in addition to
+the function-call extraction of §8.1. (Until 2026-09-07 the syntax was
+left to the engine and the compiler only tokenized the capture; a
+misspelled builtin then compiled clean and failed at descriptor load.
+Issue #282.)
 
 v1.2 explicitly forbids `repeated`/`map<,>` in `typeRef` (collection refinement is deferred — see §13).
 
@@ -292,6 +298,100 @@ service Users {
 }
 ```
 
+### 5.4 Expression language (normative)
+
+The body of every argument bound to an `expression`-typed parameter —
+the `rule` of `@validate`, and any other `expression` parameter a
+schema declares — is written in **one fixed language**, defined here,
+the same in every engine and every port.
+
+(Resolved 2026-09-07, issue #282. The ratified text left the body to
+"the engine" as opaque source, with §9.4 selecting among `cel`,
+`starlark` and `go`. Measured against what evaluates the carrier, one
+engine existed and it spoke none of those; with no defined language a
+misspelled builtin compiled clean and failed at descriptor load
+(protocompile#202), a shared `type` alias carried no statement of the
+language its rule was written in, and the `cel` default named a
+runtime that was never built. The grammar below is the dialect the
+reference engine shipped, plus `now()`, which §6.2 already promised.)
+
+**Grammar.** Over the proto lexical forms for identifiers and for
+integer, float and string literals — the §5.1 capture already requires
+string literals to be proto strings:
+
+```
+expr    := or
+or      := and ( "||" and )*
+and     := unary ( "&&" unary )*
+unary   := "!" unary | cmp
+cmp     := term ( ( "==" | "!=" | "<=" | ">=" | "<" | ">" ) term )?
+         | term "in" term
+term    := INT | FLOAT | STRING | "true" | "false" | list
+         | "this" postfix*
+         | call
+         | "(" expr ")"
+postfix := "." IDENT "(" args ")"                  builtin, method form
+call    := IDENT ( "." IDENT )* "(" args ")"       declared function, or builtin in function form
+args    := ( expr ( "," expr )* )?
+list    := "[" ( term ( "," term )* )? "]"
+```
+
+`this` is the only bound identifier (§5.1, §6.2). There is **no field
+selection**: `this.name` is not an expression. A rule over a message's
+fields is a declared `function` taking the message, as in the §5.3
+worked example (`same_domain(this)`). A `call` whose name resolves to a
+visible `function` declaration (§8.1) dispatches to the §9.2 registry;
+otherwise the name MUST be one of the builtins below. A builtin's
+method form `this.m(a, …)` is the same call as its function form
+`m(this, a, …)`.
+
+**Builtins.** This is the complete set. An engine MUST NOT accept any
+other name in an expression argument, and a compiler MUST reject a
+call to any other name (§5.1, §8.1): that rule is what makes a shared
+schema portable (§10).
+
+| Builtin | Receiver (first argument) | Further arguments | Result |
+|---|---|---|---|
+| `size()` | string, bytes, list, map | none | int — Unicode code points of a string, bytes of a bytes value, elements of a list or map |
+| `starts_with(prefix)` | string | one string | bool |
+| `ends_with(suffix)` | string | one string | bool |
+| `contains(substr)` | string | one string | bool |
+| `matches(pattern)` | string | one string, an RE2 pattern | bool — whether the pattern matches anywhere in the receiver (unanchored) |
+| `now()` | — | none | the engine-native current instant (§6.2 rules 2 and 5) |
+
+**Typing and evaluation.** The language is dynamically typed: a
+compiler checks syntax, name resolution and arity; an engine checks
+operand kinds when it evaluates.
+
+- `&&` and `||` short-circuit and require boolean operands; `!`
+  requires a boolean operand.
+- `==` and `!=` compare numbers by value regardless of representation
+  (signed, unsigned and floating-point widen to one numeric domain),
+  strings, booleans, and temporal values of the same kind (§6.2 rule
+  2). `<`, `<=`, `>` and `>=` order numbers, strings (byte-wise), and
+  temporal values of the same kind.
+- `in` requires a list on its right and tests membership with `==`.
+- Any other combination — a non-boolean operand to `!`, `&&` or `||`,
+  a string ordered against a number, a builtin applied to the wrong
+  receiver kind or with the wrong number of arguments, a non-boolean
+  rule result — is an **evaluation error**: the rule fails, and the
+  violation's fallback message carries the engine's error text. The
+  statically visible cases (wrong builtin arity; a builtin in function
+  form with no receiver argument) are compile errors as well.
+
+**What the language does not have, on purpose.** No field selection on
+`this`, no temporal or duration literals, no arithmetic, no ternary,
+no comprehensions, no string formatting. Each of those is either a
+declared `function` — the escape hatch §6.5 designs for: typed,
+registered, memoizable — or a future revision of this section.
+Extending the language is a spec change, never an engine extension.
+
+Conformance fixture: `testdata/schema-extensions/24_expression_language.proto`
+(every builtin in both forms, `now()`, every operator) and
+`invalid/unresolved_expression_call.proto`,
+`invalid/expression_syntax.proto` (the two compile-error classes this
+section adds).
+
 ## 6. Semantics
 
 ### 6.1 Presence model — aligned with PXF
@@ -323,11 +423,10 @@ already-lowered alias *means* at evaluation time.
    unwrap, so rules read naturally (`type Future = google.protobuf.Timestamp
    @validate(this > now());`). Engines MUST support the comparison
    operators (`<`, `<=`, `==`, `>=`, `>`) between temporal values of the
-   same kind. Temporal literals and helpers (`now()`, duration
-   construction) are engine-stdlib concerns, not spec syntax — expressions
-   are opaque engine source (§5.1). As with wrappers, the rule does not
-   execute when the field is unset (§6.1). CEL's native `Timestamp`/
-   `Duration` mapping already satisfies this rule unmodified.
+   same kind. `now()` is a §5.4 builtin; the language has no temporal
+   or duration literals, so a rule that needs one declares a `function`
+   (§5.4). As with wrappers, the rule does not execute when the field is
+   unset (§6.1).
 
 3. **`google.protobuf.Any`** does **not** unwrap. `this` binds to the
    structured value with `type_url` and `value` accessible;
@@ -343,7 +442,7 @@ already-lowered alias *means* at evaluation time.
    `FieldMask`, …): `this` binds to the structured message; field access
    follows the engine's proto integration. No further special cases.
 
-5. **Run-stable `now()`**: any engine-provided current-time builtin MUST
+5. **Run-stable `now()`**: the `now()` builtin (§5.4) MUST
    return the same instant for every evaluation within a single validation
    run (one `Report`, §7). Otherwise a `@validate(this > now())` rule
    evaluated in collect-all mode could pass and fail within the same
@@ -638,7 +737,7 @@ message Report {
   repeated EnrichedViolation violations = 2;  // empty + truncated == false ⇒ valid
   ExecutionMode mode = 3;                     // COLLECT_ALL (default, §6.4) | FAIL_FAST
   bool truncated = 4;                         // violations not exhaustive (fail-fast stop or engine limit)
-  EngineInfo engine = 5;                      // {name, version}, e.g. "protocheck-go/cel"
+  EngineInfo engine = 5;                      // {name, version}, e.g. "protocheck-go"
   uint64 wall_time_nanos = 6;                 // 0 = not measured
 }
 ```
@@ -864,12 +963,14 @@ its count of top-level commas plus one (zero for empty parentheses). Call sites 
 visible `function` declaration (same file or imported) are recorded in
 `calls`, and the linker verifies the arity against the declaration —
 a mismatch is a compile error with the call's source span. Names that
-do not resolve are presumed engine builtins (`now()`, `this.size()` —
+do not resolve MUST be §5.4 builtins (`now()`, `this.size()` —
 `this.`-prefixed paths can never resolve to a declaration): they are
-not recorded and not diagnosed; missing-implementation handling for
-them stays with the engine's init-time verification (§9.2). Consumers
-(engine init walks, source-map `callAnchor`s in §8.3.1) may therefore
-rely on `calls` being complete with respect to declared functions.
+not recorded in `calls`, and a call to any other unresolved name is a
+compile error at the call's source span (resolved 2026-09-07, issue
+#282 — the ratified text presumed such names were engine builtins and
+left them undiagnosed). Consumers (engine init walks, source-map
+`callAnchor`s in §8.3.1) may therefore rely on `calls` being complete
+with respect to declared functions.
 
 ### 8.2 File-scope declaration carriers
 
@@ -997,7 +1098,7 @@ type Engine interface {
 type Function func(args []any) (bool, *Violation)
 ```
 
-A project selects one engine at validator-binary build time (CEL, Starlark, Go, etc.). Mix-and-match engines per project is out of scope for v1.2 — adding it later is a strictly additive change to the engine-config schema, not the language.
+An engine is a runtime that evaluates the §5.4 expression language and hosts the project's `function` implementations. A project links one at validator-binary build time. Engines differ in host language, in how a function implementation is provided (native code, a sandboxed VM, …) and in operational surface — never in the language a rule is written in, which is why mixing engines within a project is unnecessary rather than deferred (issue #282).
 
 ### 9.2 Function registration model
 
@@ -1068,8 +1169,9 @@ carrier extension numbers and leak build configuration into
 
 ```proto
 message EngineConfig {
-  string engine = 1;                       // registered identifier: "cel", "starlark", "go";
-                                           //   unknown name = startup error, never a fallback
+  string engine = 1;                       // RESERVED (2026-09-07, issue #282): the expression
+                                           //   language is fixed (§5.4), so nothing selects one;
+                                           //   validators MUST ignore, tooling SHOULD warn when set
   repeated string function_libraries = 2;  // proto import paths of function-declaration files (§9.2, §9.3)
   repeated string catalog_libraries = 3;   // paths to locale catalog files (§7),
                                            //   text-format catalog.v1.Catalog,
@@ -1094,14 +1196,14 @@ between nested configs — nearest wins, full stop (the same model as
 3. the `PROTOWIRE_CONFIG` environment variable — a pointer to a file
    only, never inline settings (there are no per-setting env vars);
 4. the discovered `protowire.config.textproto`;
-5. built-in defaults: `engine: "cel"`, lenient registration (§9.2),
+5. built-in defaults: lenient registration (§9.2),
    collect-all (§6.4).
 
 ## 10. Cross-language story
 
 Server-side validation is the default and authoritative use case. Java, TypeScript, Python, etc. codegen produces typed messages and skips engine-specific validation by default — the server (a single chosen engine runtime) enforces.
 
-For teams wanting **client-side mirror validation**, a `--strict-portability` codegen mode rejects functions that cannot be expressed identically across runtimes. Practically: rules using only inline engine-standard-library expressions are portable — including comparisons on unwrapped temporal values (§6.2 rule 2); rules referencing custom `function` declarations require each consuming runtime to register an equivalent implementation.
+For teams wanting **client-side mirror validation**, a `--strict-portability` codegen mode rejects functions that cannot be expressed identically across runtimes. Practically: rules written in the §5.4 language that call no declared `function` are portable by construction — including comparisons on unwrapped temporal values (§6.2 rule 2); rules referencing custom `function` declarations require each consuming runtime to register an equivalent implementation.
 
 Multi-runtime function implementations (a Java impl alongside the Go impl for `is_e164`) are operationally expensive and out of scope for v1.2. v2.x may revisit if demand justifies.
 
@@ -1151,6 +1253,7 @@ Items deferred for separate resolution. Each becomes a tracked issue.
 | 13 | ~~Sensitivity-class taxonomy (`@sensitive(class: ...)`)~~ **Resolved 2026-07-25** (issue #111): additive `class: string = ""` parameter — open org-defined vocabulary, `protowire.` prefix reserved, single class, effective-class rule; see §6.7. The consumer that triggered the deferral's "until needed" clause is the chameleon editor's key management | spec |
 | 14 | ~~Schema-level encryption / key-reference annotation (`@encrypted(key_ref)`)~~ **Rejected 2026-07-25** (issue #112): protection metadata never enters the schema — key refs are deployment topology and would leak through descriptor artifacts (§8.1, same reasoning as §9.4); the class → key-domain mapping lives in the protection layer's configuration, see §6.7 | spec / chameleon |
 | 15 | Plural / gender / ICU-MessageFormat template forms in locale catalogs (`catalog.v1.Catalog` templates are plain `{param}` interpolation for now, §7) — revisit when a consumer needs plural rules | spec |
+| 16 | ~~`@validate` expression language: engine-specific source vs one normative language~~ **Resolved 2026-09-07** (issue #282): one normative language, §5.4 — the reference engine's dialect plus `now()`; `EngineConfig.engine` reserved and the `cel` default retired (§9.4); a compiler parses the fragment and rejects unresolved names (§5.1, §8.1). Follow-ups: protocompile parses against §5.4 and re-vendors fixtures 24 / `invalid/` (protocompile#211); protocheck adds `now()` and temporal ordering (protocheck#64) | spec / protocompile / protocheck |
 
 ## 14. References
 
@@ -1172,7 +1275,7 @@ Items deferred for separate resolution. Each becomes a tracked issue.
 |---|---|---|
 | `[(pxf.required) = true]` | `@required` | Both forms valid; disjoint lowering (§8.5) — the annotation form is carrier-only, so legacy-option consumers see only the bracket |
 | `[(pxf.default) = "viewer"]` | `@default("viewer")` | Same; migrate consumers to the carrier before migrating schemas |
-| `[(buf.validate.field).cel = "..."]` | `@validate(<expression>)` | Conceptual equivalent; migration path in Appendix C — a `--compat` compiler mode was rejected (#66) |
+| `[(buf.validate.field).cel = "..."]` | `@validate(<expression>)` | Conceptual equivalent in a different language — `@validate` rules are §5.4 expressions, not CEL; migration path in Appendix C — a `--compat` compiler mode was rejected (#66) |
 | n/a | `@description("...")` | Was prose comments; now structured |
 | n/a | `@example(value)` | New; doubles as test fixture |
 | n/a | `@error_code("...")` | New; structured error attribution |
@@ -1211,15 +1314,17 @@ as-is and validate at the protowire seam via
 (`pxf.UnmarshalOptions{Validator: v}`). Violation rule IDs are
 namespaced `buf.validate.*`.
 
-**Phase 1 — per-file rewrite.** Under the default `cel` engine (§9.4),
-expressions carry over verbatim:
+**Phase 1 — per-file rewrite.** Rules are rewritten into the §5.4
+expression language (2026-09-07, issue #282 — the ratified text
+promised verbatim carry-over under a `cel` engine that was never
+built):
 
 | protovalidate form | protowire v1.2 form | Notes |
 |---|---|---|
-| `(buf.validate.field).cel = {id, message, expression}` | `@validate(<expression>, code = <id>, message = <message>)` | Same `this` binding: field value, wrapper unwrap, native temporals (§6.2). `id` must not use the reserved `protowire.` prefix (§7). |
-| `(buf.validate.message).cel` | leading `@validate` on the message | `this` binds to the message in both systems. |
+| `(buf.validate.field).cel = {id, message, expression}` | `@validate(<expression rewritten per §5.4>, code = <id>, message = <message>)` | Same `this` binding: field value, wrapper unwrap, native temporals (§6.2). Comparisons, `in`, the boolean operators and the five string builtins map one-to-one (`startsWith` → `starts_with`); everything else CEL offers — protovalidate's `isEmail()` family, macros, ternaries, field selection — becomes a declared `function`. `id` must not use the reserved `protowire.` prefix (§7). |
+| `(buf.validate.message).cel` | leading `@validate` on the message | `this` binds to the message in both systems; §5.4 has no field selection, so the rule body is a declared `function` taking the message (`same_domain(this)`). |
 | `(buf.validate.field).required = true` | `@required` | **Semantic delta:** protovalidate rejects zero values on implicit-presence scalars; protowire `@required` checks *presence* only (§6.1) and null counts as present. Fields relying on zero-rejection need an explicit rule (e.g. `@validate(this != "")`) or explicit presence. |
-| Standard rules (`string.min_len`, `int32.gt`, …) | `@validate` with the equivalent stdlib expression; shared shapes become `type` aliases (`type NonEmptyString = string @validate(this.size() >= 1)`) | Type aliases (§6.3) are the idiomatic replacement for rule sets repeated across fields. |
+| Standard rules (`string.min_len`, `int32.gt`, …) | `@validate` with the equivalent §5.4 expression; shared shapes become `type` aliases (`type NonEmptyString = string @validate(this.size() >= 1)`) | Type aliases (§6.3) are the idiomatic replacement for rule sets repeated across fields. |
 | `ignore` / zero-value knobs | none needed | protowire never evaluates rules on unset fields (§6.1); the knob's job disappears. |
 
 **Phase 2 — retire.** Drop `buf/validate/validate.proto` imports and

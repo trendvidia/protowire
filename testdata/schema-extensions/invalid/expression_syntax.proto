@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Invalid fixture: expression_syntax — a fragment that balances its
+// delimiters, so §5.1 capture accepts it, but is not a §5.4
+// expression. MUST NOT compile (RFC-001 §5.1, §5.4; issue #282): the
+// error is reported at the fragment's span. Distinct from
+// unbalanced_expression.proto, which fails capture itself.
+
+syntax = "proto3";
+
+package fixtures.invalid.expression_syntax;
+
+import "protowire/schema/v1/annotations.proto";
+
+message Account {
+  int32 age = 1
+    @validate(this >= && this < 150, code = "account.age");
+}

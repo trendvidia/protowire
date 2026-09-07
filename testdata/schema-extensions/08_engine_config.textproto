@@ -3,13 +3,14 @@
 #
 # Golden engine configuration (RFC-001 §9.4): the content of a project's
 # `protowire.config.textproto`. Configures the engine the §5.3 worked
-# example would run under. Exercises every EngineConfig field. Loader
-# conformance: discovery walks upward to the NEAREST config (no merging);
-# per-setting CLI flags > --config > PROTOWIRE_CONFIG > discovered file >
-# defaults ("cel", lenient, collect-all); unknown engine names are
-# startup errors, never fallbacks.
+# example would run under. Exercises every EngineConfig field except
+# `engine`, which is RESERVED since 2026-09-07 (RFC-001 §9.4, issue
+# #282): the expression language is fixed by §5.4, so nothing selects
+# one; validators MUST ignore the field and tooling SHOULD warn when it
+# is set. Loader conformance: discovery walks upward to the NEAREST
+# config (no merging); per-setting CLI flags > --config >
+# PROTOWIRE_CONFIG > discovered file > defaults (lenient, collect-all).
 
-engine: "cel"
 function_libraries: "myco/commons/validator.proto"
 function_libraries: "myco/commons/types.proto"
 catalog_libraries: "myco/i18n/en.textproto"
