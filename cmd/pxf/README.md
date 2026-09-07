@@ -97,7 +97,7 @@ Stdin is supported by `query` and `infer-schema` via the filename `-`. The other
 
 ### `pxf encode <file.pxf>`
 
-Encodes a PXF document to protobuf binary on stdout. The bound message comes from the schema-resolution chain above; `-m` is required.
+Encodes a PXF document to protobuf binary on stdout. The bound message comes from the schema-resolution chain above; `-m` is required. The decode is the library's full one: `(pxf.default)` values are applied and an absent `(pxf.required)` field is an error, exactly as `validate` reports it — the bytes are what any port's full decode path produces for the same document.
 
 ```bash
 # With a user schema:
