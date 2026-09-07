@@ -286,8 +286,10 @@ FIXTURES=(
 )
 
 # Declared omissions: "<port> <mode>  <why, with the tracking issue>".
+# Empty since protowire-dart#20: every descriptor-driven and codegen port
+# runs both legs for real. A port that loses one adds a line here, with
+# the issue, rather than a SKIP.
 FIXTURE_NOT_IMPLEMENTED="$(cat <<'NI'
-dart  pb  the PXF decoder reads no (pxf.required)/(pxf.default) annotation (trendvidia/protowire-dart#14)
 NI
 )"
 

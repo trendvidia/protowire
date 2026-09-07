@@ -12,7 +12,8 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ### Changed
 
-- **Swift's pb leg of `cross_envelope_check.sh` is a real check now** (trendvidia/protowire-swift#10). protowire-swift#13 made the port's PXF decoder apply `(pxf.required)` / `(pxf.default)` from a descriptor set, so the `swift pb` declared omission is removed from `FIXTURE_NOT_IMPLEMENTED`; the gate reports `ok` for Swift on all three fixtures. Dart's pb leg stays declared (protowire-dart#14).
+- **Swift's pb leg of `cross_envelope_check.sh` is a real check now** (trendvidia/protowire-swift#10). protowire-swift#13 made the port's PXF decoder apply `(pxf.required)` / `(pxf.default)` from a descriptor set, so the `swift pb` declared omission is removed from `FIXTURE_NOT_IMPLEMENTED`; the gate reports `ok` for Swift on all three fixtures.
+- **Dart's pb leg, too** (trendvidia/protowire-dart#13): protowire-dart#20 applies both annotations from a descriptor set through `unmarshalFull`, and `dump_envelope --pb` decodes into a generated `settings.v1.Settings`. `FIXTURE_NOT_IMPLEMENTED` is empty — every port with a dumper runs both legs for real.
 
 ## [1.12.0] – 2026-09-07
 
