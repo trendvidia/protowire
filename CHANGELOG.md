@@ -10,7 +10,21 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+## [1.12.0] – 2026-09-07
+
+One release for everything since v1.11.0: the extension numbers move to
+the registered block (the descriptor-contract break [`STABILITY.md`](STABILITY.md)
+promise 3 now re-arms from), the schema-extension surface learns to carry
+arbitrary-precision annotation arguments, and the duration grammar admits
+the sign every port writes. `STABILITY.md` had drafted the second item as
+v1.13; its close-out of the first landed after it, so they ship together.
+
 ### Changed
+
+- **`AnnotationArg` and `LiteralValue` can carry arbitrary-precision arguments** (issue [#263](https://github.com/trendvidia/protowire/issues/263), PR [#267](https://github.com/trendvidia/protowire/pull/267)). Three new members in each — `big_int_value` (16), `decimal_value` (17), `big_float_value` (18) — so an annotation argument on a `pxf.BigInt`, `pxf.Decimal` or `pxf.BigFloat` element is representable at all; `@default(42)` on a `pxf.BigInt` now lowers to `big_int_value` whatever its magnitude. Additive; `proto/schema/v1/descriptor.proto` gains an import of `proto/pxf/bignum.proto`. Three comment-only amendments to the same file say how an `any` argument is typed and converted ([#264](https://github.com/trendvidia/protowire/pull/264)), that `bytes_value` is verbatim rather than base64-decoded ([#266](https://github.com/trendvidia/protowire/pull/266)) and what an `expression` argument is checked for ([#268](https://github.com/trendvidia/protowire/pull/268)). Details in [`STABILITY.md`](STABILITY.md) § v1.12.
+
+- **`protoc-gen-pxf-java-meta` imports the SBE template classes from `org.protowire.sbe`** ([#272](https://github.com/trendvidia/protowire/pull/272)), where protowire-java 1.1.0 keeps them (`protowire-sbe-runtime` hosts them without a package move; the descriptor-free codec is `org.protowire.sbe.runtime`).
+
 
 - **Extension numbers move to protowire's registered block, `1314`–`1363`** (issue [#244](https://github.com/trendvidia/protowire/issues/244), decision [#242](https://github.com/trendvidia/protowire/issues/242)). Every number the family owns leaves the unregistered `50000`–`59999` range this project had been squatting and moves into the block the global extension registry granted protowire in [protocolbuffers/protobuf#28919](https://github.com/protocolbuffers/protobuf/pull/28919). An unregistered range is a squat: nothing prevented another project from claiming the same integers, and a collision would have been silent and unrecoverable.
 
@@ -38,6 +52,8 @@ loosely; the project follows [SemVer](https://semver.org/) per
 - **`proto/pxf/annotations.proto` and `proto/sbe/annotations.proto` say where their numbers come from and which ranges are dead**, as `proto/schema/v1/descriptor.proto` already did. Comments only; the vendored-copy check ignores them, so no copy diverges.
 
 ### Fixed
+
+- **The `annotation-surface` job read protocollide's fixtures as vendored copies** ([#265](https://github.com/trendvidia/protowire/pull/265)) and had been red on `main` since the renumber; the fixtures are inputs the check runs, not copies it compares.
 
 - **`testdata/sbe-bench.binpb` and `testdata/adversarial/adversarial.binpb` still carried the retired SBE numbers** (`50100`, `50101`, `50200`, `50300`) after every reader had moved to `1319`–`1322` — the `.proto` sources import the renumbered `sbe/annotations.proto`, but nothing regenerates a compiled descriptor set when its import changes, and #248 renumbered readers, constants and text fixtures without recompiling these two. Every port's `bench-sbe` loads the shared `sbe-bench.binpb`, so `scripts/cross_sbe_bench.sh` had been failing for every descriptor-driven port since the renumber with `missing (sbe.schema_id) option` (measured: protowire-go v1.5.1 fails, v1.4.1 passes; C++, TypeScript and Java fail the same way through their dumpers). Both sets are recompiled with `protoc --include_imports` against `proto/`, and [`cmd/pxf/fixture_numbers_test.go`](cmd/pxf/fixture_numbers_test.go) now walks every `.binpb` under `testdata/` and fails on a retired number, a missing required number, or a descriptor set not classified in its table. The adversarial corpus's payload bytes are unchanged: the SBE header carries `schema_id`'s value (`9001`), not the extension number it was declared under.
 
