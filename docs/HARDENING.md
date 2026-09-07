@@ -26,7 +26,7 @@ Every decoder must enforce the following hard limits. All limits except `MaxVari
 |---|---|---|---|
 | `MaxNestingDepth` | **100** | PXF `{` / `[` nesting; PB submessage / group / map-entry nesting; Envelope nested fields | Bounds native call-stack growth. Matches the default in `google.golang.org/protobuf` and `prost`. |
 | `MaxMessageSize` | **64 MiB** | Total input length to a single decode call | Bounds peak memory. Matches Google.Protobuf's `CodedInputStream` default. |
-| `MaxNumericLiteralDigits` | **4096** | Digit count of any single PXF integer / decimal / float literal before parsing into `BigInt` / `BigFloat` / `Decimal` | Bounds quadratic big-number parsers. 4096 decimal digits is ~13.6 Kbits, far above any legitimate use. |
+| `MaxNumericLiteralDigits` | **4096** | Digit count of any single PXF integer / decimal / float literal before parsing into `BigInt` / `BigFloat` / `Decimal`; magnitude of `pxf.Decimal.scale` on the PB wire | Bounds quadratic big-number parsers, and the `10^scale` a decoder materialises for a Decimal. 4096 decimal digits is ~13.6 Kbits, far above any legitimate use. |
 | `MaxBytesLiteralLength` | **`MaxMessageSize`** | The decoded byte length of any single PXF `b"…"` or base64 literal | Already bounded by `MaxMessageSize` transitively, but stated explicitly so per-token streaming decoders can short-circuit. |
 | `MaxVarintBytes` | **10** | Every varint read | The maximum length of a 64-bit varint. Non-configurable. |
 | `MaxRepeatedCount` | **`MaxMessageSize`** | Number of elements in any repeated field, map, SBE group | Bounded transitively because each element costs at least one byte on the wire, but ports must reject *before* allocating writer state for `count` elements (see [§ SBE](#sbe-validation)). |
@@ -34,6 +34,8 @@ Every decoder must enforce the following hard limits. All limits except `MaxVari
 Limits compose multiplicatively: a decoder may not allocate `MaxMessageSize × MaxNestingDepth × MaxRepeatedCount` worst-case. Each individual limit is a hard cap.
 
 A decoder presented with input that requires exceeding any limit **must** return an error before allocating memory proportional to the violating quantity. It must not abort, panic, `fatalError`, `precondition`, throw an uncatchable exception, or unwind into a state from which the caller cannot recover.
+
+**Arbitrary-precision magnitudes.** `pxf.Decimal.scale` is a plain `int32` on the PB wire and *value = unscaled × 10^(−scale)*, so a decoder that materialises the value computes `10^scale` from five attacker-written bytes; the scale is a digit count, and `MaxNumericLiteralDigits` bounds its magnitude. Reject before materialising, on both signs. `pxf.BigFloat.exponent` is a binary exponent and has no limit: store it, and do no work proportional to it at decode — the cost of a huge exponent belongs to whoever renders the value in decimal, and where that rendering is a PXF literal (a carrier default, a marshaller) it is bounded by `MaxNumericLiteralDigits` like any other literal. A literal or big-number message whose value the port's arbitrary-precision type cannot represent is an error, never an infinity or a truncated value. The same applies to schema input: a `(pxf.default)` carried as a `Decimal` or `BigFloat` is rendered to a literal by the binder and is subject to the same bound.
 
 ## API contract
 
