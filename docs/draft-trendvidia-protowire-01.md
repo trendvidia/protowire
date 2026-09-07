@@ -1744,6 +1744,39 @@ carriers and MUST NOT be allocated by user schemas. Renumbering any of
 the above allocations is a wire break per the rules defined in
 `STABILITY.md` of {{PROTOWIRE-RFC-001}}'s source repository.
 
+### Choosing the Argument Member {#argument-member}
+
+An annotation argument lowers into one member of `AnnotationArg`'s
+`value` oneof (`string_value`, `int_value`, `double_value`,
+`bool_value`, `bytes_value`, `literal`, `expression`), and a list
+element into the matching member of `LiteralValue`. Which member is
+decided by type, never by the literal's magnitude or content:
+
+* For a parameter with a declared type, the declaration decides. The
+  argument MUST be converted to that type; a literal the type cannot hold
+  is a compile error.
+
+* For a parameter declared `any`, the argument is first typed by its own
+  literal (`1e19` is a float because it is spelled as one; `"x"` is a
+  string) and then converted to the type of the element the annotation is
+  attached to — the field, enum value, or method. For a list, each element
+  is converted to the annotated field's element type. A literal that
+  cannot be converted in kind or in range is a compile error. Where there
+  is no such type (a message-, service-, enum-, or file-level annotation),
+  the literal's own type stands.
+
+* A literal no member can represent is a compile error, not a different
+  member. An integer past `int_value`'s 64-bit range MUST NOT be carried as
+  `double_value` (the member would depend on the magnitude) and MUST NOT
+  be wrapped.
+
+* `bytes_value` carries the literal's own octets verbatim; a consumer MUST
+  NOT decode it again.
+
+The canonical conformance corpus pins one cell of this rule per field in
+`testdata/schema-extensions/10_literal_args.proto`, with the lowered
+member recorded in `11_literal_carrier_golden.textproto`.
+
 ### Backward Compatibility with Stock Protocol Buffers Tooling
 
 The carrier extensions are well-formed Protocol Buffers extensions per

@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Invalid fixture: numeric_member_overflow.
+// MUST NOT compile (RFC-001 §8.1, "Choosing the member"): a literal past the
+// annotated element's range is a compile error. Carrying 1e19 on an int64
+// as double_value would make the member depend on the magnitude, and
+// carrying it wrapped would hand a consumer a value the author did not
+// write.
+syntax = "proto3";
+package fixtures.invalid;
+
+annotation sample(value: any);
+
+message M {
+  int64 units = 1 @sample(1e19);
+}

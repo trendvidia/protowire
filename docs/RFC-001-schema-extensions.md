@@ -952,6 +952,32 @@ the `FileDescriptorSet` the consumer already holds. The source-level
 spelling of message and list literals is defined by the `literal`
 production in §5.1.
 
+**Choosing the member.** Which `value` member an `AnnotationArg`
+lowers into is decided by TYPE — never by the literal's magnitude and
+never by its content — and `LiteralValue` follows the same rule for each
+element of a `ListLiteral`. For a parameter with a declared type, the
+declaration decides: the argument MUST be converted to that type, and a
+literal the type cannot hold is a compile error. For a parameter declared
+`any`, the argument is first typed by its own literal — `1e19` is a float
+because it is spelled as one, `"x"` is a string — and is then converted
+to the type of the element the annotation is attached to: the field, enum
+value, or method it annotates; for a list, each element is converted to
+the annotated field's element type. A literal that cannot be converted to
+that type, in kind or in range, is a compile error. Where there is no
+such type — a message-, service-, enum- or file-level annotation — the
+literal's own type stands and no conversion is attempted. A literal no
+member can represent is a compile error, not a different member: an
+integer past `int_value`'s range has nowhere honest to go, since carrying
+it as `double_value` would make the member depend on the magnitude and
+carrying it wrapped would hand a consumer a value the author did not
+write. `bytes_value` carries the literal's own octets verbatim, and a
+consumer MUST NOT decode it again. Fixture `10_literal_args.proto`
+(`Numeric`, `SpelledFloat`, `SpelledInt`) pins one cell of this rule per
+field, `11_literal_carrier_golden.textproto` records the lowered member
+for each, and `invalid/numeric_member_*.proto` pin the two error cases
+(issue #262; the rule was first written into `descriptor.proto` in #264,
+after the reference compiler had answered it three different ways).
+
 **Expression lowering.** `Expression.source` is the §5.1 capture,
 verbatim. `Expression.calls` is populated by the compiler — extraction
 is REQUIRED, not best-effort: the captured fragment is scanned for

@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Invalid fixture: numeric_member_fraction_on_int.
+// MUST NOT compile (RFC-001 §8.1, "Choosing the member"): an argument to an
+// `any` parameter is converted to the annotated element's type, and a
+// literal the type cannot hold is a compile error, not a different member
+// and not a truncation. 1.5 cannot be an int64.
+syntax = "proto3";
+package fixtures.invalid;
+
+annotation sample(value: any);
+
+message M {
+  int64 units = 1 @sample(1.5);
+}

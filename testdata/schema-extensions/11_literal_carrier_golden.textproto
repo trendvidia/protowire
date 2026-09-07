@@ -18,6 +18,15 @@
 # argument positionally, so AnnotationArg.name is empty throughout
 # (§8.1: "empty for positional"); location.file is the fixture's import
 # path, line/column the use site's `@` token.
+#
+# The Numeric / SpelledFloat / SpelledInt entries pin §8.1 "Choosing the
+# member" (issue #262): the member is decided by the annotated element's
+# type — an integer-spelled 42 on a double is double_value 42, 1e19 on a
+# double is double_value, a list on repeated double converts each element
+# — and, with no element type (a message-level annotation), by the
+# literal's own spelling. cmd/pxf/literal_carrier_test.go compares this
+# file with what the reference lowers from 10_literal_args.proto, in
+# fixture order: each message's own entries, then its fields'.
 
 entries {
   name: "fixtures.literals.sample"
@@ -82,4 +91,49 @@ entries {
     }
   }
   location { file: "10_literal_args.proto" line: 73 column: 5 }
+}
+entries {
+  name: "fixtures.literals.sample"
+  args { double_value: 1.5 }
+  location { file: "10_literal_args.proto" line: 83 column: 20 }
+}
+entries {
+  name: "fixtures.literals.sample"
+  args { double_value: 42 }
+  location { file: "10_literal_args.proto" line: 87 column: 30 }
+}
+entries {
+  name: "fixtures.literals.sample"
+  args { double_value: 1e19 }
+  location { file: "10_literal_args.proto" line: 91 column: 18 }
+}
+entries {
+  name: "fixtures.literals.sample"
+  args { int_value: 42 }
+  location { file: "10_literal_args.proto" line: 94 column: 19 }
+}
+entries {
+  name: "fixtures.literals.sample"
+  args { int_value: -7 }
+  location { file: "10_literal_args.proto" line: 97 column: 20 }
+}
+entries {
+  name: "fixtures.literals.allowed"
+  args { literal { list { elements { double_value: 1 } elements { double_value: 2.5 } } } }
+  location { file: "10_literal_args.proto" line: 101 column: 30 }
+}
+entries {
+  name: "fixtures.literals.allowed"
+  args { literal { list { elements { int_value: 1 } elements { int_value: 2 } } } }
+  location { file: "10_literal_args.proto" line: 104 column: 29 }
+}
+entries {
+  name: "fixtures.literals.sample"
+  args { double_value: 1e19 }
+  location { file: "10_literal_args.proto" line: 109 column: 1 }
+}
+entries {
+  name: "fixtures.literals.sample"
+  args { int_value: 42 }
+  location { file: "10_literal_args.proto" line: 112 column: 1 }
 }
