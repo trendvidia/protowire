@@ -142,7 +142,12 @@ func encodeCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			msg, err := pxf.UnmarshalDescriptor(data, desc)
+			// The full path, not the plain one: (pxf.required) and
+			// (pxf.default) are decode-time semantics of a document
+			// against a schema, and encode IS that decode followed by a
+			// marshal. The plain path leaves both to the caller, so this
+			// command wrote documents without their defaults (#269).
+			msg, _, err := pxf.UnmarshalFullDescriptor(data, desc)
 			if err != nil {
 				return err
 			}
@@ -202,7 +207,10 @@ func validateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if _, err := pxf.UnmarshalDescriptor(data, desc); err != nil {
+			// The full path enforces (pxf.required), which is what the
+			// README's exit-code line promises; the plain path accepted a
+			// document with a required field absent (#269).
+			if _, _, err := pxf.UnmarshalFullDescriptor(data, desc); err != nil {
 				return err
 			}
 			fmt.Fprintln(os.Stderr, "valid")

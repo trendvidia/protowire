@@ -365,7 +365,7 @@ assignment-tail = "=" value
 map-tail        = ":" value
 block-tail      = "{" *entry "}"
 
-map-key         = identifier / string / integer
+map-key         = identifier / string / integer / bool
 
 value           = string
                 / number
@@ -656,9 +656,11 @@ An entry binds a key to a value. The key is a field name within the surrounding 
 
 * An identifier key matches a field by its proto field name (the lowerCamelCase or snake_case name in the schema, as written; both forms are accepted, and emitters SHOULD use whichever the schema declares).
 
-* A string key is permitted in two positions: inside a map\<K,V\> literal (the *map-entry* production of {{abnf-grammar}}), and as the quoted entry name of a *field-entry* — the latter is meaningful only inside a keyed repeated field's block ({{keyed-repeated-fields}}), where it supplies the element's key-field value rather than naming a field. A string key MUST be a UTF-8 string; for map\<K,V\> fields with non-string K, the string is parsed as a literal of K's type.
+* A string key is permitted in two positions: inside a map\<K,V\> literal (the *map-entry* production of {{abnf-grammar}}), and as the quoted entry name of a *field-entry* — the latter is meaningful only inside a keyed repeated field's block ({{keyed-repeated-fields}}), where it supplies the element's key-field value rather than naming a field. A string key MUST be a UTF-8 string; for map\<K,V\> fields with non-string K, the string is parsed as a literal of K's type. For a bool K that literal is exactly "true" or "false" ({{booleans-null-and-identifier-values}}): "1" and "0" are integer literals, and a string key carrying one does not match a bool K.
 
 * An integer key is permitted only inside a map\<K,V\> literal, and matches a map\<K,V\> field whose K is one of the protobuf scalar integer types (int32, int64, sint32, sint64, uint32, uint64, fixed32, fixed64, sfixed32, sfixed64, bool encoded as 0/1).
+
+* A bool key — the keyword true or false, bare — is permitted only inside a map\<K,V\> literal, and matches a map\<bool,V\> field. It is the spelling an author naturally writes; the integer spelling above remains valid for the same field. An identifier key inside a map\<K,V\> literal whose K is bool matches nothing: an identifier names a field, and a map has none, so "t", "TRUE" and "yes" are errors rather than values.
 
 The three entry tails are NOT interchangeable; the grammar in {{abnf-grammar}} splits them across two productions:
 

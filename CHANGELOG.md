@@ -10,6 +10,14 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+### Fixed
+
+- **`pxf validate` enforces `(pxf.required)` and `pxf encode` applies `(pxf.default)`** (issue [#269](https://github.com/trendvidia/protowire/issues/269)). Both commands called the library's plain decode, which leaves the post-decode pass to the caller, so `validate` printed `valid` for `testdata/annotations/missing-required.pxf` and `encode` wrote `ok.pxf` without its three defaults — while `dump_envelope --pb` on the same inputs, and every port's full decode path, did both. Both commands now use `UnmarshalFullDescriptor`: `validate` exits 1 naming the field, `encode` produces exactly `ok.expected.hex`, and `cmd/pxf/annotations_test.go` drives the CLI over those fixtures. Decided in-change: both annotations on both commands, because `encode` is the decode followed by a marshal.
+
+### Changed
+
+- **A bool map key may be spelled as the keyword: `map-key = identifier / string / integer / bool`** (issue [#284](https://github.com/trendvidia/protowire/issues/284)). Measured across four ports, `map<bool, V>` keys bound four different sets of spellings: Go took every `strconv.ParseBool` form, Java mapped every spelling that was not `"true"` to `false` silently, and Rust and TypeScript rejected the bare `0` / `1` the text admits while binding a bare `true` the grammar did not name. Draft `-01` § Entries and Keys now says exactly what binds on a bool K — the integer spelling `0` / `1`, the quoted literal `"true"` / `"false"`, and the bare keyword `true` / `false` — and that a quoted `"1"` / `"0"` (an integer literal inside a string) and any identifier (`t`, `TRUE`, `yes`) do not. The keyword is a text-grammar addition of the kind promise 1 permits at a minor: parsers accept strictly more input. Fixtures under [`testdata/map-keys/`](testdata/map-keys/) carry the three MUST-bind spellings and thirteen MUST-NOT-bind documents. Port issues: protowire-go#93 (fixed in protowire-go#108, keyword pending), protowire-java#76, protowire-rust#31, protowire-typescript#41.
+
 ### Changed
 
 - **Spec-file comments follow §5.4** (issue #288). `descriptor.proto`'s `Expression` / `source` and `ParamType.EXPRESSION` comments and `annotations.proto`'s `validate` doc said an expression was engine-language source, "CEL by default; project-configurable", and that a misspelled function is accepted; they now say what §5.4 says — one language for every engine, parsed by the compiler, a misspelled call a compile error — with the pre-2026-09-07 story kept as history. Comments only; no wire change. protocompile re-vendors both files and regenerates.
