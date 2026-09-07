@@ -10,6 +10,10 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+### Changed
+
+- **Swift's pb leg of `cross_envelope_check.sh` is a real check now** (trendvidia/protowire-swift#10). protowire-swift#13 made the port's PXF decoder apply `(pxf.required)` / `(pxf.default)` from a descriptor set, so the `swift pb` declared omission is removed from `FIXTURE_NOT_IMPLEMENTED`; the gate reports `ok` for Swift on all three fixtures. Dart's pb leg stays declared (protowire-dart#14).
+
 ## [1.12.0] – 2026-09-07
 
 One release for everything since v1.11.0: the extension numbers move to
