@@ -7,9 +7,9 @@ ports binding four different sets of spellings).
 All documents bind against [`bool-keys.proto`](bool-keys.proto) (package
 `mapkeys.v1`, message `Flags`, one field `map<bool, string> by_flag = 1`);
 each file's `@type` directive names the message. As with
-[`testdata/duration/`](../duration/), the harness wiring is per port; the
-reference run through `cmd/pxf` lands once the pinned protowire-go
-carries protowire-go#93's fix and the keyword production (#286).
+[`testdata/duration/`](../duration/), the harness wiring is per port;
+`cmd/pxf/map_keys_test.go` runs every document here through the reference
+implementation (#286, on protowire-go v1.6.0).
 
 ## MUST bind
 
@@ -45,6 +45,7 @@ protowire-java#76).
 ## Diagnostic
 
 The rejection SHOULD name the offending key and the field, e.g.
-`invalid bool map key t for field "by_flag": a bool key is 0, 1, "true"
-or "false"` (the reference wording). Ports assert the verdict; the
+`invalid bool map key t for field "by_flag": a bool key is true, false, 0,
+1, "true" or "false"` (the reference wording since protowire-go v1.6.0,
+which lists the keyword spelling too). Ports assert the verdict; the
 wording is guidance.
