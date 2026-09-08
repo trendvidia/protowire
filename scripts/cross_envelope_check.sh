@@ -120,8 +120,12 @@ build() {
   fi
 }
 
-echo "→ Go dumper"
-go_hex=$(cd "$GO_DIR" && go run ./scripts/dump_envelope)
+echo "→ Go dumper (build + run)"
+# Built, not `go run`: `go run` maps the program's exit status to its own
+# (exit 3 becomes "exit status 3" on stderr and exit 1), and the legs below
+# read exit 1 as a rejection and exit 3 as a declared omission.
+build "Go dumper" bash -c "cd '$GO_DIR' && go build -o '$TMP_DIR/dump_envelope_go' ./scripts/dump_envelope"
+go_hex=$("$TMP_DIR/dump_envelope_go")
 
 echo "→ C++ dumper (build + run)"
 if [[ ! -d "$CPP_DIR/build" ]]; then
@@ -306,7 +310,7 @@ is_declared_not_implemented() {
 dumper() {
   local port="$1"; shift
   case "$port" in
-    go)    (cd "$GO_DIR" && go run ./scripts/dump_envelope "$@") ;;
+    go)    "$TMP_DIR/dump_envelope_go" "$@" ;;
     cpp)   "$CPP_DIR/build/bin/dump_envelope" "$@" ;;
     ts)    (cd "$TS_DIR" && npx --yes tsx scripts/dump-envelope.ts "$@") ;;
     java)  "$JAVA_DIR/dump-envelope/build/install/dump-envelope/bin/dump-envelope" "$@" ;;
@@ -418,11 +422,11 @@ VECTORS=(
 )
 
 # Declared omissions: "<port> <vector>  <why, with the tracking issue>".
-# Every port is declared for zero-map-entry until its PR lands the mode
-# and, where needed, the layout (#295); the port's spec-repo PR removes
-# its line, and the leg then holds it to the golden.
+# Every port but the reference is declared for zero-map-entry until its PR
+# lands the mode and, where needed, the layout (#295); the port's spec-repo
+# PR removes its line, and the leg then holds it to the golden. Go's line
+# went with protowire-go#114 (#297).
 VECTOR_NOT_IMPLEMENTED="$(cat <<'NI'
-go            zero-map-entry  reference omits a zero key/value; trendvidia/protowire-go#105
 cpp           zero-map-entry  omits a zero key/value; trendvidia/protowire-cpp#24
 ts            zero-map-entry  omits a zero key; trendvidia/protowire-typescript#42
 java          zero-map-entry  omits a zero key/value, zigzag ints; trendvidia/protowire-java#78 after #77
