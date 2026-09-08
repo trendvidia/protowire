@@ -51,6 +51,12 @@ message BigIntHolder {
   int64 value = 1;
 }
 
+// ListHolder carries the repeated field the MaxRepeatedCount fixtures bound
+// (HARDENING.md § Mandatory limits, issue #299).
+message ListHolder {
+  repeated int32 values = 1;
+}
+
 // SbeWithGroup backs the SBE adversarial inputs. Wire layout per port's
 // SBE codec:
 //   header(8) + root_block(4) + group_header(4) + count*entry_block(4)

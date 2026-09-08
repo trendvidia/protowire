@@ -84,15 +84,17 @@ CORPUS_DIR="$REPO_DIR/testdata/adversarial"
 MANIFEST="$CORPUS_DIR/MANIFEST.jsonl"
 CORPUS_PROTO="$CORPUS_DIR/adversarial.proto"
 
-GO_DIR="${SIBLING_DIR}/protowire-go"
-CPP_DIR="${SIBLING_DIR}/protowire-cpp"
-TS_DIR="${SIBLING_DIR}/protowire-typescript"
-JAVA_DIR="${SIBLING_DIR}/protowire-java"
-RUST_DIR="${SIBLING_DIR}/protowire-rust"
-SWIFT_DIR="${SIBLING_DIR}/protowire-swift"
-DART_DIR="${SIBLING_DIR}/protowire-dart"
-CSHARP_DIR="${SIBLING_DIR}/protowire-csharp"
-PYTHON_DIR="${SIBLING_DIR}/protowire-python"
+# Each port defaults to the sibling checkout and can be pointed elsewhere
+# (a worktree on a PR branch, say), as cross_envelope_check.sh allows.
+GO_DIR="${GO_DIR:-${SIBLING_DIR}/protowire-go}"
+CPP_DIR="${CPP_DIR:-${SIBLING_DIR}/protowire-cpp}"
+TS_DIR="${TS_DIR:-${SIBLING_DIR}/protowire-typescript}"
+JAVA_DIR="${JAVA_DIR:-${SIBLING_DIR}/protowire-java}"
+RUST_DIR="${RUST_DIR:-${SIBLING_DIR}/protowire-rust}"
+SWIFT_DIR="${SWIFT_DIR:-${SIBLING_DIR}/protowire-swift}"
+DART_DIR="${DART_DIR:-${SIBLING_DIR}/protowire-dart}"
+CSHARP_DIR="${CSHARP_DIR:-${SIBLING_DIR}/protowire-csharp}"
+PYTHON_DIR="${PYTHON_DIR:-${SIBLING_DIR}/protowire-python}"
 
 WALLCLOCK_SECONDS="${WALLCLOCK_SECONDS:-5}"
 SKIP_PORTS="${SKIP_PORTS:-}"
@@ -222,8 +224,16 @@ build_port() {
 # Run one (port, corpus) pair under the wall-clock budget.
 # Echoes one of: PASS / FAIL_VERDICT / FAIL_CRASH / FAIL_TIMEOUT
 run_one() {
-  local port="$1" bin="$2" format="$3" schema="$4" input="$5" expect="$6"
+  local port="$1" bin="$2" format="$3" schema="$4" input="$5" expect="$6" limits="${7:-}"
   local args=(--format "$format" --schema "$schema" --proto "$CORPUS_PROTO" --input "$input")
+  # A manifest entry's "limits" lower HARDENING limits for this run, so a
+  # small fixture proves a 64 MiB cap (issue #299). Passed as --limit
+  # NAME=VALUE, one per limit; a port without the flag fails the row, which
+  # is the point, and is listed in the entry's "skip" until it has it.
+  local kv
+  for kv in ${limits//,/ }; do
+    args+=(--limit "$kv")
+  done
   local cmd
   case "$port" in
     ts)     cmd=(npx --yes tsx "$TS_DIR/scripts/check-decode.ts" "${args[@]}") ;;
@@ -275,12 +285,14 @@ print(d["format"])
 print(d["schema"])
 print(d["expect"])
 print(",".join(d.get("skip", [])))
+print(",".join(f"{k}={v}" for k, v in d.get("limits", {}).items()))
 ')
   file=$(  printf '%s\n' "$fields" | sed -n 1p)
   format=$(printf '%s\n' "$fields" | sed -n 2p)
   schema=$(printf '%s\n' "$fields" | sed -n 3p)
   expect=$(printf '%s\n' "$fields" | sed -n 4p)
   per_skip=$(printf '%s\n' "$fields" | sed -n 5p)
+  limits=$(  printf '%s\n' "$fields" | sed -n 6p)
 
   input="$CORPUS_DIR/$file"
   if [[ ! -f "$input" ]]; then
@@ -291,7 +303,7 @@ print(",".join(d.get("skip", [])))
   for port in "${!PORT_BINS[@]}"; do
     case ",$per_skip," in *",$port,"*) continue ;; esac
     total_pairs=$((total_pairs + 1))
-    verdict=$(run_one "$port" "${PORT_BINS[$port]}" "$format" "$schema" "$input" "$expect")
+    verdict=$(run_one "$port" "${PORT_BINS[$port]}" "$format" "$schema" "$input" "$expect" "$limits")
     if [[ "$verdict" != "PASS" ]]; then
       FAILS["$port|$file"]="$verdict"
       fail_count=$((fail_count + 1))
