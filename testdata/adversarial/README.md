@@ -38,6 +38,7 @@ Each line of `MANIFEST.jsonl` is one JSON object:
 - `expect` — `accept` or `reject`. The verdict every non-skipped port must produce.
 - `reason` — human-readable; cited in test output on failure.
 - `skip` (optional) — list of port names that legitimately can't reach this code path (e.g. a port whose decoder is a thin wrapper around another port's). Skips are tracked here, not in port repos, so the exemption is visible across the project.
+- `limits` (optional) — `{"NAME": VALUE, …}`: HARDENING limits lowered for this entry's run, passed to `check-decode` as `--limit NAME=VALUE`. This is how a 64 MiB cap is proved by a 2 KiB input; list the same file twice, rejected under the lowered limit and accepted under one above its size, so an over-eager port fails too (issue #299).
 
 ## Adding a corpus entry
 
@@ -49,7 +50,7 @@ Each line of `MANIFEST.jsonl` is one JSON object:
 
 ## Regenerating
 
-The PXF deep-nesting files and the PB binary fixture are produced by `generate.py`. Edit the script (not the outputs) when adjusting parameters; commit both. The script is idempotent — running it on a clean checkout produces byte-identical files.
+The PXF deep-nesting files, the PB binary fixtures and the size-limit fixtures (`oversize-2kib`, `giant-base64`, `many-elements-16`, `group-count-16`) are produced by `generate.py`. Edit the script (not the outputs) when adjusting parameters; commit both. The script is idempotent — running it on a clean checkout produces byte-identical files.
 
 ```sh
 python3 testdata/adversarial/generate.py

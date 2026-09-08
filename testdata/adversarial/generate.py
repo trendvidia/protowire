@@ -184,6 +184,47 @@ def main() -> None:
         + sbe_group_header(block_length=0, count=10000),
     )
 
+    # --- Size limits, proved with small fixtures under per-call overrides ---
+    # HARDENING.md § Mandatory limits makes MaxMessageSize (64 MiB),
+    # MaxBytesLiteralLength and MaxRepeatedCount mandatory, and configurable
+    # per call. A 64 MiB file has no place in git, so each of these is a
+    # small input the manifest pairs with a lowered limit ("limits") that
+    # check-decode applies via --limit NAME=VALUE (issue #299). The same file
+    # appears twice in the manifest: rejected under the lowered limit, and
+    # accepted under a limit above its size, so an over-eager port fails too.
+    write_text(
+        HERE / "pxf" / "oversize-2kib.pxf",
+        "@type adversarial.v1.StringHolder\n\nvalue = \"" + "a" * 2048 + "\"\n",
+    )
+    write_bytes(
+        HERE / "pb" / "oversize-2kib.binpb",
+        b"\x0a" + varint(2048) + b"a" * 2048,
+    )
+    # 256 base64 characters decode to 192 bytes.
+    write_text(
+        HERE / "pxf" / "giant-base64.pxf",
+        "@type adversarial.v1.BytesHolder\n\nvalue = b\"" + "QUJD" * 64 + "\"\n",
+    )
+    write_text(
+        HERE / "pxf" / "many-elements-16.pxf",
+        "@type adversarial.v1.ListHolder\n\nvalues = ["
+        + ", ".join(str(i) for i in range(16))
+        + "]\n",
+    )
+    # Packed repeated int32: tag 0x0a (field 1, LEN), 16 single-byte varints.
+    write_bytes(
+        HERE / "pb" / "many-elements-16.binpb",
+        b"\x0a" + varint(16) + bytes(range(16)),
+    )
+    # A well-formed group of 16 entries; the manifest bounds it at 8.
+    write_bytes(
+        HERE / "sbe" / "group-count-16.sbe",
+        sbe_header(SBE_TEMPLATE_BLOCK)
+        + struct.pack("<I", 7)
+        + sbe_group_header(block_length=SBE_GROUP_BLOCK, count=16)
+        + b"".join(struct.pack("<I", i) for i in range(16)),
+    )
+
     # --- FileDescriptorSet for ports that can't compile .proto at runtime ---
     # Rust (prost-reflect) and a few others load DescriptorPool from a
     # FileDescriptorSet binary. Generated via `protoc --include_imports
