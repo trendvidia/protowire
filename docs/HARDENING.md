@@ -33,6 +33,8 @@ Every decoder must enforce the following hard limits. All limits except `MaxVari
 
 Limits compose multiplicatively: a decoder may not allocate `MaxMessageSize × MaxNestingDepth × MaxRepeatedCount` worst-case. Each individual limit is a hard cap.
 
+A stream decoder may cap a frame below `MaxMessageSize` — the reference's length-prefixed `pb` and SOFH `sbe` stream decoders default to 16 MiB — and `MaxMessageSize` still applies to a frame's payload when the frame cap is raised. Neither cap substitutes for the other.
+
 A decoder presented with input that requires exceeding any limit **must** return an error before allocating memory proportional to the violating quantity. It must not abort, panic, `fatalError`, `precondition`, throw an uncatchable exception, or unwind into a state from which the caller cannot recover.
 
 **Arbitrary-precision magnitudes.** `pxf.Decimal.scale` is a plain `int32` on the PB wire and *value = unscaled × 10^(−scale)*, so a decoder that materialises the value computes `10^scale` from five attacker-written bytes; the scale is a digit count, and `MaxNumericLiteralDigits` bounds its magnitude. Reject before materialising, on both signs. `pxf.BigFloat.exponent` is a binary exponent and has no limit: store it, and do no work proportional to it at decode — the cost of a huge exponent belongs to whoever renders the value in decimal, and where that rendering is a PXF literal (a carrier default, a marshaller) it is bounded by `MaxNumericLiteralDigits` like any other literal. A literal or big-number message whose value the port's arbitrary-precision type cannot represent is an error, never an infinity or a truncated value. The same applies to schema input: a `(pxf.default)` carried as a `Decimal` or `BigFloat` is rendered to a literal by the binder and is subject to the same bound.
@@ -103,7 +105,7 @@ Languages where dynamic property assignment (`obj[key] = value`) walks a prototy
 
 ## Conformance corpus
 
-The repository ships an adversarial test corpus under `testdata/adversarial/`, seeded as part of [ROADMAP M8](../ROADMAP.md#m8--hardening-conformance-corpus-target-0750). Every port's `check-decode` binary must produce the manifest-declared verdict (accept / reject) for each corpus input within the wall-clock budget defined in [`scripts/cross_security_check.sh`](../scripts/cross_security_check.sh). The corpus covers, at minimum:
+The repository ships an adversarial test corpus under `testdata/adversarial/`, seeded as part of [ROADMAP M8](../ROADMAP.md#m8--hardening-conformance-corpus-target-0750). Every port's `check-decode` binary must produce the manifest-declared verdict (accept / reject) for each corpus input within the wall-clock budget defined in [`scripts/cross_security_check.sh`](../scripts/cross_security_check.sh). A manifest entry may carry `"limits": {"NAME": VALUE, …}`, lowering one or more of the limits above for that run; the harness passes each as `check-decode --limit NAME=VALUE`, and the binary applies it through the port's per-call configuration (every name in the table but `MaxVarintBytes`). That is how a 64 MiB cap is proved by a 2 KiB fixture rather than a 64 MiB file in git, and how the same fixture is listed twice — rejected under a lowered limit, accepted under one above its size — so an over-eager port fails as well. A port without the flag fails the row and is listed in the entry's `skip` until it has it (issue #299). The corpus covers, at minimum:
 
 | Category | What it tests |
 |---|---|
@@ -111,7 +113,9 @@ The repository ships an adversarial test corpus under `testdata/adversarial/`, s
 | `pxf/long-numeric.pxf` | Numeric literal digit cap |
 | `pxf/invalid-utf8-string.pxf` | UTF-8 enforcement on `string` |
 | `pxf/lone-surrogate.pxf` | Surrogate rejection in `\u` |
-| `pxf/giant-base64.pxf` | Bytes literal length cap |
+| `pxf/giant-base64.pxf` | Bytes literal length cap (`MaxBytesLiteralLength`, via `limits`) |
+| `pxf/oversize-2kib.pxf`, `pb/oversize-2kib.binpb` | Total input size cap (`MaxMessageSize`, via `limits`) |
+| `pxf/many-elements-16.pxf`, `pb/many-elements-16.binpb`, `sbe/group-count-16.sbe` | Element count cap (`MaxRepeatedCount`, via `limits`; the SBE one before any entry is allocated) |
 | `pb/deep-submessage.binpb` | PB submessage depth limit |
 | `pb/length-prefix-overflow.binpb` | Length-prefix integer overflow |
 | `pb/recursion-via-fresh-stream.binpb` | Depth counter survives nested-stream construction |
