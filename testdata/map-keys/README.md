@@ -5,8 +5,10 @@ key (draft `-01` § Entries and Keys; issue #284, which measured four
 ports binding four different sets of spellings).
 
 All documents bind against [`bool-keys.proto`](bool-keys.proto) (package
-`mapkeys.v1`, message `Flags`, one field `map<bool, string> by_flag = 1`);
-each file's `@type` directive names the message. As with
+`mapkeys.v1`): the bool-key documents against message `Flags`, one field
+`map<bool, string> by_flag = 1`, and the string-key spelling pair against
+message `Labels`, one field `map<string, string> by_label = 1`; each
+file's `@type` directive names its message. As with
 [`testdata/duration/`](../duration/), the harness wiring is per port;
 `cmd/pxf/map_keys_test.go` runs every document here through the reference
 implementation (#286, on protowire-go v1.6.0).
@@ -41,6 +43,24 @@ literal:
 A port that binds any of these to a value has taken a language
 convention where the grammar has two words (protowire-go#90, #93;
 protowire-java#76).
+
+## fmt canonicalization pair (string keys, issue #306)
+
+Now that a bare `true` / `false` is a bool key and a bare `123` an
+integer key, the quotes on a string key are meaningful: `"true": "v"` on
+a `map<string, V>` binds the string, `true: "v"` is an error. Draft
+`-01` § Entries and Keys ("Canonical spelling of string keys") therefore
+has a formatter write a string key unquoted iff it is identifier-safe and
+not a value keyword, and quoted otherwise — the rule § Encoding and
+Canonical Form already states for keyed entry names, and the rule every
+marshaller in the family already follows.
+
+| Pair | Asserts |
+|---|---|
+| [`fmt-keyword-keys`](fmt-keyword-keys.pxf) | `"true"`, `"false"`, `"null"` and `"123"` stay quoted; the quoted identifier-safe `"plain"` canonicalizes to bare; `bare` stays bare. The input also MUST bind, to six string keys. Comment-free apart from `@type`, as in [`testdata/keyed/`](../keyed/), so the byte-level expectation pins the spelling and not comment placement. |
+
+The formatter-side wiring is per port (the reference's is
+protowire-go#119); the marshaller side needs no change.
 
 ## Diagnostic
 
