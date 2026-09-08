@@ -111,7 +111,8 @@ The repository ships an adversarial test corpus under `testdata/adversarial/`, s
 | Category | What it tests |
 |---|---|
 | `pxf/deep-nesting-{N}.pxf` for N ∈ {100, 101, 200, 1000, 100000}, `pxf/deep-nesting-lists-{100,101}.pxf` | Nesting depth limit, both sides of the bound, blocks and lists alike |
-| `pxf/long-numeric.pxf` | Numeric literal digit cap |
+| `pxf/long-numeric.pxf`, `pxf/long-numeric-4096.pxf` | Numeric literal digit cap — on a `pxf.BigInt` field, so only the cap can reject the long one; the 4096-digit one sits at the cap and is accepted |
+| `pb/decimal-{huge-scale,huge-negative-scale,scale-4096}.binpb` | `Decimal.scale` magnitude cap (± `MaxNumericLiteralDigits`), refused before `10^scale` is materialised; 4096 accepted |
 | `pxf/invalid-utf8-string.pxf` | UTF-8 enforcement on `string` |
 | `pxf/lone-surrogate.pxf` | Surrogate rejection in `\u` |
 | `pxf/giant-base64.pxf` | Bytes literal length cap (`MaxBytesLiteralLength`, via `limits`) |

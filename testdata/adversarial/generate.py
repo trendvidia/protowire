@@ -59,6 +59,15 @@ def pxf_nested_lists(pairs: int, extra_block: int = 0) -> str:
     )
 
 
+def pb_decimal(scale: int) -> bytes:
+    """PB binary: BigNumHolder.decimal (field 2) carrying pxf.Decimal with
+    unscaled = 25 and the given scale, a plain int32 varint sign-extended to
+    64 bits when negative (bignum.proto declares int32, not sint32)."""
+    sub = b"\x0a" + varint(1) + b"\x19"
+    sub += b"\x10" + varint(scale & 0xFFFFFFFFFFFFFFFF)
+    return b"\x12" + varint(len(sub)) + sub
+
+
 def pb_nested_tree(depth: int) -> bytes:
     """PB binary: `depth` levels of length-delimited Tree.child=1 (wire-type 2).
 
@@ -148,10 +157,28 @@ def main() -> None:
     write_text(HERE / "pxf" / "deep-nesting-lists-101.pxf", pxf_nested_lists(50, extra_block=1))
 
     # --- PXF: numeric-literal digit cap ---
+    # On a pxf.BigInt field, so only MaxNumericLiteralDigits can reject the
+    # 5000-digit literal (on the int64 field it used to target, the out-of-
+    # range check rejected it for any port, cap or no cap — #279); the
+    # 4096-digit sibling sits at the cap and must be accepted.
     write_text(
         HERE / "pxf" / "long-numeric.pxf",
-        "@type adversarial.v1.BigIntHolder\n\nvalue = " + "1" * 5000 + "\n",
+        "@type adversarial.v1.BigNumHolder\n\nbig_int = " + "1" * 5000 + "\n",
     )
+    write_text(
+        HERE / "pxf" / "long-numeric-4096.pxf",
+        "@type adversarial.v1.BigNumHolder\n\nbig_int = " + "1" * 4096 + "\n",
+    )
+
+    # --- PB: Decimal.scale magnitude cap ---
+    # HARDENING § Mandatory limits bounds |Decimal.scale| by
+    # MaxNumericLiteralDigits, because a decoder materialises 10^|scale| from
+    # five attacker-written bytes. The scale is a plain int32 varint, sign-
+    # extended when negative; 2^31-1 and -2^31 must be refused before any
+    # exponentiation, and 4096 sits at the cap and must be accepted.
+    write_bytes(HERE / "pb" / "decimal-huge-scale.binpb", pb_decimal(2**31 - 1))
+    write_bytes(HERE / "pb" / "decimal-huge-negative-scale.binpb", pb_decimal(-(2**31)))
+    write_bytes(HERE / "pb" / "decimal-scale-4096.binpb", pb_decimal(4096))
 
     # --- PB: deep submessage ---
     write_bytes(HERE / "pb" / "deep-submessage-200.binpb", pb_nested_tree(200))
