@@ -29,6 +29,9 @@ option (sbe.version) = 0;
 message Tree {
   Tree child = 1;
   string label = 2;
+  // children alternates a list with a block, so a document can descend
+  // through both kinds of PXF nesting (issue #301).
+  repeated Tree children = 3;
 }
 
 // StringHolder isolates a single proto3 `string` field for the UTF-8

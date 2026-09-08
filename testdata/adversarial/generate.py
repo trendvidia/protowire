@@ -43,6 +43,22 @@ def pxf_nested_tree(depth: int) -> str:
     return "@type adversarial.v1.Tree\n\n" + "child{" * depth + "}" * depth + "\n"
 
 
+def pxf_nested_lists(pairs: int, extra_block: int = 0) -> str:
+    """PXF text: `pairs` levels of `children = [{ ... }]` — a list and a block per
+    pair, so 2*pairs descents of both kinds (HARDENING § Recursion counts
+    `{` and `[` alike) — plus `extra_block` levels of `child{` at the deepest
+    point to step over the boundary by one.
+    """
+    inner = "child{" * extra_block + "}" * extra_block
+    return (
+        "@type adversarial.v1.Tree\n\n"
+        + "children = [{" * pairs
+        + inner
+        + "}]" * pairs
+        + "\n"
+    )
+
+
 def pb_nested_tree(depth: int) -> bytes:
     """PB binary: `depth` levels of length-delimited Tree.child=1 (wire-type 2).
 
@@ -122,6 +138,14 @@ def main() -> None:
     write_text(HERE / "pxf" / "deep-nesting-200.pxf", pxf_nested_tree(200))
     write_text(HERE / "pxf" / "deep-nesting-1000.pxf", pxf_nested_tree(1000))
     write_text(HERE / "pxf" / "deep-nesting-100000.pxf", pxf_nested_tree(100_000))
+    # Both sides of the boundary (issue #301): HARDENING § Recursion counts
+    # descents from a root at depth 0, so exactly MaxNestingDepth (100) levels
+    # are accepted and 101 are not — through blocks alone, and through
+    # alternating lists and blocks, which count alike.
+    write_text(HERE / "pxf" / "deep-nesting-100.pxf", pxf_nested_tree(100))
+    write_text(HERE / "pxf" / "deep-nesting-101.pxf", pxf_nested_tree(101))
+    write_text(HERE / "pxf" / "deep-nesting-lists-100.pxf", pxf_nested_lists(50))
+    write_text(HERE / "pxf" / "deep-nesting-lists-101.pxf", pxf_nested_lists(50, extra_block=1))
 
     # --- PXF: numeric-literal digit cap ---
     write_text(
@@ -131,6 +155,8 @@ def main() -> None:
 
     # --- PB: deep submessage ---
     write_bytes(HERE / "pb" / "deep-submessage-200.binpb", pb_nested_tree(200))
+    write_bytes(HERE / "pb" / "deep-submessage-100.binpb", pb_nested_tree(100))
+    write_bytes(HERE / "pb" / "deep-submessage-101.binpb", pb_nested_tree(101))
 
     # --- PB: length-prefix truncation ---
     # Tag 0x0a (field 1, wire-type LEN) + varint length 100, then no payload.
