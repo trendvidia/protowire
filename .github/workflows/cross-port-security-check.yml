@@ -10,9 +10,10 @@
 # (trendvidia/protowire-cpp#26).
 #
 # The same four ports the envelope gate builds run here; Rust, Swift, Dart,
-# C# and Python are exercised by the same script locally. C++ is skipped
-# until protowire-cpp#26 lands its fixes, so that a known-red port does not
-# hide a new failure on another; remove it from SKIP_PORTS in that PR.
+# C# and Python are exercised by the same script locally. A port with known
+# failing rows is skipped until its fix lands, so that a known-red port does
+# not hide a new failure on another; the port's fix PR removes it from
+# SKIP_PORTS: C++ (protowire-cpp#26) and Java (protowire-java#80, #81).
 
 name: Cross-port security check
 
@@ -89,7 +90,8 @@ jobs:
             cmake ninja-build protobuf-compiler libprotobuf-dev libprotoc-dev
       - name: HARDENING conformance corpus
         env:
-          # protowire-cpp#26: nine pre-existing rows fail on the C++ port's
-          # main; skipped so the run says something about the other ports.
-          SKIP_PORTS: 'cpp'
+          # protowire-cpp#26 (nine pre-existing rows) and protowire-java#80,
+          # #81 (the depth boundary and the digit cap) fail on those ports'
+          # main; skipped so the run says something about the others.
+          SKIP_PORTS: 'cpp,java'
         run: ./protowire/scripts/cross_security_check.sh
