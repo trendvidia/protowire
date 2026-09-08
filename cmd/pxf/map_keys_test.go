@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -39,6 +40,12 @@ func TestMapKeys_ValidateAndEncodeBind(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// The fmt-* canonicalization pairs (#306) live in the same directory
+	// and are asserted once the reference formatter carries the fix
+	// (protowire-go#123); here only the MUST-bind documents are driven.
+	files = slices.DeleteFunc(files, func(p string) bool {
+		return strings.HasPrefix(filepath.Base(p), "fmt-")
+	})
 	if len(files) != 3 {
 		t.Fatalf("the README lists three MUST-bind documents, found %d", len(files))
 	}
