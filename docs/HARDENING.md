@@ -55,6 +55,7 @@ PXF parsers are recursive descent over `{ … }` blocks and `[ … ]` lists. PB 
 
 - track a depth counter, incremented on every recursive descent,
 - reject with an error when the counter exceeds `MaxNestingDepth`,
+  — the root message is depth 0; every `{` or `[` in PXF, and every submessage, group or map entry in PB, is one descent; a document whose deepest point is exactly `MaxNestingDepth` descents is accepted and one more is rejected, the same for a PXF text parser and a PXF decoder, and the corpus pins both sides (`pxf/deep-nesting-100` / `-101`, `pxf/deep-nesting-lists-100` / `-101`, `pb/deep-submessage-100` / `-101`; issue #301),
 - thread the counter through inner decoders constructed mid-stream — in particular, when a nested protobuf submessage is decoded by handing its bytes to a fresh `CodedInputStream` / `Reader`, the depth counter must be passed in, not reset to zero.
 
 Iterative skip routines (e.g. `skipBraced` in the C++ and Java fast decoders) already use an explicit counter; the live decode path must use the same model.
@@ -109,14 +110,14 @@ The repository ships an adversarial test corpus under `testdata/adversarial/`, s
 
 | Category | What it tests |
 |---|---|
-| `pxf/deep-nesting/{N}.pxf` for N ∈ {100, 200, 1000} | Nesting depth limit |
+| `pxf/deep-nesting-{N}.pxf` for N ∈ {100, 101, 200, 1000, 100000}, `pxf/deep-nesting-lists-{100,101}.pxf` | Nesting depth limit, both sides of the bound, blocks and lists alike |
 | `pxf/long-numeric.pxf` | Numeric literal digit cap |
 | `pxf/invalid-utf8-string.pxf` | UTF-8 enforcement on `string` |
 | `pxf/lone-surrogate.pxf` | Surrogate rejection in `\u` |
 | `pxf/giant-base64.pxf` | Bytes literal length cap (`MaxBytesLiteralLength`, via `limits`) |
 | `pxf/oversize-2kib.pxf`, `pb/oversize-2kib.binpb` | Total input size cap (`MaxMessageSize`, via `limits`) |
 | `pxf/many-elements-16.pxf`, `pb/many-elements-16.binpb`, `sbe/group-count-16.sbe` | Element count cap (`MaxRepeatedCount`, via `limits`; the SBE one before any entry is allocated) |
-| `pb/deep-submessage.binpb` | PB submessage depth limit |
+| `pb/deep-submessage-{100,101,200}.binpb` | PB submessage depth limit, both sides of the bound |
 | `pb/length-prefix-overflow.binpb` | Length-prefix integer overflow |
 | `pb/recursion-via-fresh-stream.binpb` | Depth counter survives nested-stream construction |
 | `sbe/group-count-overflow.sbe` | `count × block_length` overflow |
