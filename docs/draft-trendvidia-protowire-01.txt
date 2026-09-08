@@ -121,8 +121,8 @@ Internet-Draft                  protowire                      July 2026
      3.7.  Bytes Literals  . . . . . . . . . . . . . . . . . . . . .  24
      3.8.  Numeric Literals  . . . . . . . . . . . . . . . . . . . .  24
      3.9.  Booleans, Null, and Identifier Values . . . . . . . . . .  25
-     3.10. Timestamps and Durations  . . . . . . . . . . . . . . . .  25
-     3.11. Lists . . . . . . . . . . . . . . . . . . . . . . . . . .  26
+     3.10. Timestamps and Durations  . . . . . . . . . . . . . . . .  26
+     3.11. Lists . . . . . . . . . . . . . . . . . . . . . . . . . .  27
      3.12. Blocks and Map Tails  . . . . . . . . . . . . . . . . . .  27
      3.13. Keyed Repeated Fields . . . . . . . . . . . . . . . . . .  28
        3.13.1.  Schema Placement . . . . . . . . . . . . . . . . . .  28
@@ -132,15 +132,15 @@ Internet-Draft                  protowire                      July 2026
      3.14. Schema Constraints  . . . . . . . . . . . . . . . . . . .  31
      3.15. Scope of Bind-Time Checks . . . . . . . . . . . . . . . .  32
    4.  PB Binary Encoding  . . . . . . . . . . . . . . . . . . . . .  33
-   5.  SBE Binary Encoding . . . . . . . . . . . . . . . . . . . . .  33
+   5.  SBE Binary Encoding . . . . . . . . . . . . . . . . . . . . .  34
      5.1.  Header and Block Length . . . . . . . . . . . . . . . . .  34
      5.2.  Repeating Groups  . . . . . . . . . . . . . . . . . . . .  34
-     5.3.  Variable-Length Data  . . . . . . . . . . . . . . . . . .  34
+     5.3.  Variable-Length Data  . . . . . . . . . . . . . . . . . .  35
    6.  Annotation Extensions . . . . . . . . . . . . . . . . . . . .  35
      6.1.  PXF Annotations . . . . . . . . . . . . . . . . . . . . .  35
        6.1.1.  Default Placement . . . . . . . . . . . . . . . . . .  36
        6.1.2.  Oneof Members . . . . . . . . . . . . . . . . . . . .  37
-     6.2.  SBE Annotations . . . . . . . . . . . . . . . . . . . . .  38
+     6.2.  SBE Annotations . . . . . . . . . . . . . . . . . . . . .  39
      6.3.  Schema Extension Annotations  . . . . . . . . . . . . . .  39
    7.  Schema Language Extensions  . . . . . . . . . . . . . . . . .  40
      7.1.  Overview  . . . . . . . . . . . . . . . . . . . . . . . .  40
@@ -1156,6 +1156,33 @@ Internet-Draft                  protowire                      July 2026
       names a field, and a map has none, so "t", "TRUE" and "yes" are
       errors rather than values.
 
+   Canonical spelling of map keys.  Because the bare spellings true,
+   false and 123 are a bool key, a bool key and an integer key rather
+   than the strings they resemble, the quotes on a key are meaningful,
+   and a formatter MUST NOT add or drop them where doing so would change
+   what the key denotes.  A formatter writes a key bare when the
+   document wrote it bare.  A quoted key is written bare when it is
+   identifier-safe — it matches the _identifier_ production of
+   Section 3.3 and is not one of the value keywords "null", "true",
+   "false" — and quoted otherwise; in particular a quoted "true",
+   "false" or "null", and a quoted key matching the _integer_
+   production, stay quoted.  Formatters therefore retain whether a map
+   key was written quoted, as Section 3.13.4 already requires of keyed
+   entry names.  A marshaller, which has no document spelling to
+   preserve, writes a string key bare under the same identifier-safe
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 21]
+
+Internet-Draft                  protowire                      July 2026
+
+
+   test and quoted otherwise, and writes bool and integer keys bare; a
+   formatter and a marshaller thus agree on every key that both can
+   produce (issue #306).  The fixture pairs "fmt-keyword-keys" and "fmt-
+   bare-keys" under testdata/map-keys/ pin both directions.
+
    The three entry tails are NOT interchangeable; the grammar in
    Section 3.3 splits them across two productions:
 
@@ -1165,18 +1192,6 @@ Internet-Draft                  protowire                      July 2026
       a string key (a quoted entry name, valid only in keyed repeated
       fields per Section 3.13; the schema layer rejects it everywhere
       else).  Parsers MUST reject "=" with an integer key at parse time.
-
-
-
-
-
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 21]
-
-Internet-Draft                  protowire                      July 2026
-
 
    *  A map-tail ":" binds a value to a key of an enclosing _map_ type.
       It is the right-hand side of _map-entry_. _map-entry_ MUST NOT
@@ -1212,6 +1227,13 @@ Internet-Draft                  protowire                      July 2026
    Simple strings use double-quote delimiters and recognize escape
    sequences:
 
+
+
+Franco Jr.               Expires 24 January 2027               [Page 22]
+
+Internet-Draft                  protowire                      July 2026
+
+
    "Hello, world\n"
 
    Within a simple-string, U+000A (LF) MUST NOT appear unescaped: line
@@ -1219,20 +1241,6 @@ Internet-Draft                  protowire                      July 2026
    string containing a literal LF.
 
    The defined simple escapes are:
-
-
-
-
-
-
-
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 22]
-
-Internet-Draft                  protowire                      July 2026
-
 
    \"      U+0022 QUOTATION MARK
    \\      U+005C REVERSE SOLIDUS
@@ -1274,14 +1282,6 @@ Internet-Draft                  protowire                      July 2026
    and end at the next occurrence of three consecutive U+0022
    characters.  Inside a triple-quoted string:
 
-   *  Escape sequences are NOT interpreted; backslashes are literal.
-
-   *  If the byte immediately following the opening """ is U+000A, that
-      LF MUST be removed by the decoder.
-
-   *  After leading-LF stripping, if every non-empty line preceding the
-      closing """ shares a common leading-whitespace prefix, that prefix
-      MUST be removed from each such line.  The "leading whitespace" is
 
 
 
@@ -1290,6 +1290,14 @@ Franco Jr.               Expires 24 January 2027               [Page 23]
 Internet-Draft                  protowire                      July 2026
 
 
+   *  Escape sequences are NOT interpreted; backslashes are literal.
+
+   *  If the byte immediately following the opening """ is U+000A, that
+      LF MUST be removed by the decoder.
+
+   *  After leading-LF stripping, if every non-empty line preceding the
+      closing """ shares a common leading-whitespace prefix, that prefix
+      MUST be removed from each such line.  The "leading whitespace" is
       the longest sequence of U+0020 and U+0009 characters at the start
       of a line; lines that consist exclusively of whitespace do not
       constrain the prefix.
@@ -1327,15 +1335,7 @@ Internet-Draft                  protowire                      July 2026
 
    The target field type determines the numeric domain:
 
-   *  For fixed-width integer fields (int32, int64, uint32, uint64,
-      sint32, sint64, fixed32, fixed64, sfixed32, sfixed64), decoders
-      MUST reject literals whose value falls outside the field's
-      representable range.
 
-   *  For float and double fields, decoders MUST accept literals in the
-      IEEE 754 [IEEE754] representable range; values that round to +Inf
-      or -Inf are rejected unless explicitly written as the identifiers
-      "inf", "+inf", "-inf", "nan".
 
 
 
@@ -1345,6 +1345,16 @@ Franco Jr.               Expires 24 January 2027               [Page 24]
 
 Internet-Draft                  protowire                      July 2026
 
+
+   *  For fixed-width integer fields (int32, int64, uint32, uint64,
+      sint32, sint64, fixed32, fixed64, sfixed32, sfixed64), decoders
+      MUST reject literals whose value falls outside the field's
+      representable range.
+
+   *  For float and double fields, decoders MUST accept literals in the
+      IEEE 754 [IEEE754] representable range; values that round to +Inf
+      or -Inf are rejected unless explicitly written as the identifiers
+      "inf", "+inf", "-inf", "nan".
 
    *  For fields of the well-known types pxf.BigInt, pxf.Decimal, and
       pxf.BigFloat (Section 6.1), decoders MUST preserve the literal's
@@ -1381,6 +1391,17 @@ Internet-Draft                  protowire                      July 2026
    protobuf schema MUST NOT declare an enum value, message field, or
    oneof bearing any of those names; see Section 3.14.
 
+
+
+
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 25]
+
+Internet-Draft                  protowire                      July 2026
+
+
 3.10.  Timestamps and Durations
 
    A timestamp literal is an RFC 3339 [RFC3339] date-time production.
@@ -1394,14 +1415,6 @@ Internet-Draft                  protowire                      July 2026
    format.  A PXF timestamp literal and the ProtoJSON string form of the
    same Timestamp value are byte-identical except for the surrounding
    ProtoJSON quote characters.  PXF duration literals are NOT byte-
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 25]
-
-Internet-Draft                  protowire                      July 2026
-
-
    compatible with ProtoJSON's Duration form (a decimal-seconds string
    with an "s" suffix); PXF retains the multi-segment unit form
    ("1h30m500ms") because it is materially easier to read in human-
@@ -1435,6 +1448,16 @@ Internet-Draft                  protowire                      July 2026
    part of the grammar, no encoder writes it, and decoders that accept
    it are lenient rather than conformant.
 
+
+
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 26]
+
+Internet-Draft                  protowire                      July 2026
+
+
    The defined units are "ns", "us", "µs", "ms", "s", "m", and "h",
    denoting nanoseconds, microseconds (twice; "us" and "µs" are semantic
    equivalents), milliseconds, seconds, minutes, and hours respectively.
@@ -1446,17 +1469,6 @@ Internet-Draft                  protowire                      July 2026
    A list value is a sequence of values delimited by "[" and "]".
    Elements MAY be separated by "," or by intervening whitespace alone
    (including newlines), or by both:
-
-
-
-
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 26]
-
-Internet-Draft                  protowire                      July 2026
-
 
    [1, 2, 3]
    [1 2 3]
@@ -1494,18 +1506,6 @@ Internet-Draft                  protowire                      July 2026
      "Content-Type":  "application/pxf"
    }
 
-   Decoders MUST reject "=" inside a map block and ":" inside a message
-   block (Section 3.5).
-
-   Within either kind of block, entries MAY be separated by ";" or by
-   newlines or by both; this is consistent with the ABNF in Section 3.3,
-   where entries are juxtaposed without an explicit separator and the
-   optional ";" is consumed as whitespace.
-
-
-
-
-
 
 
 
@@ -1513,6 +1513,14 @@ Franco Jr.               Expires 24 January 2027               [Page 27]
 
 Internet-Draft                  protowire                      July 2026
 
+
+   Decoders MUST reject "=" inside a map block and ":" inside a message
+   block (Section 3.5).
+
+   Within either kind of block, entries MAY be separated by ";" or by
+   newlines or by both; this is consistent with the ABNF in Section 3.3,
+   where entries are juxtaposed without an explicit separator and the
+   optional ";" is consumed as whitespace.
 
 3.13.  Keyed Repeated Fields
 
@@ -1553,6 +1561,15 @@ Internet-Draft                  protowire                      July 2026
    A keyed repeated field MAY be written as a block whose entries are
    named blocks — one _field-entry_ per element, in list order:
 
+
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 28]
+
+Internet-Draft                  protowire                      July 2026
+
+
    children {
      greeting    { type = "Label" }
      counter_row { type = "HBox"  }
@@ -1562,13 +1579,6 @@ Internet-Draft                  protowire                      July 2026
    block is the element message body.  An entry name MAY be a string
    literal (the string alternative of _field-entry_ in Section 3.3),
    which keeps keys that are not identifier-shaped expressible:
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 28]
-
-Internet-Draft                  protowire                      July 2026
-
 
    regions {
      "us-east-1" { replicas = 3 }
@@ -1606,16 +1616,6 @@ Internet-Draft                  protowire                      July 2026
       The comparison is on the denoted string value: "foo" quoted and
       foo bare are the same key.
 
-   *  The empty string is not a valid key value.  A quoted entry name ""
-      is a decode error, and so is an explicit empty-string assignment
-      to the key field of any element of a keyed repeated field, in
-      either surface form.
-
-   *  An explicit assignment to the key field inside a named entry's
-      block that disagrees with the entry name is a decode error.  An
-      assignment that agrees is redundant but legal.
-
-
 
 
 
@@ -1625,6 +1625,15 @@ Franco Jr.               Expires 24 January 2027               [Page 29]
 
 Internet-Draft                  protowire                      July 2026
 
+
+   *  The empty string is not a valid key value.  A quoted entry name ""
+      is a decode error, and so is an explicit empty-string assignment
+      to the key field of any element of a keyed repeated field, in
+      either surface form.
+
+   *  An explicit assignment to the key field inside a named entry's
+      block that disagrees with the entry name is a decode error.  An
+      assignment that agrees is redundant but legal.
 
    A quoted entry name anywhere other than inside a keyed repeated
    field's block is grammatically well-formed but MUST be rejected by
@@ -1663,15 +1672,6 @@ Internet-Draft                  protowire                      July 2026
    Formatters with schema access MUST canonicalize an eligible
    anonymous-form binding to the keyed form under the same rules.
 
-   The pb and SBE binary encodings (Section 4, Section 5) are
-   unaffected: a keyed repeated field is a plain repeated field on the
-   wire, and the key travels as an ordinary field of the element
-   message.
-
-
-
-
-
 
 
 
@@ -1681,6 +1681,11 @@ Franco Jr.               Expires 24 January 2027               [Page 30]
 
 Internet-Draft                  protowire                      July 2026
 
+
+   The pb and SBE binary encodings (Section 4, Section 5) are
+   unaffected: a keyed repeated field is a plain repeated field on the
+   wire, and the key travels as an ordinary field of the element
+   message.
 
 3.14.  Schema Constraints
 
@@ -1723,11 +1728,6 @@ Internet-Draft                  protowire                      July 2026
       MUST NOT silently produce bindings in which a declared enum value,
       field, or oneof is unreachable from PXF surface syntax.
 
-   *  Implementations SHOULD report the offending element by its fully-
-      qualified protobuf name (e.g. "trades.v1.Side.null") and SHOULD
-      point at this section.
-
-
 
 
 
@@ -1737,6 +1737,10 @@ Franco Jr.               Expires 24 January 2027               [Page 31]
 
 Internet-Draft                  protowire                      July 2026
 
+
+   *  Implementations SHOULD report the offending element by its fully-
+      qualified protobuf name (e.g. "trades.v1.Side.null") and SHOULD
+      point at this section.
 
    *  Schemas that violate this constraint were never round-trippable
       through PXF.  Rejecting them on upgrade surfaces a pre-existing
@@ -1783,16 +1787,15 @@ Internet-Draft                  protowire                      July 2026
 
    Conformance:
 
-   *  A tool that binds a descriptor MUST NOT report a schema conformant
-      on the basis of having checked only the declaring file.
-
-
 
 
 Franco Jr.               Expires 24 January 2027               [Page 32]
 
 Internet-Draft                  protowire                      July 2026
 
+
+   *  A tool that binds a descriptor MUST NOT report a schema conformant
+      on the basis of having checked only the declaring file.
 
    *  The closure is the _import_ closure, not the set of files a
       document happens to exercise.  A file in the closure is checked
@@ -1834,12 +1837,9 @@ Internet-Draft                  protowire                      July 2026
    *  A protowire emitter SHOULD produce fields in field-number order;
       decoders MUST accept any field order, per the existing PB rules.
 
-5.  SBE Binary Encoding
 
-   The protowire SBE encoding is a subset of FIX Simple Binary Encoding
-   [FIX-SBE].  An SBE message is generated for any Protocol Buffers
-   message annotated with sbe.template_id; the schema-level identifiers
-   come from sbe.schema_id and sbe.version on the file (Section 6.2).
+
+
 
 
 
@@ -1849,6 +1849,13 @@ Franco Jr.               Expires 24 January 2027               [Page 33]
 
 Internet-Draft                  protowire                      July 2026
 
+
+5.  SBE Binary Encoding
+
+   The protowire SBE encoding is a subset of FIX Simple Binary Encoding
+   [FIX-SBE].  An SBE message is generated for any Protocol Buffers
+   message annotated with sbe.template_id; the schema-level identifiers
+   come from sbe.schema_id and sbe.version on the file (Section 6.2).
 
    Field-level annotations sbe.length and sbe.encoding control fixed-
    byte-length string and bytes fields and primitive-type narrowing
@@ -1888,13 +1895,6 @@ Internet-Draft                  protowire                      July 2026
        0 with a non-zero count MUST be rejected before any per-element
        allocation.
 
-5.3.  Variable-Length Data
-
-   Variable-length data ("varData") fields follow the fixed block, each
-   preceded by a length prefix per the schema's varDataEncoding.
-   Decoders MUST validate that pos + LENGTH_PREFIX_SIZE + length <=
-   data.length before reading the data.
-
 
 
 
@@ -1905,6 +1905,13 @@ Franco Jr.               Expires 24 January 2027               [Page 34]
 
 Internet-Draft                  protowire                      July 2026
 
+
+5.3.  Variable-Length Data
+
+   Variable-length data ("varData") fields follow the fixed block, each
+   preceded by a length prefix per the schema's varDataEncoding.
+   Decoders MUST validate that pos + LENGTH_PREFIX_SIZE + length <=
+   data.length before reading the data.
 
 6.  Annotation Extensions
 
@@ -1944,13 +1951,6 @@ Internet-Draft                  protowire                      July 2026
    The annotation affects only the PXF text surface — pb and SBE wire
    outputs are unchanged.
 
-   The schema-level constraints of Section 3.14 apply independently of
-   these annotations: a field, oneof, or enum value whose name collides
-   with a reserved PXF keyword is non-conforming regardless of whether
-   pxf.required or pxf.default is set.
-
-
-
 
 
 
@@ -1961,6 +1961,11 @@ Franco Jr.               Expires 24 January 2027               [Page 35]
 
 Internet-Draft                  protowire                      July 2026
 
+
+   The schema-level constraints of Section 3.14 apply independently of
+   these annotations: a field, oneof, or enum value whose name collides
+   with a reserved PXF keyword is non-conforming regardless of whether
+   pxf.required or pxf.default is set.
 
    The well-known types pxf.BigInt, pxf.Decimal, and pxf.BigFloat are
    defined in [PROTOWIRE-BIGNUM] (this is the proto/pxf/bignum.proto
@@ -2001,14 +2006,9 @@ Internet-Draft                  protowire                      July 2026
    field, and on the message types enumerated above.  On an enum field
    the literal is either a value name or the decimal value number.
 
-   The constraint is on placement, not on the literal.  A literal that
-   does not parse as the annotated field's type — "abc" on an int32
-   field — is a decode-time error raised where the default is applied,
-   not a bind-time rejection.  Placement is determinable from the
-   descriptor alone, whereas rejecting the literal at bind time would
-   oblige every binding tool to implement the value parser.
 
-   Conformance:
+
+
 
 
 
@@ -2017,6 +2017,15 @@ Franco Jr.               Expires 24 January 2027               [Page 36]
 
 Internet-Draft                  protowire                      July 2026
 
+
+   The constraint is on placement, not on the literal.  A literal that
+   does not parse as the annotated field's type — "abc" on an int32
+   field — is a decode-time error raised where the default is applied,
+   not a bind-time rejection.  Placement is determinable from the
+   descriptor alone, whereas rejecting the literal at bind time would
+   oblige every binding tool to implement the value parser.
+
+   Conformance:
 
    *  Tools that bind a protobuf descriptor for PXF use MUST reject a
       non-conforming placement at bind time, independently of what any
@@ -2058,6 +2067,13 @@ Internet-Draft                  protowire                      July 2026
 
    pxf.default MAY be set on a member of a oneof, subject to:
 
+
+
+Franco Jr.               Expires 24 January 2027               [Page 37]
+
+Internet-Draft                  protowire                      July 2026
+
+
    *  the default applies only when NO member of the oneof is present in
       the document.  When any member is present the default MUST NOT be
       applied — applying it would clear the member the document
@@ -2066,13 +2082,6 @@ Internet-Draft                  protowire                      July 2026
    *  a member bound to "null" counts as present for this test,
       consistent with the rule above that "null" suppresses a default;
       and
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 37]
-
-Internet-Draft                  protowire                      July 2026
-
 
    *  at most one member of any one oneof may carry pxf.default.  Tools
       that bind a descriptor for PXF use MUST reject a schema in which
@@ -2111,15 +2120,6 @@ Internet-Draft                  protowire                      July 2026
       Section 3.14, rejecting such a schema on upgrade surfaces a pre-
       existing latent bug rather than introducing one.
 
-6.2.  SBE Annotations
-
-   SBE annotations apply at three scopes:
-
-
-
-
-
-
 
 
 
@@ -2129,6 +2129,10 @@ Franco Jr.               Expires 24 January 2027               [Page 38]
 
 Internet-Draft                  protowire                      July 2026
 
+
+6.2.  SBE Annotations
+
+   SBE annotations apply at three scopes:
 
    extend google.protobuf.FileOptions {
      uint32 schema_id = 1319;
@@ -2170,10 +2174,6 @@ Internet-Draft                  protowire                      July 2026
    extension described in Section 7.11.
 
    The framework-defined annotations are:
-
-
-
-
 
 
 
