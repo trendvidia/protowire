@@ -12,6 +12,8 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ### Fixed
 
+- **The cross-port gate holds the reference to the `zero-map-entry` golden, and runs the Go dumper as a built binary** (issue [#297](https://github.com/trendvidia/protowire/issues/297)). protowire-go#114 landed the layout and the `--vector` mode, so Go's `VECTOR_NOT_IMPLEMENTED` line goes and its vector row is held to `22062a040a001200` from now on. The Go dumper was run through `go run`, which maps the program's exit status to its own — an exit 3 became `exit status 3` on stderr and exit 1 — so a Go `not-implemented:` would have read as a rejection in the fixture legs; it is built once per run now, as the C++, Java, C# and Swift dumpers already were.
+
 - **`pxf validate` enforces `(pxf.required)` and `pxf encode` applies `(pxf.default)`** (issue [#269](https://github.com/trendvidia/protowire/issues/269)). Both commands called the library's plain decode, which leaves the post-decode pass to the caller, so `validate` printed `valid` for `testdata/annotations/missing-required.pxf` and `encode` wrote `ok.pxf` without its three defaults — while `dump_envelope --pb` on the same inputs, and every port's full decode path, did both. Both commands now use `UnmarshalFullDescriptor`: `validate` exits 1 naming the field, `encode` produces exactly `ok.expected.hex`, and `cmd/pxf/annotations_test.go` drives the CLI over those fixtures. Decided in-change: both annotations on both commands, because `encode` is the decode followed by a marshal.
 
 ### Changed
