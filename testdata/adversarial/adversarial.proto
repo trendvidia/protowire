@@ -16,6 +16,7 @@ syntax = "proto3";
 package adversarial.v1;
 
 import "sbe/annotations.proto";
+import "pxf/bignum.proto";
 
 // Schema-level SBE options. Required so the SBE-targeted message(s) in
 // this file can be registered by per-port SBE codecs. The schema_id is a
@@ -52,6 +53,16 @@ message BytesHolder {
 // well-known BigInt; rejection happens before the parser dispatches.
 message BigIntHolder {
   int64 value = 1;
+}
+
+// BigNumHolder carries the arbitrary-precision types, so the digit cap can be
+// proved on a field that only the cap rejects (an int64 rejects a long
+// literal as out of range, whatever the cap), and Decimal.scale can be bound
+// on the PB wire (issue #279).
+message BigNumHolder {
+  pxf.BigInt big_int = 1;
+  pxf.Decimal decimal = 2;
+  pxf.BigFloat big_float = 3;
 }
 
 // ListHolder carries the repeated field the MaxRepeatedCount fixtures bound

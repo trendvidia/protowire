@@ -50,7 +50,7 @@ Each line of `MANIFEST.jsonl` is one JSON object:
 
 ## Regenerating
 
-The PXF deep-nesting files, the PB binary fixtures and the size-limit fixtures (`oversize-2kib`, `giant-base64`, `many-elements-16`, `group-count-16`) are produced by `generate.py`. Edit the script (not the outputs) when adjusting parameters; commit both. The script is idempotent — running it on a clean checkout produces byte-identical files.
+The PXF deep-nesting files, `long-numeric` and `long-numeric-4096`, the PB binary fixtures (including the `decimal-*` scale rows) and the size-limit fixtures (`oversize-2kib`, `giant-base64`, `many-elements-16`, `group-count-16`) are produced by `generate.py`. Edit the script (not the outputs) when adjusting parameters; commit both. The script is idempotent — running it on a clean checkout produces byte-identical files.
 
 ```sh
 python3 testdata/adversarial/generate.py
