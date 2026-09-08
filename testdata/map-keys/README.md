@@ -60,7 +60,7 @@ marshaller in the family already follows.
 | [`fmt-keyword-keys`](fmt-keyword-keys.pxf) | `"true"`, `"false"`, `"null"` and `"123"` stay quoted; the quoted identifier-safe `"plain"` canonicalizes to bare; `bare` stays bare. The input also MUST bind, to six string keys. Comment-free apart from `@type`, as in [`testdata/keyed/`](../keyed/), so the byte-level expectation pins the spelling and not comment placement. |
 
 The formatter-side wiring is per port (the reference's is
-protowire-go#119); the marshaller side needs no change.
+protowire-go#123); the marshaller side needs no change.
 
 ## Diagnostic
 
