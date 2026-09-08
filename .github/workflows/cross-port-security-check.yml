@@ -1,0 +1,95 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 TrendVidia, LLC.
+#
+# HARDENING conformance corpus across ports (docs/HARDENING.md § Conformance
+# corpus, issue #303). Like cross-port-envelope-check.yml this reads the
+# ports at their default branches, which is why it runs on a daily schedule
+# as well as on the paths that change the corpus: a regression pushed to a
+# port is otherwise invisible here until someone runs the harness by hand,
+# which is how nine failing rows on the C++ port went unnoticed
+# (trendvidia/protowire-cpp#26).
+#
+# The same four ports the envelope gate builds run here; Rust, Swift, Dart,
+# C# and Python are exercised by the same script locally. C++ is skipped
+# until protowire-cpp#26 lands its fixes, so that a known-red port does not
+# hide a new failure on another; remove it from SKIP_PORTS in that PR.
+
+name: Cross-port security check
+
+on:
+  pull_request:
+    paths:
+      - 'testdata/adversarial/**'
+      - 'scripts/cross_security_check.sh'
+      - '.github/workflows/cross-port-security-check.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'testdata/adversarial/**'
+      - 'scripts/cross_security_check.sh'
+      - '.github/workflows/cross-port-security-check.yml'
+  schedule:
+    - cron: '30 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cross-port-security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  hardening-corpus:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout protowire
+        uses: actions/checkout@v7
+        with:
+          path: protowire
+      - name: Checkout protowire-go
+        uses: actions/checkout@v7
+        with:
+          repository: trendvidia/protowire-go
+          path: protowire-go
+      - name: Checkout protowire-cpp
+        uses: actions/checkout@v7
+        with:
+          repository: trendvidia/protowire-cpp
+          path: protowire-cpp
+      - name: Checkout protowire-typescript
+        uses: actions/checkout@v7
+        with:
+          repository: trendvidia/protowire-typescript
+          path: protowire-typescript
+      - name: Install protowire-typescript dependencies
+        run: npm ci
+        working-directory: protowire-typescript
+      - name: Checkout protowire-java
+        uses: actions/checkout@v7
+        with:
+          repository: trendvidia/protowire-java
+          path: protowire-java
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: protowire-go/go.mod
+          cache-dependency-path: protowire-go/go.sum
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install C++ build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake ninja-build protobuf-compiler libprotobuf-dev libprotoc-dev
+      - name: HARDENING conformance corpus
+        env:
+          # protowire-cpp#26: nine pre-existing rows fail on the C++ port's
+          # main; skipped so the run says something about the other ports.
+          SKIP_PORTS: 'cpp'
+        run: ./protowire/scripts/cross_security_check.sh
