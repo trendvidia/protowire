@@ -44,20 +44,29 @@ A port that binds any of these to a value has taken a language
 convention where the grammar has two words (protowire-go#90, #93;
 protowire-java#76).
 
-## fmt canonicalization pair (string keys, issue #306)
+## fmt canonicalization pairs (key spelling, issue #306)
 
 Now that a bare `true` / `false` is a bool key and a bare `123` an
-integer key, the quotes on a string key are meaningful: `"true": "v"` on
-a `map<string, V>` binds the string, `true: "v"` is an error. Draft
-`-01` § Entries and Keys ("Canonical spelling of string keys") therefore
-has a formatter write a string key unquoted iff it is identifier-safe and
-not a value keyword, and quoted otherwise — the rule § Encoding and
-Canonical Form already states for keyed entry names, and the rule every
-marshaller in the family already follows.
+integer key, the quotes on a key are meaningful: `"true": "v"` on a
+`map<string, V>` binds the string, `true: "v"` is an error. Draft `-01`
+§ Entries and Keys ("Canonical spelling of map keys") therefore has a
+formatter keep the document's spelling wherever changing it would change
+what the key denotes: a bare key stays bare; a quoted key is unquoted
+only when it is identifier-safe and not a value keyword. That needs the
+parser to retain whether a map key was quoted, as it already does for
+keyed entry names. Decided as option 2 on #306.
 
 | Pair | Asserts |
 |---|---|
-| [`fmt-keyword-keys`](fmt-keyword-keys.pxf) | `"true"`, `"false"`, `"null"` and `"123"` stay quoted; the quoted identifier-safe `"plain"` canonicalizes to bare; `bare` stays bare. The input also MUST bind, to six string keys. Comment-free apart from `@type`, as in [`testdata/keyed/`](../keyed/), so the byte-level expectation pins the spelling and not comment placement. |
+| [`fmt-keyword-keys`](fmt-keyword-keys.pxf) | On a string-keyed map: `"true"`, `"false"`, `"null"` and `"123"` stay quoted; the quoted identifier-safe `"plain"` canonicalizes to bare; `bare` stays bare. The input also MUST bind, to six string keys. |
+| [`fmt-bare-keys`](fmt-bare-keys.pxf) | On a bool-keyed map: a bare `true` and a bare `0` stay bare — a formatter does not add quotes the author did not write. A fixed point; the input also MUST bind, to the keys true and false. |
+
+Both pairs are comment-free apart from `@type`, as in
+[`testdata/keyed/`](../keyed/), so the byte-level expectation pins the
+spelling and not comment placement. Note the second pair moves one
+output every formatter in the family currently writes: a bare integer
+key was quoted on the way through `fmt` (`404:` → `"404":`); it stays
+bare now, as the marshaller has always written it.
 
 The formatter-side wiring is per port (the reference's is
 protowire-go#123); the marshaller side needs no change.
