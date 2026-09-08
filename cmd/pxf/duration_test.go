@@ -86,19 +86,23 @@ func TestDuration_Rejects(t *testing.T) {
 	// unit into more letters, are errors — the latter an invalid duration,
 	// never an identifier (draft -01 §3.3, corrected by #234).
 	//
-	// Rejection is what the draft requires and what is asserted. The
-	// reference lexer produces ILLEGAL "invalid duration: 5seconds", but
-	// the parser reports it as `expected '{' for message field "d"` —
-	// the diagnostic, not the verdict, is tracked at protowire-go#77.
-	for _, file := range []string{
-		"err-sign-per-segment.pxf",
-		"err-digit-led-identifier.pxf",
-		"err-unit-then-alpha.pxf",
+	// The rejection names the malformed duration — the corrected §3.3 rule
+	// from #234 — which is what these fixtures were written to assert. The
+	// reference reported `expected '{' for message field "d"` until
+	// protowire-go#77 (PR #84) made the lexer's diagnostic reach the
+	// caller; protowire-go v1.6.0 carries it (#261).
+	for file, want := range map[string]string{
+		"err-sign-per-segment.pxf":     `got duration ("-30m")`,
+		"err-digit-led-identifier.pxf": "invalid duration: 5seconds",
+		"err-unit-then-alpha.pxf":      "invalid duration: 5sx",
 	} {
 		t.Run(file, func(t *testing.T) {
 			_, err := runCLI(t, "validate", "-p", durationProto(), "-m", "duration.v1.Holder", durationFixture(file))
 			if err == nil {
 				t.Fatalf("validate %s: expected an error", file)
+			}
+			if !strings.Contains(err.Error(), want) {
+				t.Fatalf("validate %s: the rejection must name the malformed duration:\n want …%s…\n got  %v", file, want, err)
 			}
 		})
 	}
