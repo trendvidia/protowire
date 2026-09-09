@@ -78,7 +78,6 @@ STRICT="${STRICT:-0}"
 # entry is deleted in the same PR that adds the support.
 NOT_IMPLEMENTED="$(cat <<'NI'
 chameleon            google.protobuf.FieldOptions|string|key|1316  keyed repeated fields (#116) not implemented
-protowire-cpp        google.protobuf.FieldOptions|string|key|1316  keyed repeated fields (#116) not implemented
 protowire-csharp     google.protobuf.FieldOptions|string|key|1316  keyed repeated fields (#116) not implemented
 protowire-dart       google.protobuf.FieldOptions|string|key|1316  keyed repeated fields (#116) not implemented
 protowire-java       google.protobuf.FieldOptions|string|key|1316  keyed repeated fields (#116) not implemented
