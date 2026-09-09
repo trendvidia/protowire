@@ -425,9 +425,9 @@ VECTORS=(
 # Every port but the reference is declared for zero-map-entry until its PR
 # lands the mode and, where needed, the layout (#295); the port's spec-repo
 # PR removes its line, and the leg then holds it to the golden. Go's line
-# went with protowire-go#114 (#297).
+# went with protowire-go#114 (#297); C++'s with protowire-cpp#30
+# (protowire-cpp#24).
 VECTOR_NOT_IMPLEMENTED="$(cat <<'NI'
-cpp           zero-map-entry  omits a zero key/value; trendvidia/protowire-cpp#24
 ts            zero-map-entry  omits a zero key; trendvidia/protowire-typescript#42
 java          zero-map-entry  omits a zero key/value, zigzag ints; trendvidia/protowire-java#78 after #77
 swift         zero-map-entry  mode not built; trendvidia/protowire-swift#15
