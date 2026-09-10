@@ -18,9 +18,10 @@
 //     {fqn: "fixtures.expressions.in_region", arity: 2}. Arity is
 //     top-level commas + 1 — the comma inside the list literal does
 //     not count.
-//   - `matches(...)`, `size(...)`, `now()`, and `this.size()` do not
-//     resolve to any declaration: presumed engine builtins, absent
-//     from Expression.calls, no compile diagnostic.
+//   - `matches(...)`, `size(...)`, `now()`, and `this.size()` are §5.4
+//     builtins: absent from Expression.calls, no diagnostic. Since §5.4
+//     (issue #282) a name that is neither a builtin nor a visible
+//     `function` is a compile error (invalid/unresolved_expression_call).
 //   - `code = "..."` after an expression arg is a named argument: the
 //     leading `Ident "="` (single `=`) is peeled before capture. The
 //     `==` in strict_tier's rule stays inside the capture.
@@ -54,7 +55,10 @@ message Account {
   string note = 4
     @validate(this.size() < 280);
 
-  // Nested delimiters of all three kinds in one capture.
+  // Nested delimiters of all three kinds in one capture: parentheses
+  // around a list around string literals that themselves hold `(`, `[`
+  // and `{`, opaque to the scan — and a §5.4 expression throughout.
   string tags_csv = 5
-    @validate(size(split(this, ",")[0]) > 0, message = "first tag empty");
+    @validate(!(this in ["(", "[", "{"]) && size(this) > 0,
+              message = "tags_csv is empty or a bare delimiter");
 }

@@ -257,6 +257,8 @@ package t;
 
 import "protowire/schema/v1/annotations.proto";
 
+function populated(value: Shelf);
+
 message Shelf {
   string id = 1;
   string display_name = 2;
