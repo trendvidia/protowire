@@ -14,9 +14,8 @@
 //     Expression.calls.
 //   - `type ErrorPayload`: `this` binds to the STRUCTURED Any (rule 3),
 //     never auto-unpacked. §5.4 has no field selection, so the type_url
-//     check is a declared `function` taking the Any (`has_type_url`);
-//     rule 3's "this.type_url" wording is pending amendment (issue #324,
-//     decision A).
+//     check is a declared `function` taking the Any (`has_type_url`),
+//     which rule 3 names as the canonical pattern since issue #324.
 //   - Lowering is unaffected by the binding rules: each alias records its
 //     literal base FQN in `FileTypeDecls` (`google.protobuf.Timestamp`,
 //     `google.protobuf.Duration`, `google.protobuf.Any`).

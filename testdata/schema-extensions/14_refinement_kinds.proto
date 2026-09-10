@@ -51,10 +51,10 @@ message Address {
   string zip = 2;
 }
 
-// Enum refinement. §5.4 has no enum-value reference (a qualified
-// identifier is not a term), so the values are named by number: SHIPPED
-// = 2, CANCELLED = 3. Whether the grammar gains `OrderStatus.SHIPPED` is
-// open on issue #324 (decision B); this spelling is the pinned interim.
+// Enum refinement. §6.2 rule 6: `this` binds to the value's number and
+// the rule compares integers — SHIPPED = 2, CANCELLED = 3. §5.4 has no
+// enum-value reference (`OrderStatus.SHIPPED` is not a term); a
+// name-resolved spelling is a later-minor candidate (issue #324).
 type SettledStatus = OrderStatus
   @validate(this == 2 || this == 3,
             code = "refine.status.unsettled",

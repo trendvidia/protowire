@@ -93,19 +93,19 @@ Table of Contents
 
    1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   4
      1.1.  Scope . . . . . . . . . . . . . . . . . . . . . . . . . .   6
-     1.2.  Terminology . . . . . . . . . . . . . . . . . . . . . . .   6
+     1.2.  Terminology . . . . . . . . . . . . . . . . . . . . . . .   7
    2.  The protowire Family  . . . . . . . . . . . . . . . . . . . .   8
      2.1.  Common Schema Layer . . . . . . . . . . . . . . . . . . .   8
      2.2.  Wire Equivalence  . . . . . . . . . . . . . . . . . . . .   8
-   3.  PXF Text Format . . . . . . . . . . . . . . . . . . . . . . .   8
-     3.1.  Character Set . . . . . . . . . . . . . . . . . . . . . .   8
+   3.  PXF Text Format . . . . . . . . . . . . . . . . . . . . . . .   9
+     3.1.  Character Set . . . . . . . . . . . . . . . . . . . . . .   9
      3.2.  Whitespace and Comments . . . . . . . . . . . . . . . . .   9
-     3.3.  ABNF Grammar  . . . . . . . . . . . . . . . . . . . . . .   9
+     3.3.  ABNF Grammar  . . . . . . . . . . . . . . . . . . . . . .  10
      3.4.  Documents and Directives  . . . . . . . . . . . . . . . .  13
        3.4.1.  The "@type" Directive . . . . . . . . . . . . . . . .  13
-       3.4.2.  Named Directives  . . . . . . . . . . . . . . . . . .  13
-       3.4.3.  The "@entry" Directive  . . . . . . . . . . . . . . .  14
-       3.4.4.  The "@dataset" Directive  . . . . . . . . . . . . . .  15
+       3.4.2.  Named Directives  . . . . . . . . . . . . . . . . . .  14
+       3.4.3.  The "@entry" Directive  . . . . . . . . . . . . . . .  15
+       3.4.4.  The "@dataset" Directive  . . . . . . . . . . . . . .  16
 
 
 
@@ -117,51 +117,51 @@ Internet-Draft                  protowire                      July 2026
        3.4.5.  The "@proto" Directive  . . . . . . . . . . . . . . .  18
        3.4.6.  Reserved Directive Names  . . . . . . . . . . . . . .  20
      3.5.  Entries and Keys  . . . . . . . . . . . . . . . . . . . .  21
-     3.6.  String Literals . . . . . . . . . . . . . . . . . . . . .  22
+     3.6.  String Literals . . . . . . . . . . . . . . . . . . . . .  23
      3.7.  Bytes Literals  . . . . . . . . . . . . . . . . . . . . .  24
-     3.8.  Numeric Literals  . . . . . . . . . . . . . . . . . . . .  24
+     3.8.  Numeric Literals  . . . . . . . . . . . . . . . . . . . .  25
      3.9.  Booleans, Null, and Identifier Values . . . . . . . . . .  25
      3.10. Timestamps and Durations  . . . . . . . . . . . . . . . .  26
      3.11. Lists . . . . . . . . . . . . . . . . . . . . . . . . . .  27
-     3.12. Blocks and Map Tails  . . . . . . . . . . . . . . . . . .  27
+     3.12. Blocks and Map Tails  . . . . . . . . . . . . . . . . . .  28
      3.13. Keyed Repeated Fields . . . . . . . . . . . . . . . . . .  28
-       3.13.1.  Schema Placement . . . . . . . . . . . . . . . . . .  28
-       3.13.2.  Keyed Surface Form . . . . . . . . . . . . . . . . .  28
-       3.13.3.  Decoding . . . . . . . . . . . . . . . . . . . . . .  29
-       3.13.4.  Encoding and Canonical Form  . . . . . . . . . . . .  30
+       3.13.1.  Schema Placement . . . . . . . . . . . . . . . . . .  29
+       3.13.2.  Keyed Surface Form . . . . . . . . . . . . . . . . .  29
+       3.13.3.  Decoding . . . . . . . . . . . . . . . . . . . . . .  30
+       3.13.4.  Encoding and Canonical Form  . . . . . . . . . . . .  31
      3.14. Schema Constraints  . . . . . . . . . . . . . . . . . . .  31
      3.15. Scope of Bind-Time Checks . . . . . . . . . . . . . . . .  32
-   4.  PB Binary Encoding  . . . . . . . . . . . . . . . . . . . . .  33
+   4.  PB Binary Encoding  . . . . . . . . . . . . . . . . . . . . .  34
    5.  SBE Binary Encoding . . . . . . . . . . . . . . . . . . . . .  34
      5.1.  Header and Block Length . . . . . . . . . . . . . . . . .  34
-     5.2.  Repeating Groups  . . . . . . . . . . . . . . . . . . . .  34
+     5.2.  Repeating Groups  . . . . . . . . . . . . . . . . . . . .  35
      5.3.  Variable-Length Data  . . . . . . . . . . . . . . . . . .  35
    6.  Annotation Extensions . . . . . . . . . . . . . . . . . . . .  35
      6.1.  PXF Annotations . . . . . . . . . . . . . . . . . . . . .  35
        6.1.1.  Default Placement . . . . . . . . . . . . . . . . . .  36
-       6.1.2.  Oneof Members . . . . . . . . . . . . . . . . . . . .  37
+       6.1.2.  Oneof Members . . . . . . . . . . . . . . . . . . . .  38
      6.2.  SBE Annotations . . . . . . . . . . . . . . . . . . . . .  39
-     6.3.  Schema Extension Annotations  . . . . . . . . . . . . . .  39
-   7.  Schema Language Extensions  . . . . . . . . . . . . . . . . .  40
-     7.1.  Overview  . . . . . . . . . . . . . . . . . . . . . . . .  40
-     7.2.  Reserved Keywords . . . . . . . . . . . . . . . . . . . .  41
-     7.3.  Type Declarations . . . . . . . . . . . . . . . . . . . .  42
-       7.3.1.  Composition Semantics . . . . . . . . . . . . . . . .  42
-       7.3.2.  Use at Field Sites  . . . . . . . . . . . . . . . . .  43
-     7.4.  Function Declarations . . . . . . . . . . . . . . . . . .  43
-       7.4.1.  Return Contract . . . . . . . . . . . . . . . . . . .  43
-       7.4.2.  Parameter Types . . . . . . . . . . . . . . . . . . .  44
-       7.4.3.  Function References at Validation Sites . . . . . . .  44
-     7.5.  Annotation Declarations . . . . . . . . . . . . . . . . .  44
-     7.6.  Annotation Use Sites  . . . . . . . . . . . . . . . . . .  45
-       7.6.1.  Literal Values  . . . . . . . . . . . . . . . . . . .  45
-       7.6.2.  Engine Expressions  . . . . . . . . . . . . . . . . .  46
-       7.6.3.  Placement . . . . . . . . . . . . . . . . . . . . . .  46
-       7.6.4.  Coexistence with Bracket Options  . . . . . . . . . .  47
-     7.7.  Presence Semantics  . . . . . . . . . . . . . . . . . . .  47
-       7.7.1.  Well-Known Type Binding . . . . . . . . . . . . . . .  48
-       7.7.2.  Evaluation Order and Result Aggregation . . . . . . .  49
-       7.7.3.  Recursion Depth . . . . . . . . . . . . . . . . . . .  49
+     6.3.  Schema Extension Annotations  . . . . . . . . . . . . . .  40
+   7.  Schema Language Extensions  . . . . . . . . . . . . . . . . .  41
+     7.1.  Overview  . . . . . . . . . . . . . . . . . . . . . . . .  41
+     7.2.  Reserved Keywords . . . . . . . . . . . . . . . . . . . .  42
+     7.3.  Type Declarations . . . . . . . . . . . . . . . . . . . .  43
+       7.3.1.  Composition Semantics . . . . . . . . . . . . . . . .  43
+       7.3.2.  Use at Field Sites  . . . . . . . . . . . . . . . . .  44
+     7.4.  Function Declarations . . . . . . . . . . . . . . . . . .  44
+       7.4.1.  Return Contract . . . . . . . . . . . . . . . . . . .  44
+       7.4.2.  Parameter Types . . . . . . . . . . . . . . . . . . .  45
+       7.4.3.  Function References at Validation Sites . . . . . . .  45
+     7.5.  Annotation Declarations . . . . . . . . . . . . . . . . .  45
+     7.6.  Annotation Use Sites  . . . . . . . . . . . . . . . . . .  46
+       7.6.1.  Literal Values  . . . . . . . . . . . . . . . . . . .  46
+       7.6.2.  Engine Expressions  . . . . . . . . . . . . . . . . .  47
+       7.6.3.  Expression Language . . . . . . . . . . . . . . . . .  47
+       7.6.4.  Placement . . . . . . . . . . . . . . . . . . . . . .  50
+       7.6.5.  Coexistence with Bracket Options  . . . . . . . . . .  50
+     7.7.  Presence Semantics  . . . . . . . . . . . . . . . . . . .  50
+       7.7.1.  Well-Known Type Binding . . . . . . . . . . . . . . .  51
+       7.7.2.  Evaluation Order and Result Aggregation . . . . . . .  52
 
 
 
@@ -170,42 +170,43 @@ Franco Jr.               Expires 24 January 2027                [Page 3]
 Internet-Draft                  protowire                      July 2026
 
 
-     7.8.  Streaming RPC Validation  . . . . . . . . . . . . . . . .  50
-     7.9.  Sensitivity Classification  . . . . . . . . . . . . . . .  50
-     7.10. Error Model . . . . . . . . . . . . . . . . . . . . . . .  51
-       7.10.1.  Report Wire Shape  . . . . . . . . . . . . . . . . .  53
-       7.10.2.  Localization . . . . . . . . . . . . . . . . . . . .  53
-     7.11. Lowering to FileDescriptorSet . . . . . . . . . . . . . .  53
-       7.11.1.  Extension Number Allocation  . . . . . . . . . . . .  54
-       7.11.2.  Choosing the Argument Member . . . . . . . . . . . .  55
+       7.7.3.  Recursion Depth . . . . . . . . . . . . . . . . . . .  53
+     7.8.  Streaming RPC Validation  . . . . . . . . . . . . . . . .  53
+     7.9.  Sensitivity Classification  . . . . . . . . . . . . . . .  54
+     7.10. Error Model . . . . . . . . . . . . . . . . . . . . . . .  54
+       7.10.1.  Report Wire Shape  . . . . . . . . . . . . . . . . .  57
+       7.10.2.  Localization . . . . . . . . . . . . . . . . . . . .  57
+     7.11. Lowering to FileDescriptorSet . . . . . . . . . . . . . .  57
+       7.11.1.  Extension Number Allocation  . . . . . . . . . . . .  58
+       7.11.2.  Choosing the Argument Member . . . . . . . . . . . .  59
        7.11.3.  Backward Compatibility with Stock Protocol Buffers
-               Tooling . . . . . . . . . . . . . . . . . . . . . . .  55
-     7.12. Cross-Runtime Considerations  . . . . . . . . . . . . . .  56
-       7.12.1.  Engine Configuration . . . . . . . . . . . . . . . .  56
-       7.12.2.  Multi-Runtime Schemas  . . . . . . . . . . . . . . .  56
-   8.  Response Envelope . . . . . . . . . . . . . . . . . . . . . .  57
-   9.  Decoder Conformance . . . . . . . . . . . . . . . . . . . . .  58
-     9.1.  Mandatory Limits  . . . . . . . . . . . . . . . . . . . .  58
-     9.2.  Recursion . . . . . . . . . . . . . . . . . . . . . . . .  60
-     9.3.  UTF-8 Enforcement . . . . . . . . . . . . . . . . . . . .  60
-     9.4.  SBE Bounds Checking . . . . . . . . . . . . . . . . . . .  61
-     9.5.  Map Keys  . . . . . . . . . . . . . . . . . . . . . . . .  61
-     9.6.  Validation Engine Conformance . . . . . . . . . . . . . .  61
-   10. Media Types . . . . . . . . . . . . . . . . . . . . . . . . .  62
-   11. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  62
-     11.1.  Media Type Registrations . . . . . . . . . . . . . . . .  62
-     11.2.  Annotation Field Number Range  . . . . . . . . . . . . .  64
-   12. Security Considerations . . . . . . . . . . . . . . . . . . .  65
-   13. References  . . . . . . . . . . . . . . . . . . . . . . . . .  66
-     13.1.  Normative References . . . . . . . . . . . . . . . . . .  66
-     13.2.  Informative References . . . . . . . . . . . . . . . . .  68
-   Appendix A.  ABNF Additions in -01  . . . . . . . . . . . . . . .  69
-     A.1.  New Productions . . . . . . . . . . . . . . . . . . . . .  69
-     A.2.  Contextual Keywords . . . . . . . . . . . . . . . . . . .  70
-   Appendix B.  Acknowledgments  . . . . . . . . . . . . . . . . . .  70
-   Appendix C.  Implementation Status  . . . . . . . . . . . . . . .  70
-   Appendix D.  Open Issues  . . . . . . . . . . . . . . . . . . . .  71
-   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  72
+               Tooling . . . . . . . . . . . . . . . . . . . . . . .  59
+     7.12. Cross-Runtime Considerations  . . . . . . . . . . . . . .  60
+       7.12.1.  Engine Configuration . . . . . . . . . . . . . . . .  60
+       7.12.2.  Multi-Runtime Schemas  . . . . . . . . . . . . . . .  61
+   8.  Response Envelope . . . . . . . . . . . . . . . . . . . . . .  61
+   9.  Decoder Conformance . . . . . . . . . . . . . . . . . . . . .  62
+     9.1.  Mandatory Limits  . . . . . . . . . . . . . . . . . . . .  62
+     9.2.  Recursion . . . . . . . . . . . . . . . . . . . . . . . .  64
+     9.3.  UTF-8 Enforcement . . . . . . . . . . . . . . . . . . . .  64
+     9.4.  SBE Bounds Checking . . . . . . . . . . . . . . . . . . .  65
+     9.5.  Map Keys  . . . . . . . . . . . . . . . . . . . . . . . .  65
+     9.6.  Validation Engine Conformance . . . . . . . . . . . . . .  65
+   10. Media Types . . . . . . . . . . . . . . . . . . . . . . . . .  66
+   11. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  66
+     11.1.  Media Type Registrations . . . . . . . . . . . . . . . .  66
+     11.2.  Annotation Field Number Range  . . . . . . . . . . . . .  68
+   12. Security Considerations . . . . . . . . . . . . . . . . . . .  69
+   13. References  . . . . . . . . . . . . . . . . . . . . . . . . .  70
+     13.1.  Normative References . . . . . . . . . . . . . . . . . .  70
+     13.2.  Informative References . . . . . . . . . . . . . . . . .  72
+   Appendix A.  ABNF Additions in -01  . . . . . . . . . . . . . . .  73
+     A.1.  New Productions . . . . . . . . . . . . . . . . . . . . .  73
+     A.2.  Contextual Keywords . . . . . . . . . . . . . . . . . . .  74
+   Appendix B.  Acknowledgments  . . . . . . . . . . . . . . . . . .  74
+   Appendix C.  Implementation Status  . . . . . . . . . . . . . . .  74
+   Appendix D.  Open Issues  . . . . . . . . . . . . . . . . . . . .  75
+   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  76
 
 1.  Introduction
 
@@ -217,7 +218,6 @@ Internet-Draft                  protowire                      July 2026
    covers those requirements while reusing Protocol Buffers schemas as
    the single source of truth for field identity, types, and numbering.
 
-   The family comprises four encodings:
 
 
 
@@ -225,6 +225,8 @@ Franco Jr.               Expires 24 January 2027                [Page 4]
 
 Internet-Draft                  protowire                      July 2026
 
+
+   The family comprises four encodings:
 
    PXF  A UTF-8 text format with a small, regular grammar; intended for
       human authoring and machine consumption alike.
@@ -260,6 +262,26 @@ Internet-Draft                  protowire                      July 2026
    protowire-pb" type that signals the additional conformance and
    annotation requirements specified here.
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Franco Jr.               Expires 24 January 2027                [Page 5]
+
+Internet-Draft                  protowire                      July 2026
+
+
    Relationship to ProtoJSON.  Protocol Buffers also defines a JSON
    mapping commonly called "ProtoJSON" [PROTOJSON], which serializes
    messages as JSON [RFC8259] objects, represents
@@ -274,13 +296,6 @@ Internet-Draft                  protowire                      July 2026
    convention to reduce the number of disjoint time formats a tooling
    chain has to support.  Implementations are not required to provide
    ProtoJSON; this document does not specify it.
-
-
-
-Franco Jr.               Expires 24 January 2027                [Page 5]
-
-Internet-Draft                  protowire                      July 2026
-
 
    This document treats both [PROTOBUF] (the language and feature spec)
    and [PROTOBUF-WIRE] (the binary wire format) as normative references
@@ -313,6 +328,16 @@ Internet-Draft                  protowire                      July 2026
    This document does not define library APIs, programming-language
    bindings, code generation strategies, or performance characteristics.
 
+
+
+
+
+
+Franco Jr.               Expires 24 January 2027                [Page 6]
+
+Internet-Draft                  protowire                      July 2026
+
+
 1.2.  Terminology
 
    The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
@@ -330,14 +355,6 @@ Internet-Draft                  protowire                      July 2026
       typically targeting a single programming language.
 
    document  A complete PXF input: a sequence of bytes that satisfies
-
-
-
-Franco Jr.               Expires 24 January 2027                [Page 6]
-
-Internet-Draft                  protowire                      July 2026
-
-
       the production "document" in Section 3.3.
 
    value  A PXF construct that denotes a single scalar, list, or nested
@@ -368,6 +385,15 @@ Internet-Draft                  protowire                      July 2026
       runtime by the consuming validator.  See Section 7.4.
 
    annotation declaration  A named metadata attachment declared with the
+
+
+
+
+Franco Jr.               Expires 24 January 2027                [Page 7]
+
+Internet-Draft                  protowire                      July 2026
+
+
       annotation keyword, usable at use sites via the @name(args)
       syntax.  See Section 7.5.
 
@@ -380,19 +406,6 @@ Internet-Draft                  protowire                      July 2026
       The engine is selected per project; this document specifies the
       contract between the schema and the engine, not the engine's
       internals.  See Section 7.12.
-
-
-
-
-
-
-
-
-
-Franco Jr.               Expires 24 January 2027                [Page 7]
-
-Internet-Draft                  protowire                      July 2026
-
 
 2.  The protowire Family
 
@@ -427,6 +440,16 @@ Internet-Draft                  protowire                      July 2026
    values.  Wire equivalence is the contract this document specifies; it
    is not an API-stability or performance contract.
 
+
+
+
+
+
+Franco Jr.               Expires 24 January 2027                [Page 8]
+
+Internet-Draft                  protowire                      July 2026
+
+
 3.  PXF Text Format
 
    PXF is a UTF-8 text format.  A PXF document is a sequence of entries
@@ -442,13 +465,6 @@ Internet-Draft                  protowire                      July 2026
 
    *  Decoders MUST reject documents containing invalid UTF-8 byte
       sequences with an error.
-
-
-
-Franco Jr.               Expires 24 January 2027                [Page 8]
-
-Internet-Draft                  protowire                      July 2026
-
 
    *  Decoders MUST reject documents containing Unicode surrogate code
       points (U+D800 through U+DFFF) or code points above U+10FFFF,
@@ -480,6 +496,16 @@ Internet-Draft                  protowire                      July 2026
    treated as a single whitespace character for the purposes of
    tokenization.
 
+
+
+
+
+
+Franco Jr.               Expires 24 January 2027                [Page 9]
+
+Internet-Draft                  protowire                      July 2026
+
+
 3.3.  ABNF Grammar
 
    The PXF surface grammar is given in ABNF [RFC5234] [RFC7405].  The
@@ -498,14 +524,6 @@ Internet-Draft                  protowire                      July 2026
                      *( 1*WSP identifier )
                      [ block-tail ]
    directive-name  = identifier ; excluding the spec-reserved names
-
-
-
-Franco Jr.               Expires 24 January 2027                [Page 9]
-
-Internet-Draft                  protowire                      July 2026
-
-
                                 ; "type", "dataset", "proto",
                                 ; "entry", "table", "datasource",
                                 ; "view", "procedure", "function",
@@ -536,6 +554,14 @@ Internet-Draft                  protowire                      July 2026
                      1*WSP "{" proto-message-body "}"
    proto-source-body
                    = 1*WSP triple-string
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 10]
+
+Internet-Draft                  protowire                      July 2026
+
+
    proto-descr-body
                    = 1*WSP bytes
    proto-message-body
@@ -554,13 +580,6 @@ Internet-Draft                  protowire                      July 2026
    assignment-tail = "=" value
    map-tail        = ":" value
    block-tail      = "{" *entry "}"
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 10]
-
-Internet-Draft                  protowire                      July 2026
-
 
    map-key         = identifier / string / integer / bool
 
@@ -591,6 +610,14 @@ Internet-Draft                  protowire                      July 2026
    ident-start     = ALPHA / "_"
    ident-part      = ALPHA / DIGIT / "_" / "."
 
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 11]
+
+Internet-Draft                  protowire                      July 2026
+
+
    string          = triple-string / simple-string
 
    simple-string   = DQUOTE *( string-char / escape-seq ) DQUOTE
@@ -610,14 +637,6 @@ Internet-Draft                  protowire                      July 2026
    simple-escape   = DQUOTE / "\" / "'" / "?"
                    / %x61 / %x62 / %x66 / %x6E
                    / %x72 / %x74 / %x76         ; a b f n r t v
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 11]
-
-Internet-Draft                  protowire                      July 2026
-
-
    hex-escape      = "x" 2HEXDIG
    octal-escape    = oct-lead 2OCT-DIGIT       ; value <= 0xFF
    unicode-4-escape = "u" 4HEXDIG
@@ -648,6 +667,13 @@ Internet-Draft                  protowire                      July 2026
    The grammar is LL(1) modulo the lexical disambiguation rules in
    Section 3.8 and Section 3.10:
 
+
+
+Franco Jr.               Expires 24 January 2027               [Page 12]
+
+Internet-Draft                  protowire                      July 2026
+
+
    *  An input that begins with four DIGIT followed by "-" is tokenized
       as a timestamp, not as a negative integer or a bare identifier-
       prefix.
@@ -661,18 +687,6 @@ Internet-Draft                  protowire                      July 2026
       "1.5min") is an invalid duration and MUST be rejected as such; it
       is never an identifier, because identifier productions cannot
       begin with a DIGIT.
-
-
-
-
-
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 12]
-
-Internet-Draft                  protowire                      July 2026
-
 
    *  Numeric literals take precedence over identifiers: a leading DIGIT
       or "-" forces the numeric branch, within which a token that ends
@@ -708,6 +722,14 @@ Internet-Draft                  protowire                      July 2026
 
    At most one "@type" directive MAY appear in a document.
 
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 13]
+
+Internet-Draft                  protowire                      July 2026
+
+
 3.4.2.  Named Directives
 
    A named directive has the form
@@ -722,14 +744,6 @@ Internet-Draft                  protowire                      July 2026
    The prefix-identifier list is positional; the count and meaning of
    the identifiers are per-directive-registration.  The conventional
    shape used in the wild is a single prefix identifier naming the inner
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 13]
-
-Internet-Draft                  protowire                      July 2026
-
-
    block's message type (e.g. chameleon's @header
    chameleon.v1.LayerHeader { ... } preamble, which carries per-file
    sanity-check fields the resolver enforces against its chain spec).
@@ -760,6 +774,18 @@ Internet-Draft                  protowire                      July 2026
       rules apply.  Braces inside string literals or comments do not
       close the block.
 
+
+
+
+
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 14]
+
+Internet-Draft                  protowire                      July 2026
+
+
    *  The number and interpretation of prefix identifiers are specified
       by each directive's registration.  A decoder that recognizes the
       directive name MUST enforce the registered cardinality.  A decoder
@@ -777,14 +803,6 @@ Internet-Draft                  protowire                      July 2026
    The "@entry" directive is the canonical PXF shape for bundling
    heterogeneous, typed sub-messages alongside (or in place of) a
    document body.  Its form is
-
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 14]
-
-Internet-Draft                  protowire                      July 2026
-
 
    @entry [ <name> ] [ <type> ] [ "{" inner "}" ]
 
@@ -816,6 +834,14 @@ Internet-Draft                  protowire                      July 2026
    *  A decoder that recognizes "@entry" MUST accept zero, one, or two
       prefix identifiers and MUST reject three or more.
 
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 15]
+
+Internet-Draft                  protowire                      July 2026
+
+
    *  A decoder MUST preserve "@entry" occurrences in document order
       when exposing them to callers.  Duplicate labels MAY appear; this
       document does not impose a uniqueness rule.
@@ -833,14 +859,6 @@ Internet-Draft                  protowire                      July 2026
    The "@dataset" directive is the canonical PXF shape for representing
    many instances of a single message type in a single document — the
    protowire-native replacement for CSV.  Its form is
-
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 15]
-
-Internet-Draft                  protowire                      July 2026
-
 
    @dataset <type> ( <col1> [ , <col2> ... ] )
    ( <val1> [ , <val2> ... ] )
@@ -872,6 +890,14 @@ Internet-Draft                  protowire                      July 2026
    This restriction keeps rows tokenizable with simple top-level comma
    splitting and reserves nested-cell semantics for a future revision.
 
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 16]
+
+Internet-Draft                  protowire                      July 2026
+
+
    Three-state cells.  Each row cell denotes one of three states,
    carried into the bound message via the same semantics as the PXF
    annotations of Section 6.1:
@@ -887,16 +913,6 @@ Internet-Draft                  protowire                      July 2026
       <type>'s declared field.
 
    *  Any other value literal denotes a present field with that value.
-
-
-
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 16]
-
-Internet-Draft                  protowire                      July 2026
-
 
    Row arity.  Each row MUST have the same number of cells as the header
    column list.  Decoders MUST reject a row whose arity differs from the
@@ -930,6 +946,14 @@ Internet-Draft                  protowire                      July 2026
    streaming row-iteration API alongside (or in place of) the
    materializing one.  A streaming API MUST yield rows in source order,
    MUST enforce the per-row arity rule and the v1 cell-grammar rule on
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 17]
+
+Internet-Draft                  protowire                      July 2026
+
+
    each row as it is consumed (not deferred to end-of-input), and SHOULD
    bound its working-set memory by the size of the largest single row
    plus a small bookkeeping overhead — not by the size of the row
@@ -945,14 +969,6 @@ Internet-Draft                  protowire                      July 2026
 
    *  A decoder MUST reject a row whose arity differs from the column
       count.
-
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 17]
-
-Internet-Draft                  protowire                      July 2026
-
 
    *  A decoder MUST reject a column entry containing a ".".
 
@@ -986,6 +1002,14 @@ Internet-Draft                  protowire                      July 2026
    Anonymous form.  The body is a Protocol Buffers message-body
    production (a sequence of field declarations and nested types) with
    no surrounding message Name { ... } wrapper and no "package"
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 18]
+
+Internet-Draft                  protowire                      July 2026
+
+
    statement.  The anonymous message is consumed as the typed binding of
    the next directive in document order that requires one and does not
    carry an explicit type name (e.g. "@dataset" per Section 3.4.4).  The
@@ -1002,13 +1026,6 @@ Internet-Draft                  protowire                      July 2026
    Source form.  The triple-quoted-string body is a complete Protocol
    Buffers source file with optional "syntax", "package", "import", and
    one or more "message" / "enum" declarations.
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 18]
-
-Internet-Draft                  protowire                      July 2026
-
 
    Descriptor form.  The bytes-literal body is a base64-encoded
    google.protobuf.FileDescriptorSet (the pre-compiled form).
@@ -1041,6 +1058,14 @@ Internet-Draft                  protowire                      July 2026
 
    Conformance:
 
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 19]
+
+Internet-Draft                  protowire                      July 2026
+
+
    *  A decoder MUST support the descriptor form.  Decoders MAY support
       the source, named, and anonymous forms.  A decoder that does not
       support a body shape encountered in a document MUST report an
@@ -1058,13 +1083,6 @@ Internet-Draft                  protowire                      July 2026
    *  A decoder MUST reject an "import" inside a source-form "@proto"
       body that does not resolve to one of the four permitted sources
       listed above.
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 19]
-
-Internet-Draft                  protowire                      July 2026
-
 
    *  "@proto" inherits the schema constraint of Section 3.14: the
       embedded schema MUST NOT declare a message field, oneof, or enum
@@ -1097,6 +1115,13 @@ Internet-Draft                  protowire                      July 2026
       functions, access control). v1 decoders MUST reject these as
       unknown reserved directives.
 
+
+
+Franco Jr.               Expires 24 January 2027               [Page 20]
+
+Internet-Draft                  protowire                      July 2026
+
+
    *  "null", "true", "false" — value keywords (Section 3.9); excluded
       to keep the directive-name lexer unambiguous.
 
@@ -1112,15 +1137,6 @@ Internet-Draft                  protowire                      July 2026
    breaking change because the name was already rejected by v1 decoders;
    adding a new reservation IS a breaking change and requires a major-
    version bump.
-
-
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 20]
-
-Internet-Draft                  protowire                      July 2026
-
 
 3.5.  Entries and Keys
 
@@ -1148,6 +1164,20 @@ Internet-Draft                  protowire                      July 2026
       integer types (int32, int64, sint32, sint64, uint32, uint64,
       fixed32, fixed64, sfixed32, sfixed64, bool encoded as 0/1).
 
+
+
+
+
+
+
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 21]
+
+Internet-Draft                  protowire                      July 2026
+
+
    *  A bool key — the keyword true or false, bare — is permitted only
       inside a map<K,V> literal, and matches a map<bool,V> field.  It is
       the spelling an author naturally writes; the integer spelling
@@ -1170,14 +1200,6 @@ Internet-Draft                  protowire                      July 2026
    key was written quoted, as Section 3.13.4 already requires of keyed
    entry names.  A marshaller, which has no document spelling to
    preserve, writes a string key bare under the same identifier-safe
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 21]
-
-Internet-Draft                  protowire                      July 2026
-
-
    test and quoted otherwise, and writes bool and integer keys bare; a
    formatter and a marshaller thus agree on every key that both can
    produce (issue #306).  The fixture pairs "fmt-keyword-keys" and "fmt-
@@ -1204,6 +1226,14 @@ Internet-Draft                  protowire                      July 2026
       it is equivalent to "= { ... }".  Like assignment-tail, it takes
       an identifier key or a string key (quoted entry name, keyed
       repeated fields only), and parsers MUST reject a block-tail with
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 22]
+
+Internet-Draft                  protowire                      July 2026
+
+
       an integer key at parse time.  Map values that are themselves
       messages MUST use the explicit form "key: { ... }"; the bare-block
       form is not accepted in map context.
@@ -1227,13 +1257,6 @@ Internet-Draft                  protowire                      July 2026
    Simple strings use double-quote delimiters and recognize escape
    sequences:
 
-
-
-Franco Jr.               Expires 24 January 2027               [Page 22]
-
-Internet-Draft                  protowire                      July 2026
-
-
    "Hello, world\n"
 
    Within a simple-string, U+000A (LF) MUST NOT appear unescaped: line
@@ -1255,6 +1278,17 @@ Internet-Draft                  protowire                      July 2026
    \v      U+000B LINE TABULATION
 
    Numeric escapes:
+
+
+
+
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 23]
+
+Internet-Draft                  protowire                      July 2026
+
 
    \xHH        two hex digits, denotes the byte 0xHH
    \NNN        three octal digits, value MUST be <= 0xFF;
@@ -1282,14 +1316,6 @@ Internet-Draft                  protowire                      July 2026
    and end at the next occurrence of three consecutive U+0022
    characters.  Inside a triple-quoted string:
 
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 23]
-
-Internet-Draft                  protowire                      July 2026
-
-
    *  Escape sequences are NOT interpreted; backslashes are literal.
 
    *  If the byte immediately following the opening """ is U+000A, that
@@ -1313,6 +1339,13 @@ Internet-Draft                  protowire                      July 2026
 
    b"SGVsbG8sIHdvcmxkIQ=="
 
+
+
+Franco Jr.               Expires 24 January 2027               [Page 24]
+
+Internet-Draft                  protowire                      July 2026
+
+
    Decoders MUST accept both the standard base64 alphabet and the URL-
    safe alphabet [RFC4648] Section 5; padding ("=") is OPTIONAL and MUST
    be tolerated whether present or absent.  Decoders MUST reject input
@@ -1334,17 +1367,6 @@ Internet-Draft                  protowire                      July 2026
    future qualified-key syntax.
 
    The target field type determines the numeric domain:
-
-
-
-
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 24]
-
-Internet-Draft                  protowire                      July 2026
-
 
    *  For fixed-width integer fields (int32, int64, uint32, uint64,
       sint32, sint64, fixed32, fixed64, sfixed32, sfixed64), decoders
@@ -1371,6 +1393,15 @@ Internet-Draft                  protowire                      July 2026
    denotes the null value.  All three are case-sensitive.  A "null"
    literal:
 
+
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 25]
+
+Internet-Draft                  protowire                      July 2026
+
+
    *  When bound to a singular message-typed field, MUST clear the
       field.
 
@@ -1390,17 +1421,6 @@ Internet-Draft                  protowire                      July 2026
    Because "true", "false", and "null" are reserved value keywords, a
    protobuf schema MUST NOT declare an enum value, message field, or
    oneof bearing any of those names; see Section 3.14.
-
-
-
-
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 25]
-
-Internet-Draft                  protowire                      July 2026
-
 
 3.10.  Timestamps and Durations
 
@@ -1429,6 +1449,15 @@ Internet-Draft                  protowire                      July 2026
    A duration literal is a sequence of one or more segments, each
    consisting of a numeric magnitude followed by a unit suffix:
 
+
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 26]
+
+Internet-Draft                  protowire                      July 2026
+
+
    30s          ; 30 seconds
    1h30m        ; 1 hour 30 minutes
    500ms        ; 500 milliseconds
@@ -1447,16 +1476,6 @@ Internet-Draft                  protowire                      July 2026
    leading "+" is admitted is not settled by this revision; it is not
    part of the grammar, no encoder writes it, and decoders that accept
    it are lenient rather than conformant.
-
-
-
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 26]
-
-Internet-Draft                  protowire                      July 2026
-
 
    The defined units are "ns", "us", "µs", "ms", "s", "m", and "h",
    denoting nanoseconds, microseconds (twice; "us" and "µs" are semantic
@@ -1483,6 +1502,18 @@ Internet-Draft                  protowire                      July 2026
    Buffers type is a list-shaped well-known type, and to list elements
    within other lists.
 
+
+
+
+
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 27]
+
+Internet-Draft                  protowire                      July 2026
+
+
 3.12.  Blocks and Map Tails
 
    A block value "{ entry-list }" denotes a nested message when the
@@ -1505,14 +1536,6 @@ Internet-Draft                  protowire                      July 2026
      "X-Request-ID":  "abc123"
      "Content-Type":  "application/pxf"
    }
-
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 27]
-
-Internet-Draft                  protowire                      July 2026
-
 
    Decoders MUST reject "=" inside a map block and ":" inside a message
    block (Section 3.5).
@@ -1537,6 +1560,16 @@ Internet-Draft                  protowire                      July 2026
    semantics visible to the schema layer: entry order is list order, and
    each element's identity is the value of its key field.
 
+
+
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 28]
+
+Internet-Draft                  protowire                      July 2026
+
+
 3.13.1.  Schema Placement
 
    pxf.key is subject to bind-time checks in the sense of Section 3.14,
@@ -1560,15 +1593,6 @@ Internet-Draft                  protowire                      July 2026
 
    A keyed repeated field MAY be written as a block whose entries are
    named blocks — one _field-entry_ per element, in list order:
-
-
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 28]
-
-Internet-Draft                  protowire                      July 2026
-
 
    children {
      greeting    { type = "Label" }
@@ -1595,6 +1619,13 @@ Internet-Draft                  protowire                      July 2026
 
    children = [ { id = "greeting", type = "Label" } ]
 
+
+
+Franco Jr.               Expires 24 January 2027               [Page 29]
+
+Internet-Draft                  protowire                      July 2026
+
+
    The general repeated-field concatenation rule (Section 3.5) applies
    unchanged: a document may bind the same keyed field more than once
    (in either form), and elements concatenate in document order.
@@ -1615,16 +1646,6 @@ Internet-Draft                  protowire                      July 2026
       unquoting are duplicate keys, and decoders MUST reject the block.
       The comparison is on the denoted string value: "foo" quoted and
       foo bare are the same key.
-
-
-
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 29]
-
-Internet-Draft                  protowire                      July 2026
-
 
    *  The empty string is not a valid key value.  A quoted entry name ""
       is a decode error, and so is an explicit empty-string assignment
@@ -1647,6 +1668,19 @@ Internet-Draft                  protowire                      July 2026
    the schema.  In tolerant decode modes, the duplicate-key, empty-key,
    and key-conflict errors above SHOULD be surfaced as diagnostics
    rather than hard failures.
+
+
+
+
+
+
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 30]
+
+Internet-Draft                  protowire                      July 2026
+
 
 3.13.4.  Encoding and Canonical Form
 
@@ -1672,16 +1706,6 @@ Internet-Draft                  protowire                      July 2026
    Formatters with schema access MUST canonicalize an eligible
    anonymous-form binding to the keyed form under the same rules.
 
-
-
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 30]
-
-Internet-Draft                  protowire                      July 2026
-
-
    The pb and SBE binary encodings (Section 4, Section 5) are
    unaffected: a keyed repeated field is a plain repeated field on the
    wire, and the key travels as an ordinary field of the element
@@ -1704,6 +1728,15 @@ Internet-Draft                  protowire                      July 2026
    "false":
 
    *  a message field (any field of any message);
+
+
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 31]
+
+Internet-Draft                  protowire                      July 2026
+
 
    *  a oneof (the oneof identifier itself, not its member fields, which
       are governed by the message-field rule above);
@@ -1728,16 +1761,6 @@ Internet-Draft                  protowire                      July 2026
       MUST NOT silently produce bindings in which a declared enum value,
       field, or oneof is unreachable from PXF surface syntax.
 
-
-
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 31]
-
-Internet-Draft                  protowire                      July 2026
-
-
    *  Implementations SHOULD report the offending element by its fully-
       qualified protobuf name (e.g. "trades.v1.Side.null") and SHOULD
       point at this section.
@@ -1760,6 +1783,16 @@ Internet-Draft                  protowire                      July 2026
    binding a descriptor MUST apply every bind-time check of this
    document to each file in that closure, and MUST report a violation
    found in any of them.
+
+
+
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 32]
+
+Internet-Draft                  protowire                      July 2026
+
 
    A file reached more than once through the import graph is checked
    once.  A violation is attributed to the file that declares the
@@ -1787,13 +1820,6 @@ Internet-Draft                  protowire                      July 2026
 
    Conformance:
 
-
-
-Franco Jr.               Expires 24 January 2027               [Page 32]
-
-Internet-Draft                  protowire                      July 2026
-
-
    *  A tool that binds a descriptor MUST NOT report a schema conformant
       on the basis of having checked only the declaring file.
 
@@ -1816,6 +1842,14 @@ Internet-Draft                  protowire                      July 2026
    the result per file descriptor is the expected implementation and
    costs less than the single-file traversal it replaces.
 
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 33]
+
+Internet-Draft                  protowire                      July 2026
+
+
 4.  PB Binary Encoding
 
    The protowire PB encoding is the Protocol Buffers binary wire format
@@ -1836,19 +1870,6 @@ Internet-Draft                  protowire                      July 2026
 
    *  A protowire emitter SHOULD produce fields in field-number order;
       decoders MUST accept any field order, per the existing PB rules.
-
-
-
-
-
-
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 33]
-
-Internet-Draft                  protowire                      July 2026
-
 
 5.  SBE Binary Encoding
 
@@ -1877,6 +1898,14 @@ Internet-Draft                  protowire                      July 2026
        strictly larger MUST be accepted (forward compatibility for
        additive schema evolution).
 
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 34]
+
+Internet-Draft                  protowire                      July 2026
+
+
 5.2.  Repeating Groups
 
    Each repeating group is preceded by a group-header carrying
@@ -1894,17 +1923,6 @@ Internet-Draft                  protowire                      July 2026
    4.  If count > 0, then wire_block_length > 0.  A wire_block_length of
        0 with a non-zero count MUST be rejected before any per-element
        allocation.
-
-
-
-
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 34]
-
-Internet-Draft                  protowire                      July 2026
-
 
 5.3.  Variable-Length Data
 
@@ -1935,6 +1953,15 @@ Internet-Draft                  protowire                      July 2026
    nullable types is governed by Section 3.9.  The annotation is not
    valid on a member of a oneof; see Section 6.1.2.
 
+
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 35]
+
+Internet-Draft                  protowire                      July 2026
+
+
    pxf.default: when set, the value is a PXF literal (parsed by the same
    rules as a value in any entry).  Decoders MUST treat an absent
    annotated field as if the document had supplied the default literal.
@@ -1950,17 +1977,6 @@ Internet-Draft                  protowire                      July 2026
    canonicalization semantics it enables are specified in Section 3.13.
    The annotation affects only the PXF text surface — pb and SBE wire
    outputs are unchanged.
-
-
-
-
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 35]
-
-Internet-Draft                  protowire                      July 2026
-
 
    The schema-level constraints of Section 3.14 apply independently of
    these annotations: a field, oneof, or enum value whose name collides
@@ -1992,6 +2008,16 @@ Internet-Draft                  protowire                      July 2026
 
    *  a group field; or
 
+
+
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 36]
+
+Internet-Draft                  protowire                      July 2026
+
+
    *  a message-typed field whose type is not one of
       google.protobuf.Timestamp, google.protobuf.Duration, the nine
       google.protobuf wrapper types (BoolValue, BytesValue, DoubleValue,
@@ -2005,18 +2031,6 @@ Internet-Draft                  protowire                      July 2026
    pxf.default is valid on every singular scalar field, on every enum
    field, and on the message types enumerated above.  On an enum field
    the literal is either a value name or the decimal value number.
-
-
-
-
-
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 36]
-
-Internet-Draft                  protowire                      July 2026
-
 
    The constraint is on placement, not on the literal.  A literal that
    does not parse as the annotated field's type — "abc" on an int32
@@ -2048,6 +2062,18 @@ Internet-Draft                  protowire                      July 2026
       would differ from that of an implementation that rejects the
       schema, for the same schema and the same document.
 
+
+
+
+
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 37]
+
+Internet-Draft                  protowire                      July 2026
+
+
    *  A pxf.default in one of these placements never had honorable
       semantics — there was no literal the decoder could have applied.
       Rejecting it on upgrade surfaces a pre-existing latent bug rather
@@ -2066,13 +2092,6 @@ Internet-Draft                  protowire                      July 2026
    additional constraints there.
 
    pxf.default MAY be set on a member of a oneof, subject to:
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 37]
-
-Internet-Draft                  protowire                      July 2026
-
 
    *  the default applies only when NO member of the oneof is present in
       the document.  When any member is present the default MUST NOT be
@@ -2095,6 +2114,21 @@ Internet-Draft                  protowire                      July 2026
    decodes to, and deciding by field number would do the same on
    renumbering.  Rejecting the schema is the only outcome that does not
    attach meaning to a detail authors are free to change.
+
+
+
+
+
+
+
+
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 38]
+
+Internet-Draft                  protowire                      July 2026
+
 
    pxf.required MUST NOT be set on a member of a oneof; tools that bind
    a descriptor for PXF use MUST reject such a schema.  Read per-field,
@@ -2120,16 +2154,6 @@ Internet-Draft                  protowire                      July 2026
       Section 3.14, rejecting such a schema on upgrade surfaces a pre-
       existing latent bug rather than introducing one.
 
-
-
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 38]
-
-Internet-Draft                  protowire                      July 2026
-
-
 6.2.  SBE Annotations
 
    SBE annotations apply at three scopes:
@@ -2150,6 +2174,17 @@ Internet-Draft                  protowire                      July 2026
 
    sbe.schema_id and sbe.version identify the schema as a whole.
    sbe.template_id MUST be unique among messages within a schema.
+
+
+
+
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 39]
+
+Internet-Draft                  protowire                      July 2026
+
 
    sbe.length specifies a fixed byte length for string- or bytes-typed
    fields.  Values longer than the limit MUST be truncated by emitters;
@@ -2181,7 +2216,28 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 24 January 2027               [Page 39]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 40]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -2237,7 +2293,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 24 January 2027               [Page 40]
+Franco Jr.               Expires 24 January 2027               [Page 41]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -2293,7 +2349,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 24 January 2027               [Page 41]
+Franco Jr.               Expires 24 January 2027               [Page 42]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -2349,7 +2405,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 24 January 2027               [Page 42]
+Franco Jr.               Expires 24 January 2027               [Page 43]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -2405,7 +2461,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 24 January 2027               [Page 43]
+Franco Jr.               Expires 24 January 2027               [Page 44]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -2433,12 +2489,12 @@ Internet-Draft                  protowire                      July 2026
    (same file or imported) MUST be emitted into the descriptor's
    Expression.calls field, and its arity MUST match the declaration — a
    mismatch is a compile-time error attributed to the call's source
-   span.  A call site whose name does not resolve is presumed to be an
-   engine builtin: it MUST NOT be emitted into Expression.calls and MUST
-   NOT be diagnosed at compile time; whether the engine provides it is
-   determined by the engine's initialization-time verification (see
-   Section 9.6).  Consumers MAY therefore rely on Expression.calls being
-   complete with respect to declared functions.
+   span.  A call site whose name does not resolve MUST be one of the
+   builtins of Section 7.6.3: it MUST NOT be emitted into
+   Expression.calls, and any other unresolved name is a compile-time
+   error attributed to the callee.  Consumers MAY therefore rely on
+   Expression.calls being complete with respect to declared functions
+   and free of builtins.
 
 7.5.  Annotation Declarations
 
@@ -2454,14 +2510,14 @@ Internet-Draft                  protowire                      July 2026
                       qualified-ident
 
    The annot-param-type value expression indicates that the
-   corresponding argument at use sites is parsed as engine-language
-   source rather than as a typed Protocol Buffers literal; the parser
-   captures it as opaque text for the engine to compile.
+   corresponding argument at use sites is a rule in the expression
+   language of Section 7.6.3 rather than a typed Protocol Buffers
+   literal; the parser captures it as text (Section 7.6.2) and the
+   compiler then parses the capture under that language.
 
 
 
-
-Franco Jr.               Expires 24 January 2027               [Page 44]
+Franco Jr.               Expires 24 January 2027               [Page 45]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -2517,7 +2573,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 24 January 2027               [Page 45]
+Franco Jr.               Expires 24 January 2027               [Page 46]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -2525,9 +2581,10 @@ Internet-Draft                  protowire                      July 2026
 7.6.2.  Engine Expressions
 
    An argument bound to an expression-typed parameter is not parsed
-   under this grammar; its inner syntax belongs to the validation
-   engine.  Because an argument's parameter binding is not known until
-   annotation resolution, argument parsing is capture-then-classify:
+   under the schema grammar of this section; it is captured as text and
+   then parsed under the expression language of Section 7.6.3.  Because
+   an argument's parameter binding is not known until annotation
+   resolution, argument parsing is capture-then-classify:
 
    1.  The parser captures every annotation argument as raw source text.
        An argument extends to the first , or ) at zero delimiter depth:
@@ -2553,11 +2610,149 @@ Internet-Draft                  protowire                      July 2026
        other argument MUST re-parse as a literal or qualified identifier
        (Section 7.6.1); any other shape is an error.
 
-   The compiler performs no interpretation of the captured fragment
-   beyond the tokenization required for function-reference extraction
-   (Section 7.4.3).
+   Once bound, the capture is parsed under Section 7.6.3: the compiler
+   checks the grammar, that every call resolves to a declared function
+   or a builtin, and arity (Section 7.4.3); a capture that fails is a
+   compile-time error attributed to the offending token.
 
-7.6.3.  Placement
+7.6.3.  Expression Language
+
+   The body of every argument bound to an expression-typed parameter —
+   the rule of @validate, and any other expression parameter a schema
+   declares — is written in one fixed language, defined here, the same
+   in every engine and every implementation.  (RFC-001 Section 5.4,
+   resolved 2026-09-07; the ratified text left the body to the engine.)
+
+   Grammar, over the Protocol Buffers lexical forms for identifiers and
+   for integer, float and string literals:
+
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 47]
+
+Internet-Draft                  protowire                      July 2026
+
+
+ expr    = or
+ or      = and *( "||" and )
+ and     = unary *( "&&" unary )
+ unary   = "!" unary / cmp
+ cmp     = term [ ( "==" / "!=" / "<=" / ">=" / "<" / ">" ) term ]
+         / term "in" term
+ term    = INT / FLOAT / STRING / "true" / "false" / list
+         / "this" *postfix
+         / call
+         / "(" expr ")"
+ postfix = "." IDENT "(" args ")"             ; builtin, method form
+ call    = IDENT *( "." IDENT ) "(" args ")"  ; declared function, or
+                                              ; builtin in function form
+ args    = [ expr *( "," expr ) ]
+ list    = "[" [ term *( "," term ) ] "]"
+
+   this is the only bound identifier.  There is no field selection:
+   this.name is not an expression; a rule over a message's fields is a
+   declared function taking the message.  A call whose name resolves to
+   a visible function declaration dispatches to the engine's registry
+   (Section 9.6); otherwise the name MUST be one of the builtins below.
+   A builtin's method form this.m(a, ...) is the same call as its
+   function form m(this, a, ...).
+
+   Builtins.  This is the complete set; an engine MUST NOT accept any
+   other name in an expression argument, and a compiler MUST reject a
+   call to any other name.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 48]
+
+Internet-Draft                  protowire                      July 2026
+
+
+   +=====================+===========+===========+=====================+
+   | Builtin             | Receiver  | Further   | Result              |
+   |                     | (first    | arguments |                     |
+   |                     | argument) |           |                     |
+   +=====================+===========+===========+=====================+
+   | size()              | string,   | none      | int: Unicode        |
+   |                     | bytes,    |           | code points of a    |
+   |                     | list, map |           | string, bytes of    |
+   |                     |           |           | a bytes value,      |
+   |                     |           |           | elements of a       |
+   |                     |           |           | list or map         |
+   +---------------------+-----------+-----------+---------------------+
+   | starts_with(prefix) | string    | one       | bool                |
+   |                     |           | string    |                     |
+   +---------------------+-----------+-----------+---------------------+
+   | ends_with(suffix)   | string    | one       | bool                |
+   |                     |           | string    |                     |
+   +---------------------+-----------+-----------+---------------------+
+   | contains(substr)    | string    | one       | bool                |
+   |                     |           | string    |                     |
+   +---------------------+-----------+-----------+---------------------+
+   | matches(pattern)    | string    | one       | bool: whether       |
+   |                     |           | string,   | the pattern         |
+   |                     |           | an RE2    | matches anywhere    |
+   |                     |           | pattern   | in the receiver     |
+   |                     |           |           | (unanchored)        |
+   +---------------------+-----------+-----------+---------------------+
+   | now()               | none      | none      | the engine-         |
+   |                     |           |           | native current      |
+   |                     |           |           | instant             |
+   |                     |           |           | (Section 7.7.1      |
+   |                     |           |           | rules 2 and 5)      |
+   +---------------------+-----------+-----------+---------------------+
+
+                                  Table 2
+
+   Typing and evaluation.  The language is dynamically typed: a compiler
+   checks syntax, name resolution and arity; an engine checks operand
+   kinds when it evaluates. && and || short-circuit and require boolean
+   operands; ! requires a boolean operand. == and != compare numbers by
+   value regardless of representation, strings, booleans, and temporal
+   values of the same kind; <, <=, > and >= order numbers, strings
+   (byte-wise), and temporal values of the same kind. in requires a list
+   on its right and tests membership with ==. Any other combination is
+   an evaluation error: the rule fails, and the violation's fallback
+   message carries the engine's error text.  The statically visible
+   cases (wrong builtin arity; a builtin in function form with no
+   receiver argument) are compile errors as well.
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 49]
+
+Internet-Draft                  protowire                      July 2026
+
+
+   The language has no field selection on this, no temporal or duration
+   literals, no enum-value references, no arithmetic, no ternary, no
+   comprehensions and no string formatting.  Each of those is either a
+   declared function or a future revision of this section; extending the
+   language is a specification change, never an engine extension.
+
+7.6.4.  Placement
 
    Annotations attach to the immediately-adjacent declaration.
    Placement is hybrid:
@@ -2571,17 +2766,10 @@ Internet-Draft                  protowire                      July 2026
       following lines after the declaration's terminating component,
       before the terminating semicolon.
 
-
-
-Franco Jr.               Expires 24 January 2027               [Page 46]
-
-Internet-Draft                  protowire                      July 2026
-
-
    Schemas MAY stack multiple annotations on a single target; they
    evaluate in source order.
 
-7.6.4.  Coexistence with Bracket Options
+7.6.5.  Coexistence with Bracket Options
 
    The pre-existing [(qualified-ident) = value] field-option syntax
    defined in [PROTOBUF] and used by (pxf.required) / (pxf.default) in
@@ -2605,6 +2793,15 @@ Internet-Draft                  protowire                      July 2026
    absent").  This subsection restates the model from the validation
    layer's perspective:
 
+
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 50]
+
+Internet-Draft                  protowire                      July 2026
+
+
    +=======================+===========================================+
    | State of the field    | Action by validator                       |
    +=======================+===========================================+
@@ -2625,14 +2822,7 @@ Internet-Draft                  protowire                      July 2026
    | present               | are evaluated against v.                  |
    +-----------------------+-------------------------------------------+
 
-                                  Table 2
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 47]
-
-Internet-Draft                  protowire                      July 2026
-
+                                  Table 3
 
    For fields inside a oneof group, rules attached to inactive variants
    MUST NOT be evaluated.  Only the active variant's rules apply.
@@ -2647,7 +2837,7 @@ Internet-Draft                  protowire                      July 2026
 
 7.7.1.  Well-Known Type Binding
 
-   Five rules define what the identifier this binds to inside a rule, by
+   Six rules define what the identifier this binds to inside a rule, by
    the kind of the value's declared type:
 
    1.  For a well-known wrapper type (google.protobuf.StringValue etc.),
@@ -2658,37 +2848,45 @@ Internet-Draft                  protowire                      July 2026
        binds to the *engine-native temporal value* — parallel to wrapper
        unwrapping, so rules read naturally (this > now()).  Engines MUST
        support the comparison operators <, <=, ==, >=, > between
-       temporal values of the same kind.  Temporal literals and helper
-       functions (now(), duration construction) are engine-standard-
-       library concerns, not schema syntax.  As with wrappers, the rule
-       is NOT evaluated when the field is unset.
+       temporal values of the same kind. now() is a builtin of
+       Section 7.6.3; the language has no temporal or duration literal,
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 51]
+
+Internet-Draft                  protowire                      July 2026
+
+
+       so a rule that needs one declares a function taking the temporal
+       value.  As with wrappers, the rule is NOT evaluated when the
+       field is unset.
 
    3.  For google.protobuf.Any, this does *not* unwrap: it binds to the
-       structured value with type_url and value accessible, and
-       this.type_url == "..." string refinement is the canonical
-       pattern.  Engines MUST NOT auto-unpack the payload: unpacking
-       requires resolving the payload type against a descriptor pool at
-       evaluation time, and its result silently changes as pools grow.
+       structured value.  The expression language has no field
+       selection, so the canonical type_url refinement is a declared
+       function taking the Any and comparing type_url in its
+       implementation.  Engines MUST NOT auto-unpack the payload:
+       unpacking requires resolving the payload type against a
+       descriptor pool at evaluation time, and its result silently
+       changes as pools grow.
 
-   4.  For any other message type, this binds to the message instance,
-       and rules MAY reference its fields by name.
+   4.  For any other message type, this binds to the message instance.
+       A rule over the message's fields is a declared function taking
+       the message; no rule selects a field in the expression itself.
 
    5.  Engine builtins that observe the current time (e.g. now()) MUST
        be *run-stable*: every evaluation within the production of one
        Report observes the same instant.
 
+   6.  For an enum type, this binds to the value's *number*, and a rule
+       compares it with integer literals.  The expression language has
+       no enum-value reference: a qualified name such as
+       OrderStatus.SHIPPED is not a term.
+
    These rules pin evaluation-time meaning only; they do not change
    descriptor lowering — a type declaration always records its literal
    base-type name.
-
-
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 48]
-
-Internet-Draft                  protowire                      July 2026
-
 
 7.7.2.  Evaluation Order and Result Aggregation
 
@@ -2708,6 +2906,14 @@ Internet-Draft                  protowire                      July 2026
    TYPE_REFINEMENT kind the same rule would carry for a producer-set
    value, and actual_value MUST carry the substituted default.  Such a
    Violation reports a schema-authoring error — the declared default
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 52]
+
+Internet-Draft                  protowire                      July 2026
+
+
    fails the field's own rules, so no producer input can trigger it and
    no producer change can fix it.  Tooling MAY reject such defaults at
    schema-compile time; a schema that passes that check never yields a
@@ -2733,19 +2939,6 @@ Internet-Draft                  protowire                      July 2026
    specification-defined codes; user schemas and engines MUST NOT mint
    codes in it.
 
-
-
-
-
-
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 49]
-
-Internet-Draft                  protowire                      July 2026
-
-
 7.8.  Streaming RPC Validation
 
    Validation over streaming RPCs is *per-message*: each message is
@@ -2765,6 +2958,17 @@ Internet-Draft                  protowire                      July 2026
    INTERNAL; a client-side receiver check surfaces as a local error
    without a wire status.  The Report travels in
    google.rpc.Status.details as a google.protobuf.Any.
+
+
+
+
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 53]
+
+Internet-Draft                  protowire                      July 2026
+
 
 7.9.  Sensitivity Classification
 
@@ -2794,20 +2998,33 @@ Internet-Draft                  protowire                      July 2026
       sensitive declarations; an @example on a sensitive declaration is
       a compile-time warning.
 
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 50]
-
-Internet-Draft                  protowire                      July 2026
-
-
    @sensitive lowers through the standard annotation carrier
    (Section 7.11); it has no dedicated descriptor surface.
 
 7.10.  Error Model
 
    A Violation is a structured value with the following abstract shape:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 54]
+
+Internet-Draft                  protowire                      July 2026
+
 
      +==================+========+==================================+
      | Field            | Type   | Description                      |
@@ -2824,18 +3041,18 @@ Internet-Draft                  protowire                      July 2026
      |                  |        | matches code.                    |
      +------------------+--------+----------------------------------+
 
-                                 Table 3
+                                 Table 4
 
    Functions emit Violations on failure. params is populated from
    exactly two sources: the Violation returned by a declared function
    (Section 7.4), whose implementation authors its params, and
    specification-defined synthetic Violations (protowire.depth_exceeded
    carries limit; see Section 7.7.3).  For Violations produced by inline
-   expression rules, engines MUST leave params empty: expressions are
-   opaque engine source (Section 7.6.2), and no mapping from expression
-   shapes to parameter names is defined.  A rule that requires
-   structured parameters for catalog interpolation is declared as a
-   function.
+   expression rules, engines MUST leave params empty: an expression is a
+   rule in the fixed language of Section 7.6.3, and no mapping from
+   expression shapes to parameter names is defined.  A rule that
+   requires structured parameters for catalog interpolation is declared
+   as a function.
 
    The engine MUST further enrich each emitted Violation with at least
    the following context:
@@ -2853,7 +3070,14 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 24 January 2027               [Page 51]
+
+
+
+
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 55]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -2899,7 +3123,7 @@ Internet-Draft                  protowire                      July 2026
    |              |                 | subscript.                      |
    +--------------+-----------------+---------------------------------+
 
-                                 Table 4
+                                 Table 5
 
    A subscripted map segment in a field path addresses the entry's
    _value_. When a rule is evaluated against the map key itself, the
@@ -2909,7 +3133,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 24 January 2027               [Page 52]
+Franco Jr.               Expires 24 January 2027               [Page 56]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -2965,7 +3189,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 24 January 2027               [Page 53]
+Franco Jr.               Expires 24 January 2027               [Page 57]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -2999,7 +3223,7 @@ Internet-Draft                  protowire                      July 2026
    | 1331   | SourceMap source_map                 | FileOptions       |
    +--------+--------------------------------------+-------------------+
 
-                                  Table 5
+                                  Table 6
 
    The annotation carrier shares wire number 1327 across all eight
    target messages; each extend field carries a per-kind name so that
@@ -3021,7 +3245,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 24 January 2027               [Page 54]
+Franco Jr.               Expires 24 January 2027               [Page 58]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -3077,7 +3301,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 24 January 2027               [Page 55]
+Franco Jr.               Expires 24 January 2027               [Page 59]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -3109,17 +3333,34 @@ Internet-Draft                  protowire                      July 2026
    Buffers file named protowire.config.textproto at the project root,
    carrying exactly one protowire.schema.config.v1.EngineConfig message
    (schema: protowire/proto/schema/config/v1/config.proto in the
-   protowire source repository).  The message selects the engine, lists
-   function-library and catalog-library imports, sets strict_validation
-   (Section 7.12), the default execution mode (Section 7.7), and
-   max_recursion_depth (Section 7.7.3).
+   protowire source repository).  The message lists function-library and
+   catalog-library imports, sets strict_validation (Section 7.12), the
+   default execution mode (Section 7.7), and max_recursion_depth
+   (Section 7.7.3).
 
    Discovery is nearest-config-wins, walking from the compilation's
    working directory upward; configurations are never merged.
    Precedence, highest first: explicit command-line flags; a --config
    file argument; a config file named by the PROTOWIRE_CONFIG
-   environment variable; the discovered file; built-in defaults (engine
-   cel, lenient verification, collect-all mode).
+   environment variable; the discovered file; built-in defaults (lenient
+   verification, collect-all mode).  The engine field is reserved: the
+   expression language is fixed (Section 7.6.3), so nothing selects an
+   engine; validators MUST ignore the field and tooling SHOULD warn when
+   it is set.
+
+
+
+
+
+
+
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 60]
+
+Internet-Draft                  protowire                      July 2026
+
 
 7.12.2.  Multi-Runtime Schemas
 
@@ -3130,14 +3371,6 @@ Internet-Draft                  protowire                      July 2026
    runtime.  This is an operational concern; this document does not
    provide a mechanism for enforcing it at schema declaration time.
    Implementations MAY provide a portability-check mode that warns or
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 56]
-
-Internet-Draft                  protowire                      July 2026
-
-
    errors on non-portable references.
 
 8.  Response Envelope
@@ -3176,6 +3409,15 @@ Internet-Draft                  protowire                      July 2026
       Implementations MUST NOT set transport_error and error
       simultaneously.
 
+
+
+
+
+Franco Jr.               Expires 24 January 2027               [Page 61]
+
+Internet-Draft                  protowire                      July 2026
+
+
    *  data is the success payload, encoded in whichever wire form the
       surrounding transport selects (PXF, PB, JSON).  Decoders MUST
       treat data as opaque bytes; it is parsed only after the envelope
@@ -3185,14 +3427,6 @@ Internet-Draft                  protowire                      July 2026
       clients perform localization by consulting a string table keyed by
       "error.<code>" and "field.<code>" and substituting args
       positionally.
-
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 57]
-
-Internet-Draft                  protowire                      July 2026
-
 
    The package path "envelope.v1" is part of the wire contract.
    Incompatible changes MUST bump the package to "envelope.v2"; "v1" and
@@ -3235,17 +3469,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-
-
-
-
-
-
-
-
-
-
-Franco Jr.               Expires 24 January 2027               [Page 58]
+Franco Jr.               Expires 24 January 2027               [Page 62]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -3281,7 +3505,7 @@ Internet-Draft                  protowire                      July 2026
     |                         |                | SBE group field      |
     +-------------------------+----------------+----------------------+
 
-                                  Table 6
+                                  Table 7
 
    A decoder presented with input that requires exceeding any limit MUST
    return an error before allocating memory proportional to the
@@ -3301,7 +3525,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 24 January 2027               [Page 59]
+Franco Jr.               Expires 24 January 2027               [Page 63]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -3357,7 +3581,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 24 January 2027               [Page 60]
+Franco Jr.               Expires 24 January 2027               [Page 64]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -3413,7 +3637,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 24 January 2027               [Page 61]
+Franco Jr.               Expires 24 January 2027               [Page 65]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -3469,7 +3693,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 24 January 2027               [Page 62]
+Franco Jr.               Expires 24 January 2027               [Page 66]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -3525,7 +3749,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 24 January 2027               [Page 63]
+Franco Jr.               Expires 24 January 2027               [Page 67]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -3581,7 +3805,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 24 January 2027               [Page 64]
+Franco Jr.               Expires 24 January 2027               [Page 68]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -3637,7 +3861,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 24 January 2027               [Page 65]
+Franco Jr.               Expires 24 January 2027               [Page 69]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -3693,7 +3917,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 24 January 2027               [Page 66]
+Franco Jr.               Expires 24 January 2027               [Page 70]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -3749,7 +3973,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 24 January 2027               [Page 67]
+Franco Jr.               Expires 24 January 2027               [Page 71]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -3805,7 +4029,7 @@ Internet-Draft                  protowire                      July 2026
 
 
 
-Franco Jr.               Expires 24 January 2027               [Page 68]
+Franco Jr.               Expires 24 January 2027               [Page 72]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -3861,7 +4085,7 @@ A.1.  New Productions
 
 
 
-Franco Jr.               Expires 24 January 2027               [Page 69]
+Franco Jr.               Expires 24 January 2027               [Page 73]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -3917,7 +4141,7 @@ Appendix C.  Implementation Status
 
 
 
-Franco Jr.               Expires 24 January 2027               [Page 70]
+Franco Jr.               Expires 24 January 2027               [Page 74]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -3973,7 +4197,7 @@ Appendix D.  Open Issues
 
 
 
-Franco Jr.               Expires 24 January 2027               [Page 71]
+Franco Jr.               Expires 24 January 2027               [Page 75]
 
 Internet-Draft                  protowire                      July 2026
 
@@ -4029,4 +4253,4 @@ Author's Address
 
 
 
-Franco Jr.               Expires 24 January 2027               [Page 72]
+Franco Jr.               Expires 24 January 2027               [Page 76]
