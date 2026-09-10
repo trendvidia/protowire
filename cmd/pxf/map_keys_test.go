@@ -17,7 +17,7 @@ import (
 // mapKeysDir is the cross-port map-key corpus (testdata/map-keys/,
 // issues #284 and #306): three documents that MUST bind to the keys true
 // and false in three spellings, thirteen under invalid/ that MUST NOT
-// bind, each rejected with an error naming the key, and two fmt-* pairs
+// bind, each rejected with an error naming the key, and three fmt-* pairs
 // pinning the formatter's key spelling. Driven here through the CLI
 // end-to-end: the bool-key documents needed protowire-go v1.6.0 — the
 // keyword production and the spelling fix (protowire-go#93, #109), see
@@ -113,7 +113,7 @@ func TestMapKeys_ValidateRejectsNamingTheKey(t *testing.T) {
 	}
 }
 
-// TestMapKeys_FmtPairsAreFixedPoints drives the two fmt canonicalization
+// TestMapKeys_FmtPairsAreFixedPoints drives the three fmt canonicalization
 // pairs (#306; draft -01 § Entries and Keys, "Canonical spelling of map
 // keys") through the CLI on protowire-go v1.7.0, the release carrying the
 // reference formatter's fix (protowire-go#123): each input formats to
@@ -123,7 +123,9 @@ func TestMapKeys_ValidateRejectsNamingTheKey(t *testing.T) {
 // "false", "null" and "123" stay quoted, the quoted identifier-safe
 // "plain" canonicalizes to bare, bare stays bare. fmt-bare-keys
 // (bool-keyed): a bare true and a bare 0 stay bare — a formatter does not
-// add quotes the author did not write.
+// add quotes the author did not write. fmt-dotted-keys (string-keyed;
+// #313): the identifier production admits '.', so "a.b" canonicalizes to
+// bare and c.d stays bare, while ".e" and "1.5" stay quoted.
 func TestMapKeys_FmtPairsAreFixedPoints(t *testing.T) {
 	cases := []struct {
 		pair    string
@@ -140,6 +142,22 @@ func TestMapKeys_FmtPairsAreFixedPoints(t *testing.T) {
 			want := []string{"true", "false", "null", "123", "plain", "bare"}
 			if len(got.ByLabel) != len(want) {
 				t.Fatalf("want exactly the six string keys, got %v", got.ByLabel)
+			}
+			for _, k := range want {
+				if _, ok := got.ByLabel[k]; !ok {
+					t.Fatalf("string key %q is absent: %v", k, got.ByLabel)
+				}
+			}
+		}},
+		{"fmt-dotted-keys", "mapkeys.v1.Labels", func(t *testing.T, out string) {
+			t.Helper()
+			var got labelsPB
+			if err := pb.Unmarshal([]byte(out), &got); err != nil {
+				t.Fatalf("reading encode's bytes back: %v", err)
+			}
+			want := []string{"a.b", "c.d", ".e", "1.5"}
+			if len(got.ByLabel) != len(want) {
+				t.Fatalf("want exactly the four string keys, got %v", got.ByLabel)
 			}
 			for _, k := range want {
 				if _, ok := got.ByLabel[k]; !ok {
