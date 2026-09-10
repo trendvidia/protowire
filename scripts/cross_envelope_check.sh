@@ -429,12 +429,9 @@ VECTORS=(
 # (protowire-cpp#24).
 VECTOR_NOT_IMPLEMENTED="$(cat <<'NI'
 ts            zero-map-entry  omits a zero key; trendvidia/protowire-typescript#42
-java          zero-map-entry  omits a zero key/value, zigzag ints; trendvidia/protowire-java#78 after #77
 swift         zero-map-entry  mode not built; trendvidia/protowire-swift#15
 dart          zero-map-entry  mode not built; trendvidia/protowire-dart#22
 csharp        zero-map-entry  mode not built; trendvidia/protowire-csharp#31
-java-lite     zero-map-entry  mode not built; trendvidia/protowire-java#78
-java-pxf-lite zero-map-entry  mode not built; trendvidia/protowire-java#78
 NI
 )"
 
