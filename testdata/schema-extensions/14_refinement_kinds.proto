@@ -51,9 +51,12 @@ message Address {
   string zip = 2;
 }
 
-// Enum refinement.
+// Enum refinement. §5.4 has no enum-value reference (a qualified
+// identifier is not a term), so the values are named by number: SHIPPED
+// = 2, CANCELLED = 3. Whether the grammar gains `OrderStatus.SHIPPED` is
+// open on issue #324 (decision B); this spelling is the pinned interim.
 type SettledStatus = OrderStatus
-  @validate(this == OrderStatus.SHIPPED || this == OrderStatus.CANCELLED,
+  @validate(this == 2 || this == 3,
             code = "refine.status.unsettled",
             message = "order is not settled");
 
@@ -65,7 +68,7 @@ type DisplayName = google.protobuf.StringValue
 
 // Chained refinement atop a wrapper base.
 type TrimmedName = DisplayName
-  @validate(!this.startsWith(" "),
+  @validate(!this.starts_with(" "),
             code = "refine.name.leading_space",
             message = "display name starts with whitespace");
 
