@@ -408,7 +408,7 @@ This eliminates the proto3 zero-value ambiguity in the validation layer: validat
 
 ### 6.2 Wrapper and well-known type handling
 
-Five normative rules define what `this` binds to inside a refinement rule,
+Six normative rules define what `this` binds to inside a refinement rule,
 by the base type's kind. None of them change descriptor lowering — a type
 alias always records its literal `base_type_fqn` — they pin what the
 already-lowered alias *means* at evaluation time.
@@ -429,18 +429,26 @@ already-lowered alias *means* at evaluation time.
    unset (§6.1).
 
 3. **`google.protobuf.Any`** does **not** unwrap. `this` binds to the
-   structured value with `type_url` and `value` accessible;
-   `this.type_url == "..."` string refinement is the canonical pattern.
+   structured value. §5.4 has no field selection, so the canonical
+   `type_url` refinement is a declared `function` taking the `Any` and
+   comparing `type_url` in its implementation
+   (`@validate(has_type_url(this, "type.googleapis.com/…"))`; fixture 09).
    Engines MUST NOT auto-unpack the payload: unpacking requires resolving
    the payload type against a descriptor pool at evaluation time — exactly
    the value-scanning inference protowire forbids, and a silent behavior
    change as pools grow. A rule that needs payload access declares a
    `function` taking the `Any` and unpacks explicitly in its
-   implementation.
+   implementation. (Amended 2026-09-10, issue #324: the ratified text
+   called `this.type_url == "..."` the canonical pattern, which §5.4
+   forbids and the compiler rejects since protocompile v0.33.0.)
 
 4. **All other message types** — including the remaining WKTs (`Struct`,
-   `FieldMask`, …): `this` binds to the structured message; field access
-   follows the engine's proto integration. No further special cases.
+   `FieldMask`, …): `this` binds to the structured message. A rule over
+   the message's fields is a declared `function` taking the message
+   (§5.4, §5.3 `same_domain(this)`); no rule selects a field in the
+   expression itself. No further special cases. (Amended 2026-09-10,
+   issue #324: the ratified text let field access "follow the engine's
+   proto integration", which §5.4 forbids.)
 
 5. **Run-stable `now()`**: the `now()` builtin (§5.4) MUST
    return the same instant for every evaluation within a single validation
@@ -448,6 +456,17 @@ already-lowered alias *means* at evaluation time.
    evaluated in collect-all mode could pass and fail within the same
    report for equal values, and function memoization (§6.5) would be
    unsound.
+
+6. **Enums**: `this` binds to the value's **number**, and a rule compares
+   it with integer literals (`type SettledStatus = OrderStatus
+   @validate(this == 2 || this == 3);` — fixture 14). §5.4 has no
+   enum-value reference: `OrderStatus.SHIPPED` is not a term, and the
+   compiler rejects it. This is what the reference engine has always
+   evaluated (protocheck binds an enum `this` to its number and never
+   resolved a qualified name). A name-resolved spelling is a candidate for
+   a later minor, filed when a schema author asks for it; it would be a
+   §5.4 grammar addition every engine, the LSP and every port mirror.
+   (Added 2026-09-10, issue #324, decision B.)
 
 ### 6.3 Type refinement and composition
 

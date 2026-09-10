@@ -1331,12 +1331,12 @@ A call site whose name resolves to a `function` declaration in scope
 (same file or imported) MUST be emitted into the descriptor's
 `Expression.calls` field, and its arity MUST match the declaration —
 a mismatch is a compile-time error attributed to the call's source
-span. A call site whose name does not resolve is presumed to be an
-engine builtin: it MUST NOT be emitted into `Expression.calls` and
-MUST NOT be diagnosed at compile time; whether the engine provides it
-is determined by the engine's initialization-time verification (see
-{{validation-conformance}}). Consumers MAY therefore rely on
-`Expression.calls` being complete with respect to declared functions.
+span. A call site whose name does not resolve MUST be one of the
+builtins of {{expression-language}}: it MUST NOT be emitted into
+`Expression.calls`, and any other unresolved name is a compile-time
+error attributed to the callee. Consumers MAY therefore rely on
+`Expression.calls` being complete with respect to declared functions
+and free of builtins.
 
 ## Annotation Declarations {#annotation-declarations}
 
@@ -1354,9 +1354,10 @@ annot-param-type = "expression" / "string" / "int32" / "int64" /
 ~~~
 
 The `annot-param-type` value `expression` indicates that the
-corresponding argument at use sites is parsed as engine-language source
-rather than as a typed Protocol Buffers literal; the parser captures it
-as opaque text for the engine to compile.
+corresponding argument at use sites is a rule in the expression
+language of {{expression-language}} rather than a typed Protocol
+Buffers literal; the parser captures it as text ({{engine-expressions}})
+and the compiler then parses the capture under that language.
 
 The `any` parameter type accepts any literal value that the consuming
 target permits; specific compatibility is enforced at the lowering
@@ -1411,7 +1412,8 @@ empty; expression bodies never appear inside literals.
 ### Engine Expressions {#engine-expressions}
 
 An argument bound to an `expression`-typed parameter is not parsed
-under this grammar; its inner syntax belongs to the validation engine.
+under the schema grammar of this section; it is captured as text and
+then parsed under the expression language of {{expression-language}}.
 Because an argument's parameter binding is not known until annotation
 resolution, argument parsing is capture-then-classify:
 
@@ -1439,9 +1441,80 @@ resolution, argument parsing is capture-then-classify:
    argument MUST re-parse as a literal or qualified identifier
    ({{literal-values}}); any other shape is an error.
 
-The compiler performs no interpretation of the captured fragment
-beyond the tokenization required for function-reference extraction
-({{function-references}}).
+Once bound, the capture is parsed under {{expression-language}}: the
+compiler checks the grammar, that every call resolves to a declared
+function or a builtin, and arity ({{function-references}}); a capture
+that fails is a compile-time error attributed to the offending token.
+
+### Expression Language {#expression-language}
+
+The body of every argument bound to an `expression`-typed parameter —
+the `rule` of `@validate`, and any other `expression` parameter a
+schema declares — is written in one fixed language, defined here, the
+same in every engine and every implementation. (RFC-001 Section 5.4,
+resolved 2026-09-07; the ratified text left the body to the engine.)
+
+Grammar, over the Protocol Buffers lexical forms for identifiers and
+for integer, float and string literals:
+
+~~~
+expr    = or
+or      = and *( "||" and )
+and     = unary *( "&&" unary )
+unary   = "!" unary / cmp
+cmp     = term [ ( "==" / "!=" / "<=" / ">=" / "<" / ">" ) term ]
+        / term "in" term
+term    = INT / FLOAT / STRING / "true" / "false" / list
+        / "this" *postfix
+        / call
+        / "(" expr ")"
+postfix = "." IDENT "(" args ")"             ; builtin, method form
+call    = IDENT *( "." IDENT ) "(" args ")"  ; declared function, or
+                                             ; builtin in function form
+args    = [ expr *( "," expr ) ]
+list    = "[" [ term *( "," term ) ] "]"
+~~~
+
+`this` is the only bound identifier. There is no field selection:
+`this.name` is not an expression; a rule over a message's fields is a
+declared `function` taking the message. A `call` whose name resolves
+to a visible `function` declaration dispatches to the engine's
+registry ({{validation-conformance}}); otherwise the name MUST be one
+of the builtins below. A builtin's method form `this.m(a, ...)` is the
+same call as its function form `m(this, a, ...)`.
+
+Builtins. This is the complete set; an engine MUST NOT accept any
+other name in an expression argument, and a compiler MUST reject a
+call to any other name.
+
+| Builtin | Receiver (first argument) | Further arguments | Result |
+|---|---|---|---|
+| `size()` | string, bytes, list, map | none | int: Unicode code points of a string, bytes of a bytes value, elements of a list or map |
+| `starts_with(prefix)` | string | one string | bool |
+| `ends_with(suffix)` | string | one string | bool |
+| `contains(substr)` | string | one string | bool |
+| `matches(pattern)` | string | one string, an RE2 pattern | bool: whether the pattern matches anywhere in the receiver (unanchored) |
+| `now()` | none | none | the engine-native current instant ({{wkt-binding}} rules 2 and 5) |
+
+Typing and evaluation. The language is dynamically typed: a compiler
+checks syntax, name resolution and arity; an engine checks operand
+kinds when it evaluates. `&&` and `||` short-circuit and require
+boolean operands; `!` requires a boolean operand. `==` and `!=`
+compare numbers by value regardless of representation, strings,
+booleans, and temporal values of the same kind; `<`, `<=`, `>` and
+`>=` order numbers, strings (byte-wise), and temporal values of the
+same kind. `in` requires a list on its right and tests membership with
+`==`. Any other combination is an evaluation error: the rule fails,
+and the violation's fallback message carries the engine's error text.
+The statically visible cases (wrong builtin arity; a builtin in
+function form with no receiver argument) are compile errors as well.
+
+The language has no field selection on `this`, no temporal or
+duration literals, no enum-value references, no arithmetic, no
+ternary, no comprehensions and no string formatting. Each of those is
+either a declared `function` or a future revision of this section;
+extending the language is a specification change, never an engine
+extension.
 
 ### Placement
 
@@ -1505,7 +1578,7 @@ key when the key's declared type is a type declaration.
 
 ### Well-Known Type Binding {#wkt-binding}
 
-Five rules define what the identifier `this` binds to inside a rule,
+Six rules define what the identifier `this` binds to inside a rule,
 by the kind of the value's declared type:
 
 1. For a well-known wrapper type (`google.protobuf.StringValue` etc.),
@@ -1516,24 +1589,32 @@ by the kind of the value's declared type:
    `this` binds to the **engine-native temporal value** — parallel to
    wrapper unwrapping, so rules read naturally (`this > now()`).
    Engines MUST support the comparison operators `<`, `<=`, `==`,
-   `>=`, `>` between temporal values of the same kind. Temporal
-   literals and helper functions (`now()`, duration construction) are
-   engine-standard-library concerns, not schema syntax. As with
-   wrappers, the rule is NOT evaluated when the field is unset.
+   `>=`, `>` between temporal values of the same kind. `now()` is a
+   builtin of {{expression-language}}; the language has no temporal or
+   duration literal, so a rule that needs one declares a `function`
+   taking the temporal value. As with wrappers, the rule is NOT
+   evaluated when the field is unset.
 
 3. For `google.protobuf.Any`, `this` does **not** unwrap: it binds to
-   the structured value with `type_url` and `value` accessible, and
-   `this.type_url == "..."` string refinement is the canonical
-   pattern. Engines MUST NOT auto-unpack the payload: unpacking
+   the structured value. The expression language has no field
+   selection, so the canonical `type_url` refinement is a declared
+   `function` taking the `Any` and comparing `type_url` in its
+   implementation. Engines MUST NOT auto-unpack the payload: unpacking
    requires resolving the payload type against a descriptor pool at
    evaluation time, and its result silently changes as pools grow.
 
-4. For any other message type, `this` binds to the message instance,
-   and rules MAY reference its fields by name.
+4. For any other message type, `this` binds to the message instance.
+   A rule over the message's fields is a declared `function` taking
+   the message; no rule selects a field in the expression itself.
 
 5. Engine builtins that observe the current time (e.g. `now()`) MUST
    be **run-stable**: every evaluation within the production of one
    Report observes the same instant.
+
+6. For an enum type, `this` binds to the value's **number**, and a
+   rule compares it with integer literals. The expression language has
+   no enum-value reference: a qualified name such as
+   `OrderStatus.SHIPPED` is not a term.
 
 These rules pin evaluation-time meaning only; they do not change
 descriptor lowering — a type declaration always records its literal
@@ -1649,8 +1730,8 @@ exactly two sources: the Violation returned by a declared function
 and specification-defined synthetic Violations
 (`protowire.depth_exceeded` carries `limit`; see {{recursion-depth}}).
 For Violations produced by inline expression rules, engines MUST leave
-`params` empty: expressions are opaque engine source
-({{engine-expressions}}), and no mapping from expression shapes to
+`params` empty: an expression is a rule in the fixed language of
+{{expression-language}}, and no mapping from expression shapes to
 parameter names is defined. A rule that requires structured parameters
 for catalog interpolation is declared as a function.
 
@@ -1816,8 +1897,8 @@ Project-level engine selection lives in a text-format Protocol Buffers
 file named `protowire.config.textproto` at the project root, carrying
 exactly one `protowire.schema.config.v1.EngineConfig` message (schema:
 `protowire/proto/schema/config/v1/config.proto` in the protowire
-source repository). The message selects the `engine`, lists
-function-library and catalog-library imports, sets `strict_validation`
+source repository). The message lists function-library and
+catalog-library imports, sets `strict_validation`
 ({{cross-runtime}}), the default execution mode
 ({{validation-execution}}), and `max_recursion_depth`
 ({{recursion-depth}}).
@@ -1826,8 +1907,11 @@ Discovery is nearest-config-wins, walking from the compilation's
 working directory upward; configurations are never merged. Precedence,
 highest first: explicit command-line flags; a `--config` file
 argument; a config file named by the `PROTOWIRE_CONFIG` environment
-variable; the discovered file; built-in defaults (engine `cel`,
-lenient verification, collect-all mode).
+variable; the discovered file; built-in defaults (lenient
+verification, collect-all mode). The `engine` field is reserved: the
+expression language is fixed ({{expression-language}}), so nothing
+selects an engine; validators MUST ignore the field and tooling SHOULD
+warn when it is set.
 
 ### Multi-Runtime Schemas
 
