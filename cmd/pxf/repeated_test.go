@@ -18,8 +18,6 @@ import (
 // repeated field is rejected.
 const repeatedDir = "../../testdata/repeated"
 
-func repeatedProto() string { return filepath.Join("../../testdata", "test.proto") }
-
 type repeatedNestedPB struct {
 	Name  string `protowire:"1"`
 	Value int32  `protowire:"2"`
@@ -33,10 +31,10 @@ type repeatedAllTypesPB struct {
 
 func TestRepeated_ListBindingsConcatenate(t *testing.T) {
 	path := filepath.Join(repeatedDir, "concat-lists.pxf")
-	if _, err := runCLI(t, "validate", "-p", repeatedProto(), "-m", "test.v1.AllTypes", path); err != nil {
+	if _, err := runCLI(t, "validate", "-p", testProto(), "-m", "test.v1.AllTypes", path); err != nil {
 		t.Fatalf("validate: %v", err)
 	}
-	out, err := runCLI(t, "encode", "-p", repeatedProto(), "-m", "test.v1.AllTypes", path)
+	out, err := runCLI(t, "encode", "-p", testProto(), "-m", "test.v1.AllTypes", path)
 	if err != nil {
 		t.Fatalf("encode: %v", err)
 	}
@@ -66,7 +64,7 @@ func TestRepeated_ScalarAndBlockBindingsReject(t *testing.T) {
 	}
 	for _, path := range files {
 		t.Run(filepath.Base(path), func(t *testing.T) {
-			_, err := runCLI(t, "validate", "-p", repeatedProto(), "-m", "test.v1.AllTypes", path)
+			_, err := runCLI(t, "validate", "-p", testProto(), "-m", "test.v1.AllTypes", path)
 			if err == nil {
 				t.Fatal("validate accepted a repeated field bound to a scalar or a block")
 			}
