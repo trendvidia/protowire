@@ -50,16 +50,9 @@ var datasetVerdicts = map[string]string{
 // datasetKnownGaps maps fixtures the pinned protowire-go does not yet meet
 // to the change that closes the gap. Each entry is asserted to still
 // fail with the old rejection, so the go.mod bump that closes it flips
-// the test and forces the entry's removal.
-var datasetKnownGaps = map[string]string{
-	// Value cells (#341): protowire-go v1.8.1 refuses list and block cells
-	// at parse time, with the error below. protowire-go#152 accepts them.
-	"list-cell.pxf":       "protowire-go#152",
-	"block-cell.pxf":      "protowire-go#152",
-	"nested-cells.pxf":    "protowire-go#152",
-	"cell-framing.pxf":    "protowire-go#152",
-	"block-on-scalar.pxf": "protowire-go#152",
-}
+// the test and forces the entry's removal. Empty since protowire-go
+// v1.9.0, which accepts value cells (#341).
+var datasetKnownGaps = map[string]string{}
 
 const datasetGapRejection = "@dataset cells cannot contain"
 
@@ -67,12 +60,9 @@ const datasetGapRejection = "@dataset cells cannot contain"
 // without error where the verdict is rejection: it ends the row sequence
 // at a broken row instead of reporting it. Each is asserted to still be
 // accepted, so the bump that fixes the reader forces the entry's removal.
-var datasetStreamGaps = map[string]string{
-	"junk-between-rows.pxf":       "protowire-go#141",
-	"truncated-row-eof.pxf":       "protowire-go#141",
-	"truncated-row-then-rows.pxf": "protowire-go#141",
-	"with-body.pxf":               "protowire-go#141",
-}
+// Empty since protowire-go v1.9.0, which reports broken rows
+// (protowire-go#141).
+var datasetStreamGaps = map[string]string{}
 
 func TestDataset_Corpus(t *testing.T) {
 	files, err := filepath.Glob(filepath.Join(datasetDir, "*.pxf"))
