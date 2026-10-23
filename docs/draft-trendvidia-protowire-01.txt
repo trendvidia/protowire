@@ -967,10 +967,10 @@ Internet-Draft                  protowire                      July 2026
    whose row sequence does not fit in memory.  Tools MAY expose a
    streaming row-iteration API alongside (or in place of) the
    materializing one.  A streaming API MUST yield rows in source order,
-   MUST enforce the per-row arity rule and the cell rules on each row as
-   it is consumed (not deferred to end-of-input), and SHOULD bound its
-   working-set memory by the size of the largest single row plus a small
-   bookkeeping overhead — not by the size of the row sequence.
+   MUST enforce the per-row arity rule and the cell grammar on each row
+   as it is consumed (not deferred to end-of-input), and SHOULD bound
+   its working-set memory by the size of the largest single row plus a
+   small bookkeeping overhead — not by the size of the row sequence.
    Streaming and materializing APIs that coexist in the same
    implementation MUST produce byte-identical row sequences for the same
    input.

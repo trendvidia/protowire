@@ -4,6 +4,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -220,7 +221,7 @@ func validateCmd() *cobra.Command {
 			// (draft §3.4.4). Bind each one, so that validate checks a row
 			// against its type and does not print "valid" for a string in
 			// an int32 column (#341).
-			if err := bindDatasetRows(res.Datasets(), desc); err != nil {
+			if err := validateDatasets(res); err != nil {
 				return err
 			}
 			fmt.Fprintln(os.Stderr, "valid")
@@ -229,33 +230,84 @@ func validateCmd() *cobra.Command {
 	}
 }
 
-// bindDatasetRows binds every row of every @dataset to its row type: the
-// type the header names, or desc when the header names none (a row type
-// bound from an anonymous @proto, which resolves to --message here).
-func bindDatasetRows(datasets []pxf.DatasetDirective, desc protoreflect.MessageDescriptor) error {
-	for _, ds := range datasets {
-		rowDesc := desc
-		if ds.Type != "" {
-			md, err := resolveMessage(ds.Type)
-			if err != nil {
-				return fmt.Errorf("%s: @dataset %s: %w", ds.Pos, ds.Type, err)
-			}
-			rowDesc = md
+// validateDatasets binds every row of every @dataset to its row type.
+// The type is the one the header names, resolved against -p, the
+// bundled schemas, protoregistry and the document's own @proto
+// directives; an untyped header takes the anonymous @proto before it
+// (draft §3.4.4), the same resolution `pxf query` uses.
+func validateDatasets(res *pxf.Result) error {
+	doc := &loadedDoc{
+		datasets: append([]pxf.DatasetDirective(nil), res.Datasets()...),
+		protos:   append([]pxf.ProtoDirective(nil), res.Protos()...),
+	}
+	if err := resolveAnonymousProtos(doc); err != nil {
+		return err
+	}
+	sch, err := loadSchema(protoFiles, doc.protos, registryRefFromFlags())
+	if err != nil {
+		return err
+	}
+	for _, ds := range doc.datasets {
+		md := sch.find(ds.Type)
+		if md == nil {
+			return fmt.Errorf("%s: @dataset %s: message not found in resolved schema (bundled canonical types + -p + protoregistry + @proto)", ds.Pos, ds.Type)
 		}
+		if vs := pxf.ValidateDescriptor(md); len(vs) > 0 {
+			return fmt.Errorf("%s: @dataset %s: %s", ds.Pos, ds.Type, vs[0])
+		}
+		msg := dynamicpb.NewMessage(md)
 		for _, row := range ds.Rows {
-			if err := pxf.BindRow(dynamicpb.NewMessage(rowDesc), ds.Columns, row); err != nil {
-				// BindRow decodes a body it synthesizes from the row, so a
-				// position inside its error points into that body, not the
-				// document. Report the row's position and the message alone.
-				var pe *pxf.Error
-				if errors.As(err, &pe) {
-					return fmt.Errorf("%s: @dataset row: %s", row.Pos, pe.Msg)
-				}
-				return fmt.Errorf("%s: @dataset row: %w", row.Pos, err)
+			proto.Reset(msg)
+			if err := bindRow(msg, ds.Columns, row); err != nil {
+				return err
 			}
 		}
 	}
 	return nil
+}
+
+// bindRow binds one row the way draft §3.4.4 defines it: a non-empty
+// cell in column c is the entry "c = <value>" in a body of the row
+// type, and an empty cell is an absent field. The body goes through the
+// full decode, so (pxf.required) and (pxf.default) apply to empty cells
+// as the three-state rule says. pxf.BindRow decodes on the plain path,
+// which applies neither (protowire-go#145).
+//
+// An error inside the synthesized body is reported at the row's
+// position, naming the column whose entry it fell in. The body opens
+// with an empty line, so that an error at line 1 (post-decode reports a
+// missing required field there) is not pinned on the first column.
+func bindRow(msg proto.Message, columns []string, row pxf.DatasetRow) error {
+	body := []byte{'\n'}
+	var starts []int      // body line each entry begins on
+	var entryCol []string // the column of each entry
+	line := 2
+	for i, cell := range row.Cells {
+		if cell == nil {
+			continue
+		}
+		starts = append(starts, line)
+		entryCol = append(entryCol, columns[i])
+		n := len(body)
+		body = append(body, columns[i]+" = "...)
+		body = pxf.AppendValue(body, cell)
+		body = append(body, '\n')
+		line += bytes.Count(body[n:], []byte{'\n'})
+	}
+	_, err := pxf.UnmarshalOptions{SkipValidate: true}.UnmarshalFull(body, msg)
+	if err == nil {
+		return nil
+	}
+	var pe *pxf.Error
+	if !errors.As(err, &pe) {
+		return fmt.Errorf("%s: @dataset row: %w", row.Pos, err)
+	}
+	for i := len(starts) - 1; i >= 0; i-- {
+		if pe.Pos.Line >= starts[i] {
+			return fmt.Errorf("%s: @dataset row, column %s: %s", row.Pos, entryCol[i], pe.Msg)
+		}
+	}
+	return fmt.Errorf("%s: @dataset row: %s", row.Pos, pe.Msg)
 }
 
 func fmtCmd() *cobra.Command {

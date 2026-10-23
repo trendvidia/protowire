@@ -4,16 +4,26 @@
 package main
 
 import (
+	"bytes"
+	"errors"
+	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"google.golang.org/protobuf/types/dynamicpb"
+
+	"github.com/trendvidia/protowire-go/encoding/pxf"
 )
 
 // datasetDir is the cross-port @dataset corpus (draft -01 §3.4.4): each
-// file's leading comment states its verdict. Driven here through
-// `pxf validate`, which parses the document and binds every row to its
-// type, against the reference implementation.
+// file's leading comment states its verdict. Driven here against the
+// reference implementation three ways: through `pxf validate`, which
+// parses the document and binds every row to its type; through the
+// streaming DatasetReader, which must yield the rows the materializing
+// parse does; and, for accept fixtures, through `pxf query`.
 const datasetDir = "../../testdata/dataset"
 
 // datasetVerdicts lists every fixture: "" for MUST accept, otherwise a
@@ -34,7 +44,7 @@ var datasetVerdicts = map[string]string{
 	"truncated-row-then-rows.pxf": "expected ',' or ')'",
 	"with-body.pxf":               "top-level field entries",
 	"with-type.pxf":               "@type",
-	"block-on-scalar.pxf":         `@dataset row: expected integer for field "int32_field"`,
+	"block-on-scalar.pxf":         `expected integer for field "int32_field"`,
 }
 
 // datasetKnownGaps maps fixtures the pinned protowire-go does not yet meet
@@ -53,6 +63,17 @@ var datasetKnownGaps = map[string]string{
 
 const datasetGapRejection = "@dataset cells cannot contain"
 
+// datasetStreamGaps are fixtures the pinned DatasetReader streams through
+// without error where the verdict is rejection: it ends the row sequence
+// at a broken row instead of reporting it. Each is asserted to still be
+// accepted, so the bump that fixes the reader forces the entry's removal.
+var datasetStreamGaps = map[string]string{
+	"junk-between-rows.pxf":       "protowire-go#141",
+	"truncated-row-eof.pxf":       "protowire-go#141",
+	"truncated-row-then-rows.pxf": "protowire-go#141",
+	"with-body.pxf":               "protowire-go#141",
+}
+
 func TestDataset_Corpus(t *testing.T) {
 	files, err := filepath.Glob(filepath.Join(datasetDir, "*.pxf"))
 	if err != nil {
@@ -61,47 +82,244 @@ func TestDataset_Corpus(t *testing.T) {
 	if len(files) != len(datasetVerdicts) {
 		t.Errorf("found %d fixtures, the verdict table lists %d", len(files), len(datasetVerdicts))
 	}
+	sch, err := loadSchema([]string{testProto()}, nil, registryRef{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, path := range files {
 		name := filepath.Base(path)
-		t.Run(name, func(t *testing.T) {
-			want, listed := datasetVerdicts[name]
-			if !listed {
-				t.Fatalf("%s has no verdict in datasetVerdicts", name)
-			}
+		want, listed := datasetVerdicts[name]
+		if !listed {
+			t.Errorf("%s has no verdict in datasetVerdicts", name)
+			continue
+		}
+		t.Run("validate/"+name, func(t *testing.T) {
 			_, err := runCLI(t, "validate", "-p", testProto(), "-m", "test.v1.AllTypes", path)
-			if gap, known := datasetKnownGaps[name]; known {
-				if err == nil || !strings.Contains(err.Error(), datasetGapRejection) {
-					t.Fatalf("the pinned protowire-go no longer refuses this fixture as before (got %v); gap %s is closed, remove it from datasetKnownGaps", err, gap)
+			skipKnownGap(t, name, err)
+			checkVerdict(t, want, err)
+		})
+		t.Run("stream/"+name, func(t *testing.T) {
+			rows, err := streamDataset(path, sch)
+			skipKnownGap(t, name, err)
+			if gap, known := datasetStreamGaps[name]; known {
+				if err != nil {
+					t.Fatalf("the pinned DatasetReader now rejects this fixture (%v); gap %s is closed, remove it from datasetStreamGaps", err, gap)
 				}
-				t.Skipf("known gap, closed by %s: %v", gap, err)
+				t.Skipf("known gap, closed by %s: the reader streams past the broken row", gap)
 			}
-			switch {
-			case want == "" && err != nil:
-				t.Fatalf("MUST accept, validate rejected: %v", err)
-			case want != "" && err == nil:
-				t.Fatalf("MUST reject (%q), validate accepted", want)
-			case want != "" && !strings.Contains(err.Error(), want):
-				t.Fatalf("rejected for the wrong reason: want %q in %v", want, err)
+			checkVerdict(t, want, err)
+			if want != "" {
+				return
+			}
+			data, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			doc, err := pxf.Parse(data)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var parsed []pxf.DatasetRow
+			for _, ds := range doc.Datasets {
+				parsed = append(parsed, ds.Rows...)
+			}
+			if got, want := renderRows(rows), renderRows(parsed); got != want {
+				t.Fatalf("streamed rows differ from the materializing parse:\nstream:\n%s\nparse:\n%s", got, want)
+			}
+		})
+		if want != "" {
+			continue
+		}
+		t.Run("query/"+name, func(t *testing.T) {
+			out, err := runCLI(t, "query", "-p", testProto(), `[pxf_directive("dataset")[] | .rows | length] | add`, path)
+			skipKnownGap(t, name, err)
+			if err != nil {
+				t.Fatalf("MUST accept, query rejected: %v", err)
+			}
+			data, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			doc, err := pxf.Parse(data)
+			if err != nil {
+				t.Fatal(err)
+			}
+			n := 0
+			for _, ds := range doc.Datasets {
+				n += len(ds.Rows)
+			}
+			// A dataset that query fails to bind is reported as an error in place of
+			// the dataset, with no rows, so the count comes up short.
+			if want := fmt.Sprintf("value = %d", n); strings.TrimSpace(out) != want {
+				t.Fatalf("query counted %q rows, want %q", strings.TrimSpace(out), want)
 			}
 		})
 	}
 }
 
+// skipKnownGap skips a fixture listed in datasetKnownGaps after checking
+// that the pinned protowire-go still refuses it the old way.
+func skipKnownGap(t *testing.T, name string, err error) {
+	t.Helper()
+	gap, known := datasetKnownGaps[name]
+	if !known {
+		return
+	}
+	if err == nil || !strings.Contains(err.Error(), datasetGapRejection) {
+		t.Fatalf("the pinned protowire-go no longer refuses this fixture as before (got %v); gap %s is closed, remove it from datasetKnownGaps", err, gap)
+	}
+	t.Skipf("known gap, closed by %s: %v", gap, err)
+}
+
+func checkVerdict(t *testing.T, want string, err error) {
+	t.Helper()
+	switch {
+	case want == "" && err != nil:
+		t.Fatalf("MUST accept, rejected: %v", err)
+	case want != "" && err == nil:
+		t.Fatalf("MUST reject (%q), accepted", want)
+	case want != "" && !strings.Contains(err.Error(), want):
+		t.Fatalf("rejected for the wrong reason: want %q in %v", want, err)
+	}
+}
+
+// streamDataset reads every @dataset in path through a DatasetReader,
+// binding each row with Scan, and returns the rows in the order read.
+func streamDataset(path string, sch *schema) ([]pxf.DatasetRow, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var rows []pxf.DatasetRow
+	var src io.Reader = bytes.NewReader(data)
+	for first := true; ; first = false {
+		tr, err := pxf.NewDatasetReader(src)
+		if errors.Is(err, pxf.ErrNoDataset) && !first {
+			return rows, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		md := sch.find(tr.Type())
+		if md == nil {
+			return nil, fmt.Errorf("@dataset %s: type not found", tr.Type())
+		}
+		for {
+			row, err := tr.Next()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				return nil, err
+			}
+			if err := pxf.BindRow(dynamicpb.NewMessage(md), tr.Columns(), row); err != nil {
+				return nil, err
+			}
+			rows = append(rows, row)
+		}
+		src = tr.Tail()
+	}
+}
+
+// renderRows prints rows one per line, each cell as its PXF literal and
+// an empty cell as nothing, so two row sequences compare as text.
+func renderRows(rows []pxf.DatasetRow) string {
+	var b strings.Builder
+	for _, r := range rows {
+		for i, c := range r.Cells {
+			if i > 0 {
+				b.WriteString(" | ")
+			}
+			if c != nil {
+				b.Write(pxf.FormatValue(c))
+			}
+		}
+		b.WriteByte('\n')
+	}
+	return b.String()
+}
+
 func testProto() string { return filepath.Join("../../testdata", "test.proto") }
 
-// A row is bound to its type, not only parsed: a string in an int32
-// column is rejected, naming the row's position in the document.
-func TestDataset_ValidateBindsRows(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "bad-row.pxf")
-	doc := "@dataset test.v1.AllTypes (string_field, int32_field)\n(\"ok\", 1)\n(\"bad\", \"not-an-int\")\n"
+// validateDoc writes doc to a file and runs validate on it.
+func validateDoc(t *testing.T, doc string, args ...string) error {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "doc.pxf")
 	if err := os.WriteFile(path, []byte(doc), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	_, err := runCLI(t, "validate", "-p", testProto(), "-m", "test.v1.AllTypes", path)
+	_, err := runCLI(t, append(append([]string{"validate"}, args...), path)...)
+	return err
+}
+
+// A row is bound to its type, not only parsed: a string in an int32
+// column is rejected, naming the row's position in the document and the
+// column.
+func TestDataset_ValidateBindsRows(t *testing.T) {
+	doc := "@dataset test.v1.AllTypes (string_field, int32_field)\n(\"ok\", 1)\n(\"bad\", \"not-an-int\")\n"
+	err := validateDoc(t, doc, "-p", testProto(), "-m", "test.v1.AllTypes")
 	if err == nil {
 		t.Fatal("validate accepted a string in an int32 column")
 	}
-	if want := `3:1: @dataset row: expected integer for field "int32_field"`; !strings.Contains(err.Error(), want) {
+	if want := `3:1: @dataset row, column int32_field: expected integer for field "int32_field"`; !strings.Contains(err.Error(), want) {
 		t.Fatalf("want %q in %v", want, err)
+	}
+}
+
+// The error names the column it fell in, which the row's position alone
+// does not: here the bad cell is the third of four non-empty ones.
+func TestDataset_ValidateNamesTheColumn(t *testing.T) {
+	doc := "@dataset test.v1.AllTypes (string_field, int32_field, int64_field, bool_field)\n(\"a\", 1, \"x\", true)\n"
+	err := validateDoc(t, doc, "-p", testProto(), "-m", "test.v1.AllTypes")
+	if err == nil || !strings.Contains(err.Error(), "2:1: @dataset row, column int64_field: ") {
+		t.Fatalf("want the error at row 2:1 naming int64_field, got %v", err)
+	}
+}
+
+// An empty cell in a (pxf.required) column is an absent required field,
+// which draft §3.4.4's three-state rule says MUST be rejected. --message
+// is a type with no required field, so only the row can fail.
+func TestDataset_ValidateRejectsEmptyRequiredCell(t *testing.T) {
+	args := []string{"-p", annotationsProto(), "-p", testProto(), "-m", "test.v1.AllTypes"}
+	doc := "@dataset settings.v1.Settings (name, retries)\n(\"a\", 1)\n( , 2)\n"
+	err := validateDoc(t, doc, args...)
+	if err == nil {
+		t.Fatal("validate accepted an empty cell in a (pxf.required) column")
+	}
+	if want := `3:1: @dataset row: required field "name" is absent`; !strings.Contains(err.Error(), want) {
+		t.Fatalf("want %q in %v", want, err)
+	}
+	// null is present-but-null, which satisfies (pxf.required).
+	doc = "@dataset settings.v1.Settings (name, retries)\n(null, 1)\n"
+	if err := validateDoc(t, doc, args...); err != nil {
+		t.Fatalf("validate rejected a null cell in a (pxf.required) column: %v", err)
+	}
+}
+
+// A row type defined by the document's own @proto resolves, as it does
+// for `pxf query`.
+func TestDataset_ValidateResolvesInDocumentProto(t *testing.T) {
+	schema := "@proto \"\"\"\nsyntax = \"proto3\";\npackage t.v1;\nmessage Trade { string sym = 1; double px = 2; }\n\"\"\"\n"
+	doc := schema + "@dataset t.v1.Trade (sym, px)\n(\"A\", 1.5)\n"
+	if err := validateDoc(t, doc, "-m", "test.v1.AllTypes", "-p", testProto()); err != nil {
+		t.Fatalf("validate: %v", err)
+	}
+	doc = schema + "@dataset t.v1.Trade (sym, px)\n(\"A\", \"x\")\n"
+	if err := validateDoc(t, doc, "-m", "test.v1.AllTypes", "-p", testProto()); err == nil || !strings.Contains(err.Error(), "column px") {
+		t.Fatalf("want a binding error on column px, got %v", err)
+	}
+}
+
+// An untyped @dataset binds to the anonymous @proto before it, not to
+// --message: here --message has neither column.
+func TestDataset_ValidateBindsAnonymousProto(t *testing.T) {
+	schema := "@proto { string sym = 1; double px = 2; }\n"
+	doc := schema + "@dataset (sym, px)\n(\"A\", 1.5)\n"
+	if err := validateDoc(t, doc, "-m", "test.v1.AllTypes", "-p", testProto()); err != nil {
+		t.Fatalf("validate: %v", err)
+	}
+	doc = schema + "@dataset (sym, px)\n(\"A\", \"x\")\n"
+	if err := validateDoc(t, doc, "-m", "test.v1.AllTypes", "-p", testProto()); err == nil || !strings.Contains(err.Error(), "column px") {
+		t.Fatalf("want a binding error on column px, got %v", err)
 	}
 }
