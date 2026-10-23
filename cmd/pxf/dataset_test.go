@@ -296,6 +296,15 @@ func TestDataset_ValidateRejectsEmptyRequiredCell(t *testing.T) {
 	}
 }
 
+// A @dataset document has no body, so the --message type's required
+// fields are not absent from it: the rows carry them.
+func TestDataset_ValidateIgnoresMessageRequiredOnDatasetDocument(t *testing.T) {
+	doc := "@dataset settings.v1.Settings (name)\n(\"a\")\n"
+	if err := validateDoc(t, doc, "-p", annotationsProto(), "-m", "settings.v1.Settings"); err != nil {
+		t.Fatalf("validate: %v", err)
+	}
+}
+
 // A row type defined by the document's own @proto resolves, as it does
 // for `pxf query`.
 func TestDataset_ValidateResolvesInDocumentProto(t *testing.T) {

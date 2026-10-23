@@ -209,19 +209,26 @@ func validateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			// The full path enforces (pxf.required), which is what the
-			// README's exit-code line promises; the plain path accepted a
-			// document with a required field absent (#269).
-			_, res, err := pxf.UnmarshalFullDescriptor(data, desc)
+			// Parse first without post-decode: a @dataset document has no
+			// body, so the --message type's (pxf.required) check would fail
+			// it whatever its rows hold.
+			_, res, err := pxf.UnmarshalOptions{SkipPostDecode: true}.UnmarshalFullDescriptor(data, desc)
 			if err != nil {
 				return err
 			}
-			// A @dataset document's payload is its rows, which the decode
-			// above parses but does not bind: rows are consumer-interpreted
-			// (draft §3.4.4). Bind each one, so that validate checks a row
-			// against its type and does not print "valid" for a string in
-			// an int32 column (#341).
-			if err := validateDatasets(res); err != nil {
+			if len(res.Datasets()) == 0 {
+				// The full path enforces (pxf.required), which is what the
+				// README's exit-code line promises; the plain path accepted
+				// a document with a required field absent (#269).
+				if _, _, err := pxf.UnmarshalFullDescriptor(data, desc); err != nil {
+					return err
+				}
+			} else if err := validateDatasets(res); err != nil {
+				// A @dataset document's payload is its rows, which the
+				// decode above parses but does not bind: rows are
+				// consumer-interpreted (draft §3.4.4). Bind each one, so
+				// that validate checks a row against its type and does not
+				// print "valid" for a string in an int32 column (#341).
 				return err
 			}
 			fmt.Fprintln(os.Stderr, "valid")
