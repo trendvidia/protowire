@@ -9,9 +9,11 @@ syntax = "proto3";
 
 package dataset.v1;
 
+import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/wrappers.proto";
 import "pxf/annotations.proto";
+import "pxf/bignum.proto";
 
 message Tempo {
   int32 min_bpm = 1;
@@ -48,4 +50,6 @@ message Event {
   Req req = 8;
   int32 plain = 9;
   google.protobuf.Int32Value wrap = 10;
+  google.protobuf.Duration dur = 11;
+  pxf.BigInt big = 12;
 }

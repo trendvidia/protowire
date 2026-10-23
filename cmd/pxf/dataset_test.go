@@ -46,20 +46,28 @@ var datasetVerdicts = map[string]string{
 	"block-on-scalar.pxf":         `expected integer for field "int32_field"`,
 	// Column paths (#342). Row type dataset.v1.Event in paths.proto
 	// unless the fixture says otherwise.
-	"dotted-column.pxf":            "",
-	"dotted-grouping.pxf":          "",
-	"dotted-null-leaf.pxf":         "",
-	"dotted-oneof.pxf":             "",
-	"dotted-required.pxf":          "",
-	"dotted-with-value-cells.pxf":  "",
-	"dotted-oneof-two-members.pxf": "conflicts with already-set field",
-	"dotted-through-repeated.pxf":  `"picks" is a repeated field`,
-	"dotted-through-map.pxf":       `"by_name" is a map field`,
-	"dotted-into-timestamp.pxf":    `"ts" is a google.protobuf.Timestamp`,
-	"dotted-into-wrapper.pxf":      `"wrap" is a google.protobuf.Int32Value`,
-	"dotted-overlap.pxf":           `column "desc.energy" overlaps column "desc"`,
-	"duplicate-column.pxf":         `column "string_field" appears twice`,
-	"dotted-required-missing.pxf":  `required field "req.n" is absent`,
+	"dotted-column.pxf":               "",
+	"dotted-grouping.pxf":             "",
+	"dotted-null-leaf.pxf":            "",
+	"dotted-oneof.pxf":                "",
+	"dotted-required.pxf":             "",
+	"dotted-with-value-cells.pxf":     "",
+	"dotted-oneof-two-members.pxf":    "conflicts with already-set field",
+	"dotted-through-repeated.pxf":     `"picks" is a repeated field`,
+	"dotted-through-map.pxf":          `"by_name" is a map field`,
+	"dotted-into-timestamp.pxf":       `"ts" is a google.protobuf.Timestamp`,
+	"dotted-into-wrapper.pxf":         `"wrap" is a google.protobuf.Int32Value`,
+	"dotted-overlap.pxf":              `column "desc.energy" overlaps column "desc"`,
+	"duplicate-column.pxf":            `column "string_field" appears twice`,
+	"dotted-required-missing.pxf":     `required field "req.n" is absent`,
+	"dotted-empty-segment.pxf":        "a column path has an empty segment",
+	"dotted-trailing-dot.pxf":         "a column path has an empty segment",
+	"dotted-unknown-segment.pxf":      `has no field "nope"`,
+	"dotted-through-scalar.pxf":       `"plain" is not a message field`,
+	"dotted-into-duration.pxf":        `"dur" is a google.protobuf.Duration`,
+	"dotted-into-bignum.pxf":          `"big" is a pxf.BigInt`,
+	"dotted-overlap-deep.pxf":         `column "desc.tempo.min_bpm" overlaps column "desc.tempo"`,
+	"dotted-bad-header-empty-row.pxf": `"picks" is a repeated field`,
 }
 
 // datasetKnownGaps maps fixtures the pinned protowire-go does not yet meet
@@ -71,24 +79,35 @@ var datasetKnownGaps = map[string]datasetGap{
 	// Column paths (#342): protowire-go v1.9.0 refuses a dotted column at
 	// parse time, and accepts a column named twice. protowire-go#159
 	// accepts the paths and applies the header rules.
-	"dotted-column.pxf":            dottedGap,
-	"dotted-grouping.pxf":          dottedGap,
-	"dotted-null-leaf.pxf":         dottedGap,
-	"dotted-oneof.pxf":             dottedGap,
-	"dotted-required.pxf":          dottedGap,
-	"dotted-with-value-cells.pxf":  dottedGap,
-	"dotted-oneof-two-members.pxf": dottedGap,
-	"dotted-through-repeated.pxf":  dottedGap,
-	"dotted-through-map.pxf":       dottedGap,
-	"dotted-into-timestamp.pxf":    dottedGap,
-	"dotted-into-wrapper.pxf":      dottedGap,
-	"dotted-overlap.pxf":           dottedGap,
-	"dotted-required-missing.pxf":  dottedGap,
-	"duplicate-column.pxf":         {by: "protowire-go#159", old: ""},
+	"dotted-column.pxf":               dottedGap,
+	"dotted-grouping.pxf":             dottedGap,
+	"dotted-null-leaf.pxf":            dottedGap,
+	"dotted-oneof.pxf":                dottedGap,
+	"dotted-required.pxf":             dottedGap,
+	"dotted-with-value-cells.pxf":     dottedGap,
+	"dotted-oneof-two-members.pxf":    dottedGap,
+	"dotted-through-repeated.pxf":     dottedGap,
+	"dotted-through-map.pxf":          dottedGap,
+	"dotted-into-timestamp.pxf":       dottedGap,
+	"dotted-into-wrapper.pxf":         dottedGap,
+	"dotted-overlap.pxf":              dottedGap,
+	"dotted-required-missing.pxf":     dottedGap,
+	"dotted-empty-segment.pxf":        dottedGap,
+	"dotted-trailing-dot.pxf":         dottedGap,
+	"dotted-unknown-segment.pxf":      dottedGap,
+	"dotted-through-scalar.pxf":       dottedGap,
+	"dotted-into-duration.pxf":        dottedGap,
+	"dotted-into-bignum.pxf":          dottedGap,
+	"dotted-overlap-deep.pxf":         dottedGap,
+	"dotted-bad-header-empty-row.pxf": dottedGap,
+	"duplicate-column.pxf":            {by: dottedGap.by, old: ""},
 }
 
 // datasetGap is a known gap: by is the change that closes it, and old is
-// a substring of the pinned release's rejection, or "" if it accepts.
+// a substring of the pinned release's rejection, or "" if it accepts. An
+// accepting gap is allowed only on a reject fixture: on an accept
+// fixture the fixed release accepts too, so the bump would never flip
+// the test.
 type datasetGap struct{ by, old string }
 
 var dottedGap = datasetGap{by: "protowire-go#159", old: "dotted column paths are not supported"}
@@ -185,12 +204,16 @@ func TestDataset_Corpus(t *testing.T) {
 }
 
 // skipKnownGap skips a fixture listed in datasetKnownGaps after checking
-// that the pinned protowire-go still refuses it the old way.
+// that the pinned protowire-go still treats it as the entry records:
+// refused with the old rejection, or accepted when old is "".
 func skipKnownGap(t *testing.T, name string, err error) {
 	t.Helper()
 	gap, known := datasetKnownGaps[name]
 	if !known {
 		return
+	}
+	if gap.old == "" && datasetVerdicts[name] == "" {
+		t.Fatalf("known gap %s records an acceptance on an accept fixture, which the fixed release meets too; record the old rejection instead", gap.by)
 	}
 	asBefore := err == nil
 	if gap.old != "" {

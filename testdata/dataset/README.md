@@ -22,7 +22,10 @@ yet.
 All fixtures bind against `test.v1.AllTypes` in `testdata/test.proto`
 unless otherwise noted. The `dotted-*` fixtures bind against
 `dataset.v1.Event` in [`paths.proto`](paths.proto), which imports
-`pxf/annotations.proto` from `proto/`.
+`pxf/annotations.proto` and `pxf/bignum.proto` from `proto/`. The
+exception is `dotted-column`, which binds against `test.v1.AllTypes`,
+as `duplicate-column` does. Each fixture's `@dataset` header names its
+row type.
 
 The `truncated-row-*`, `junk-between-rows` and `rows-end-at-directive`
 fixtures pin the "Appending" rule (issue
@@ -58,12 +61,21 @@ prefix.
 | `dotted-through-map` | reject (header) | a path through a map field |
 | `dotted-into-timestamp` | reject (header) | a path into a type written as a literal |
 | `dotted-into-wrapper` | reject (header) | the same, for a wrapper |
+| `dotted-into-duration` | reject (header) | the same, for a Duration |
+| `dotted-into-bignum` | reject (header) | the same, for a `pxf.BigInt` |
+| `dotted-through-scalar` | reject (header) | a path through a scalar field |
+| `dotted-unknown-segment` | reject (header) | a segment names no field |
+| `dotted-bad-header-empty-row` | reject (header) | a header rule holds for a row of empty cells |
 | `dotted-overlap` | reject (header) | a field and a path inside it are both columns |
+| `dotted-overlap-deep` | reject (header) | the same, below the top level |
+| `dotted-empty-segment` | reject (header) | a path with an empty segment (`a..b`) |
+| `dotted-trailing-dot` | reject (header) | a path ending in an empty segment (`a.`) |
 | `duplicate-column` | reject (header) | a column named twice, plain names included |
 
-`dotted-overlap` and `duplicate-column` are decided by the header alone,
-so a parser that does not bind rows must reject them too. The other
-header rejections need the row type. Until `cmd/pxf` pins a protowire-go
-release carrying
+`dotted-overlap`, `dotted-overlap-deep`, `dotted-empty-segment`,
+`dotted-trailing-dot` and `duplicate-column` are decided by the header
+alone, so a parser that does not bind rows must reject them too. The
+other header rejections need the row type. Until `cmd/pxf` pins a
+protowire-go release carrying
 [protowire-go#159](https://github.com/trendvidia/protowire-go/pull/159),
-its test lists these fourteen as known gaps.
+its test lists these twenty-two as known gaps.

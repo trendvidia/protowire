@@ -544,7 +544,7 @@ Anonymous binding. \<type\> MAY be omitted when an anonymous "@proto" directive 
 
 The anonymous "@proto" binding is one-shot per {{the-proto-directive}}: a second untyped "@dataset" in the same document requires a second preceding anonymous "@proto".
 
-Cell values. A cell holds any value of the value production of {{abnf-grammar}}, lists ("\[ ... \]") and block values ("{ ... }") included. A non-empty cell in column \<c\> means exactly what the entry "\<c\> = \<value\>" means in a message body of \<type\> ({{entries-and-keys}}): the same field binding, the same type checks, and the same nullability rules. So a row can carry a sub-message, a repeated field or a map:
+Cell values. A cell holds any value of the value production of {{abnf-grammar}}, lists ("\[ ... \]") and block values ("{ ... }") included. A non-empty cell in column \<c\> means exactly what the entry "\<c\> = \<value\>" means in a message body of \<type\> ({{entries-and-keys}}): the same field binding, the same type checks, and the same nullability rules. When \<c\> is a column path, the entry is written inside the blocks its path names (see Column paths). So a row can carry a sub-message, a repeated field or a map:
 
 ~~~
 @dataset ev.Event ( ts_bucket, descriptor, tags )
@@ -558,9 +558,9 @@ Cells stay easy to frame. No value contains "(" or ")" outside a string or a com
 
 Three-state cells. Each row cell denotes one of three states, carried into the bound message via the same semantics as the PXF annotations of {{pxf-annotations}}:
 
-* An empty cell (no value between two commas, or leading / trailing inside a row, e.g. "(1, , 3)") denotes an absent field. When the bound field carries (pxf.default), the default literal is applied; when it carries (pxf.required), the document MUST be rejected.
+* An empty cell (no value between two commas, or leading / trailing inside a row, e.g. "(1, , 3)") denotes an absent field. When the bound field carries (pxf.default), the default literal is applied; when it carries (pxf.required), the document MUST be rejected. For a field inside a sub-message, named by a column path, both hold only when the row makes that sub-message present (see Column paths).
 
-* A bare "null" literal denotes a present-but-null field. This satisfies (pxf.required) and suppresses (pxf.default), with the singular-field nullability rules of {{booleans-null-and-identifier-values}} applied against \<type\>'s declared field.
+* A bare "null" literal denotes a present-but-null field. This satisfies (pxf.required) and suppresses (pxf.default), with the singular-field nullability rules of {{booleans-null-and-identifier-values}} applied against the field the column names: a field declared on \<type\>, or for a column path the field its last segment names.
 
 * Any other value literal denotes a present field with that value.
 
@@ -618,9 +618,9 @@ Conformance:
 
 * A decoder MUST bind a row whose header has column paths as the body that groups the row's non-empty cells by path prefix into one block per prefix, and MUST NOT write a block none of whose cells is non-empty.
 
-* A decoder MUST bind a non-empty cell as the entry "\<c\> = \<value\>" would bind in a body of \<type\>, and MUST reject a cell that entry would reject (for example, a block in a scalar column).
+* A decoder MUST bind a non-empty cell as the entry "\<c\> = \<value\>" would bind in a body of \<type\>, and MUST reject a cell that entry would reject (for example, a block in a scalar column). For a column path, the entry is the one the grouping writes inside the path's blocks.
 
-* A decoder MUST resolve identifier-shaped cell values against the corresponding column field on \<type\>: an enum-typed column accepts an enum value name ({{booleans-null-and-identifier-values}}); a string-typed column accepts only quoted strings, not bare identifiers.
+* A decoder MUST resolve identifier-shaped cell values against the field the column names (for a column path, the field its last segment names): an enum-typed column accepts an enum value name ({{booleans-null-and-identifier-values}}); a string-typed column accepts only quoted strings, not bare identifiers.
 
 * "@dataset" inherits the schema constraint of {{schema-constraints}}: \<type\> MUST refer to a non-conformant-name-free message type, and each field a column entry names, every segment of a column path included, MUST have a name that is itself non-conformant-name-free.
 
