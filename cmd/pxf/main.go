@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
@@ -210,13 +211,51 @@ func validateCmd() *cobra.Command {
 			// The full path enforces (pxf.required), which is what the
 			// README's exit-code line promises; the plain path accepted a
 			// document with a required field absent (#269).
-			if _, _, err := pxf.UnmarshalFullDescriptor(data, desc); err != nil {
+			_, res, err := pxf.UnmarshalFullDescriptor(data, desc)
+			if err != nil {
+				return err
+			}
+			// A @dataset document's payload is its rows, which the decode
+			// above parses but does not bind: rows are consumer-interpreted
+			// (draft §3.4.4). Bind each one, so that validate checks a row
+			// against its type and does not print "valid" for a string in
+			// an int32 column (#341).
+			if err := bindDatasetRows(res.Datasets(), desc); err != nil {
 				return err
 			}
 			fmt.Fprintln(os.Stderr, "valid")
 			return nil
 		},
 	}
+}
+
+// bindDatasetRows binds every row of every @dataset to its row type: the
+// type the header names, or desc when the header names none (a row type
+// bound from an anonymous @proto, which resolves to --message here).
+func bindDatasetRows(datasets []pxf.DatasetDirective, desc protoreflect.MessageDescriptor) error {
+	for _, ds := range datasets {
+		rowDesc := desc
+		if ds.Type != "" {
+			md, err := resolveMessage(ds.Type)
+			if err != nil {
+				return fmt.Errorf("%s: @dataset %s: %w", ds.Pos, ds.Type, err)
+			}
+			rowDesc = md
+		}
+		for _, row := range ds.Rows {
+			if err := pxf.BindRow(dynamicpb.NewMessage(rowDesc), ds.Columns, row); err != nil {
+				// BindRow decodes a body it synthesizes from the row, so a
+				// position inside its error points into that body, not the
+				// document. Report the row's position and the message alone.
+				var pe *pxf.Error
+				if errors.As(err, &pe) {
+					return fmt.Errorf("%s: @dataset row: %s", row.Pos, pe.Msg)
+				}
+				return fmt.Errorf("%s: @dataset row: %w", row.Pos, err)
+			}
+		}
+	}
+	return nil
 }
 
 func fmtCmd() *cobra.Command {
