@@ -1,5 +1,6 @@
-# §3.4.4 cell-value grammar. List literal in a cell. MUST be rejected —
-# v1 cells are scalar-shaped; lists are reserved for a future revision.
+# §3.4.4 value cells. A list in a cell on a repeated column. MUST be
+# accepted: a cell means what `repeated_string = ["alpha", "beta"]` means
+# in a body. Rejected before v1.13, when cells were scalar-only.
 
 @dataset test.v1.AllTypes (string_field, repeated_string)
 

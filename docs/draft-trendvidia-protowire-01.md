@@ -329,10 +329,8 @@ dataset-directive
                   *( 1*WSP row )
 column-list     = identifier *( "," identifier )
 row             = "(" row-cell *( "," row-cell ) ")"
-row-cell        = [ row-value ]
-row-value       = string / number / bool / null / bytes
-                / timestamp / duration / identifier
-                ; cells exclude list and block-value
+row-cell        = [ value ]
+                ; a cell means "column = value"
                 ; ({{the-dataset-directive}})
 
 proto-directive = %s"@proto" proto-body
@@ -543,7 +541,17 @@ Anonymous binding. \<type\> MAY be omitted when an anonymous "@proto" directive 
 
 The anonymous "@proto" binding is one-shot per {{the-proto-directive}}: a second untyped "@dataset" in the same document requires a second preceding anonymous "@proto".
 
-Cell value grammar (v1). A cell value is drawn from the value production of {{abnf-grammar}} minus list and block-value: string, number, bool, null, bytes, timestamp, duration, or identifier. List literals ("\[ ... \]") and block values ("{ ... }") are NOT permitted in cells. This restriction keeps rows tokenizable with simple top-level comma splitting and reserves nested-cell semantics for a future revision.
+Cell values. A cell holds any value of the value production of {{abnf-grammar}}, lists ("\[ ... \]") and block values ("{ ... }") included. A non-empty cell in column \<c\> means exactly what the entry "\<c\> = \<value\>" means in a message body of \<type\> ({{entries-and-keys}}): the same field binding, the same type checks, and the same nullability rules. So a row can carry a sub-message, a repeated field or a map:
+
+~~~
+@dataset ev.Event ( ts_bucket, descriptor, tags )
+( "2026-10-23T10", { energy = 0.5 tempo { min_bpm = 60 } }, [ TAG_WARM ] )
+( "2026-10-23T11", {}, [] )
+~~~
+
+A "{}" cell is a present sub-message with every field unset, which an empty cell is not. Before v1.13, cells were limited to scalar values, and list and block cells were rejected.
+
+Cells stay easy to frame. No value contains "(" or ")" outside a string or a comment, so the end of a row is the ")" that matches its "(" with strings and comments skipped, whatever the cells hold. A streaming reader finds row boundaries that way, never by splitting on commas.
 
 Three-state cells. Each row cell denotes one of three states, carried into the bound message via the same semantics as the PXF annotations of {{pxf-annotations}}:
 
@@ -561,7 +569,7 @@ Standalone. A document containing a "@dataset" directive MUST NOT also contain a
 
 Consumer contract. "@dataset" is consumer-interpreted in the same side-channel manner as named directives ({{named-directives}}): the rows are exposed to callers through a parser API distinct from the body's schema layer. This document does not mandate a single canonical "decode-as-repeated-\<type\>" semantics; an application that wants that one-liner constructs it on top of the rows API. The schema layer of \<type\> MUST NOT receive the rows as message body entries.
 
-Streaming consumption. Because "@dataset" is the canonical PXF replacement for CSV, implementations are expected to handle datasets whose row sequence does not fit in memory. Tools MAY expose a streaming row-iteration API alongside (or in place of) the materializing one. A streaming API MUST yield rows in source order, MUST enforce the per-row arity rule and the v1 cell-grammar rule on each row as it is consumed (not deferred to end-of-input), and SHOULD bound its working-set memory by the size of the largest single row plus a small bookkeeping overhead — not by the size of the row sequence. Streaming and materializing APIs that coexist in the same implementation MUST produce byte-identical row sequences for the same input.
+Streaming consumption. Because "@dataset" is the canonical PXF replacement for CSV, implementations are expected to handle datasets whose row sequence does not fit in memory. Tools MAY expose a streaming row-iteration API alongside (or in place of) the materializing one. A streaming API MUST yield rows in source order, MUST enforce the per-row arity rule and the cell rules on each row as it is consumed (not deferred to end-of-input), and SHOULD bound its working-set memory by the size of the largest single row plus a small bookkeeping overhead — not by the size of the row sequence. Streaming and materializing APIs that coexist in the same implementation MUST produce byte-identical row sequences for the same input.
 
 Appending. A "@dataset" can be appended to, and that is a supported use: a writer adds a record by writing one complete row after the last, and there is no closing token to rewrite. The row sequence ends only at end of input or at the next directive. Anything else where a row could begin is a decode error, never an end of the sequence. That includes a row whose closing ")" never arrives, which is what an interrupted append leaves behind. This holds for the streaming API as much as the materializing one, so a row cut short by a failed write is reported and does not silently hide the rows appended after it.
 
@@ -575,7 +583,7 @@ Conformance:
 
 * A decoder MUST reject a column entry containing a ".".
 
-* A decoder MUST reject a cell value that is a list literal or a block value.
+* A decoder MUST bind a non-empty cell as the entry "\<c\> = \<value\>" would bind in a body of \<type\>, and MUST reject a cell that entry would reject (for example, a block in a scalar column).
 
 * A decoder MUST resolve identifier-shaped cell values against the corresponding column field on \<type\>: an enum-typed column accepts an enum value name ({{booleans-null-and-identifier-values}}); a string-typed column accepts only quoted strings, not bare identifiers.
 
