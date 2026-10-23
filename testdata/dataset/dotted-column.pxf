@@ -1,6 +1,7 @@
-# §3.4.4 column entries. Dotted path in the header column list.
-# MUST be rejected — v1 column entries are unqualified field names;
-# dotted paths are reserved for a future revision.
+# §3.4.4 column paths. A column may be a dotted path into a sub-message.
+# MUST be accepted. The row binds as
+#   string_field = "row-1" nested_field { name = "inner" }
+# Before v1.13 a dotted column was rejected.
 
 @dataset test.v1.AllTypes (string_field, nested_field.name)
 
