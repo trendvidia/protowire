@@ -563,11 +563,15 @@ Consumer contract. "@dataset" is consumer-interpreted in the same side-channel m
 
 Streaming consumption. Because "@dataset" is the canonical PXF replacement for CSV, implementations are expected to handle datasets whose row sequence does not fit in memory. Tools MAY expose a streaming row-iteration API alongside (or in place of) the materializing one. A streaming API MUST yield rows in source order, MUST enforce the per-row arity rule and the v1 cell-grammar rule on each row as it is consumed (not deferred to end-of-input), and SHOULD bound its working-set memory by the size of the largest single row plus a small bookkeeping overhead — not by the size of the row sequence. Streaming and materializing APIs that coexist in the same implementation MUST produce byte-identical row sequences for the same input.
 
+Appending. A "@dataset" can be appended to, and that is a supported use: a writer adds a record by writing one complete row after the last, and there is no closing token to rewrite. The row sequence ends only at end of input or at the next directive. Anything else where a row could begin is a decode error, never an end of the sequence. That includes a row whose closing ")" never arrives, which is what an interrupted append leaves behind. This holds for the streaming API as much as the materializing one, so a row cut short by a failed write is reported and does not silently hide the rows appended after it.
+
 Conformance:
 
 * A decoder MUST reject a document where a "@dataset" directive coexists with a "@type" directive or with any top-level field-entry.
 
 * A decoder MUST reject a row whose arity differs from the column count.
+
+* A decoder MUST reject a row that is not closed before end of input, and MUST reject any token other than "(" or "@" where a row could begin. A streaming API MUST report either as an error at that row, not as the end of the row sequence.
 
 * A decoder MUST reject a column entry containing a ".".
 
