@@ -678,7 +678,7 @@ The three entry tails are NOT interchangeable; the grammar in {{abnf-grammar}} s
 
 Inside a "{ ... }" block the parser cannot statically tell whether the surrounding field is message-typed or map-typed; both *field-entry* and *map-entry* are accepted in that position and the message-vs-map disambiguation is performed by the schema-resolution step that runs after parsing.
 
-Repeated fields MAY be expressed either as a single key with a list-typed value, or as multiple entries with the same key and scalar (or block) values; the two forms denote the same field value, with elements concatenated in document order.
+A repeated field is written with a list value ("tags = \[A, B\]"). A repeated field MAY be bound more than once. Its value is then the elements of every binding, concatenated in document order, so "tags = \[A\]" followed by "tags = \[B\]" denotes the same value as "tags = \[A, B\]". A decoder MUST reject a repeated field bound to a scalar ("tags = A") or to a block ("items { ... }" or "items = { ... }"). The one exception is the keyed surface form of a keyed repeated field ({{keyed-surface-form}}): its block holds named elements, not a single element.
 
 ## String Literals {#string-literals}
 
