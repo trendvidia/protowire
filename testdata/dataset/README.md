@@ -41,6 +41,12 @@ cell holds any value, and a non-empty cell in column `c` binds as
 `c = <value>` would in a body. `list-cell` and `block-cell` were reject
 fixtures before v1.13.
 
+`string-newline-in-cell` (reject) carries the string rule into a cell
+(issue [#350](https://github.com/trendvidia/protowire/issues/350)): a raw
+LF inside a simple string is an error in a cell as it is anywhere, for
+the materializing parser and the streaming reader alike. Its general
+fixtures are in [`../strings/`](../strings/).
+
 The `dotted-*` fixtures and `duplicate-column` pin column paths (issue
 [#342](https://github.com/trendvidia/protowire/issues/342), v1.13). A
 column may be a dotted path into a sub-message, and a row binds as the
