@@ -44,6 +44,8 @@ var datasetVerdicts = map[string]string{
 	"with-body.pxf":               "top-level field entries",
 	"with-type.pxf":               "@type",
 	"block-on-scalar.pxf":         `expected integer for field "int32_field"`,
+	// A raw LF in a simple string (#350), here in a cell.
+	"string-newline-in-cell.pxf": "newline in string literal",
 	// Column paths (#342). Row type dataset.v1.Event in paths.proto
 	// unless the fixture says otherwise.
 	"dotted-column.pxf":               "",
@@ -101,6 +103,9 @@ var datasetKnownGaps = map[string]datasetGap{
 	"dotted-overlap-deep.pxf":         dottedGap,
 	"dotted-bad-header-empty-row.pxf": dottedGap,
 	"duplicate-column.pxf":            {by: dottedGap.by, old: ""},
+	// Raw LF in a simple string (#350): protowire-go v1.9.0 keeps it in
+	// the string and accepts the row. protowire-go#167 rejects it.
+	"string-newline-in-cell.pxf": {by: "protowire-go#167", old: ""},
 }
 
 // datasetGap is a known gap: by is the change that closes it, and old is
