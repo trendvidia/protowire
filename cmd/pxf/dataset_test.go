@@ -38,23 +38,79 @@ var datasetVerdicts = map[string]string{
 	"cell-framing.pxf":            "",
 	"arity-long.pxf":              "3 cells, expected 2",
 	"arity-short.pxf":             "2 cells, expected 3",
-	"dotted-column.pxf":           "dotted column",
 	"junk-between-rows.pxf":       "top-level field entries",
 	"truncated-row-eof.pxf":       "expected ',' or ')'",
 	"truncated-row-then-rows.pxf": "expected ',' or ')'",
 	"with-body.pxf":               "top-level field entries",
 	"with-type.pxf":               "@type",
 	"block-on-scalar.pxf":         `expected integer for field "int32_field"`,
+	// Column paths (#342). Row type dataset.v1.Event in paths.proto
+	// unless the fixture says otherwise.
+	"dotted-column.pxf":               "",
+	"dotted-grouping.pxf":             "",
+	"dotted-null-leaf.pxf":            "",
+	"dotted-oneof.pxf":                "",
+	"dotted-required.pxf":             "",
+	"dotted-with-value-cells.pxf":     "",
+	"dotted-oneof-two-members.pxf":    "conflicts with already-set field",
+	"dotted-through-repeated.pxf":     `"picks" is a repeated field`,
+	"dotted-through-map.pxf":          `"by_name" is a map field`,
+	"dotted-into-timestamp.pxf":       `"ts" is a google.protobuf.Timestamp`,
+	"dotted-into-wrapper.pxf":         `"wrap" is a google.protobuf.Int32Value`,
+	"dotted-overlap.pxf":              `column "desc.energy" overlaps column "desc"`,
+	"duplicate-column.pxf":            `column "string_field" appears twice`,
+	"dotted-required-missing.pxf":     `required field "req.n" is absent`,
+	"dotted-empty-segment.pxf":        "a column path has an empty segment",
+	"dotted-trailing-dot.pxf":         "a column path has an empty segment",
+	"dotted-unknown-segment.pxf":      `has no field "nope"`,
+	"dotted-through-scalar.pxf":       `"plain" is not a message field`,
+	"dotted-into-duration.pxf":        `"dur" is a google.protobuf.Duration`,
+	"dotted-into-bignum.pxf":          `"big" is a pxf.BigInt`,
+	"dotted-overlap-deep.pxf":         `column "desc.tempo.min_bpm" overlaps column "desc.tempo"`,
+	"dotted-bad-header-empty-row.pxf": `"picks" is a repeated field`,
 }
 
 // datasetKnownGaps maps fixtures the pinned protowire-go does not yet meet
-// to the change that closes the gap. Each entry is asserted to still
-// fail with the old rejection, so the go.mod bump that closes it flips
-// the test and forces the entry's removal. Empty since protowire-go
-// v1.9.0, which accepts value cells (#341).
-var datasetKnownGaps = map[string]string{}
+// to the change that closes the gap and what the pinned release does
+// with the fixture instead. Each entry is asserted to still behave that
+// way, so the go.mod bump that closes it flips the test and forces the
+// entry's removal.
+var datasetKnownGaps = map[string]datasetGap{
+	// Column paths (#342): protowire-go v1.9.0 refuses a dotted column at
+	// parse time, and accepts a column named twice. protowire-go#159
+	// accepts the paths and applies the header rules.
+	"dotted-column.pxf":               dottedGap,
+	"dotted-grouping.pxf":             dottedGap,
+	"dotted-null-leaf.pxf":            dottedGap,
+	"dotted-oneof.pxf":                dottedGap,
+	"dotted-required.pxf":             dottedGap,
+	"dotted-with-value-cells.pxf":     dottedGap,
+	"dotted-oneof-two-members.pxf":    dottedGap,
+	"dotted-through-repeated.pxf":     dottedGap,
+	"dotted-through-map.pxf":          dottedGap,
+	"dotted-into-timestamp.pxf":       dottedGap,
+	"dotted-into-wrapper.pxf":         dottedGap,
+	"dotted-overlap.pxf":              dottedGap,
+	"dotted-required-missing.pxf":     dottedGap,
+	"dotted-empty-segment.pxf":        dottedGap,
+	"dotted-trailing-dot.pxf":         dottedGap,
+	"dotted-unknown-segment.pxf":      dottedGap,
+	"dotted-through-scalar.pxf":       dottedGap,
+	"dotted-into-duration.pxf":        dottedGap,
+	"dotted-into-bignum.pxf":          dottedGap,
+	"dotted-overlap-deep.pxf":         dottedGap,
+	"dotted-bad-header-empty-row.pxf": dottedGap,
+	"duplicate-column.pxf":            {by: dottedGap.by, old: ""},
+}
 
-const datasetGapRejection = "@dataset cells cannot contain"
+// datasetGap is a known gap: by is the change that closes it, and old is
+// a substring of the pinned release's rejection, or "" if it accepts. An
+// accepting gap is allowed only on a reject fixture: on an accept
+// fixture the fixed release accepts too, so the bump would never flip
+// the test.
+type datasetGap struct{ by, old string }
+
+var dottedGap = datasetGap{by: "protowire-go#159", old: "dotted column paths are not supported"}
 
 // datasetStreamGaps are fixtures the pinned DatasetReader streams through
 // without error where the verdict is rejection: it ends the row sequence
@@ -72,7 +128,7 @@ func TestDataset_Corpus(t *testing.T) {
 	if len(files) != len(datasetVerdicts) {
 		t.Errorf("found %d fixtures, the verdict table lists %d", len(files), len(datasetVerdicts))
 	}
-	sch, err := loadSchema([]string{testProto()}, nil, registryRef{})
+	sch, err := loadSchema([]string{testProto(), pathsProto()}, nil, registryRef{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +140,7 @@ func TestDataset_Corpus(t *testing.T) {
 			continue
 		}
 		t.Run("validate/"+name, func(t *testing.T) {
-			_, err := runCLI(t, "validate", "-p", testProto(), "-m", "test.v1.AllTypes", path)
+			_, err := runCLI(t, "validate", "-p", testProto(), "-p", pathsProto(), "-m", "test.v1.AllTypes", path)
 			skipKnownGap(t, name, err)
 			checkVerdict(t, want, err)
 		})
@@ -121,7 +177,7 @@ func TestDataset_Corpus(t *testing.T) {
 			continue
 		}
 		t.Run("query/"+name, func(t *testing.T) {
-			out, err := runCLI(t, "query", "-p", testProto(), `[pxf_directive("dataset")[] | .rows | length] | add`, path)
+			out, err := runCLI(t, "query", "-p", testProto(), "-p", pathsProto(), `[pxf_directive("dataset")[] | .rows | length] | add`, path)
 			skipKnownGap(t, name, err)
 			if err != nil {
 				t.Fatalf("MUST accept, query rejected: %v", err)
@@ -148,17 +204,25 @@ func TestDataset_Corpus(t *testing.T) {
 }
 
 // skipKnownGap skips a fixture listed in datasetKnownGaps after checking
-// that the pinned protowire-go still refuses it the old way.
+// that the pinned protowire-go still treats it as the entry records:
+// refused with the old rejection, or accepted when old is "".
 func skipKnownGap(t *testing.T, name string, err error) {
 	t.Helper()
 	gap, known := datasetKnownGaps[name]
 	if !known {
 		return
 	}
-	if err == nil || !strings.Contains(err.Error(), datasetGapRejection) {
-		t.Fatalf("the pinned protowire-go no longer refuses this fixture as before (got %v); gap %s is closed, remove it from datasetKnownGaps", err, gap)
+	if gap.old == "" && datasetVerdicts[name] == "" {
+		t.Fatalf("known gap %s records an acceptance on an accept fixture, which the fixed release meets too; record the old rejection instead", gap.by)
 	}
-	t.Skipf("known gap, closed by %s: %v", gap, err)
+	asBefore := err == nil
+	if gap.old != "" {
+		asBefore = err != nil && strings.Contains(err.Error(), gap.old)
+	}
+	if !asBefore {
+		t.Fatalf("the pinned protowire-go no longer treats this fixture as before (got %v); gap %s is closed, remove it from datasetKnownGaps", err, gap.by)
+	}
+	t.Skipf("known gap, closed by %s: %v", gap.by, err)
 }
 
 func checkVerdict(t *testing.T, want string, err error) {
@@ -230,6 +294,10 @@ func renderRows(rows []pxf.DatasetRow) string {
 }
 
 func testProto() string { return filepath.Join("../../testdata", "test.proto") }
+
+// pathsProto holds dataset.v1.Event, the row type of the dotted-column
+// fixtures.
+func pathsProto() string { return filepath.Join(datasetDir, "paths.proto") }
 
 // validateDoc writes doc to a file and runs validate on it.
 func validateDoc(t *testing.T, doc string, args ...string) error {

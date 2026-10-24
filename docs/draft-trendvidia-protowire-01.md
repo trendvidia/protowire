@@ -328,6 +328,9 @@ dataset-directive
                   1*WSP "(" column-list ")"
                   *( 1*WSP row )
 column-list     = identifier *( "," identifier )
+                ; a field name, or a dotted path to a
+                ; field in a sub-message
+                ; ({{the-dataset-directive}})
 row             = "(" row-cell *( "," row-cell ) ")"
 row-cell        = [ value ]
                 ; a cell means "column = value"
@@ -541,7 +544,7 @@ Anonymous binding. \<type\> MAY be omitted when an anonymous "@proto" directive 
 
 The anonymous "@proto" binding is one-shot per {{the-proto-directive}}: a second untyped "@dataset" in the same document requires a second preceding anonymous "@proto".
 
-Cell values. A cell holds any value of the value production of {{abnf-grammar}}, lists ("\[ ... \]") and block values ("{ ... }") included. A non-empty cell in column \<c\> means exactly what the entry "\<c\> = \<value\>" means in a message body of \<type\> ({{entries-and-keys}}): the same field binding, the same type checks, and the same nullability rules. So a row can carry a sub-message, a repeated field or a map:
+Cell values. A cell holds any value of the value production of {{abnf-grammar}}, lists ("\[ ... \]") and block values ("{ ... }") included. A non-empty cell in column \<c\> means exactly what the entry "\<c\> = \<value\>" means in a message body of \<type\> ({{entries-and-keys}}): the same field binding, the same type checks, and the same nullability rules. When \<c\> is a column path, the entry is written inside the blocks its path names (see Column paths). So a row can carry a sub-message, a repeated field or a map:
 
 ~~~
 @dataset ev.Event ( ts_bucket, descriptor, tags )
@@ -555,15 +558,43 @@ Cells stay easy to frame. No value contains "(" or ")" outside a string or a com
 
 Three-state cells. Each row cell denotes one of three states, carried into the bound message via the same semantics as the PXF annotations of {{pxf-annotations}}:
 
-* An empty cell (no value between two commas, or leading / trailing inside a row, e.g. "(1, , 3)") denotes an absent field. When the bound field carries (pxf.default), the default literal is applied; when it carries (pxf.required), the document MUST be rejected.
+* An empty cell (no value between two commas, or leading / trailing inside a row, e.g. "(1, , 3)") denotes an absent field. When the bound field carries (pxf.default), the default literal is applied; when it carries (pxf.required), the document MUST be rejected. For a field inside a sub-message, named by a column path, both hold only when the row makes that sub-message present (see Column paths).
 
-* A bare "null" literal denotes a present-but-null field. This satisfies (pxf.required) and suppresses (pxf.default), with the singular-field nullability rules of {{booleans-null-and-identifier-values}} applied against \<type\>'s declared field.
+* A bare "null" literal denotes a present-but-null field. This satisfies (pxf.required) and suppresses (pxf.default), with the singular-field nullability rules of {{booleans-null-and-identifier-values}} applied against the field the column names: a field declared on \<type\>, or for a column path the field its last segment names.
 
 * Any other value literal denotes a present field with that value.
 
 Row arity. Each row MUST have the same number of cells as the header column list. Decoders MUST reject a row whose arity differs from the column count. Trailing-empty shorthand (a row with fewer cells implying absent tail columns) is not permitted in v1.
 
-Column entries (v1). Each column entry MUST be an unqualified field name declared on \<type\>. Dotted paths (e.g. "addr.city") are NOT permitted in v1 and are reserved for a future revision. Decoders MUST reject a column entry containing a ".".
+Column paths. A column entry is a field name declared on \<type\>, or a dotted path to a field inside a sub-message of \<type\>: "desc.energy" names the field "energy" of the message-typed field "desc". A row binds as the message body built by grouping its non-empty cells by path prefix. A non-empty cell in column "a.b.c" contributes the entry "c = \<value\>" inside the block "a { b { ... } }", and every cell of the same row whose column starts with "a." contributes to that same one "a" block. One block per prefix is required, not a style: two blocks for one sub-message merge, but two blocks for one oneof member are rejected, so cells written as separate blocks would fail whenever two columns reach the same oneof member.
+
+~~~
+@dataset ev.Event ( id, desc.energy, desc.tempo.min_bpm, desc.tags )
+( "e1", 0.5, 60, [ TAG_WARM ] )
+( "e2", , , )
+~~~
+
+The first row is the body 'id = "e1" desc { energy = 0.5 tempo { min_bpm = 60 } tags = \[ TAG_WARM \] }'. The rules that follow from the grouping:
+
+* A block none of whose cells is non-empty is not written, so its sub-message is absent, as an empty cell in a column naming it would be. In the second row above, "desc" is absent. A sub-message that is present with every field unset is written as a "{}" value cell in a column naming the sub-message, which cannot sit beside columns into it (see below).
+
+* "null" in a dotted cell is the entry "c = null" inside the block. The leaf's nullability rules apply, and the enclosing blocks are written, so the sub-messages on the path are present.
+
+* Columns may reach different members of one oneof, and several columns may fill the same member. A row that fills two members is rejected, as the body would be.
+
+* (pxf.required) and (pxf.default) on a field inside a sub-message apply when the sub-message is present, as in a body, and not when it is absent.
+
+A header MUST be rejected when:
+
+* the same column appears twice, or one column is a field and another a path inside it ("a" beside "a.b"), since a row could then set one sub-message twice. Sibling paths ("a.b" beside "a.c") are fine. A column path with an empty segment ("a..b", "a.") is rejected as well;
+
+* a segment names no field of the message it is resolved against;
+
+* a segment other than the last names a field that is not a singular message field: a repeated or map field (a path has no index or key; a value cell on that field is the way to write it), or a scalar;
+
+* a segment other than the last names a field whose message type is written as a literal of its own: google.protobuf.Timestamp, google.protobuf.Duration, the google.protobuf wrapper types, pxf.BigInt, pxf.Decimal or pxf.BigFloat. A path into one would expose the type's encoding rather than its literal.
+
+The first rule needs no schema, so a parser that does not bind rows applies it too. The others need \<type\>. A decoder that binds rows applies them to every row it binds, whatever the row's cells hold, so a row of empty cells is rejected as well. They are header rules, as an unknown plain column name is: they do not depend on the row. Before v1.13, a column entry containing a "." was rejected.
 
 Standalone. A document containing a "@dataset" directive MUST NOT also contain a "@type" directive and MUST NOT contain top-level field entries ({{entries-and-keys}}). The "@dataset" header is itself the document's type declaration; the rows are the document's payload. A document MAY contain multiple "@dataset" directives (whether of the same or different row types); their relative order MUST be preserved by decoders that expose a dataset list to callers.
 
@@ -581,13 +612,17 @@ Conformance:
 
 * A decoder MUST reject a row that is not closed before end of input, and MUST reject any token other than "(" or "@" where a row could begin. A streaming API MUST report either as an error at that row, not as the end of the row sequence.
 
-* A decoder MUST reject a column entry containing a ".".
+* A decoder MUST reject a header that names a column twice, names a field beside a path inside it, or has a column path with an empty segment.
 
-* A decoder MUST bind a non-empty cell as the entry "\<c\> = \<value\>" would bind in a body of \<type\>, and MUST reject a cell that entry would reject (for example, a block in a scalar column).
+* A decoder that binds rows MUST reject a column path that does not resolve against \<type\>, that goes through a repeated, map or scalar field, or that goes into a type written as a literal, as described under Column paths.
 
-* A decoder MUST resolve identifier-shaped cell values against the corresponding column field on \<type\>: an enum-typed column accepts an enum value name ({{booleans-null-and-identifier-values}}); a string-typed column accepts only quoted strings, not bare identifiers.
+* A decoder MUST bind a row whose header has column paths as the body that groups the row's non-empty cells by path prefix into one block per prefix, and MUST NOT write a block none of whose cells is non-empty.
 
-* "@dataset" inherits the schema constraint of {{schema-constraints}}: \<type\> MUST refer to a non-conformant-name-free message type, and each column entry MUST name a field whose name is itself non-conformant-name-free.
+* A decoder MUST bind a non-empty cell as the entry "\<c\> = \<value\>" would bind in a body of \<type\>, and MUST reject a cell that entry would reject (for example, a block in a scalar column). For a column path, the entry is the one the grouping writes inside the path's blocks.
+
+* A decoder MUST resolve identifier-shaped cell values against the field the column names (for a column path, the field its last segment names): an enum-typed column accepts an enum value name ({{booleans-null-and-identifier-values}}); a string-typed column accepts only quoted strings, not bare identifiers.
+
+* "@dataset" inherits the schema constraint of {{schema-constraints}}: \<type\> MUST refer to a non-conformant-name-free message type, and each field a column entry names, every segment of a column path included, MUST have a name that is itself non-conformant-name-free.
 
 ### The "@proto" Directive {#the-proto-directive}
 
