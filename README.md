@@ -540,6 +540,8 @@ message Config {
 
 PXF implementations recognize `_null` by both name and type — it must be named `_null` AND be a `google.protobuf.FieldMask`. Regular FieldMask fields (e.g., `update_mask`) are not affected. When a field is decoded as null, its name is added to the `_null` mask; on re-encode, those fields are emitted as `field = null`.
 
+The mask holds paths of singular fields: `email`, or `address.street` for a field inside a singular sub-message. A FieldMask path cannot name a list element or a map entry, so a `null` inside one (`items = [{ deep = null }]`) is not added to the mask. Implementations keep it in their in-memory decode result, and it is lost when the message goes through protobuf binary ([#352](https://github.com/trendvidia/protowire/issues/352)).
+
 Only a field that may hold `null` can be in the mask: a singular message field, wrapper types included (`email` and `address` above). `null` on a plain scalar such as `name`, on a proto3 `optional` scalar, on a oneof's scalar member, or on a repeated or map field is a decode error (draft `-01` § Booleans, Null, and Identifier Values; [#339](https://github.com/trendvidia/protowire/issues/339)). To make a scalar nullable, declare it as its wrapper type.
 
 The FieldMask is optional. Without it, full-decode results still track nulls in memory, but the distinction is lost when serializing to protobuf binary.

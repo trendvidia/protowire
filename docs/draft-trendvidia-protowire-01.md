@@ -1081,6 +1081,8 @@ pxf.required: when true, decoders MUST reject a PXF document in which the annota
 
 pxf.default: when set, the value is a PXF literal (parsed by the same rules as a value in any entry). Decoders MUST treat an absent annotated field as if the document had supplied the default literal. The default applies only to absent fields, not to fields explicitly set to "null" or to the proto3 zero value. The annotation carries exactly one literal, so it is valid only on fields a single literal can denote; placement constraints are specified in {{default-schema-placement}}.
 
+Both rules apply in every message body a document writes, not only at the top level: the body of a singular message field, each element of a list of messages, each value of a map whose values are messages, and the body of a google.protobuf.Any written with "@type". A body is checked against its own message type, and a field bound to "null" has no body to check.
+
 pxf.key: names the key field of a keyed repeated field. The value is the proto field name of a singular string-typed field of the element message. The annotation is valid only on repeated message-typed fields; placement constraints and the decode, encode, and canonicalization semantics it enables are specified in {{keyed-repeated-fields}}. The annotation affects only the PXF text surface — pb and SBE wire outputs are unchanged.
 
 The schema-level constraints of {{schema-constraints}} apply independently of these annotations: a field, oneof, or enum value whose name collides with a reserved PXF keyword is non-conforming regardless of whether pxf.required or pxf.default is set.

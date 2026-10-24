@@ -2111,17 +2111,17 @@ Internet-Draft                  protowire                      July 2026
    exactly one literal, so it is valid only on fields a single literal
    can denote; placement constraints are specified in Section 6.1.1.
 
+   Both rules apply in every message body a document writes, not only at
+   the top level: the body of a singular message field, each element of
+   a list of messages, each value of a map whose values are messages,
+   and the body of a google.protobuf.Any written with "@type".  A body
+   is checked against its own message type, and a field bound to "null"
+   has no body to check.
+
    pxf.key: names the key field of a keyed repeated field.  The value is
    the proto field name of a singular string-typed field of the element
    message.  The annotation is valid only on repeated message-typed
    fields; placement constraints and the decode, encode, and
-   canonicalization semantics it enables are specified in Section 3.13.
-   The annotation affects only the PXF text surface — pb and SBE wire
-   outputs are unchanged.
-
-
-
-
 
 
 
@@ -2129,6 +2129,10 @@ Franco Jr.               Expires 24 January 2027               [Page 38]
 
 Internet-Draft                  protowire                      July 2026
 
+
+   canonicalization semantics it enables are specified in Section 3.13.
+   The annotation affects only the PXF text surface — pb and SBE wire
+   outputs are unchanged.
 
    The schema-level constraints of Section 3.14 apply independently of
    these annotations: a field, oneof, or enum value whose name collides
@@ -2173,10 +2177,6 @@ Internet-Draft                  protowire                      July 2026
    pxf.default is valid on every singular scalar field, on every enum
    field, and on the message types enumerated above.  On an enum field
    the literal is either a value name or the decimal value number.
-
-
-
-
 
 
 
