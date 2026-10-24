@@ -4,9 +4,7 @@
 package main
 
 import (
-	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"os"
 
@@ -265,56 +263,17 @@ func validateDatasets(res *pxf.Result) error {
 		msg := dynamicpb.NewMessage(md)
 		for _, row := range ds.Rows {
 			proto.Reset(msg)
-			if err := bindRow(msg, ds.Columns, row); err != nil {
+			// BindRow binds the row as the body its cells stand for,
+			// grouping dotted columns into one block per prefix (draft
+			// §3.4.4). Its error starts with the row's position and
+			// names the column it fell in. The descriptor was validated
+			// once above.
+			if err := (pxf.UnmarshalOptions{SkipValidate: true}).BindRow(msg, ds.Columns, row); err != nil {
 				return err
 			}
 		}
 	}
 	return nil
-}
-
-// bindRow binds one row the way draft §3.4.4 defines it: a non-empty
-// cell in column c is the entry "c = <value>" in a body of the row
-// type, and an empty cell is an absent field. The body goes through the
-// full decode, so (pxf.required) and (pxf.default) apply to empty cells
-// as the three-state rule says. pxf.BindRow decodes on the plain path,
-// which applies neither (protowire-go#145).
-//
-// An error inside the synthesized body is reported at the row's
-// position, naming the column whose entry it fell in. The body opens
-// with an empty line, so that an error at line 1 (post-decode reports a
-// missing required field there) is not pinned on the first column.
-func bindRow(msg proto.Message, columns []string, row pxf.DatasetRow) error {
-	body := []byte{'\n'}
-	var starts []int      // body line each entry begins on
-	var entryCol []string // the column of each entry
-	line := 2
-	for i, cell := range row.Cells {
-		if cell == nil {
-			continue
-		}
-		starts = append(starts, line)
-		entryCol = append(entryCol, columns[i])
-		n := len(body)
-		body = append(body, columns[i]+" = "...)
-		body = pxf.AppendValue(body, cell)
-		body = append(body, '\n')
-		line += bytes.Count(body[n:], []byte{'\n'})
-	}
-	_, err := pxf.UnmarshalOptions{SkipValidate: true}.UnmarshalFull(body, msg)
-	if err == nil {
-		return nil
-	}
-	var pe *pxf.Error
-	if !errors.As(err, &pe) {
-		return fmt.Errorf("%s: @dataset row: %w", row.Pos, err)
-	}
-	for i := len(starts) - 1; i >= 0; i-- {
-		if pe.Pos.Line >= starts[i] {
-			return fmt.Errorf("%s: @dataset row, column %s: %s", row.Pos, entryCol[i], pe.Msg)
-		}
-	}
-	return fmt.Errorf("%s: @dataset row: %s", row.Pos, pe.Msg)
 }
 
 func fmtCmd() *cobra.Command {

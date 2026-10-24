@@ -203,7 +203,7 @@ func datasetToValueWithSchema(ds pxf.DatasetDirective, sch *schema) (any, error)
 // IDENT — the signed forms are lexed as floats — and valueToAny keeps
 // identifiers as strings for the enum case).
 func cellToTypedValue(c pxf.Value, md protoreflect.MessageDescriptor, col string) (any, error) {
-	fd := md.Fields().ByName(protoreflect.Name(col))
+	fd := columnField(md, col)
 	v, err := valueToAny(c)
 	if err != nil {
 		return nil, err
@@ -232,6 +232,26 @@ func cellToTypedValue(c pxf.Value, md protoreflect.MessageDescriptor, col string
 		}
 	}
 	return v, nil
+}
+
+// columnField is the field a @dataset column names in md. A dotted
+// column ("desc.tempo.min_bpm", draft §3.4.4) names the leaf at the end
+// of its path through singular message fields. It is nil when a segment
+// names no field or a non-final segment is not a singular message; the
+// row binder reports those headers, so the cell is left untyped here.
+func columnField(md protoreflect.MessageDescriptor, col string) protoreflect.FieldDescriptor {
+	segs := strings.Split(col, ".")
+	for i, seg := range segs {
+		fd := md.Fields().ByName(protoreflect.Name(seg))
+		if fd == nil || i == len(segs)-1 {
+			return fd
+		}
+		if fd.IsList() || fd.IsMap() || fd.Message() == nil {
+			return nil
+		}
+		md = fd.Message()
+	}
+	return nil
 }
 
 // protoTypeOfValue infers the proto type-name for an arbitrary jq
