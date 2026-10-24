@@ -10,6 +10,10 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+### Added
+
+- **The type entry of a `google.protobuf.Any` block** (issue [#354](https://github.com/trendvidia/protowire/issues/354); v1.13). The README's `payload { @type = "..." ... }` form had no grammar in the draft. Decided by the owner (option 1): `any-type-entry = %s"@type" "=" string` may open a block, and a new draft section, "Any Blocks", says where it binds (a block bound to Any: singular field, list element, map value), that the URL is stored verbatim and resolved through a type resolver, and what a decoder rejects. A block without a type entry is the Any's own fields. `docs/grammar.ebnf` and the railroad diagram follow. `testdata/any/` adds six accept and five reject fixtures, and `cmd/pxf/any_test.go` drives them through `Parse` and a bound decoder. All eleven are known gaps until `go.mod` pins a protowire-go release with [protowire-go#176](https://github.com/trendvidia/protowire-go/pull/176); measured locally on that PR, all eleven meet their verdicts. STABILITY.md's v1.13 section records the change.
+
 ### Changed
 
 - **`(pxf.default)` and `(pxf.required)` apply in every message body; a `null` inside an element stays out of the `_null` mask** (issue [#352](https://github.com/trendvidia/protowire/issues/352)). The draft's annotation rules now say they reach list elements, map values and `Any` bodies, as well as singular sub-messages. Measured on protowire-go at 3ed2b04: elements, map values, keyed entries and `Any` bodies took no defaults and had no required checks. Decided by the owner (protowire-go#161). The README's `_null` section now says the mask holds paths of singular fields only, so a null inside an element or map value lives in the decode result and is lost in binary (owner decision on protowire-go#170). STABILITY.md's v1.13 section records the change to decoded output and the narrowing. Corpus rows land with the protowire-go release that carries protowire-go#161.

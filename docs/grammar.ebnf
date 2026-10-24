@@ -221,7 +221,7 @@ map_entry     = map_key , map_tail ;
 
 assignment_tail = '=' , value ;
 map_tail        = ':' , value ;
-block_tail      = '{' , { entry } , '}' ;
+block_tail      = '{' , [ any_type_entry ] , { entry } , '}' ;
 
 map_key       = identifier | string | integer ;
 
@@ -242,7 +242,9 @@ value         = string
 
 list          = '[' , [ value , { [ ',' ] , value } ] , ']' ;
 
-block_value   = '{' , { entry } , '}' ;
+block_value   = '{' , [ any_type_entry ] , { entry } , '}' ;
+(* Only in a block bound to google.protobuf.Any (draft -01 "Any Blocks"). *)
+any_type_entry = '@type' , '=' , string ;
 
 
 (* === Lexical: identifiers, literals === *)
