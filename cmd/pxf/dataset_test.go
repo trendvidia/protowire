@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -369,5 +370,28 @@ func TestDataset_ValidateBindsAnonymousProto(t *testing.T) {
 	doc = schema + "@dataset (sym, px)\n(\"A\", \"x\")\n"
 	if err := validateDoc(t, doc, "-m", "test.v1.AllTypes", "-p", testProto()); err == nil || !strings.Contains(err.Error(), "column px") {
 		t.Fatalf("want a binding error on column px, got %v", err)
+	}
+}
+
+// query types a dotted column's cell by the leaf field its path names
+// (#348). desc.energy is a double, so a bare `inf` cell becomes +Inf; a
+// lookup by the whole column name finds no field and leaves the string
+// "inf". The row key stays the column name.
+func TestDataset_QueryTypesDottedColumnByLeaf(t *testing.T) {
+	sch, err := loadSchema([]string{pathsProto()}, nil, registryRef{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := pxf.Parse([]byte("@dataset dataset.v1.Event (id, desc.energy)\n(\"e1\", inf)\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	v, err := datasetToValueWithSchema(res.Datasets[0], sch)
+	if err != nil {
+		t.Fatal(err)
+	}
+	row := v.(map[string]any)["rows"].([]any)[0].(map[string]any)
+	if f, ok := row["desc.energy"].(float64); !ok || !math.IsInf(f, 1) {
+		t.Fatalf(`row["desc.energy"] = %#v, want +Inf`, row["desc.energy"])
 	}
 }
