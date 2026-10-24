@@ -177,7 +177,7 @@ add(
         Choice(
             0,
             Sequence(t("="), n("value")),
-            Sequence(t("{"), ZeroOrMore(n("entry")), t("}")),
+            Sequence(t("{"), Optional(n("any_type_entry")), ZeroOrMore(n("entry")), t("}")),
         ),
     ),
 )
@@ -218,7 +218,13 @@ add(
 
 add(
     "block_value",
-    Sequence(t("{"), ZeroOrMore(n("entry")), t("}")),
+    Sequence(t("{"), Optional(n("any_type_entry")), ZeroOrMore(n("entry")), t("}")),
+)
+
+add(
+    "any_type_entry",
+    Sequence(t("@type"), t("="), n("string")),
+    note="only in a block bound to google.protobuf.Any",
 )
 
 add(

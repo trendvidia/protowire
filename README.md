@@ -352,7 +352,7 @@ payload {
 }
 ```
 
-Requires a type resolver at decode/encode time to map type URLs to message descriptors.
+The type entry `@type = "..."` must be the block's first entry, and the block must be bound to a `google.protobuf.Any`: a singular field, a list element or a map value. The URL is stored verbatim in `type_url`. A type resolver supplied at decode/encode time maps it to a message descriptor. Without a type entry, an `Any` block is its own fields, `type_url` and `value`. Spec: IETF draft `-01` "Any Blocks" ([#354](https://github.com/trendvidia/protowire/issues/354)); fixtures: [`testdata/any/`](testdata/any/).
 
 ### Multi-line strings
 

@@ -364,7 +364,7 @@ map-entry       = map-key map-tail
 
 assignment-tail = "=" value
 map-tail        = ":" value
-block-tail      = "{" *entry "}"
+block-tail      = "{" [ any-type-entry ] *entry "}"
 
 map-key         = identifier / string / integer / bool
 
@@ -380,7 +380,10 @@ value           = string
                 / block-value
 
 list            = "[" [ value *( [","] value ) ] "]"
-block-value     = "{" *entry "}"
+block-value     = "{" [ any-type-entry ] *entry "}"
+any-type-entry  = %s"@type" "=" string
+                ; only in a block bound to google.protobuf.Any
+                ; ({{any-blocks}})
 
 number          = float / integer
 integer         = [ "-" ] 1*DIGIT
@@ -1018,6 +1021,32 @@ Conformance:
 * This scope makes one non-conforming file poison every file that transitively imports it. That is intended: an annotation no implementation can honor is worth surfacing wherever it is reachable, and a widely-imported file is where a dead annotation does the most damage.
 
 Non-normative: the closure of any file that uses these annotations includes pxf/annotations.proto and, through it, google/protobuf/descriptor.proto, which no PXF document can reference. Implementations that re-check on every decode rather than once per bound descriptor will pay for that traversal repeatedly; memoizing the result per file descriptor is the expected implementation and costs less than the single-file traversal it replaces.
+
+## Any Blocks {#any-blocks}
+
+A block bound to google.protobuf.Any MAY begin with a type entry: "@type", "=", and a string, the type URL. The block may be the value of a singular Any field, an element of a repeated Any field, or a value of a map whose values are Any. The string is the Any's type_url, stored verbatim. The decoder resolves it to a message type through a type resolver supplied out of band. The rest of the block is a body of that type, and the Any's value field holds the body's Protocol Buffers binary encoding.
+
+~~~
+payload {
+  @type = "type.googleapis.com/acme.v1.ErrorDetail"
+  code = 42
+  reason = "not found"
+}
+~~~
+
+A block bound to google.protobuf.Any without a type entry is a body of google.protobuf.Any itself, whose entries are type_url and value:
+
+~~~
+payload = { type_url = "type.googleapis.com/acme.v1.ErrorDetail" value = b"CCo=" }
+~~~
+
+Conformance:
+
+* A decoder MUST reject a type entry that is not the first entry of its block, a second type entry in one block, and a type entry in a block not bound to google.protobuf.Any (a nested message, a map block, or the document body).
+* A decoder MUST reject a block whose type URL it cannot resolve to a message type, including when it has no type resolver. It MUST NOT read the remaining entries as fields of google.protobuf.Any instead.
+* The body after the type entry is decoded as any body of its type is: the limits of {{mandatory-limits}} apply to it, and so do the annotation rules of {{pxf-annotations}}.
+* A parser that does not bind a schema cannot tell which blocks are bound to Any. It accepts a type entry as the first entry of any block, and the rules above apply when the document is bound. It MUST reject a type entry anywhere else in a block.
+* An encoder MAY write an Any in either form. It writes the type entry only when its resolver maps the stored type URL to a message type, and it writes the type URL verbatim.
 
 # PB Binary Encoding {#pb-binary-encoding}
 
@@ -2245,6 +2274,15 @@ repeated fields ({{keyed-repeated-fields}}):
 ~~~
 field-entry     = ( identifier / string )
                   ( assignment-tail / block-tail )
+~~~
+
+A block may also open with a type entry, for a block bound to
+google.protobuf.Any ({{any-blocks}}); this is likewise additive:
+
+~~~
+block-tail      = "{" [ any-type-entry ] *entry "}"
+block-value     = "{" [ any-type-entry ] *entry "}"
+any-type-entry  = %s"@type" "=" string
 ~~~
 
 The remaining productions below are additions to the **schema
