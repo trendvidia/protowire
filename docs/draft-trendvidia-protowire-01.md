@@ -817,11 +817,13 @@ The literals "true" and "false" denote the boolean values; "null" denotes the nu
 
 * When bound to a singular message-typed field, MUST clear the field.
 
-* When bound to a singular scalar field with explicit presence (a proto3 "optional" scalar, a scalar member of a oneof, or a proto2 singular scalar), MUST leave the field unset. The field is present-but-null: it counts as present for pxf.required, and pxf.default is not applied to it.
+* When bound to a singular scalar field with explicit presence, as protobuf defines it (a proto3 "optional" scalar, a scalar member of a oneof, a proto2 singular scalar, or in an editions file a scalar whose field_presence feature is EXPLICIT), MUST leave the field unset. The field is present-but-null: it counts as present for pxf.required, and pxf.default is not applied to it.
 
-* When bound to a singular scalar field without explicit presence (a proto3 scalar declared without "optional"), MUST be rejected. Such a field has no unset state, so a null would read back as the field's zero value. A field that must be nullable is declared "optional", or as its wrapper type (e.g. google.protobuf.StringValue).
+* When bound to a singular scalar field without explicit presence (a proto3 scalar declared without "optional", or in an editions file a scalar whose field_presence feature is IMPLICIT), MUST be rejected. Such a field has no unset state, so a null would read back as the field's zero value. A field that must be nullable is declared "optional", or as its wrapper type (e.g. google.protobuf.StringValue).
 
 * When bound to a list-typed (repeated) field, a map field included, MUST be rejected: list elements are not nullable.
+
+* When bound to a member of a oneof, message or scalar, makes that member the one the body chose. A body that also writes another member of the same oneof writes two members, and MUST be rejected as any such body is ({{the-dataset-directive}}).
 
 An identifier appearing as a value denotes an enum value name when the target field is enum-typed. Decoders MUST reject unknown enum names unless the schema declares the field with open enum semantics, in which case the unknown name is preserved in the message's unknown-fields set.
 

@@ -50,6 +50,8 @@ var datasetVerdicts = map[string]string{
 	"string-newline-in-cell.pxf": "newline in string literal",
 	// null on a plain scalar (#339), here in a cell.
 	"null-on-scalar-cell.pxf": `null is not allowed on scalar field "int32_field"`,
+	// null on an optional scalar (#339), here in a cell: accepted.
+	"null-on-optional-cell.pxf": "",
 	// Column paths (#342). Row type dataset.v1.Event in paths.proto
 	// unless the fixture says otherwise.
 	"dotted-column.pxf":               "",
@@ -86,8 +88,11 @@ var datasetVerdicts = map[string]string{
 // way, so the go.mod bump that closes it flips the test and forces the
 // entry's removal. Empty since protowire-go v1.10.0, which binds dotted
 // column paths (protowire-go#159) and rejects a raw newline in a simple
-// string (protowire-go#167).
-var datasetKnownGaps = map[string]datasetGap{}
+// string (protowire-go#167). v1.10.0 rejects null on an optional scalar
+// (protowire-go#150), which #339's option 3 accepts.
+var datasetKnownGaps = map[string]datasetGap{
+	"null-on-optional-cell.pxf": {by: "protowire-go#182", old: `null is not allowed on scalar field "opt"`},
+}
 
 // datasetGap is a known gap: by is the change that closes it, and old is
 // a substring of the pinned release's rejection, or "" if it accepts. An
@@ -162,7 +167,13 @@ func TestDataset_Corpus(t *testing.T) {
 		}
 		t.Run("query/"+name, func(t *testing.T) {
 			out, err := runCLI(t, "query", "-p", testProto(), "-p", pathsProto(), `[pxf_directive("dataset")[] | .rows | length] | add`, path)
-			skipKnownGap(t, name, err)
+			// A gap is consulted only when query refuses: query may meet an
+			// accept verdict the binding legs do not (null-on-optional-cell
+			// does), and the validate and stream legs still force the gap's
+			// removal.
+			if err != nil {
+				skipKnownGap(t, name, err)
+			}
 			if err != nil {
 				t.Fatalf("MUST accept, query rejected: %v", err)
 			}
@@ -196,17 +207,24 @@ func skipKnownGap(t *testing.T, name string, err error) {
 	if !known {
 		return
 	}
-	if gap.old == "" && datasetVerdicts[name] == "" {
+	skipGap(t, "datasetKnownGaps", gap, datasetVerdicts[name] == "", err)
+}
+
+// skipGap skips a fixture listed as a known gap in table after checking
+// that every result in errs is still what the gap records: the old
+// rejection, or acceptance when old is "". accept says the fixture's
+// verdict is acceptance, where an accepting gap could never close.
+func skipGap(t *testing.T, table string, gap datasetGap, accept bool, errs ...error) {
+	t.Helper()
+	if gap.old == "" && accept {
 		t.Fatalf("known gap %s records an acceptance on an accept fixture, which the fixed release meets too; record the old rejection instead", gap.by)
 	}
-	asBefore := err == nil
-	if gap.old != "" {
-		asBefore = err != nil && strings.Contains(err.Error(), gap.old)
+	for _, err := range errs {
+		if !errMatches(err, gap.old) {
+			t.Fatalf("the pinned protowire-go no longer treats this fixture as before (got %v); gap %s is closed, remove it from %s", err, gap.by, table)
+		}
 	}
-	if !asBefore {
-		t.Fatalf("the pinned protowire-go no longer treats this fixture as before (got %v); gap %s is closed, remove it from datasetKnownGaps", err, gap.by)
-	}
-	t.Skipf("known gap, closed by %s: %v", gap.by, err)
+	t.Skipf("known gap, closed by %s: %v", gap.by, errs)
 }
 
 func checkVerdict(t *testing.T, want string, err error) {

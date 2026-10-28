@@ -4,7 +4,7 @@
 // Row type for the dotted-column fixtures (dotted-*.pxf, draft -01
 // §3.4.4, issue #342). It has what test.v1.AllTypes lacks: a oneof whose
 // members are messages, and a sub-message with a (pxf.required) and a
-// (pxf.default) field.
+// (pxf.default) field, and an optional scalar (null-on-optional-cell, #339).
 syntax = "proto3";
 
 package dataset.v1;
@@ -56,4 +56,5 @@ message Event {
   pxf.BigInt big = 12;
   google.protobuf.Any payload = 13;
   pxf.Secret pw = 14;
+  optional int32 opt = 15;
 }
