@@ -231,6 +231,12 @@ v1.13 changes the bytes the reference implementation writes for two shapes, in o
   - **The well-known types a `@proto` may import are named.** They are `any`, `api`, `descriptor`, `duration`, `empty`, `field_mask`, `source_context`, `struct`, `timestamp`, `type` and `wrappers` under `google/protobuf/`. Before, the list said "the bundled well-known types (e.g. …)", and the reference served every file protoc bundles there, `compiler/plugin.proto` and the `*_features.proto` files included. Refusing those narrows what the reference accepts. It is taken on the v1.10 `@http` argument, since none of them is a well-known type under any reading.
   - **Shadowing reaches through external types, or the document is rejected.** An external type can refer to a type the `@proto` redefines, as a field's type. That field is bound to the external definition, so a decoder that does not rebuild the external schema rejects a document whose type reaches it. Before, the reference warned and decoded that field against the external definition, which contradicted the precedence rule. Identical definitions are unaffected.
   - Wire formats are unchanged.
+- **A `pxf.BigFloat`'s PXF text form is specified** ([#406](https://github.com/trendvidia/protowire/issues/406), [#393](https://github.com/trendvidia/protowire/issues/393)). Draft `-01` said a decoder "MUST preserve the literal's exact value", which a binary float can't do for most decimals. It said nothing about how a BigFloat is written, or at what precision a literal is read. The reference wrote ⌊prec·log₁₀2⌋+1 digits, and measured, 9,157 of 20,000 random 53-bit values did not round-trip through that text. Decided by the owner:
+  - **Writing:** a producer writes (decimal digits of 2^prec) + 1 significant digits in C's `%g` form.
+  - **Reading:** a decoder reads a literal at max(256, bit length of 10^d) bits, rounding half even. Zero is stored as zero.
+  - **What changes for documents:** the reference's text output gains one digit, and a literal of 78 or more significant digits keeps them. That widens what round-trips and narrows nothing a decoder accepts.
+  - **Not preserved:** PB → PXF → PB keeps the value at its precision, but not the `prec` and mantissa bytes. Wire formats are otherwise unchanged.
+  - `testdata/bigfloat/` pins both directions with fourteen cases from exact arithmetic. Reference: protowire-go#194.
 
 ### CLI surface — evolves
 

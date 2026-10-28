@@ -122,7 +122,7 @@ Internet-Draft                  protowire                   October 2026
      3.8.  Numeric Literals  . . . . . . . . . . . . . . . . . . . .  28
      3.9.  Booleans, Null, and Identifier Values . . . . . . . . . .  29
      3.10. Timestamps and Durations  . . . . . . . . . . . . . . . .  30
-     3.11. Lists . . . . . . . . . . . . . . . . . . . . . . . . . .  31
+     3.11. Lists . . . . . . . . . . . . . . . . . . . . . . . . . .  32
      3.12. Blocks and Map Tails  . . . . . . . . . . . . . . . . . .  32
      3.13. Keyed Repeated Fields . . . . . . . . . . . . . . . . . .  33
        3.13.1.  Schema Placement . . . . . . . . . . . . . . . . . .  33
@@ -139,7 +139,7 @@ Internet-Draft                  protowire                   October 2026
      5.3.  Variable-Length Data  . . . . . . . . . . . . . . . . . .  40
    6.  Annotation Extensions . . . . . . . . . . . . . . . . . . . .  41
      6.1.  PXF Annotations . . . . . . . . . . . . . . . . . . . . .  41
-       6.1.1.  Default Placement . . . . . . . . . . . . . . . . . .  42
+       6.1.1.  Default Placement . . . . . . . . . . . . . . . . . .  43
        6.1.2.  Oneof Members . . . . . . . . . . . . . . . . . . . .  44
      6.2.  SBE Annotations . . . . . . . . . . . . . . . . . . . . .  45
      6.3.  Schema Extension Annotations  . . . . . . . . . . . . . .  46
@@ -1588,11 +1588,13 @@ Internet-Draft                  protowire                   October 2026
       or -Inf are rejected unless explicitly written as the identifiers
       "inf", "+inf", "-inf", "nan".
 
-   *  For fields of the well-known types pxf.BigInt, pxf.Decimal, and
-      pxf.BigFloat (Section 6.1), decoders MUST preserve the literal's
-      exact value, including, for Decimal, the exact scale: the literal
-      "1.00" decodes to a Decimal with unscaled value 100 and scale 2,
-      distinct from "1.0" or "1".
+   *  For fields of the well-known types pxf.BigInt and pxf.Decimal
+      (Section 6.1), decoders MUST preserve the literal's exact value,
+      including, for Decimal, the exact scale: the literal "1.00"
+      decodes to a Decimal with unscaled value 100 and scale 2, distinct
+      from "1.0" or "1".  A pxf.BigFloat is binary, and most decimal
+      literals have no exact binary value, so a decoder reads one as the
+      nearest value at the precision Section 6.1 states.
 
    The number of digits in any single numeric literal is bounded; see
    Section 9.1.
@@ -1613,11 +1615,9 @@ Internet-Draft                  protowire                   October 2026
       field unset.  The field is present-but-null: it counts as present
       for pxf.required, and pxf.default is not applied to it.
 
-
-
-
-
-
+   *  When bound to a singular scalar field without explicit presence (a
+      proto3 scalar declared without "optional", or in an editions file
+      a scalar whose field_presence feature is IMPLICIT), MUST be
 
 
 
@@ -1626,9 +1626,6 @@ Franco Jr.                 Expires 1 May 2027                  [Page 29]
 Internet-Draft                  protowire                   October 2026
 
 
-   *  When bound to a singular scalar field without explicit presence (a
-      proto3 scalar declared without "optional", or in an editions file
-      a scalar whose field_presence feature is IMPLICIT), MUST be
       rejected.  Such a field has no unset state, so a null would read
       back as the field's zero value.  A field that must be nullable is
       declared "optional", or as its wrapper type (e.g.
@@ -1670,10 +1667,13 @@ Internet-Draft                  protowire                   October 2026
    expected MUST be tokenized as a timestamp.  This rule disambiguates
    against the identifier and integer productions.
 
-   The choice of RFC 3339 aligns with the ProtoJSON [PROTOJSON]
-   serialization of google.protobuf.Timestamp, which uses the same
-   format.  A PXF timestamp literal and the ProtoJSON string form of the
-   same Timestamp value are byte-identical except for the surrounding
+
+
+
+
+
+
+
 
 
 
@@ -1682,6 +1682,10 @@ Franco Jr.                 Expires 1 May 2027                  [Page 30]
 Internet-Draft                  protowire                   October 2026
 
 
+   The choice of RFC 3339 aligns with the ProtoJSON [PROTOJSON]
+   serialization of google.protobuf.Timestamp, which uses the same
+   format.  A PXF timestamp literal and the ProtoJSON string form of the
+   same Timestamp value are byte-identical except for the surrounding
    ProtoJSON quote characters.  PXF duration literals are NOT byte-
    compatible with ProtoJSON's Duration form (a decimal-seconds string
    with an "s" suffix); PXF retains the multi-segment unit form
@@ -1722,11 +1726,7 @@ Internet-Draft                  protowire                   October 2026
    Day, week, month, and year units are NOT defined and MUST NOT be
    inferred.
 
-3.11.  Lists
 
-   A list value is a sequence of values delimited by "[" and "]".
-   Elements MAY be separated by "," or by intervening whitespace alone
-   (including newlines), or by both:
 
 
 
@@ -1737,6 +1737,12 @@ Franco Jr.                 Expires 1 May 2027                  [Page 31]
 
 Internet-Draft                  protowire                   October 2026
 
+
+3.11.  Lists
+
+   A list value is a sequence of values delimited by "[" and "]".
+   Elements MAY be separated by "," or by intervening whitespace alone
+   (including newlines), or by both:
 
    [1, 2, 3]
    [1 2 3]
@@ -1777,12 +1783,6 @@ Internet-Draft                  protowire                   October 2026
    Decoders MUST reject "=" inside a map block and ":" inside a message
    block (Section 3.5).
 
-   Within either kind of block, entries MAY be separated by ";" or by
-   newlines or by both; this is consistent with the ABNF in Section 3.3,
-   where entries are juxtaposed without an explicit separator and the
-   optional ";" is consumed as whitespace.
-
-
 
 
 
@@ -1793,6 +1793,11 @@ Franco Jr.                 Expires 1 May 2027                  [Page 32]
 
 Internet-Draft                  protowire                   October 2026
 
+
+   Within either kind of block, entries MAY be separated by ";" or by
+   newlines or by both; this is consistent with the ABNF in Section 3.3,
+   where entries are juxtaposed without an explicit separator and the
+   optional ";" is consumed as whitespace.
 
 3.13.  Keyed Repeated Fields
 
@@ -1838,17 +1843,17 @@ Internet-Draft                  protowire                   October 2026
      counter_row { type = "HBox"  }
    }
 
-   Each entry's name supplies the element's key-field value; the entry's
-   block is the element message body.  An entry name MAY be a string
-   literal (the string alternative of _field-entry_ in Section 3.3),
-   which keeps keys that are not identifier-shaped expressible:
-
 
 
 Franco Jr.                 Expires 1 May 2027                  [Page 33]
 
 Internet-Draft                  protowire                   October 2026
 
+
+   Each entry's name supplies the element's key-field value; the entry's
+   block is the element message body.  An entry name MAY be a string
+   literal (the string alternative of _field-entry_ in Section 3.3),
+   which keeps keys that are not identifier-shaped expressible:
 
    regions {
      "us-east-1" { replicas = 3 }
@@ -1891,11 +1896,6 @@ Internet-Draft                  protowire                   October 2026
       to the key field of any element of a keyed repeated field, in
       either surface form.
 
-   *  An explicit assignment to the key field inside a named entry's
-      block that disagrees with the entry name is a decode error.  An
-      assignment that agrees is redundant but legal.
-
-
 
 
 
@@ -1905,6 +1905,10 @@ Franco Jr.                 Expires 1 May 2027                  [Page 34]
 
 Internet-Draft                  protowire                   October 2026
 
+
+   *  An explicit assignment to the key field inside a named entry's
+      block that disagrees with the entry name is a decode error.  An
+      assignment that agrees is redundant but legal.
 
    A quoted entry name anywhere other than inside a keyed repeated
    field's block is grammatically well-formed but MUST be rejected by
@@ -1947,10 +1951,6 @@ Internet-Draft                  protowire                   October 2026
    unaffected: a keyed repeated field is a plain repeated field on the
    wire, and the key travels as an ordinary field of the element
    message.
-
-
-
-
 
 
 
@@ -2310,10 +2310,50 @@ Internet-Draft                  protowire                   October 2026
    representations respectively, encoded over PB as length-delimited
    unsigned big-endian magnitudes plus sign and scale fields.
 
+   A pxf.BigFloat's value is (-1)^negative × mantissa × 2^exponent,
+   mantissa an unsigned big-endian integer, at prec bits of precision;
+   prec 0 or an empty mantissa is zero.  In PXF text a BigFloat is a
+   numeric literal, and both directions are fixed so that its value
+   survives the text at its own precision (issue #406):
+
+   *  Writing.  A producer of PXF text writes N significant decimal
+      digits, where N is the number of decimal digits of 2^prec plus
+      one, rounded to nearest with ties to even.  It writes them as C's
+      "%g" conversion does with precision N: trailing zeros removed, in
+      exponent form ("1.79769313486231590773e+308", at least two
+      exponent digits) when the decimal exponent is below -4 or at least
+      N, and positionally otherwise.  Zero is written "0".  N is the
+      smallest digit count for which every prec-bit value is recovered
+      from its literal; one digit fewer loses values (measured on issue
+      #406: 9,157 of 20,000 random 53-bit values).
+
+   *  Reading.  A decoder reads a literal with d significant digits (the
+      digits of its mantissa, leading zeros excluded) at P bits, where P
+      is the larger of 256 and the bit length of 10^d, rounding to
+      nearest with ties to even.  It stores mantissa as the value's
+      significand as a P-bit integer (its top bit set), exponent as the
+      value's binary exponent minus P, and prec as P.  A zero literal
+      stores every field as zero, with negative set for "-0".
+
+   Rounding the value a decoder reads back to the original prec recovers
+   the original value, so PB to PXF to PB preserves a BigFloat's value
+   at its precision.  It does not preserve the prec, mantissa and
+   exponent fields themselves, which the reading rule normalizes.  The
+   fixtures under testdata/bigfloat/, generated with exact rational
+   arithmetic, pin both directions (issue #393).
+
    The well-known type pxf.Secret is defined in the proto/pxf/
    secret.proto file in the canonical repository.  It holds a sensitive
    string, value, and two optional strings that describe the secret
    without revealing it: hint, what the secret is, and fingerprint, a
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 42]
+
+Internet-Draft                  protowire                   October 2026
+
+
    non-reversible identifier of it.  A pxf.Secret is written in either
    of two forms.  A string literal sets value alone: 'pw = "x"'.  A
    block names the fields: 'pw { value = "x" hint = "database password"
@@ -2339,21 +2379,6 @@ Internet-Draft                  protowire                   October 2026
 
    *  a group field; or
 
-
-
-
-
-
-
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 42]
-
-Internet-Draft                  protowire                   October 2026
-
-
    *  a message-typed field whose type is not one of
       google.protobuf.Timestamp, google.protobuf.Duration, the nine
       google.protobuf wrapper types (BoolValue, BytesValue, DoubleValue,
@@ -2377,6 +2402,14 @@ Internet-Draft                  protowire                   October 2026
 
    Conformance:
 
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 43]
+
+Internet-Draft                  protowire                   October 2026
+
+
    *  Tools that bind a protobuf descriptor for PXF use MUST reject a
       non-conforming placement at bind time, independently of what any
       document contains, and over the whole scope of Section 3.15.  A
@@ -2397,18 +2430,6 @@ Internet-Draft                  protowire                   October 2026
       MUST NOT be applied as a one-element list: the resulting PB output
       would differ from that of an implementation that rejects the
       schema, for the same schema and the same document.
-
-
-
-
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 43]
-
-Internet-Draft                  protowire                   October 2026
-
 
    *  A pxf.default in one of these placements never had honorable
       semantics — there was no literal the decoder could have applied.
@@ -2438,6 +2459,13 @@ Internet-Draft                  protowire                   October 2026
       consistent with the rule above that "null" suppresses a default;
       and
 
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 44]
+
+Internet-Draft                  protowire                   October 2026
+
+
    *  at most one member of any one oneof may carry pxf.default.  Tools
       that bind a descriptor for PXF use MUST reject a schema in which
       two or more members of the same oneof carry it, over the scope of
@@ -2450,21 +2478,6 @@ Internet-Draft                  protowire                   October 2026
    decodes to, and deciding by field number would do the same on
    renumbering.  Rejecting the schema is the only outcome that does not
    attach meaning to a detail authors are free to change.
-
-
-
-
-
-
-
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 44]
-
-Internet-Draft                  protowire                   October 2026
-
 
    pxf.required MUST NOT be set on a member of a oneof; tools that bind
    a descriptor for PXF use MUST reject such a schema.  Read per-field,
@@ -2494,6 +2507,21 @@ Internet-Draft                  protowire                   October 2026
 
    SBE annotations apply at three scopes:
 
+
+
+
+
+
+
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 45]
+
+Internet-Draft                  protowire                   October 2026
+
+
    extend google.protobuf.FileOptions {
      uint32 schema_id = 1319;
      uint32 version   = 1320;
@@ -2510,17 +2538,6 @@ Internet-Draft                  protowire                   October 2026
 
    sbe.schema_id and sbe.version identify the schema as a whole.
    sbe.template_id MUST be unique among messages within a schema.
-
-
-
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 45]
-
-Internet-Draft                  protowire                   October 2026
-
 
    sbe.length specifies a fixed byte length for string- or bytes-typed
    fields.  Values longer than the limit MUST be truncated by emitters;
@@ -2545,23 +2562,6 @@ Internet-Draft                  protowire                   October 2026
    extension described in Section 7.11.
 
    The framework-defined annotations are:
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
