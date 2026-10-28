@@ -67,7 +67,7 @@ func TestResolve_DocumentShadowsRegistry(t *testing.T) {
 // and the generated _null mask are not differences, a field's type, name
 // or number and a nested type are.
 func TestSameDefinition(t *testing.T) {
-	base := "message M { google.protobuf.Int32Value w = 1; string user_name = 2; message N { int32 a = 1; } N n = 3; }"
+	base := "message M { google.protobuf.Int32Value w = 1; string user_name = 2; message N { int32 a = 1; google.protobuf.Int32Value v = 2; } N n = 3; }"
 	cases := []struct {
 		name, other string
 		same        bool
@@ -89,8 +89,8 @@ func TestSameDefinition(t *testing.T) {
 			if err := CompileSources(ext, CompileOptions{VirtualFiles: []VirtualFile{{Name: "a.proto", Body: []byte(header + base)}}}); err != nil {
 				t.Fatal(err)
 			}
-			if ext.Find("s.v1.M").Fields().ByName("_null") == nil {
-				t.Fatal("precondition: the compiled M has no generated _null")
+			if ext.Find("s.v1.M").Fields().ByName("_null") == nil || ext.Find("s.v1.M.N").Fields().ByName("_null") == nil {
+				t.Fatal("precondition: the compiled M or M.N has no generated _null")
 			}
 			compiled := NewRegistry()
 			if err := CompileSources(compiled, CompileOptions{VirtualFiles: []VirtualFile{{Name: "b.proto", Body: []byte(header + c.other)}}}); err != nil {
@@ -153,20 +153,134 @@ func TestCompileSources_DocumentImports(t *testing.T) {
 }
 
 // withoutNullMask rebuilds md's file without the generated _null field,
-// as a schema compiled by a tool that adds none would be.
+// nested messages included, as a schema compiled by a tool that adds
+// none would be.
 func withoutNullMask(t *testing.T, md protoreflect.MessageDescriptor) protoreflect.MessageDescriptor {
 	t.Helper()
 	fdp := protodesc.ToFileDescriptorProto(md.ParentFile())
-	for _, m := range fdp.MessageType {
-		m.Field = slices.DeleteFunc(m.Field, func(f *descriptorpb.FieldDescriptorProto) bool { return f.GetName() == "_null" })
+	var strip func([]*descriptorpb.DescriptorProto)
+	strip = func(ms []*descriptorpb.DescriptorProto) {
+		for _, m := range ms {
+			m.Field = slices.DeleteFunc(m.Field, func(f *descriptorpb.FieldDescriptorProto) bool { return f.GetName() == "_null" })
+			strip(m.NestedType)
+		}
 	}
+	strip(fdp.MessageType)
 	fd, err := protodesc.NewFile(fdp, protoregistry.GlobalFiles)
 	if err != nil {
 		t.Fatal(err)
 	}
 	out := fd.Messages().ByName(md.Name())
-	if out.Fields().ByName("_null") != nil {
+	if out.Fields().ByName("_null") != nil || out.Messages().ByName("N").Fields().ByName("_null") != nil {
 		t.Fatal("precondition: _null still present")
 	}
 	return out
+}
+
+// shadowed compiles ext as a -p file and doc as a document's @proto into
+// one registry.
+func shadowed(t *testing.T, ext, doc string) *Registry {
+	t.Helper()
+	t.Chdir(t.TempDir())
+	if err := os.WriteFile("ext.proto", []byte("syntax = \"proto3\";\n"+ext), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	reg := NewRegistry()
+	if err := CompileSources(reg, CompileOptions{
+		UserFiles:    []string{"ext.proto"},
+		VirtualFiles: []VirtualFile{{Name: "__indoc_0.proto", Body: []byte("syntax = \"proto3\";\n" + doc)}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	return reg
+}
+
+// The types a document's @proto shadows besides a top-level message, and
+// the warnings each gives (#371). Every case before the review of #385
+// either gave no warning or gave one that was not true.
+func TestMergeDocument_Shadowing(t *testing.T) {
+	cases := []struct {
+		name, ext, doc string
+		warnings       []string
+		check          func(t *testing.T, reg *Registry)
+	}{
+		{
+			name:     "identical enum",
+			ext:      "package e.v1;\nenum Color { COLOR_UNSPECIFIED = 0; RED = 1; }\nmessage M { Color c = 1; }\n",
+			doc:      "package e.v1;\nenum Color { COLOR_UNSPECIFIED = 0; RED = 1; }\nmessage M { Color c = 1; }\n",
+			warnings: nil,
+		},
+		{
+			// M's DescriptorProto names .e.v1.Color either way, so only the
+			// enum's own comparison can see this.
+			name:     "different enum",
+			ext:      "package e.v1;\nenum Color { COLOR_UNSPECIFIED = 0; RED = 1; }\nmessage M { Color c = 1; }\n",
+			doc:      "package e.v1;\nenum Color { COLOR_UNSPECIFIED = 0; BLUE = 1; }\nmessage M { Color c = 1; }\n",
+			warnings: []string{"@proto defines e.v1.Color differently from ext.proto; using the @proto definition"},
+		},
+		{
+			name:     "nested name over a top-level one",
+			ext:      "package n.A;\nmessage B { int32 s = 1; }\n",
+			doc:      "package n;\nmessage A { message B { string s = 1; } }\n",
+			warnings: []string{"@proto defines n.A.B differently from ext.proto; using the @proto definition"},
+			check: func(t *testing.T, reg *Registry) {
+				if k := reg.Find("n.A.B").Fields().ByName("s").Kind(); k != protoreflect.StringKind {
+					t.Errorf("n.A.B.s is %v, want the document's string", k)
+				}
+			},
+		},
+		{
+			name:     "external nested type the document's lacks",
+			ext:      "package l.v1;\nmessage L { message X { int32 a = 1; } X x = 1; }\n",
+			doc:      "package l.v1;\nmessage L { string user = 1; }\n",
+			warnings: []string{"@proto defines l.v1.L differently from ext.proto; using the @proto definition"},
+			check: func(t *testing.T, reg *Registry) {
+				if reg.Find("l.v1.L.X") != nil {
+					t.Error("l.v1.L.X, nested in the shadowed external L, is still registered")
+				}
+			},
+		},
+		{
+			name:     "identical type an external message refers to",
+			ext:      "package l.v1;\nmessage L { string user = 1; }\nmessage W { L l = 1; }\n",
+			doc:      "package l.v1;\nmessage L { string user = 1; }\n",
+			warnings: nil,
+		},
+		{
+			// The referrer keeps the external L (#387): the warning says so
+			// rather than claim the @proto one is used everywhere.
+			name: "different type an external message refers to",
+			ext:  "package l.v1;\nmessage L { int32 user = 1; }\nmessage W { L l = 1; map<string, L> m = 2; }\n",
+			doc:  "package l.v1;\nmessage L { string user = 1; }\n",
+			warnings: []string{
+				"@proto defines l.v1.L differently from ext.proto; using the @proto definition",
+				"l.v1.W from ext.proto still uses ext.proto's l.v1.L, not the @proto one",
+			},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			reg := shadowed(t, c.ext, c.doc)
+			if got := reg.Warnings(); !slices.Equal(got, c.warnings) {
+				t.Errorf("warnings:\n got %q\nwant %q", got, c.warnings)
+			}
+			if c.check != nil {
+				c.check(t, reg)
+			}
+		})
+	}
+}
+
+// The zero Registry is usable, as its doc comment says: Merge fills its
+// maps rather than writing to nil ones.
+func TestRegistry_ZeroValueMerge(t *testing.T) {
+	ext := NewRegistry()
+	if err := CompileSources(ext, CompileOptions{VirtualFiles: []VirtualFile{itemSource("string")}}); err != nil {
+		t.Fatal(err)
+	}
+	var reg Registry
+	reg.Merge(ext.Find("reg.v1.Item").ParentFile())
+	if reg.Find("reg.v1.Item") == nil {
+		t.Fatal("reg.v1.Item not found after Merge into a zero Registry")
+	}
 }

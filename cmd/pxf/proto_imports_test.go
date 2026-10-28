@@ -71,16 +71,17 @@ d { a = 1 }
 	}
 }
 
-// shadowDocs returns a body and a @dataset document whose own @proto
-// defines l.v1.L with user of the given type.
-func shadowDocs(userType string) (body, dataset string) {
+// shadowDocs returns a body, a body with no @type, and a @dataset
+// document, each with its own @proto defining l.v1.L with user of the
+// given type.
+func shadowDocs(userType string) (body, untyped, dataset string) {
 	proto := `@proto """
 syntax = "proto3";
 package l.v1;
 message L { ` + userType + ` user = 1; }
 """
 `
-	return proto + "@type l.v1.L\nuser = \"ann\"\n", proto + "@dataset l.v1.L (user)\n(\"ann\")\n"
+	return proto + "@type l.v1.L\nuser = \"ann\"\n", proto + "user = \"ann\"\n", proto + "@dataset l.v1.L (user)\n(\"ann\")\n"
 }
 
 // -p and a document's @proto both defining l.v1.L: every command uses
@@ -88,7 +89,7 @@ message L { ` + userType + ` user = 1; }
 // (#371). Before, @dataset and query failed with `symbol "l.v1.L"
 // already defined` even when the two agreed.
 func TestProtoShadowing(t *testing.T) {
-	body, dataset := shadowDocs("string")
+	body, untyped, dataset := shadowDocs("string")
 	for _, c := range []struct {
 		name, pType string
 		warn        bool
@@ -109,12 +110,15 @@ func TestProtoShadowing(t *testing.T) {
 			}
 			return path
 		}
-		bodyPath, datasetPath := write("body.pxf", body), write("dataset.pxf", dataset)
+		bodyPath, untypedPath, datasetPath := write("body.pxf", body), write("untyped.pxf", untyped), write("dataset.pxf", dataset)
 		for _, cmd := range []struct {
 			name string
 			args []string
 		}{
 			{"validate body", []string{"validate", "-p", pFile, bodyPath}},
+			// -m names the document's type: the embedded schema is
+			// authoritative under any name, not only under @type.
+			{"validate -m body", []string{"validate", "-p", pFile, "-m", "l.v1.L", untypedPath}},
 			{"validate @dataset", []string{"validate", "-p", pFile, "-m", "l.v1.L", datasetPath}},
 			{"query", []string{"query", "-p", pFile, ".", datasetPath}},
 		} {
@@ -133,6 +137,40 @@ func TestProtoShadowing(t *testing.T) {
 					t.Errorf("warning does not name the -p file; stderr:\n%s", stderr)
 				}
 			})
+		}
+	}
+}
+
+// A -p type that refers to a type the document redefines still holds
+// -p's definition (#387, not decided). The warnings say so, where before
+// the first one alone claimed the @proto definition was in use. This
+// pins the current behaviour: update it with #387's decision.
+func TestProtoShadowing_Referrer(t *testing.T) {
+	dir := t.TempDir()
+	pFile := filepath.Join(dir, "l.proto")
+	if err := os.WriteFile(pFile, []byte("syntax = \"proto3\";\npackage l.v1;\nmessage L { int32 user = 1; }\nmessage W { L l = 1; }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	doc := `@proto """
+syntax = "proto3";
+package l.v1;
+message L { string user = 1; }
+"""
+@type l.v1.W
+l { user = "ann" }
+`
+	printedWarnings.Clear()
+	var err error
+	stderr := captureStderr(t, func() { err = validateDoc(t, doc, "-p", pFile) })
+	if !errMatches(err, `expected integer for field "user"`) {
+		t.Errorf("want W.l decoded against l.proto's L, got %v", err)
+	}
+	for _, w := range []string{
+		"warning: @proto defines l.v1.L differently from " + pFile,
+		"warning: l.v1.W from " + pFile + " still uses " + pFile + "'s l.v1.L, not the @proto one",
+	} {
+		if !strings.Contains(stderr, w) {
+			t.Errorf("stderr lacks %q; stderr:\n%s", w, stderr)
 		}
 	}
 }
