@@ -9,6 +9,7 @@
 # Built Go binaries (produced by `go build ./cmd/...`)
 /protowire
 /protoc-gen-pxf-java-meta
+/pxf
 
 # VS Code extension build artifacts.
 # We commit editors/vscode/dist/pxf-*.vsix as the pre-built install asset.
