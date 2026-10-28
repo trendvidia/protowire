@@ -224,8 +224,7 @@ map_key       = identifier | string | integer | bool ;
 (* === Values === *)
 
 value         = string
-              | integer
-              | float
+              | number
               | bool
               | null
               | bytes
@@ -253,6 +252,11 @@ null          = 'null' ;
 
 
 (* === Lexical: numbers === *)
+
+number        = ( integer | float ) , [ precision ] ;
+(* Only on a literal bound to pxf.BigFloat (draft -01 "PXF Annotations",
+   issue #406): the precision, in bits, the literal was written at. *)
+precision     = 'p' , digit , { digit } ;
 
 integer       = [ '-' ] , digit , { digit } ;
 

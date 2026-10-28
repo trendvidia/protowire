@@ -385,7 +385,10 @@ any-type-entry  = %s"@type" "=" string
                 ; only in a block bound to google.protobuf.Any
                 ; ({{any-blocks}})
 
-number          = float / integer
+number          = ( float / integer ) [ precision ]
+precision       = %s"p" 1*DIGIT
+                ; only on a literal bound to pxf.BigFloat
+                ; ({{pxf-annotations}})
 integer         = [ "-" ] 1*DIGIT
 float           = [ "-" ] 1*DIGIT
                   ( "." *DIGIT [ exponent ] / exponent )
@@ -447,7 +450,7 @@ The grammar is LL(1) modulo the lexical disambiguation rules in {{numeric-litera
 
 * An input matching \["-"\] 1\*DIGIT \[ "." 1\*DIGIT \] time-unit, where the time-unit is one of the literal strings in the grammar above, is tokenized as a duration; the optional leading "-" appears once, before the first segment, never per segment ("-1h30m" is a duration, "1h-30m" is not). A DIGIT-led token that continues past a time-unit into further ALPHA (for example "5seconds", "5sx", "1.5min") is an invalid duration and MUST be rejected as such; it is never an identifier, because identifier productions cannot begin with a DIGIT.
 
-* Numeric literals take precedence over identifiers: a leading DIGIT or "-" forces the numeric branch, within which a token that ends in a time-unit is a duration and one that does not is an integer or float. "+" is not a numeric-branch prefix: the only token it may begin is the identifier "+inf" ({{numeric-literals}}), so "+30s" is not a duration.
+* Numeric literals take precedence over identifiers: a leading DIGIT or "-" forces the numeric branch, within which a token that ends in a time-unit is a duration and one that does not is an integer or float, optionally followed by a precision suffix ("p" and 1\*DIGIT, as in "1.5p53", "5p64" or "1e5p64"; {{pxf-annotations}}). No time-unit begins with "p", so the suffix never makes a token a duration. "+" is not a numeric-branch prefix: the only token it may begin is the identifier "+inf" ({{numeric-literals}}), so "+30s" is not a duration.
 
 ## Documents and Directives
 
@@ -803,7 +806,7 @@ Backslashes inside `b"..."` are NOT interpreted as escape introducers.
 
 Integers are sequences of decimal digits, optionally preceded by "-". Hexadecimal, octal, and binary integer literals are NOT defined in this version.
 
-Floats are decimal-point or exponent forms; see the ABNF in {{abnf-grammar}}. The literal "1." is a valid float (integer part 1, empty fractional part); the literal ".5" is NOT (no integer part). This restriction is intentional: an unprefixed "." is reserved for future qualified-key syntax.
+Floats are decimal-point or exponent forms; see the ABNF in {{abnf-grammar}}. An integer or float may end in a precision suffix, "p" and a bit count after any exponent; only a pxf.BigFloat field accepts one ({{pxf-annotations}}). The literal "1." is a valid float (integer part 1, empty fractional part); the literal ".5" is NOT (no integer part). This restriction is intentional: an unprefixed "." is reserved for future qualified-key syntax.
 
 The target field type determines the numeric domain:
 
@@ -811,7 +814,7 @@ The target field type determines the numeric domain:
 
 * For float and double fields, decoders MUST accept literals in the IEEE 754 {{IEEE754}} representable range; values that round to +Inf or -Inf are rejected unless explicitly written as the identifiers "inf", "+inf", "-inf", "nan".
 
-* For fields of the well-known types pxf.BigInt, pxf.Decimal, and pxf.BigFloat ({{pxf-annotations}}), decoders MUST preserve the literal's exact value, including, for Decimal, the exact scale: the literal "1.00" decodes to a Decimal with unscaled value 100 and scale 2, distinct from "1.0" or "1".
+* For fields of the well-known types pxf.BigInt and pxf.Decimal ({{pxf-annotations}}), decoders MUST preserve the literal's exact value, including, for Decimal, the exact scale: the literal "1.00" decodes to a Decimal with unscaled value 100 and scale 2, distinct from "1.0" or "1". A pxf.BigFloat is binary, and most decimal literals have no exact binary value, so a decoder reads one as the nearest value at the precision its suffix states, or at 256 bits without one ({{pxf-annotations}}).
 
 The number of digits in any single numeric literal is bounded; see {{mandatory-limits}}.
 
@@ -1127,6 +1130,16 @@ pxf.key: names the key field of a keyed repeated field. The value is the proto f
 The schema-level constraints of {{schema-constraints}} apply independently of these annotations: a field, oneof, or enum value whose name collides with a reserved PXF keyword is non-conforming regardless of whether pxf.required or pxf.default is set.
 
 The well-known types pxf.BigInt, pxf.Decimal, and pxf.BigFloat are defined in {{PROTOWIRE-BIGNUM}} (this is the proto/pxf/bignum.proto file in the canonical repository). They provide arbitrary-precision signed integer, exact decimal, and binary floating-point representations respectively, encoded over PB as length-delimited unsigned big-endian magnitudes plus sign and scale fields.
+
+A pxf.BigFloat's value is (-1)^negative × mantissa × 2^exponent, mantissa an unsigned big-endian integer, at prec bits of precision; prec 0 or a zero mantissa (empty, or only zero bytes) is zero. In PXF text a BigFloat is a numeric literal that carries its precision, as a "p" and a bit count after the number ("0.10000000000000001p53"; the *precision* production of {{abnf-grammar}}), so that both its value and its precision survive the text (issue #406):
+
+* Writing. A producer of PXF text writes N significant decimal digits, where N is the number of decimal digits of 2^prec plus one, rounded to nearest with ties to even, followed by "p" and prec. It writes the digits as C's "%g" conversion does with precision N: trailing zeros removed, in exponent form ("1.79769313486231590773e+308p64", at least two exponent digits) when the decimal exponent is below -4 or at least N, and positionally otherwise. Zero is written "0", without a suffix. N is the smallest digit count for which every prec-bit value is recovered by reading its literal back at prec bits (measured on issue #406: one digit fewer lost 9,157 of 20,000 random 53-bit values; with N, value and precision were unchanged after three round trips for every one of 35,600 random values from 24 to 13,000 bits).
+
+* Reading. A decoder reads a literal with a precision suffix at exactly that many bits, rounding to nearest with ties to even, and one without a suffix, which a person may write, at 256 bits. It stores mantissa as the value's significand as a prec-bit integer (its top bit set), exponent as the value's binary exponent minus prec, and prec as the precision read at. A zero literal stores every field as zero, with negative set for "-0". A decoder MUST reject a suffix whose precision is zero, or whose N exceeds MaxNumericLiteralDigits ({{mandatory-limits}}), before allocating anything for it. N exceeds a limit L exactly when prec exceeds floor((L - 1) / log10(2)), 13603 at the default, so a decoder compares the suffix with that bound, rejecting one of more digits than the bound has without converting it, and never computes 2^prec.
+
+* A precision suffix on a literal bound to any field that is not a pxf.BigFloat is grammatically well-formed but MUST be rejected by the schema layer, naming the field.
+
+PB to PXF to PB therefore preserves the value and prec of a non-zero BigFloat whose mantissa fits in prec bits. It does not preserve a mantissa that was not normalized, which the reading rule stores as a prec-bit integer. It does not cover three other values (issue #410): a zero, which is written "0" and so loses its prec and its sign; a mantissa wider than prec bits, whose literal holds the value rounded to prec; and a value within one decimal rounding of 2^-MaxBigFloatExponent, whose literal may lie just past the bound ({{mandatory-limits}}). Reading a literal at any precision other than the one it was written at instead rounds twice: the two such read rules measured on issue #406 lost 0.3% to 0.5%, and 5% to 8%, of values above 256 bits. The fixtures under testdata/bigfloat/, generated with exact rational arithmetic, pin both directions (issue #393).
 
 The well-known type pxf.Secret is defined in the proto/pxf/secret.proto file in the canonical repository. It holds a sensitive string, value, and two optional strings that describe the secret without revealing it: hint, what the secret is, and fingerprint, a non-reversible identifier of it. A pxf.Secret is written in either of two forms. A string literal sets value alone: 'pw = "x"'. A block names the fields: 'pw { value = "x" hint = "database password" }'. Each element of a list, and each value of a map, may take either form. Protecting the value in memory is left to the consumer, not the codec.
 
@@ -2078,7 +2091,7 @@ Conforming decoders MUST enforce the following limits. Defaults are recommended;
 |-------|---------|------------|
 | MaxNestingDepth | 100 | PXF block/list nesting; PB submessage / group / map-entry nesting |
 | MaxMessageSize | 67108864 (64 MiB) | Total input length to a single decode call |
-| MaxNumericLiteralDigits | 4096 | Digit count of any PXF numeric literal; magnitude of pxf.Decimal.scale on the PB wire |
+| MaxNumericLiteralDigits | 4096 | Digit count of any PXF numeric literal; magnitude of pxf.Decimal.scale on the PB wire; the digit count N a pxf.BigFloat precision suffix implies |
 | MaxBigFloatExponent | 16384 | Magnitude of a pxf.BigFloat value's binary exponent, from the PB wire or a PXF literal |
 | MaxBytesLiteralLength | = MaxMessageSize | Decoded byte length of any PXF b"..." literal |
 | MaxVarintBytes | 10 (fixed) | Every PB varint read. NOT configurable. |

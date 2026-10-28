@@ -33,9 +33,11 @@ var descriptorFixtures = map[string][]protowire.Number{
 	"adversarial/adversarial.binpb": {1319, 1320, 1321},
 }
 
-// testdata/adversarial/pb/ holds hand-crafted malformed payloads, not
-// descriptor sets; they are what the decoders are attacked with.
-const notDescriptorSets = "adversarial/pb/"
+// notDescriptorSets are the testdata directories whose .binpb files are
+// message payloads, not descriptor sets: the hand-crafted malformed
+// inputs the decoders are attacked with, and the pxf.BigFloat corpus
+// (#406).
+var notDescriptorSets = []string{"adversarial/pb/", "bigfloat/"}
 
 const (
 	retiredLo, retiredHi = 50000, 59999
@@ -52,8 +54,10 @@ func TestDescriptorFixturesCarryRegisteredNumbers(t *testing.T) {
 			return nil
 		}
 		rel := filepath.ToSlash(strings.TrimPrefix(path, testdataRoot+string(filepath.Separator)))
-		if strings.HasPrefix(rel, notDescriptorSets) {
-			return nil
+		for _, prefix := range notDescriptorSets {
+			if strings.HasPrefix(rel, prefix) {
+				return nil
+			}
 		}
 		seen[rel] = true
 		want, listed := descriptorFixtures[rel]
