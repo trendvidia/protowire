@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+
+// Schema for the null-binding fixtures under testdata/nulls/ (issue #339;
+// IETF draft -01 § Booleans, Null, and Identifier Values).
+
+syntax = "proto3";
+
+package nulls.v1;
+
+import "google/protobuf/wrappers.proto";
+
+message Inner {
+  int32 x = 1;
+}
+
+message Holder {
+  int32 n = 1;
+  optional int32 o = 2;
+  repeated int32 l = 3;
+  oneof k {
+    string ks = 4;
+    Inner km = 5;
+  }
+  Inner msg = 6;
+  google.protobuf.Int32Value w = 7;
+}

@@ -1,0 +1,6 @@
+@type nulls.v1.Holder
+
+# Reject: null on a plain scalar field. Only a wrapper type makes a
+# scalar nullable.
+
+n = null

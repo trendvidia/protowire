@@ -48,6 +48,8 @@ var datasetVerdicts = map[string]string{
 	"block-on-scalar.pxf":         `expected integer for field "int32_field"`,
 	// A raw LF in a simple string (#350), here in a cell.
 	"string-newline-in-cell.pxf": "newline in string literal",
+	// null on a plain scalar (#339), here in a cell.
+	"null-on-scalar-cell.pxf": `null is not allowed on scalar field "int32_field"`,
 	// Column paths (#342). Row type dataset.v1.Event in paths.proto
 	// unless the fixture says otherwise.
 	"dotted-column.pxf":               "",
