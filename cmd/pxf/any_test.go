@@ -49,20 +49,6 @@ type anyGap struct{ by, parse, decode string }
 // an Any block (protowire-go#176).
 var anyKnownGaps = map[string]anyGap{}
 
-// anyResolver resolves a type URL through the fixture registry by the
-// name after its last '/', as type.googleapis.com URLs are resolved.
-type anyResolver struct {
-	find func(string) protoreflect.MessageDescriptor
-}
-
-func (r anyResolver) FindMessageByURL(url string) (protoreflect.MessageDescriptor, error) {
-	name := url[strings.LastIndex(url, "/")+1:]
-	if md := r.find(name); md != nil {
-		return md, nil
-	}
-	return nil, os.ErrNotExist
-}
-
 func anySetup(t *testing.T) (protoreflect.MessageDescriptor, pxf.UnmarshalOptions) {
 	t.Helper()
 	reg, err := schemaresolve.Resolve(schemaresolve.CompileOptions{
@@ -76,7 +62,7 @@ func anySetup(t *testing.T) (protoreflect.MessageDescriptor, pxf.UnmarshalOption
 	if md == nil {
 		t.Fatal("any.v1.Holder not found")
 	}
-	return md, pxf.UnmarshalOptions{TypeResolver: anyResolver{find: reg.Find}}
+	return md, pxf.UnmarshalOptions{TypeResolver: typeResolver{find: reg.Find}}
 }
 
 func errMatches(err error, want string) bool {
@@ -176,5 +162,73 @@ func TestAny_Values(t *testing.T) {
 				t.Errorf("n = %d, want %d", got, tc.n)
 			}
 		})
+	}
+}
+
+func anyProto() string { return filepath.Join(anyDir, "any.proto") }
+
+// The CLI reads an Any block that names its type through the loaded
+// schema (#356): validate meets every fixture's decode verdict, encode
+// writes the accept fixtures, and a @dataset cell resolves the same way.
+// Before, every Any block failed with "no TypeResolver".
+func TestAny_CLIValidateEncode(t *testing.T) {
+	for name, want := range anyVerdicts {
+		t.Run(name, func(t *testing.T) {
+			f := filepath.Join(anyDir, name)
+			// validate parses before it decodes, so a parse verdict is
+			// the error it reports.
+			verdict := want.decode
+			if want.parse != "" {
+				verdict = want.parse
+			}
+			_, err := runCLI(t, "validate", "-p", anyProto(), f)
+			if !errMatches(err, verdict) {
+				t.Errorf("validate: want %q, got %v", verdict, err)
+			}
+			if want.decode != "" {
+				return
+			}
+			out, err := runCLI(t, "encode", "-p", anyProto(), "-m", "any.v1.Holder", f)
+			if err != nil || out == "" {
+				t.Errorf("encode: %d bytes, err %v", len(out), err)
+			}
+		})
+	}
+
+	row := func(url string) string {
+		return "@dataset any.v1.Holder (payload)\n({ @type = \"" + url + "\" tag = \"t\" })\n"
+	}
+	if err := validateDoc(t, row("any.v1.Leaf"), "-p", anyProto(), "-m", "any.v1.Holder"); err != nil {
+		t.Errorf("dataset cell: %v", err)
+	}
+	if err := validateDoc(t, row("any.v1.Nope"), "-p", anyProto(), "-m", "any.v1.Holder"); !errMatches(err, `cannot resolve Any type "any.v1.Nope"`) {
+		t.Errorf("dataset cell with an unknown type: want it rejected, got %v", err)
+	}
+}
+
+// pxf query shows an Any block's type entry as the "@type" key, as
+// protojson does, and writes it back as the block's first entry. Strict
+// mode checks a path up to the Any and not past it, since only the
+// document says what type the Any holds (#356).
+func TestAny_CLIQuery(t *testing.T) {
+	block := filepath.Join(anyDir, "block.pxf")
+	out, err := runCLI(t, "query", "-p", anyProto(), `.payload["@type"]`, block)
+	if err != nil || out != "value = \"any.v1.Leaf\"\n" {
+		t.Errorf(`query .payload["@type"]: %q, %v`, out, err)
+	}
+	if out, err := runCLI(t, "query", "-p", anyProto(), ".payload.tag", block); err != nil || !strings.Contains(out, `"t"`) {
+		t.Errorf("strict query past an Any: %q, %v", out, err)
+	}
+	if _, err := runCLI(t, "query", "-p", anyProto(), ".paylod", block); !errMatches(err, `unknown field "paylod"`) {
+		t.Errorf("strict mode still checks up to the Any: want unknown field, got %v", err)
+	}
+
+	// The whole document written back is valid PXF that decodes the same.
+	whole, err := runCLI(t, "query", "-p", anyProto(), ".", block)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := validateDoc(t, whole, "-p", anyProto(), "-m", "any.v1.Holder"); err != nil {
+		t.Errorf("query output does not validate: %v\n%s", err, whole)
 	}
 }
