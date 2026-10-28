@@ -45,27 +45,9 @@ var anyVerdicts = map[string]anyVerdict{
 // go.mod bump that closes the gap fails the test until it is removed.
 type anyGap struct{ by, parse, decode string }
 
-var anyKnownGaps = map[string]anyGap{
-	// protowire-go v1.9.0: Parse rejects every type entry; Unmarshal takes
-	// one in a singular Any field only, rejects the plain `= { }` form when
-	// a resolver is set, and words its errors differently.
-	"block.pxf":            {anyBy, anyParseOld, ""},
-	"assignment.pxf":       {anyBy, anyParseOld, ""},
-	"url-verbatim.pxf":     {anyBy, anyParseOld, ""},
-	"list-element.pxf":     {anyBy, anyParseOld, "got @type"},
-	"map-value.pxf":        {anyBy, anyParseOld, "got @type"},
-	"plain-fields.pxf":     {anyBy, "", "Any field requires @type as first entry"},
-	"err-not-first.pxf":    {anyBy, anyParseOld, `unknown field "tag" in google.protobuf.Any`},
-	"err-twice.pxf":        {anyBy, anyParseOld, "got @type"},
-	"err-not-any.pxf":      {anyBy, anyParseOld, "got @type"},
-	"err-unresolved.pxf":   {anyBy, anyParseOld, `cannot resolve Any type "any.v1.Nope"`},
-	"err-unquoted-url.pxf": {anyBy, anyParseOld, "expected string type URL after @type ="},
-}
-
-const (
-	anyBy       = "protowire-go#176"
-	anyParseOld = "got @type"
-)
+// Empty since protowire-go v1.10.0, which implements the type entry of
+// an Any block (protowire-go#176).
+var anyKnownGaps = map[string]anyGap{}
 
 // anyResolver resolves a type URL through the fixture registry by the
 // name after its last '/', as type.googleapis.com URLs are resolved.

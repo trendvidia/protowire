@@ -32,11 +32,9 @@ var stringsVerdicts = map[string]struct{ reject, s, t string }{
 // meet to the change that closes the gap and what the pinned release
 // does instead ("" for acceptance). Each is asserted to still hold, so
 // the go.mod bump that closes it fails the test until it is removed.
-var stringsKnownGaps = map[string]datasetGap{
-	// protowire-go v1.9.0 keeps the raw LF in the string;
-	// protowire-go#167 rejects it.
-	"err-raw-newline.pxf": {by: "protowire-go#167", old: ""},
-}
+// Empty since protowire-go v1.10.0, which rejects a raw newline in a
+// simple string (protowire-go#167).
+var stringsKnownGaps = map[string]datasetGap{}
 
 func TestStrings_Corpus(t *testing.T) {
 	files, err := filepath.Glob(filepath.Join(stringsDir, "*.pxf"))

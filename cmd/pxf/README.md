@@ -194,6 +194,8 @@ widen the type during inference, or edit trades.proto manually to set "age"
 as string
 ```
 
+It infers scalar columns only. A dotted column (`desc.energy`, a path into a sub-message) or a list or block cell is refused, naming the column; write those fields by hand.
+
 `--full-scan` walks the rest of the file collecting every contradiction instead of aborting fast. Empty cells (CSV) and absent cells (PXF) flip the column to nullable; the generated `.proto` field gets the `optional` keyword so proto3 presence round-trips.
 
 ### `pxf sbe2proto <schema.xml>`
