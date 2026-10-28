@@ -70,12 +70,7 @@ func TestStrings_Corpus(t *testing.T) {
 			msg, derr := pxf.UnmarshalDescriptor(data, md)
 			_, verr := runCLI(t, "validate", "-p", filepath.Join(stringsDir, "strings.proto"), "-m", "strings.v1.Holder", f)
 			if gap, known := stringsKnownGaps[name]; known {
-				for _, err := range []error{perr, derr, verr} {
-					if !errMatches(err, gap.old) {
-						t.Fatalf("the pinned protowire-go no longer treats this fixture as before (Parse: %v; decode: %v; validate: %v); gap %s is closed, remove it from stringsKnownGaps", perr, derr, verr, gap.by)
-					}
-				}
-				t.Skipf("known gap, closed by %s", gap.by)
+				skipGap(t, "stringsKnownGaps", gap, want.reject == "", perr, derr, verr)
 			}
 			for what, err := range map[string]error{"Parse": perr, "decode": derr, "validate": verr} {
 				if !errMatches(err, want.reject) {
