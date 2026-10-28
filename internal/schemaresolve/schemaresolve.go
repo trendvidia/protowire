@@ -27,6 +27,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -46,6 +47,10 @@ import (
 // call, keyed by FullName. The zero value is usable but empty.
 type Registry struct {
 	byFullName map[protoreflect.FullName]protoreflect.MessageDescriptor
+	// fromDocument holds the messages a document's own @proto defined,
+	// which shadow any external definition of the same name.
+	fromDocument map[protoreflect.FullName]bool
+	warnings     []string
 }
 
 // NewRegistry returns an empty Registry. Useful when callers need to
@@ -71,6 +76,109 @@ func (r *Registry) Len() int {
 		return 0
 	}
 	return len(r.byFullName)
+}
+
+// FromDocument reports whether name was defined by a document's own
+// @proto directive (a VirtualFiles or DescriptorSet source).
+func (r *Registry) FromDocument(name string) bool {
+	return r != nil && r.fromDocument[protoreflect.FullName(name)]
+}
+
+// Warnings returns what resolution noticed without failing: an
+// in-document type whose definition differs from an external one it
+// shadows (#371).
+func (r *Registry) Warnings() []string {
+	if r == nil {
+		return nil
+	}
+	return r.warnings
+}
+
+// mergeDocument folds fd, a file a document's own @proto defined, into
+// the registry. The embedded schema is authoritative (draft § The
+// "@proto" Directive, "Precedence with external schemas"), so its
+// messages replace any external message of the same name, -p or
+// protoregistry alike. Where the two definitions differ, it records a
+// warning: the document still decodes against its own type, and a
+// stale -p does not go unnoticed (decided by the owner on #371).
+//
+// Two definitions differ as sameDefinition says.
+func (r *Registry) mergeDocument(fd protoreflect.FileDescriptor) {
+	if r.byFullName == nil {
+		r.byFullName = map[protoreflect.FullName]protoreflect.MessageDescriptor{}
+	}
+	if r.fromDocument == nil {
+		r.fromDocument = map[protoreflect.FullName]bool{}
+	}
+	msgs := fd.Messages()
+	for i := range msgs.Len() {
+		md := msgs.Get(i)
+		old, ok := r.byFullName[md.FullName()]
+		if ok && !r.fromDocument[md.FullName()] && !sameDefinition(old, md) {
+			r.warnings = append(r.warnings, fmt.Sprintf(
+				"@proto defines %s differently from %s; using the @proto definition",
+				md.FullName(), old.ParentFile().Path()))
+		}
+	}
+	seen := map[protoreflect.FullName]protoreflect.MessageDescriptor{}
+	walkMessages(msgs, seen)
+	for name, md := range seen {
+		r.byFullName[name] = md
+		r.fromDocument[name] = true
+	}
+}
+
+// sameDefinition reports whether a and b define the same message: equal
+// DescriptorProtos, so names, numbers, types, labels, options, oneofs
+// and nested types agree. Field types compare by full name; a top-level
+// message the type refers to is compared on its own. The file each lives
+// in does not count, since the in-document one is always a synthetic
+// file. Two things a compiler adds are normalized away, so that a schema
+// compiled elsewhere (a protoregistry bundle) can match: a json_name
+// equal to the default one, and the generated `_null` mask (NullMask).
+func sameDefinition(a, b protoreflect.MessageDescriptor) bool {
+	x, y := protodesc.ToDescriptorProto(a), protodesc.ToDescriptorProto(b)
+	normalizeDefinition(x)
+	normalizeDefinition(y)
+	return proto.Equal(x, y)
+}
+
+// nullMaskNumber is the number protocompile gives the generated `_null`
+// field (RFC-001 §8.6).
+const nullMaskNumber = 536870911
+
+func normalizeDefinition(m *descriptorpb.DescriptorProto) {
+	m.Field = slices.DeleteFunc(m.Field, func(f *descriptorpb.FieldDescriptorProto) bool {
+		return f.GetName() == "_null" && f.GetNumber() == nullMaskNumber
+	})
+	for _, f := range m.Field {
+		if f.GetJsonName() == defaultJSONName(f.GetName()) {
+			f.JsonName = nil
+		}
+	}
+	for _, n := range m.NestedType {
+		normalizeDefinition(n)
+	}
+}
+
+// defaultJSONName is protoc's json_name for a field with none declared:
+// underscores dropped, and the letter after each one upper-cased.
+func defaultJSONName(name string) string {
+	var b strings.Builder
+	upper := false
+	for _, c := range name {
+		switch {
+		case c == '_':
+			upper = true
+		case upper && 'a' <= c && c <= 'z':
+			b.WriteRune(c - 'a' + 'A')
+			upper = false
+		default:
+			b.WriteRune(c)
+			upper = false
+		}
+	}
+	return b.String()
 }
 
 // Merge folds every message reachable from fd into the registry.
@@ -117,61 +225,121 @@ var CompileBundledAll = []string{
 	"envelope/v1/envelope.proto",
 }
 
-// CompileSources resolves UserFiles + VirtualFiles + BundledFiles via
-// protocompile in a single pass (so cross-imports work) and folds the
-// result into reg. Returns reg for call-chain convenience.
+// InDocumentImports are the canonical schemas a source-form @proto may
+// import, besides the well-known types and another @proto in the same
+// document (draft § The "@proto" Directive, decided by the owner on
+// #369). They are the schemas whose types a document can hold. The rest
+// of the bundled tree configures tools, and a filesystem path is never
+// one.
+var InDocumentImports = []string{
+	"pxf/annotations.proto",
+	"pxf/bignum.proto",
+	"pxf/secret.proto",
+	"sbe/annotations.proto",
+	"envelope/v1/envelope.proto",
+}
+
+// CompileSources compiles opts into reg in two passes.
 //
-// File-name routing inside the accessor:
-//   - virtual filename match     → serve from VirtualFiles
-//   - bundled canonical name     → serve from protowire.BundledProto
-//   - otherwise                  → os.Open
+// The external pass compiles BundledFiles and UserFiles. Its imports
+// resolve from the bundled canonical schemas, then the filesystem, so a
+// user .proto can `import "envelope/v1/envelope.proto"` with no -p
+// flag for it.
 //
-// The cross-import promise: a user .proto can `import
-// "envelope/v1/envelope.proto"` and have it resolve from the embed.FS
-// without an explicit -p flag.
+// The document pass compiles VirtualFiles, the sources of a document's
+// own @proto directives, and merges DescriptorSet. Its imports resolve
+// only from the other VirtualFiles, InDocumentImports and the
+// well-known types: a @proto never reads the filesystem or a -p file.
+// Its messages shadow the external pass's (see mergeDocument).
 func CompileSources(reg *Registry, opts CompileOptions) error {
-	hasInputs := len(opts.UserFiles) > 0 || len(opts.VirtualFiles) > 0 || len(opts.BundledFiles) > 0
-	if hasInputs {
+	if err := compileExternal(reg, opts); err != nil {
+		return err
+	}
+	return compileDocument(reg, opts)
+}
+
+func compileExternal(reg *Registry, opts CompileOptions) error {
+	if len(opts.UserFiles) == 0 && len(opts.BundledFiles) == 0 {
+		return nil
+	}
+	accessor := func(filename string) (io.ReadCloser, error) {
+		if rc, err := readBundled(filename); err == nil {
+			return rc, nil
+		}
+		return os.Open(filename)
+	}
+	files := make([]string, 0, len(opts.BundledFiles)+len(opts.UserFiles))
+	files = append(files, opts.BundledFiles...)
+	files = append(files, opts.UserFiles...)
+	result, err := compile(accessor, files)
+	if err != nil {
+		return err
+	}
+	for _, f := range result {
+		reg.Merge(f)
+	}
+	return nil
+}
+
+func compileDocument(reg *Registry, opts CompileOptions) error {
+	if len(opts.VirtualFiles) > 0 {
 		virtual := map[string][]byte{}
+		files := make([]string, 0, len(opts.VirtualFiles))
 		for _, v := range opts.VirtualFiles {
 			virtual[v.Name] = v.Body
+			files = append(files, v.Name)
 		}
 		accessor := func(filename string) (io.ReadCloser, error) {
 			if data, ok := virtual[filename]; ok {
 				return io.NopCloser(bytes.NewReader(data)), nil
 			}
-			if rc, err := readBundled(filename); err == nil {
-				return rc, nil
+			if slices.Contains(InDocumentImports, filename) {
+				return readBundled(filename)
 			}
-			return os.Open(filename)
+			return nil, fmt.Errorf("a @proto may import only the well-known types, %s and another @proto in the document", strings.Join(InDocumentImports, ", "))
 		}
-		comp := protocompile.Compiler{
-			Resolver: protocompile.WithStandardImports(&protocompile.SourceResolver{Accessor: accessor}),
-			NullMask: NullMask,
-		}
-		files := make([]string, 0, len(opts.BundledFiles)+len(opts.UserFiles)+len(opts.VirtualFiles))
-		files = append(files, opts.BundledFiles...)
-		files = append(files, opts.UserFiles...)
-		for _, v := range opts.VirtualFiles {
-			files = append(files, v.Name)
-		}
-		result, err := comp.Compile(context.Background(), files...)
+		result, err := compile(accessor, files)
 		if err != nil {
-			return fmt.Errorf("compile schemas: %w", err)
+			return err
 		}
 		for _, f := range result {
-			reg.Merge(f)
+			reg.mergeDocument(f)
 		}
 	}
 
 	// Descriptor-form sources (FileDescriptorSet bytes) bypass
 	// protocompile — protodesc.NewFiles hydrates them directly.
 	for _, blob := range opts.DescriptorSet {
-		if err := MergeDescriptorBlob(reg, blob, "descriptor body"); err != nil {
-			return err
+		var fds descriptorpb.FileDescriptorSet
+		if err := proto.Unmarshal(blob, &fds); err != nil {
+			return fmt.Errorf("descriptor body: unmarshal FileDescriptorSet: %w", err)
 		}
+		files, err := protodesc.NewFiles(&fds)
+		if err != nil {
+			return fmt.Errorf("descriptor body: %w", err)
+		}
+		files.RangeFiles(func(fd protoreflect.FileDescriptor) bool {
+			reg.mergeDocument(fd)
+			return true
+		})
 	}
 	return nil
+}
+
+func compile(accessor func(string) (io.ReadCloser, error), files []string) ([]protoreflect.FileDescriptor, error) {
+	comp := protocompile.Compiler{
+		Resolver: protocompile.WithStandardImports(&protocompile.SourceResolver{Accessor: accessor}),
+		NullMask: NullMask,
+	}
+	result, err := comp.Compile(context.Background(), files...)
+	if err != nil {
+		return nil, fmt.Errorf("compile schemas: %w", err)
+	}
+	out := make([]protoreflect.FileDescriptor, 0, len(result))
+	for _, f := range result {
+		out = append(out, f)
+	}
+	return out, nil
 }
 
 // CompileBundledFiles compiles canonical schemas from the embedded
@@ -334,7 +502,7 @@ func Resolve(opts CompileOptions, ref RegistryRef) (*Registry, error) {
 		return nil, err
 	}
 	reg := NewRegistry()
-	if err := CompileSources(reg, opts); err != nil {
+	if err := compileExternal(reg, opts); err != nil {
 		return nil, err
 	}
 	if ref.Active() {
@@ -345,6 +513,10 @@ func Resolve(opts CompileOptions, ref RegistryRef) (*Registry, error) {
 		if err := MergeFileDescriptorSet(reg, fds, "protoregistry bundle"); err != nil {
 			return nil, err
 		}
+	}
+	// Last, so a document's own types shadow the registry's too (#371).
+	if err := compileDocument(reg, opts); err != nil {
+		return nil, err
 	}
 	return reg, nil
 }

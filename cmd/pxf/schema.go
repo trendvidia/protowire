@@ -4,6 +4,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -106,7 +107,23 @@ func loadSchema(protoFiles []string, inDoc []pxf.ProtoDirective, reg registryRef
 	if err != nil {
 		return nil, err
 	}
+	printWarnings(r)
 	return &schema{reg: r}, nil
+}
+
+// printedWarnings keeps a warning that several resolutions of one
+// document notice (validate, then an Any block's lazy resolver) to one
+// line on stderr.
+var printedWarnings sync.Map
+
+// printWarnings writes the registry's warnings to stderr, each once per
+// process.
+func printWarnings(r *schemaresolve.Registry) {
+	for _, w := range r.Warnings() {
+		if _, dup := printedWarnings.LoadOrStore(w, true); !dup {
+			fmt.Fprintln(os.Stderr, "warning: "+w)
+		}
+	}
 }
 
 // buildCompileOptions translates the cmd/pxf view of the world

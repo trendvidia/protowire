@@ -271,11 +271,12 @@ func validateDescriptor(doc *pxf.Document) (protoreflect.MessageDescriptor, erro
 }
 
 // inDocumentType returns the message the document's @type names when
-// its own @proto directives define it, and nil when they do not. Only
-// the directives are compiled (their imports still resolve against the
-// canonical schemas), so a type that -p, a bundled schema or
-// protoregistry defines does not count and cannot stand in for the
-// embedded one.
+// its own @proto directives define it, and nil when they do not. A type
+// that only -p, a bundled schema or protoregistry defines does not
+// count and cannot stand in for the embedded one. The whole chain is
+// resolved, so an external definition the embedded one shadows is
+// compared with it and a difference warned about, as for @dataset and
+// query (#371).
 func inDocumentType(doc *pxf.Document) (protoreflect.MessageDescriptor, error) {
 	ld := &loadedDoc{protos: append([]pxf.ProtoDirective(nil), doc.Protos...)}
 	// A body consumes no anonymous @proto, so this rejects one as
@@ -283,16 +284,14 @@ func inDocumentType(doc *pxf.Document) (protoreflect.MessageDescriptor, error) {
 	if err := resolveAnonymousProtos(ld); err != nil {
 		return nil, err
 	}
-	opts, err := buildCompileOptions(nil, ld.protos)
+	sch, err := loadSchema(protoFiles, ld.protos, registryRefFromFlags())
 	if err != nil {
 		return nil, err
 	}
-	opts.BundledFiles = nil
-	reg := schemaresolve.NewRegistry()
-	if err := schemaresolve.CompileSources(reg, opts); err != nil {
-		return nil, err
+	if !sch.reg.FromDocument(doc.TypeURL) {
+		return nil, nil
 	}
-	return reg.Find(doc.TypeURL), nil
+	return sch.find(doc.TypeURL), nil
 }
 
 // validateDatasets binds every row of every @dataset to its row type.
