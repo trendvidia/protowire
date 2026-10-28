@@ -215,7 +215,7 @@ func runE2EFullPipeline(t *testing.T, input, query string) string {
 	}
 	var sb strings.Builder
 	for _, r := range results {
-		if err := emitPXF(&sb, r); err != nil {
+		if err := emitPXF(&sb, r, nil); err != nil {
 			t.Fatalf("emit: %v", err)
 		}
 	}

@@ -155,6 +155,8 @@ Output is always PXF. There is no `--output=json` flag — back-conversion to th
 pxf query '...' input.csv | pxf encode -p trades.proto -m trades.v1.Trade
 ```
 
+When the document has a bound type (`-m`, or its `@type` resolved through the schema chain) and a result's keys are all fields of that type, the result is written against the schema. A map field is then written as a map, `"k": "v"`, with each key spelled for its key type: an integer or bool key bare, and a string key bare when it is identifier-safe, quoted otherwise. Such a result re-parses as the type it was read as ([#373](https://github.com/trendvidia/protowire/issues/373)). Any other result, such as a projection (`{a: .x}`) or a sub-tree (`.nested`), is written without the schema. A map in it then comes out as a block, `k = "v"`, which a decoder rejects for a map field, since the query graph lowers a map and a block alike.
+
 ## Query language
 
 The query expression is gojq-compatible — `pxf query` embeds [`itchyny/gojq`](https://github.com/itchyny/gojq) as its core engine, so anything that runs in jq runs here, with the same operators, the same standard library, and the same runtime semantics. PXF-specific capability is registered as ordinary gojq functions under a `pxf_` prefix (gojq's `@<name>` syntax is reserved for string formatters and isn't user-extensible, so a namespacing prefix on plain identifiers is the next-best convention).
