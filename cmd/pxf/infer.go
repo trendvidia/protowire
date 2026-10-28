@@ -186,6 +186,12 @@ func inferDataset(ds pxf.DatasetDirective, sampleRows int, fullScan bool) (*infe
 
 	rep := &inferReport{columns: make([]columnReport, len(ds.Columns))}
 	for i, c := range ds.Columns {
+		// A dotted column is a path into a sub-message (draft §3.4.4),
+		// and inference builds no nested messages (#348). Written as a
+		// field name, it would give a .proto that protoc rejects.
+		if strings.Contains(c, ".") {
+			return nil, fmt.Errorf("infer-schema: column %q is a path into a sub-message; infer-schema infers scalar columns only, so write the nested message by hand", c)
+		}
 		rep.columns[i].name = c
 	}
 
@@ -196,6 +202,12 @@ func inferDataset(ds pxf.DatasetDirective, sampleRows int, fullScan bool) (*infe
 			if cell == nil {
 				cr.nullable = true
 				continue
+			}
+			switch cell.(type) {
+			case *pxf.ListVal, *pxf.BlockVal:
+				// A value cell (draft §3.4.4) is a repeated field or a
+				// sub-message, which the scalar lattice cannot type (#348).
+				return nil, fmt.Errorf("infer-schema: row %d, column %q holds a list or a block; infer-schema infers scalar columns only, so write that field by hand", rowNum, cr.name)
 			}
 			t, ok := classifyCellValue(cell)
 			if !ok {

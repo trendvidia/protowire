@@ -225,3 +225,40 @@ func TestInfer_NoDatasetRejected(t *testing.T) {
 		t.Errorf("unexpected error: %v", err)
 	}
 }
+
+// inferPXF runs the inference engine on a PXF @dataset document.
+func inferPXF(t *testing.T, input string) error {
+	t.Helper()
+	doc, err := loadPXF([]byte(input))
+	if err != nil {
+		t.Fatalf("loadPXF: %v", err)
+	}
+	ds, err := pickDataset(doc, "pxf")
+	if err != nil {
+		t.Fatalf("pickDataset: %v", err)
+	}
+	_, err = inferDataset(ds, 1000, false)
+	return err
+}
+
+// infer-schema infers scalar columns only (#348). A dotted column, from a
+// PXF header or a CSV one, is refused rather than written as a field name
+// protoc rejects; a list or block cell is refused rather than typed as a
+// string.
+func TestInfer_RefusesNestedColumns(t *testing.T) {
+	for _, tc := range []struct{ name, input, want string }{
+		{"dotted", "@dataset ev.Event (id, desc.energy)\n(\"e1\", 0.5)\n", `column "desc.energy" is a path into a sub-message`},
+		{"list cell", "@dataset ev.Event (id, tags)\n(\"e1\", 1)\n(\"e2\", [\"a\"])\n", `row 2, column "tags" holds a list or a block`},
+		{"block cell", "@dataset ev.Event (id, desc)\n(\"e1\", { energy = 0.5 })\n", `row 1, column "desc" holds a list or a block`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := inferPXF(t, tc.input)
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("want %q, got %v", tc.want, err)
+			}
+		})
+	}
+	if _, err := inferCSV(t, "id,desc.energy\ne1,0.5\n", 1000, false, "ev.v1.Event"); err == nil || !strings.Contains(err.Error(), `column "desc.energy" is a path into a sub-message`) {
+		t.Fatalf("CSV: want the dotted column refused, got %v", err)
+	}
+}
