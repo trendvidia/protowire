@@ -27,6 +27,7 @@ message Holder {
   Inner msg = 6;
   google.protobuf.Int32Value w = 7;
   map<string, int32> m = 8;
+  map<string, Inner> mm = 9;
 }
 
 // A null optional scalar counts as present for (pxf.required).

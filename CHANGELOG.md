@@ -25,6 +25,12 @@ loosely; the project follows [SemVer](https://semver.org/) per
   - `pxf validate`, `encode` and `query` turn it on for `-p` files and a document's source `@proto`. Their schema loader, `internal/schemaresolve`, now compiles with the protocompile fork instead of upstream protocompile v0.14.1, which has no such option.
   - The bundled canonical schemas never get the mask: they are shared types every port generates code for.
   - Measured: `w = null` on a `google.protobuf.Int32Value` comes back as `w = null` after PXF → binary → PXF; with the mask off it comes back absent. An `optional` scalar needs protowire-go#182 too, and is pinned as a known gap until a release carries it.
+  
+- **`null` on a proto2 `required` field, and as a map value, is rejected** (issues [#379](https://github.com/trendvidia/protowire/issues/379), [#380](https://github.com/trendvidia/protowire/issues/380)). Decided by the owner on 2026-10-28. Draft `-01` § Booleans, Null, and Identifier Values had left both open after #339's option 3:
+  - **A proto2 `required` field** (or an editions `LEGACY_REQUIRED` one) has explicit presence, but a `null` there would leave it unset, which protobuf binary does not allow.
+  - **A map value** is an entry of a list-typed field, and an entry without a value reads back as the zero value.
+  - protowire-go v1.10.0 already rejects both. `testdata/nulls/` adds `err-proto2-required.pxf`, `err-map-value.pxf` and `err-map-message-value.pxf`.
+  - RFC-001 §6.1's Null row now names explicit presence. §8.6 no longer counts a `required` field as able to hold a null.
 
 - **`docs/grammar.ebnf` and the railroad diagram catch up with the draft** (issue [#355](https://github.com/trendvidia/protowire/issues/355)). A `@dataset` cell is `[ value ]` (#341), a column may be a dotted path (#342), and `map_key` includes `bool` (#284). `row_value` is gone. `scripts/gen_railroad.py` mirrors the EBNF, and `docs/grammar.svg` is regenerated with railroad-diagrams 3.0.1.
 

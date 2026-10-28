@@ -25,20 +25,24 @@ const nullsDir = "../../testdata/nulls"
 // accept fixture the field the null leaves unset. msg is the message the
 // fixture binds to, nulls.v1.Holder when empty.
 var nullsVerdicts = map[string]struct{ msg, reject, unset string }{
-	"err-scalar.pxf":        {reject: `null is not allowed on scalar field "n"`},
-	"err-repeated.pxf":      {reject: `null is not allowed on repeated field "l"`},
-	"err-list-element.pxf":  {reject: `null is not allowed in repeated field "l"`},
-	"err-map.pxf":           {reject: `null is not allowed on map field "m"`},
-	"err-nested-scalar.pxf": {reject: `null is not allowed on scalar field "x"`},
-	"err-oneof-sibling.pxf": {reject: `field "ks" conflicts with already-set field "km"`},
-	"message.pxf":           {unset: "msg"},
-	"wrapper.pxf":           {unset: "w"},
-	"optional-scalar.pxf":   {unset: "o"},
-	"oneof-scalar.pxf":      {unset: "ks"},
-	"oneof-message.pxf":     {unset: "km"},
-	"proto2-scalar.pxf":     {msg: "nulls.v1.Legacy", unset: "p"},
-	"required-optional.pxf": {msg: "nulls.v1.Required", unset: "r"},
-	"default-optional.pxf":  {msg: "nulls.v1.Defaulted", unset: "d"},
+	"err-scalar.pxf":       {reject: `null is not allowed on scalar field "n"`},
+	"err-repeated.pxf":     {reject: `null is not allowed on repeated field "l"`},
+	"err-list-element.pxf": {reject: `null is not allowed in repeated field "l"`},
+	"err-map.pxf":          {reject: `null is not allowed on map field "m"`},
+	// Decided on #380 and #379.
+	"err-map-value.pxf":         {reject: `null is not allowed as map value in field "m"`},
+	"err-map-message-value.pxf": {reject: `null is not allowed as map value in field "mm"`},
+	"err-proto2-required.pxf":   {msg: "nulls.v1.Strict", reject: `null is not allowed on scalar field "r"`},
+	"err-nested-scalar.pxf":     {reject: `null is not allowed on scalar field "x"`},
+	"err-oneof-sibling.pxf":     {reject: `field "ks" conflicts with already-set field "km"`},
+	"message.pxf":               {unset: "msg"},
+	"wrapper.pxf":               {unset: "w"},
+	"optional-scalar.pxf":       {unset: "o"},
+	"oneof-scalar.pxf":          {unset: "ks"},
+	"oneof-message.pxf":         {unset: "km"},
+	"proto2-scalar.pxf":         {msg: "nulls.v1.Legacy", unset: "p"},
+	"required-optional.pxf":     {msg: "nulls.v1.Required", unset: "r"},
+	"default-optional.pxf":      {msg: "nulls.v1.Defaulted", unset: "d"},
 }
 
 // nullsKnownGaps maps fixtures the pinned protowire-go does not yet meet
