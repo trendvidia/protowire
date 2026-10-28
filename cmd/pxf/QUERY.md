@@ -79,14 +79,15 @@ The inference pass picks candidate types from the first `--sample-rows=N` rows (
 
 ### Fail-fast on contradiction
 
-If row `K > N` introduces a value that doesn't match the candidate type for its column, inference aborts with the line number, the offending value, the candidate type, and a recovery hint:
+If row `K > N` puts a float in a column the sample fixed as integer, inference aborts with the line number, the cell's type, the candidate type, and a recovery hint:
 
 ```
-row 1247, column "age": value "23y" does not match inferred type integer
-the first 1000 rows suggested integer; re-run with --sample-rows=1247 to
-widen the type during inference, or edit trades.proto manually to set "age"
-as string
+row 1247, column "age": value type double does not match inferred type int64
+the first 1000 rows suggested int64; re-run with --sample-rows=1247 to
+widen the type during inference, or edit the generated .proto manually to set "age" as double
 ```
+
+Integer to `double` is the only widening, because it is the only one a decoder binds. A column that mixes other kinds, such as an integer and a string, is refused at whichever row the mix appears, whatever `N` is ([#360](https://github.com/trendvidia/protowire/issues/360)).
 
 The default is fail-fast. Pass `--full-scan` to walk the entire file even after a mismatch, collecting every contradiction before reporting — useful when fixing a large dataset in a single pass.
 

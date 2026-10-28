@@ -4,8 +4,12 @@ package main
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/trendvidia/protowire-go/encoding/pxf"
 )
 
 // inferCSV is the shared test helper — load CSV into a loadedDoc, run
@@ -86,7 +90,8 @@ func TestInfer_WidensWithinSampleWindow(t *testing.T) {
 
 func TestInfer_FailFastPastSampleWindow(t *testing.T) {
 	// sample-rows=2 fixes the candidate after row 2; row 3 must conform.
-	input := "age\n30\n25\ntwenty\n"
+	// A float would have widened the column to double inside the window.
+	input := "age\n30\n25\n2.5\n"
 	_, err := inferCSV(t, input, 2, false, "x.v1.Y")
 	if err == nil {
 		t.Fatal("expected fail-fast contradiction")
@@ -107,7 +112,7 @@ func TestInfer_FullScanAccumulates(t *testing.T) {
 	// Two columns, two rows past the sample window — each row has a
 	// mismatch in each column. Full-scan reports all four in one
 	// error instead of aborting after the first.
-	input := "a,b\n1,foo\n2,bar\nx,3\ny,4\n"
+	input := "a,b\n1,1\n2,2\n1.5,2.5\n3.5,4.5\n"
 	_, err := inferCSV(t, input, 2, true, "x.v1.M")
 	if err == nil {
 		t.Fatal("expected full-scan errors")
@@ -261,4 +266,152 @@ func TestInfer_RefusesNestedColumns(t *testing.T) {
 	if _, err := inferCSV(t, "id,desc.energy\ne1,0.5\n", 1000, false, "ev.v1.Event"); err == nil || !strings.Contains(err.Error(), `column "desc.energy" is a path into a sub-message`) {
 		t.Fatalf("CSV: want the dotted column refused, got %v", err)
 	}
+}
+
+// A column whose cells no single field type holds is refused, naming
+// the column and both rows (#360). Typed string, as before, it gave a
+// schema that rejected the column's other cells: a string field rejects
+// 1 and true.
+func TestInfer_RefusesUnbindableMix(t *testing.T) {
+	for _, c := range []struct{ name, input, want string }{
+		{"int then string", "age\n30\ntwenty\n", `column "age" holds an integer (row 1) and a string (row 2)`},
+		{"bool then int", "f\ntrue\n1\n", `column "f" holds a bool (row 1) and an integer (row 2)`},
+		{"string then float", "s\nabc\n1.5\n", `column "s" holds a string (row 1) and a float (row 2)`},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			_, err := inferCSV(t, c.input, 1000, false, "x.v1.M")
+			if err == nil || !strings.Contains(err.Error(), c.want) {
+				t.Fatalf("want %q, got %v", c.want, err)
+			}
+		})
+	}
+	// --full-scan collects refusals with the contradictions.
+	_, err := inferCSV(t, "a,b\n1,x\ny,2\n", 1000, true, "x.v1.M")
+	if err == nil || !strings.Contains(err.Error(), "2 contradictions") {
+		t.Fatalf("want both columns reported, got %v", err)
+	}
+}
+
+// #360's done-when: for every accept fixture in testdata/dataset/ that
+// infer-schema accepts, `pxf validate` against the schema it wrote
+// accepts the fixture. Before, a null, timestamp, duration or bytes cell
+// typed its column string, and the schema rejected its own input.
+func TestInfer_DatasetCorpusRoundTrip(t *testing.T) {
+	files, err := filepath.Glob(filepath.Join(datasetDir, "*.pxf"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var checked []string
+	for _, f := range files {
+		name := filepath.Base(f)
+		if datasetVerdicts[name] != "" {
+			continue
+		}
+		data, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		doc, err := loadPXF(data)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		// A document whose own @proto defines the row type is checked
+		// against that type, whatever -p says, so it says nothing about
+		// the inferred schema.
+		if len(doc.protos) > 0 || len(doc.datasets) != 1 {
+			continue
+		}
+		ds := doc.datasets[0]
+		rep, err := inferDataset(ds, 1000, false)
+		if err != nil {
+			t.Logf("%s: refused: %v", name, err)
+			continue
+		}
+		t.Run(name, func(t *testing.T) {
+			var buf bytes.Buffer
+			if err := emitProtoFile(&buf, ds.Type, rep); err != nil {
+				t.Fatal(err)
+			}
+			proto := filepath.Join(t.TempDir(), "inferred.proto")
+			if err := os.WriteFile(proto, buf.Bytes(), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := runCLI(t, "validate", "-p", proto, "-m", ds.Type, f); err != nil {
+				t.Errorf("the inferred schema rejects its input: %v\n%s", err, buf.String())
+			}
+		})
+		checked = append(checked, name)
+	}
+	if len(checked) == 0 {
+		t.Fatal("no fixture was round-tripped")
+	}
+	t.Logf("round-tripped %d fixtures: %s", len(checked), strings.Join(checked, ", "))
+}
+
+// #360's reproduction: a null in an int column, and timestamp, duration
+// and bytes cells. Each column gets a type that binds its cells, and
+// `pxf validate` accepts the document against the schema written for it.
+func TestInfer_TypedAndNullCells(t *testing.T) {
+	doc := "@dataset x.v1.R (n, ts, d, b, s)\n" +
+		"(1, 2026-01-01T00:00:00Z, 5s, b\"aGk=\", \"a\")\n" +
+		"(null, , , , null)\n" +
+		"(3, null, null, , )\n"
+	path := filepath.Join(t.TempDir(), "r.pxf")
+	if err := os.WriteFile(path, []byte(doc), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	ld, err := loadPXF([]byte(doc))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rep, err := inferDataset(ld.datasets[0], 1000, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	if err := emitProtoFile(&buf, "x.v1.R", rep); err != nil {
+		t.Fatal(err)
+	}
+	got := buf.String()
+	for _, want := range []string{
+		`import "google/protobuf/duration.proto";`,
+		`import "google/protobuf/timestamp.proto";`,
+		`import "google/protobuf/wrappers.proto";`,
+		"google.protobuf.Int64Value n = 1;",
+		"google.protobuf.Timestamp ts = 2;",
+		"google.protobuf.Duration d = 3;",
+		"optional bytes b = 4;",
+		"google.protobuf.StringValue s = 5;",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q in:\n%s", want, got)
+		}
+	}
+	proto := filepath.Join(t.TempDir(), "r.proto")
+	if err := os.WriteFile(proto, buf.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runCLI(t, "validate", "-p", proto, "-m", "x.v1.R", path); err != nil {
+		t.Errorf("the inferred schema rejects its input: %v", err)
+	}
+
+	// A timestamp column with a string in it has no type that holds both.
+	_, err = inferDataset(mustDataset(t, "@dataset x.v1.R (ts)\n(2026-01-01T00:00:00Z)\n(\"later\")\n"), 1000, false)
+	if err == nil || !strings.Contains(err.Error(), `column "ts" holds a timestamp (row 1) and a string (row 2)`) {
+		t.Errorf("want the mixed column refused, got %v", err)
+	}
+	// An identifier binds only to an enum.
+	_, err = inferDataset(mustDataset(t, "@dataset x.v1.R (c)\n(RED)\n"), 1000, false)
+	if err == nil || !strings.Contains(err.Error(), `column "c" holds an identifier`) {
+		t.Errorf("want the identifier refused, got %v", err)
+	}
+}
+
+func mustDataset(t *testing.T, doc string) pxf.DatasetDirective {
+	t.Helper()
+	ld, err := loadPXF([]byte(doc))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return ld.datasets[0]
 }
