@@ -8,7 +8,7 @@ module github.com/trendvidia/protowire/internal/schemaext
 go 1.26.2
 
 require (
-	github.com/trendvidia/protocheck/v2 v2.3.0
+	github.com/trendvidia/protocheck/v2 v2.7.0
 	github.com/trendvidia/protocompile v0.25.0
 	google.golang.org/protobuf v1.36.12
 )
@@ -17,7 +17,6 @@ require (
 	buf.build/gen/go/bufbuild/protodescriptor/protocolbuffers/go v1.36.11-20250109164928-1da0de137947.1 // indirect
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20240920164238-5a7b106cbb87.1 // indirect
 	github.com/petermattis/goid v0.0.0-20260113132338-7c7de50cc741 // indirect
-	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/tidwall/btree v1.8.1 // indirect
 	github.com/trendvidia/protowire-go v1.5.1 // indirect
