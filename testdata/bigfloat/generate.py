@@ -32,6 +32,19 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 
+MAX_NUMERIC_LITERAL_DIGITS = 4096
+
+
+def digits_for(prec: int) -> int:
+    """N, the significant digits a prec-bit value is written with."""
+    return len(str(2 ** prec)) + 1
+
+
+# The largest precision a suffix may state: its N is within the limit.
+MAX_PREC = 1
+while digits_for(MAX_PREC + 1) <= MAX_NUMERIC_LITERAL_DIGITS:
+    MAX_PREC += 1
+
 
 def varint(n: int) -> bytes:
     n &= 0xFFFFFFFFFFFFFFFF
@@ -74,7 +87,7 @@ def write_literal(mant: int, exp: int, prec: int, neg: bool) -> str:
     if prec == 0 or mant == 0:
         return "0"
     v = Fraction(mant) * (Fraction(2) ** exp)
-    n = len(str(2 ** prec)) + 1
+    n = digits_for(prec)
     k = 0  # decimal exponent: 10^k <= v < 10^(k+1)
     while Fraction(10) ** (k + 1) <= v:
         k += 1
@@ -142,13 +155,24 @@ DECODE = {
     "hundred-digits-p333": "1" + "2" * 99 + "e-50p333",
     "small-positional": "0.000125",
     "2pow1024-p64": "1.79769313486231590773e+308p64",
+    "integer-p64": "1000p64",
+    "exponent-only-p24": "1e-5p24",
+    # 0.999999 at 8 bits rounds up to 2^8, past the significand: 1 at 8 bits.
+    "rounds-up-to-power-p8": "0.999999p8",
+    "negative-zero": "-0",
+    # The largest precision whose N, 4096, is within MaxNumericLiteralDigits.
+    "one-at-max-precision": f"1p{MAX_PREC}",
 }
 
 # Documents a decoder MUST reject: a precision suffix on a field that is
-# not a pxf.BigFloat, and a zero precision.
+# not a pxf.BigFloat (the error names the field, count), a zero
+# precision, and a precision whose N exceeds MaxNumericLiteralDigits,
+# one past the limit and one that overflows every fixed-width integer.
 REJECT = {
-    "suffix-on-int32": "n = 5p64",
+    "suffix-on-int32": "count = 5p64",
     "precision-zero": "bf = 1.5p0",
+    "precision-past-limit": f"bf = 1p{MAX_PREC + 1}",
+    "precision-overflow": "bf = 1p99999999999999999999999",
 }
 
 

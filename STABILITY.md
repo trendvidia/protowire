@@ -235,9 +235,9 @@ v1.13 changes the bytes the reference implementation writes for two shapes, in o
   - **The grammar gains a precision suffix:** `p` and a bit count after the number (`0.10000000000000001p53`).
   - **Writing:** a producer writes (decimal digits of 2^prec) + 1 significant digits in C's `%g` form, plus the suffix.
   - **Reading:** a decoder reads a suffixed literal at exactly that precision, and an unsuffixed one at 256 bits, as the reference did. Zero is stored as zero. A suffix on any field that isn't a BigFloat is rejected.
-  - **What changes for documents:** existing documents keep their meaning. The reference's output gains the suffix and one digit, so a port that has not implemented the suffix can't read it back. That's an additive grammar change of the kind promise 1 permits.
-  - **What's preserved:** PB → PXF → PB keeps the value and `prec`, but not a mantissa that wasn't normalized. Wire formats are otherwise unchanged.
-  - `testdata/bigfloat/` pins both directions with nineteen cases from exact arithmetic. Reference: protowire-go#194.
+  - **What changes for documents:** existing documents keep their meaning. Promise 1 permits the grammar addition, since a reader accepts strictly more. The headline promise's other direction doesn't hold for BigFloat text, though: the reference now writes the suffix on every non-zero BigFloat, so a port before v1.13 can't read the BigFloat text a v1.13 producer writes. Earlier additions to the grammar appeared only where a person chose to write them.
+  - **What's preserved:** PB → PXF → PB keeps the value and `prec` of a non-zero BigFloat whose mantissa fits in `prec` bits, but not a mantissa that wasn't normalized. A zero loses its `prec` and sign, a wider mantissa is rounded to `prec`, and a value at the lower exponent bound may print past it ([#410](https://github.com/trendvidia/protowire/issues/410)). Wire formats are otherwise unchanged.
+  - `testdata/bigfloat/` pins both directions with twenty-six cases from exact arithmetic. Reference: protowire-go#194.
 
 ### CLI surface — evolves
 

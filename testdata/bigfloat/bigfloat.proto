@@ -12,5 +12,5 @@ import "pxf/bignum.proto";
 
 message H {
   pxf.BigFloat bf = 1;
-  int32 n = 2;
+  int32 count = 2;
 }

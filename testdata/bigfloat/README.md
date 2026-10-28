@@ -7,9 +7,10 @@ IETF draft `-01` § PXF Annotations).
 - **Writing:** N = (decimal digits of 2^prec) + 1 significant digits, round half even, in C's `%g` form, followed by the precision suffix `p<prec>`. Zero is `0`, without a suffix.
 - **Reading:** a suffixed literal is read at exactly the suffix's precision, an unsuffixed one at 256 bits, round half even. The stored mantissa is the significand as a prec-bit integer, and the exponent is the binary exponent minus prec.
 - **Zero** is stored with every field 0.
-- **A suffix elsewhere,** on a field that isn't a `pxf.BigFloat`, is rejected, and so is `p0`.
+- **A suffix elsewhere,** on a field that isn't a `pxf.BigFloat`, is rejected, naming the field, and so is `p0` and a precision whose N would exceed `MaxNumericLiteralDigits` (above `p13603` at the default).
+- **Not covered yet:** a zero with a precision or a sign, a mantissa wider than prec, and a value at the lower exponent bound, whose behaviour is open on [#410](https://github.com/trendvidia/protowire/issues/410).
 
-Every case binds to [`bigfloat.proto`](bigfloat.proto) (`bf.v1.H`: `pxf.BigFloat bf`, `int32 n`).
+Every case binds to [`bigfloat.proto`](bigfloat.proto) (`bf.v1.H`: `pxf.BigFloat bf`, `int32 count`).
 - An `enc-<name>` case is a PB message (`.binpb`) and the PXF text an encoder MUST write for it (`.pxf`).
 - A `dec-<name>` case is a PXF document (`.pxf`) and the PB bytes a decoder MUST produce (`.binpb`, deterministic field order, proto3 zero fields omitted).
 - An `err-<name>` case is a document a decoder MUST reject.
@@ -35,5 +36,12 @@ Every case binds to [`bigfloat.proto`](bigfloat.proto) (`bf.v1.H`: `pxf.BigFloat
 | `dec-1e4932` | `1e4932` | binary exponent 16384, the bound |
 | `dec-small-positional` | `0.000125` | |
 | `dec-zero` | `0` | every field 0 |
-| `err-suffix-on-int32` | `n = 5p64` | a suffix on a field that isn't a BigFloat |
+| `dec-negative-zero` | `-0` | only `negative` set |
+| `dec-integer-p64` | `1000p64` | a suffix on the integer form |
+| `dec-exponent-only-p24` | `1e-5p24` | a suffix on the exponent-only form |
+| `dec-rounds-up-to-power-p8` | `0.999999p8` | rounds up past the 8-bit significand, to 1 |
+| `dec-one-at-max-precision` | `1p13603` | the largest precision within `MaxNumericLiteralDigits` |
+| `err-suffix-on-int32` | `count = 5p64` | a suffix on a field that isn't a BigFloat; the error names `count` |
 | `err-precision-zero` | `bf = 1.5p0` | a zero precision |
+| `err-precision-past-limit` | `bf = 1p13604` | one past the largest precision |
+| `err-precision-overflow` | `bf = 1p99999999999999999999999` | a precision past every fixed-width integer |
