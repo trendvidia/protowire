@@ -12,13 +12,16 @@ the rule in draft -01 § PXF Annotations, independently of any port:
     nearest with ties to even, trailing zeros removed, in the form of C's
     %g with precision N: exponent form (d.ddd e+XX, at least two exponent
     digits) when the decimal exponent is below -4 or at least N,
-    positional otherwise, followed by the precision suffix "p<P>".
-    prec 0, or a zero mantissa, is "0", without a suffix.
+    positional otherwise, followed by the precision suffix "p<P>". The
+    value is M rounded to P bits first (#410: a mantissa wider than P is
+    the rounded value). A zero is "0p<P>" or "-0p<P>"; only a prec-0
+    zero is written without a suffix ("0", or "-0").
   * Reading: a literal with a suffix "p<P>" is read at exactly P bits,
     one without at 256 bits, rounded to nearest with ties to even. It is
     stored as mantissa = the significand as a P-bit integer (top bit
-    set), exponent = binary exponent - P, prec = P. Zero is stored with
-    every field 0 (negative set for -0).
+    set), exponent = binary exponent - P, prec = P. A zero is stored
+    with an empty mantissa, exponent 0, prec P (0 without a suffix) and
+    negative for a sign.
 
 Each enc-<name> case is a PB message (enc-<name>.binpb) and the PXF text
 an encoder MUST write for it (enc-<name>.pxf). Each dec-<name> case is a
@@ -83,10 +86,23 @@ def round_half_even(x: Fraction) -> int:
     return q
 
 
+def round_to_prec(v: Fraction, p: int) -> Fraction:
+    """v rounded to p significant bits, half to even."""
+    e2 = 0  # 2^(p-1) <= v / 2^e2 < 2^p
+    while v / Fraction(2) ** e2 >= 2 ** p:
+        e2 += 1
+    while v / Fraction(2) ** e2 < 2 ** (p - 1):
+        e2 -= 1
+    m = round_half_even(v / Fraction(2) ** e2)
+    return Fraction(m) * Fraction(2) ** e2
+
+
 def write_literal(mant: int, exp: int, prec: int, neg: bool) -> str:
-    if prec == 0 or mant == 0:
-        return "0"
-    v = Fraction(mant) * (Fraction(2) ** exp)
+    sign = "-" if neg else ""
+    if mant == 0 or prec == 0:
+        return f"{sign}0" if prec == 0 else f"{sign}0p{prec}"
+    # A mantissa wider than prec bits: the value is the rounded one.
+    v = round_to_prec(Fraction(mant) * (Fraction(2) ** exp), prec)
     n = digits_for(prec)
     k = 0  # decimal exponent: 10^k <= v < 10^(k+1)
     while Fraction(10) ** (k + 1) <= v:
@@ -98,7 +114,6 @@ def write_literal(mant: int, exp: int, prec: int, neg: bool) -> str:
         q //= 10
         k += 1
     digits = str(q).rstrip("0") or "0"
-    sign = "-" if neg else ""
     if k < -4 or k >= n:
         body = digits[0] + ("." + digits[1:] if len(digits) > 1 else "")
         return f"{sign}{body}e{'-' if k < 0 else '+'}{abs(k):02d}p{prec}"
@@ -117,9 +132,9 @@ def read_literal(lit: str):
     v = Fraction(int(ip + fp or "0")) / (Fraction(10) ** len(fp))
     if exp_part:
         v *= Fraction(10) ** int(exp_part)
-    if v == 0:
-        return 0, 0, 0, neg
     p = int(suffix) if suffix else 256
+    if v == 0:
+        return 0, 0, (p if suffix else 0), neg
     e2 = 0  # 2^(p-1) <= v / 2^e2 < 2^p
     while v / Fraction(2) ** e2 >= 2 ** p:
         e2 += 1
@@ -142,6 +157,14 @@ ENCODE = {
     "tiny-negative-exponent": (1, -16385, 64, False),
     "prec-zero": (0, 0, 0, False),
     "integer": (1000, 0, 64, False),
+    # #410: a zero keeps its precision and sign; a wide mantissa is the
+    # value rounded to prec; the exponent bound at the 256-bit default;
+    # a literal of MaxNumericLiteralDigits digits plus exponent and suffix.
+    "zero-prec64": (0, 0, 64, False),
+    "zero-prec64-negative": (0, 0, 64, True),
+    "wide-mantissa-prec53": (2 ** 100 - 1, -50, 53, False),
+    "exponent-bound-prec256": (1, -16385, 256, False),
+    "max-precision-with-exponent": (2 ** MAX_PREC - 1, 16384 - MAX_PREC, MAX_PREC, False),
 }
 
 DECODE = {
@@ -162,6 +185,12 @@ DECODE = {
     "negative-zero": "-0",
     # The largest precision whose N, 4096, is within MaxNumericLiteralDigits.
     "one-at-max-precision": f"1p{MAX_PREC}",
+    # #410: a zero with a precision and sign; the producer's own literals
+    # at the exponent bound and at the digit limit read back.
+    "zero-p64": "0p64",
+    "negative-zero-p64": "-0p64",
+    "exponent-bound-prec256": write_literal(1, -16385, 256, False),
+    "max-precision-with-exponent": write_literal(2 ** MAX_PREC - 1, 16384 - MAX_PREC, MAX_PREC, False),
 }
 
 # Documents a decoder MUST reject: a precision suffix on a field that is

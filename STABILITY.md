@@ -238,6 +238,12 @@ v1.13 changes the bytes the reference implementation writes for two shapes, in o
   - **What changes for documents:** existing documents keep their meaning. Promise 1 permits the grammar addition, since a reader accepts strictly more. The headline promise's other direction doesn't hold for BigFloat text, though: the reference now writes the suffix on every non-zero BigFloat, so a port before v1.13 can't read the BigFloat text a v1.13 producer writes. Earlier additions to the grammar appeared only where a person chose to write them.
   - **What's preserved:** PB → PXF → PB keeps the value and `prec` of a non-zero BigFloat whose mantissa fits in `prec` bits, but not a mantissa that wasn't normalized. A zero loses its `prec` and sign, a wider mantissa is rounded to `prec`, and a value at the lower exponent bound may print past it ([#410](https://github.com/trendvidia/protowire/issues/410)). Wire formats are otherwise unchanged.
   - `testdata/bigfloat/` pins both directions with twenty-six cases from exact arithmetic. Reference: protowire-go#194.
+- **Four edges of a `pxf.BigFloat`'s PXF text are settled** ([#410](https://github.com/trendvidia/protowire/issues/410)). Decided by the owner after the review of #408, which listed them as exceptions to the round-trip guarantee.
+  - **Zero:** a zero keeps its precision and sign, written `0p<prec>` or `-0p<prec>`; only a prec-0 zero is written `0`.
+  - **A mantissa wider than `prec`** denotes the value rounded to `prec`, which the reference already used when reading one from PB.
+  - **`MaxBigFloatExponent`** applies after rounding to the read precision, so a producer's literal at the bound reads back.
+  - **`MaxNumericLiteralDigits`** counts a literal's mantissa digits only.
+  - **What changes for documents:** a decoder that counted exponent digits accepts slightly longer literals now, and a zero's text gains a suffix. Neither rejects a document an earlier reader accepted. PB → PXF → PB now preserves every BigFloat's value, sign and `prec`.
 
 ### CLI surface — evolves
 

@@ -22,6 +22,14 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ### Changed
 
+- **Four edges of a `pxf.BigFloat`'s PXF text are settled** (issue [#410](https://github.com/trendvidia/protowire/issues/410)). Decided by the owner.
+  - A zero is written `0p<prec>` or `-0p<prec>`, so it keeps its precision and sign.
+  - A mantissa wider than `prec` denotes the value rounded to `prec`.
+  - `MaxBigFloatExponent` is checked after rounding to the read precision.
+  - `MaxNumericLiteralDigits` counts mantissa digits only.
+  - Draft `-01` § PXF Annotations, § Mandatory Limits and HARDENING.md say so. The round-trip guarantee now covers every BigFloat, zeros included.
+  - `testdata/bigfloat/` adds five encode and four decode cases: zeros at prec 64, a 100-bit mantissa at prec 53, 2^−16385 at the 256-bit default, and a 4095-digit literal with exponent and suffix at the top precision. All nine are known gaps on protowire-go#194.
+
 - **A `pxf.BigFloat` literal carries its precision, and its PXF text form is specified both ways** (issues [#406](https://github.com/trendvidia/protowire/issues/406) and [#393](https://github.com/trendvidia/protowire/issues/393); v1.13). Decided by the owner.
   - The grammar's `number` gains an optional `precision` suffix, `p` and a bit count (ABNF, `docs/grammar.ebnf` and the railroad diagram).
   - Draft `-01` § PXF Annotations: a producer writes (decimal digits of 2^prec) + 1 significant digits, round half even, in C's `%g` form, plus the suffix. A decoder reads a suffixed literal at exactly that precision and an unsuffixed one at 256 bits. Zero is stored as zero. A suffix on a field that isn't a BigFloat, `p0`, or a precision whose digit count would pass `MaxNumericLiteralDigits` (above `p13603` at the default) is rejected. The round trip doesn't cover a zero's `prec` and sign, a mantissa wider than `prec`, or a value at the lower exponent bound (#410). The reference now writes the suffix on every non-zero BigFloat, so a port before v1.13 can't read that text back.
