@@ -53,6 +53,12 @@ func (s *schema) check(md protoreflect.MessageDescriptor) error {
 	return s.reg.Check(md)
 }
 
+// anyType resolves the type URL of an Any block by the name after its
+// last '/', as typeResolver does, or returns nil. s may be nil.
+func (s *schema) anyType(url string) protoreflect.MessageDescriptor {
+	return s.find(url[strings.LastIndex(url, "/")+1:])
+}
+
 // typeResolver resolves the type URL of an Any block (draft § Any
 // Blocks) by the name after its last '/', as type.googleapis.com URLs
 // are resolved, through find.
