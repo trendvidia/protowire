@@ -84,7 +84,6 @@ prefix.
 `dotted-overlap`, `dotted-overlap-deep`, `dotted-empty-segment`,
 `dotted-trailing-dot` and `duplicate-column` are decided by the header
 alone, so a parser that does not bind rows must reject them too. The
-other header rejections need the row type. Until `cmd/pxf` pins a
-protowire-go release carrying
-[protowire-go#159](https://github.com/trendvidia/protowire-go/pull/159),
-its test lists these twenty-two as known gaps.
+other header rejections need the row type, and a decoder checks them
+when it binds a row. So a table with no rows passes them, as
+`dotted-bad-header-no-rows` pins.
