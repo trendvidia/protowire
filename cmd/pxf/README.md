@@ -190,18 +190,19 @@ Produces a `.proto` schema by inferring per-column types from a sample file. Acc
 pxf infer-schema -m trades.v1.Trade march.csv > trades.proto
 ```
 
-Lattice walked during inference: `bool → int → float → string`. Within `--sample-rows` (default 1000), the candidate widens to accommodate new evidence. Past the window, mismatches abort with a recovery hint:
+Each column gets the type its cells bind to: `bool`, `int64`, `double`, `string`, `bytes`, `google.protobuf.Timestamp` or `google.protobuf.Duration`. Only one widening exists: integer and float cells together make a `double` column, since a `double` field binds `1`. Within `--sample-rows` (default 1000), an integer column widens to `double` when a float appears. Past the window, a float in an integer column aborts with a recovery hint:
 
 ```
-row 1247, column "age": value "23y" does not match inferred type integer
-the first 1000 rows suggested integer; re-run with --sample-rows=1247 to
-widen the type during inference, or edit trades.proto manually to set "age"
-as string
+row 1247, column "age": value type double does not match inferred type int64
+the first 1000 rows suggested int64; re-run with --sample-rows=1247 to
+widen the type during inference, or edit the generated .proto manually to set "age" as double
 ```
 
-It infers scalar columns only. A dotted column (`desc.energy`, a path into a sub-message) or a list or block cell is refused, naming the column; write those fields by hand.
+A column that mixes any other kinds (an integer and a string, a bool and an integer, a timestamp and a string) is refused wherever the mix appears, naming the column and both rows: no field type binds both cells, so a `string` field would reject the integers.
 
-`--full-scan` walks the rest of the file collecting every contradiction instead of aborting fast. Empty cells (CSV) and absent cells (PXF) flip the column to nullable; the generated `.proto` field gets the `optional` keyword so proto3 presence round-trips.
+It infers scalar columns only. A dotted column (`desc.energy`, a path into a sub-message), a list or block cell, or an identifier cell (which binds only to an enum) is refused, naming the column; write those fields by hand.
+
+`--full-scan` walks the rest of the file collecting every contradiction and refusal instead of aborting fast. Empty cells (CSV) and absent cells (PXF) make the field `optional`, so proto3 presence round-trips. A `null` cell makes a scalar column its wrapper type (`google.protobuf.Int64Value`, `StringValue` and so on), because a `null` binds only to a field with explicit presence (draft `-01` § Booleans, Null, and Identifier Values). A timestamp or duration column holds a `null` as it is.
 
 ### `pxf sbe2proto <schema.xml>`
 
