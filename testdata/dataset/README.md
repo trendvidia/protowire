@@ -47,6 +47,13 @@ LF inside a simple string is an error in a cell as it is anywhere, for
 the materializing parser and the streaming reader alike. Its general
 fixtures are in [`../strings/`](../strings/).
 
+`null-on-scalar-cell` (reject) carries the null rule into a cell (issue
+[#339](https://github.com/trendvidia/protowire/issues/339)): a cell
+applies the singular-field null rules, so `null` in a plain `int32`
+column is an error. `null-on-optional-cell` (accept) is the other side:
+`null` in an `optional int32` column leaves the field unset and
+present-but-null. Its general fixtures are in [`../nulls/`](../nulls/).
+
 The `dotted-*` fixtures and `duplicate-column` pin column paths (issue
 [#342](https://github.com/trendvidia/protowire/issues/342), v1.13). A
 column may be a dotted path into a sub-message, and a row binds as the
