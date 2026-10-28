@@ -372,3 +372,50 @@ service SE {
 		}
 	}
 }
+
+// The generated `_null` mask is left out of the document; a hand-declared
+// `_null`, at any other number, is the author's field and stays (decided
+// by the owner on #404).
+func TestOpenAPIGeneratedNullMaskHidden(t *testing.T) {
+	dir := t.TempDir()
+	src := `syntax = "proto3";
+package nm.v1;
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/wrappers.proto";
+import "protowire/schema/v1/annotations.proto";
+message Gen { google.protobuf.Int32Value w = 1; }
+message Hand { google.protobuf.Int32Value w = 1; google.protobuf.FieldMask _null = 15; }
+service S {
+  @http("POST", "/gen")
+  rpc PutGen(Gen) returns (Hand);
+}
+`
+	p := filepath.Join(dir, "nm.proto")
+	if err := os.WriteFile(p, []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	image := filepath.Join(t.TempDir(), "image.binpb")
+	if err := runPxf(t, "build", "-o", image, p); err != nil {
+		t.Fatalf("build: %v", err)
+	}
+	var doc struct {
+		Components struct {
+			Schemas map[string]struct {
+				Properties map[string]any `yaml:"properties"`
+			} `yaml:"schemas"`
+		} `yaml:"components"`
+	}
+	if err := yaml.Unmarshal(renderOpenAPI(t, "--config", openapiConfig, image), &doc); err != nil {
+		t.Fatal(err)
+	}
+	schemas := doc.Components.Schemas
+	if _, ok := schemas["nm.v1.Gen"].Properties["_null"]; ok {
+		t.Error("nm.v1.Gen lists the generated _null mask")
+	}
+	if _, ok := schemas["nm.v1.Gen"].Properties["w"]; !ok {
+		t.Error("nm.v1.Gen lost its own field w")
+	}
+	if _, ok := schemas["nm.v1.Hand"].Properties["_null"]; !ok {
+		t.Error("nm.v1.Hand's hand-declared _null was dropped")
+	}
+}

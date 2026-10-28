@@ -305,6 +305,9 @@ func (m *model) indexMessage(ct *carrierTypes, file, scope string, md *descripto
 		info.anns = anns
 	}
 	for _, fd := range md.GetField() {
+		if isGeneratedNullMask(fd) {
+			continue
+		}
 		fi := &fieldInfo{desc: fd}
 		if fd.GetOptions() != nil {
 			anns, err := ct.fieldAnnotations(fd)
@@ -452,4 +455,18 @@ func (m *model) fileNamed(name string) *descriptorpb.FileDescriptorProto {
 		}
 	}
 	return nil
+}
+
+// isGeneratedNullMask reports whether fd is the `_null` FieldMask that
+// protocompile generates (protocompile#248, RFC-001 §8.6): named _null,
+// number 536870911, of type google.protobuf.FieldMask. The OpenAPI
+// document leaves it out (decided by the owner on #404): JSON has a
+// native null, and the mask carries nulls through protobuf binary. A
+// hand-declared _null, at any other number, is the author's field and
+// stays. protojson does write the mask for a message decoded from PXF
+// ({"Null":"w"}), so such a body carries a property the document omits.
+func isGeneratedNullMask(fd *descriptorpb.FieldDescriptorProto) bool {
+	return fd.GetName() == "_null" && fd.GetNumber() == 536870911 &&
+		fd.GetType() == descriptorpb.FieldDescriptorProto_TYPE_MESSAGE &&
+		fd.GetTypeName() == ".google.protobuf.FieldMask"
 }

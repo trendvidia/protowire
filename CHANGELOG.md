@@ -22,6 +22,8 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ### Changed
 
+- **`pxf openapi` leaves out the generated `_null` mask** (issue [#404](https://github.com/trendvidia/protowire/issues/404)). Decided by the owner. Since #382, every image `pxf build` writes carries the generated mask (`_null`, number 536870911, a `google.protobuf.FieldMask`), and the document listed it as a property of every such message. It is left out now; a hand-declared `_null` at any other number stays. One caveat, measured: `protojson` writes the mask for a message decoded from PXF (`{"n":1,"Null":"w"}`), so a JSON body built that way carries a property the document doesn't list.
+
 - **`pxf openapi` marks a field nullable exactly where PXF accepts `null`** (issue [#380](https://github.com/trendvidia/protowire/issues/380)). Decided by the owner. That means a singular field with explicit presence: message fields, wrappers, `optional` scalars, oneof members, proto2 `optional` scalars and editions EXPLICIT scalars. Before, only `optional` and wrapper fields were marked. Measured beforehand: Go's `protojson` accepts `null` on every field kind and reads it as unset. So each field now marked is one the JSON boundary accepts `null` on, and a plain scalar, where `null` would mean zero, stays unmarked. A message field's `$ref` becomes `anyOf: [$ref, {type: null}]`. `TestOpenAPINullable` pins ten cases across proto3, proto2 and editions; on the old code four of them fail.
 
 - **A map key bound twice in one message body is rejected** (issue [#396](https://github.com/trendvidia/protowire/issues/396); v1.13). Decided by the owner (option b).
