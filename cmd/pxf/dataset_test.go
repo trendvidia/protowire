@@ -14,6 +14,7 @@ import (
 	"strings"
 	"testing"
 
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/dynamicpb"
 
 	"github.com/trendvidia/protowire-go/encoding/pxf"
@@ -71,6 +72,10 @@ var datasetVerdicts = map[string]string{
 	"dotted-into-bignum.pxf":          `"big" is a pxf.BigInt`,
 	"dotted-overlap-deep.pxf":         `column "desc.tempo.min_bpm" overlaps column "desc.tempo"`,
 	"dotted-bad-header-empty-row.pxf": `"picks" is a repeated field`,
+	// The follow-ups of #342 (#349).
+	"dotted-into-secret.pxf":        "",
+	"dotted-into-any.pxf":           "",
+	"dotted-bad-header-no-rows.pxf": "",
 }
 
 // datasetKnownGaps maps fixtures the pinned protowire-go does not yet meet
@@ -393,5 +398,45 @@ func TestDataset_QueryTypesDottedColumnByLeaf(t *testing.T) {
 	row := v.(map[string]any)["rows"].([]any)[0].(map[string]any)
 	if f, ok := row["desc.energy"].(float64); !ok || !math.IsInf(f, 1) {
 		t.Fatalf(`row["desc.energy"] = %#v, want +Inf`, row["desc.energy"])
+	}
+}
+
+// A path into a pxf.Secret or a google.protobuf.Any binds the fields the
+// type's block form names (#349): a Secret's value and hint, an Any's
+// own type_url and value. Each fixture's first row is the body its
+// comment states.
+func TestDataset_PathsIntoSecretAndAny(t *testing.T) {
+	sch, err := loadSchema([]string{pathsProto()}, nil, registryRef{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct{ fixture, body string }{
+		{"dotted-into-secret.pxf", `id = "x" pw { value = "s3cret" hint = "db password" }`},
+		{"dotted-into-any.pxf", `id = "x" payload { type_url = "type.googleapis.com/dataset.v1.Pick" value = b"CgF4" }`},
+	} {
+		data, err := os.ReadFile(filepath.Join(datasetDir, tc.fixture))
+		if err != nil {
+			t.Fatal(err)
+		}
+		doc, err := pxf.Parse(data)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ds := doc.Datasets[0]
+		md := sch.find(ds.Type)
+		if md == nil {
+			t.Fatalf("%s: type %s not found", tc.fixture, ds.Type)
+		}
+		got := dynamicpb.NewMessage(md)
+		if err := pxf.BindRow(got, ds.Columns, ds.Rows[0]); err != nil {
+			t.Fatalf("%s: %v", tc.fixture, err)
+		}
+		want := dynamicpb.NewMessage(md)
+		if err := pxf.Unmarshal([]byte(tc.body), want); err != nil {
+			t.Fatalf("%s: the expected body: %v", tc.fixture, err)
+		}
+		if !proto.Equal(got, want) {
+			t.Fatalf("%s: bound %v, want %v", tc.fixture, got, want)
+		}
 	}
 }

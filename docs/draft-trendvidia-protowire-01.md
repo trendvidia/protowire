@@ -4,7 +4,7 @@ docname: draft-trendvidia-protowire-01
 title: The Proto eXpressive Format (PXF) and the protowire Encoding Family
 abbrev: protowire
 category: info
-date: 2026-07-23
+date: 2026-10-27
 ipr: trust200902
 stream: IETF
 area: Applications
@@ -595,9 +595,9 @@ A header MUST be rejected when:
 
 * a segment other than the last names a field that is not a singular message field: a repeated or map field (a path has no index or key; a value cell on that field is the way to write it), or a scalar;
 
-* a segment other than the last names a field whose message type is written as a literal of its own: google.protobuf.Timestamp, google.protobuf.Duration, the google.protobuf wrapper types, pxf.BigInt, pxf.Decimal or pxf.BigFloat. A path into one would expose the type's encoding rather than its literal.
+* a segment other than the last names a field whose message type is written as a literal of its own: google.protobuf.Timestamp, google.protobuf.Duration, the google.protobuf wrapper types, pxf.BigInt, pxf.Decimal or pxf.BigFloat. A path into one would expose the type's encoding rather than its literal. The list is closed. pxf.Secret ({{pxf-annotations}}) is not on it: it has a string literal, but its block form is one documents are written in, so a path may go into it, and "pw.hint" names the field the block 'pw { hint = ... }' would. A path may also go into a google.protobuf.Any. It then names the Any's own fields, type_url and value, as a block with no type entry does ({{any-blocks}}), and it cannot reach the fields of the message the Any holds.
 
-The first rule needs no schema, so a parser that does not bind rows applies it too. The others need \<type\>. A decoder that binds rows applies them to every row it binds, whatever the row's cells hold, so a row of empty cells is rejected as well. They are header rules, as an unknown plain column name is: they do not depend on the row. Before v1.13, a column entry containing a "." was rejected.
+The first rule needs no schema, so a parser that does not bind rows applies it too. The others need \<type\>, and a decoder applies them when it binds a row. It applies them to every row it binds, whatever the row's cells hold, so a row of empty cells is rejected as well. A table with no rows binds no row, so these rules are not checked against it: a decoder MUST NOT reject a table with no rows for breaking one. A tool such as a linter MAY still report it. A plain column that names no field of \<type\> is treated the same way. The rules are checked per row because a streaming reader may learn \<type\> only when its caller binds the first row. Before v1.13, a column entry containing a "." was rejected.
 
 Standalone. A document containing a "@dataset" directive MUST NOT also contain a "@type" directive and MUST NOT contain top-level field entries ({{entries-and-keys}}). The "@dataset" header is itself the document's type declaration; the rows are the document's payload. A document MAY contain multiple "@dataset" directives (whether of the same or different row types); their relative order MUST be preserved by decoders that expose a dataset list to callers.
 
@@ -617,7 +617,7 @@ Conformance:
 
 * A decoder MUST reject a header that names a column twice, names a field beside a path inside it, or has a column path with an empty segment.
 
-* A decoder that binds rows MUST reject a column path that does not resolve against \<type\>, that goes through a repeated, map or scalar field, or that goes into a type written as a literal, as described under Column paths.
+* A decoder that binds rows MUST reject a column path that does not resolve against \<type\>, that goes through a repeated, map or scalar field, or that goes into a type written as a literal, as described under Column paths. It applies these rules when it binds a row, and MUST NOT reject a table with no rows for breaking one.
 
 * A decoder MUST bind a row whose header has column paths as the body that groups the row's non-empty cells by path prefix into one block per prefix, and MUST NOT write a block none of whose cells is non-empty.
 
@@ -1117,6 +1117,8 @@ pxf.key: names the key field of a keyed repeated field. The value is the proto f
 The schema-level constraints of {{schema-constraints}} apply independently of these annotations: a field, oneof, or enum value whose name collides with a reserved PXF keyword is non-conforming regardless of whether pxf.required or pxf.default is set.
 
 The well-known types pxf.BigInt, pxf.Decimal, and pxf.BigFloat are defined in {{PROTOWIRE-BIGNUM}} (this is the proto/pxf/bignum.proto file in the canonical repository). They provide arbitrary-precision signed integer, exact decimal, and binary floating-point representations respectively, encoded over PB as length-delimited unsigned big-endian magnitudes plus sign and scale fields.
+
+The well-known type pxf.Secret is defined in the proto/pxf/secret.proto file in the canonical repository. It holds a sensitive string, value, and two optional strings that describe the secret without revealing it: hint, what the secret is, and fingerprint, a non-reversible identifier of it. A pxf.Secret is written in either of two forms. A string literal sets value alone: 'pw = "x"'. A block names the fields: 'pw { value = "x" hint = "database password" }'. Each element of a list, and each value of a map, may take either form. Protecting the value in memory is left to the consumer, not the codec.
 
 ### Default Placement {#default-schema-placement}
 
