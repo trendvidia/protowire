@@ -20,7 +20,7 @@ func runE2EWithFormat(t *testing.T, format, query, input string) string {
 	}
 	var sb strings.Builder
 	for _, r := range results {
-		if err := emitPXF(&sb, r); err != nil {
+		if err := emitPXF(&sb, r, nil); err != nil {
 			t.Fatalf("emit: %v", err)
 		}
 	}

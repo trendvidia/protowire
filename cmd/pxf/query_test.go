@@ -29,7 +29,7 @@ func runE2E(t *testing.T, query, input string) string {
 	}
 	var buf bytes.Buffer
 	for _, r := range results {
-		if err := emitPXF(&buf, r); err != nil {
+		if err := emitPXF(&buf, r, nil); err != nil {
 			t.Fatalf("emitPXF: %v", err)
 		}
 	}
@@ -185,7 +185,7 @@ func TestEmitPXF_NonFiniteFloats(t *testing.T) {
 	// (§3.8 defines the identifiers `nan`, `inf`, `-inf`) — emitted
 	// documents must round-trip through the parser.
 	var buf bytes.Buffer
-	if err := emitPXF(&buf, []any{math.NaN(), math.Inf(1), math.Inf(-1), 1.5}); err != nil {
+	if err := emitPXF(&buf, []any{math.NaN(), math.Inf(1), math.Inf(-1), 1.5}, nil); err != nil {
 		t.Fatal(err)
 	}
 	if got := buf.String(); !strings.Contains(got, "[nan, inf, -inf, 1.5]") {

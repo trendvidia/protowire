@@ -34,7 +34,7 @@ func runE2EWithSchema(t *testing.T, query, input string, sch *schema) string {
 	}
 	var sb strings.Builder
 	for _, r := range results {
-		if err := emitPXF(&sb, r); err != nil {
+		if err := emitPXF(&sb, r, nil); err != nil {
 			t.Fatalf("emit: %v", err)
 		}
 	}
@@ -164,7 +164,7 @@ message Row {
 		}
 		var sb strings.Builder
 		for _, r := range results {
-			if err := emitPXF(&sb, r); err != nil {
+			if err := emitPXF(&sb, r, nil); err != nil {
 				t.Fatalf("emit: %v", err)
 			}
 		}

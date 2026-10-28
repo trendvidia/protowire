@@ -114,7 +114,7 @@ func runQueryCmd(_ *cobra.Command, args []string) error {
 	}
 
 	for _, r := range results {
-		if err := emitPXF(os.Stdout, r); err != nil {
+		if err := emitPXF(os.Stdout, r, rootType); err != nil {
 			return fmt.Errorf("emit: %w", err)
 		}
 	}

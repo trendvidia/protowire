@@ -11,6 +11,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 // emitPXF serialises a single query result back as PXF text.
@@ -25,16 +27,47 @@ import (
 //   - any other value → wrapped as `value = <v>` so the result is still
 //     a valid PXF document (the document grammar requires field_entry
 //     at top level; a bare scalar isn't a legal PXF document).
-func emitPXF(w io.Writer, v any) error {
+//
+// root is the document's bound message type, or nil. A result whose
+// keys are all fields of root is written against it: the loose graph
+// lowers a block and a map alike to map[string]any, and only the schema
+// says that a field is a map, written `key: value` (#373). Any other
+// result, such as a projection or a sub-tree, is written loose.
+func emitPXF(w io.Writer, v any, root protoreflect.MessageDescriptor) error {
 	switch x := v.(type) {
 	case map[string]any:
-		return emitTopMap(w, x)
+		if !fitsMessage(x, root) {
+			root = nil
+		}
+		return emitTopMap(w, x, root)
 	default:
 		return emitTopScalar(w, v)
 	}
 }
 
-func emitTopMap(w io.Writer, m map[string]any) error {
+// fitsMessage reports whether every key of m, but an Any's "@type", is
+// a field of md.
+func fitsMessage(m map[string]any, md protoreflect.MessageDescriptor) bool {
+	if md == nil {
+		return false
+	}
+	for k := range m {
+		if k != "@type" && md.Fields().ByName(protoreflect.Name(k)) == nil {
+			return false
+		}
+	}
+	return true
+}
+
+// fieldOf returns md's field k, or nil when md is nil.
+func fieldOf(md protoreflect.MessageDescriptor, k string) protoreflect.FieldDescriptor {
+	if md == nil {
+		return nil
+	}
+	return md.Fields().ByName(protoreflect.Name(k))
+}
+
+func emitTopMap(w io.Writer, m map[string]any, md protoreflect.MessageDescriptor) error {
 	// `@type` is a directive (draft §3.4.1), not a field assignment.
 	// Emit it first so consumers can parse the type before scanning
 	// the body, matching what pxf.Format produces for typed messages.
@@ -54,7 +87,7 @@ func emitTopMap(w io.Writer, m map[string]any) error {
 		if _, err := fmt.Fprintf(w, "%s = ", k); err != nil {
 			return err
 		}
-		if err := writeValue(w, m[k], 0); err != nil {
+		if err := writeField(w, m[k], fieldOf(md, k), 0); err != nil {
 			return err
 		}
 		if _, err := io.WriteString(w, "\n"); err != nil {
@@ -62,6 +95,134 @@ func emitTopMap(w io.Writer, m map[string]any) error {
 		}
 	}
 	return nil
+}
+
+// writeField writes v, the value of field fd, or writes it loose when
+// fd is nil or v does not have the field's shape.
+func writeField(w io.Writer, v any, fd protoreflect.FieldDescriptor, indent int) error {
+	if fd == nil {
+		return writeValue(w, v, indent)
+	}
+	switch x := v.(type) {
+	case map[string]any:
+		if fd.IsMap() {
+			return writeMap(w, x, fd, indent)
+		}
+		if fd.Message() != nil && fitsMessage(x, fd.Message()) {
+			return writeTypedBlock(w, x, fd.Message(), indent)
+		}
+	case []any:
+		if fd.IsList() && fd.Message() != nil {
+			return writeTypedList(w, x, fd.Message(), indent)
+		}
+	}
+	return writeValue(w, v, indent)
+}
+
+// writeMap writes a map field's entries as `key: value`, the map
+// syntax of draft -01 § Maps, with each key spelled for its key type.
+func writeMap(w io.Writer, m map[string]any, fd protoreflect.FieldDescriptor, indent int) error {
+	if len(m) == 0 {
+		_, err := io.WriteString(w, "{}")
+		return err
+	}
+	if _, err := io.WriteString(w, "{\n"); err != nil {
+		return err
+	}
+	pad := strings.Repeat("  ", indent+1)
+	for _, k := range sortedKeys(m) {
+		if _, err := fmt.Fprintf(w, "%s%s: ", pad, mapKey(k, fd.MapKey().Kind())); err != nil {
+			return err
+		}
+		if err := writeField(w, m[k], fd.MapValue(), indent+1); err != nil {
+			return err
+		}
+		if _, err := io.WriteString(w, "\n"); err != nil {
+			return err
+		}
+	}
+	_, err := fmt.Fprintf(w, "%s}", strings.Repeat("  ", indent))
+	return err
+}
+
+// mapKey spells k for a map whose key type is kind. An integer or bool
+// key is bare; quoting it would make it a string key. A string key is
+// written bare when it is identifier-safe and quoted otherwise, the
+// marshaller rule of draft -01 § Maps ("Canonical spelling of map
+// keys").
+func mapKey(k string, kind protoreflect.Kind) string {
+	if kind != protoreflect.StringKind || identifierSafe(k) {
+		return k
+	}
+	return strconv.Quote(k)
+}
+
+// identifierSafe reports whether s matches the draft's identifier
+// production and is not one of the value keywords.
+func identifierSafe(s string) bool {
+	if s == "" || s == "null" || s == "true" || s == "false" {
+		return false
+	}
+	for i, c := range s {
+		alpha := c == '_' || ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z')
+		if !alpha && (i == 0 || !(('0' <= c && c <= '9') || c == '.')) {
+			return false
+		}
+	}
+	return true
+}
+
+func writeTypedBlock(w io.Writer, m map[string]any, md protoreflect.MessageDescriptor, indent int) error {
+	if len(m) == 0 {
+		_, err := io.WriteString(w, "{}")
+		return err
+	}
+	if _, err := io.WriteString(w, "{\n"); err != nil {
+		return err
+	}
+	pad := strings.Repeat("  ", indent+1)
+	for _, k := range sortedKeys(m) {
+		if _, err := fmt.Fprintf(w, "%s%s = ", pad, k); err != nil {
+			return err
+		}
+		if err := writeField(w, m[k], fieldOf(md, k), indent+1); err != nil {
+			return err
+		}
+		if _, err := io.WriteString(w, "\n"); err != nil {
+			return err
+		}
+	}
+	_, err := fmt.Fprintf(w, "%s}", strings.Repeat("  ", indent))
+	return err
+}
+
+// writeTypedList writes a list of md messages, each element against md.
+func writeTypedList(w io.Writer, xs []any, md protoreflect.MessageDescriptor, indent int) error {
+	if len(xs) == 0 {
+		_, err := io.WriteString(w, "[]")
+		return err
+	}
+	if _, err := io.WriteString(w, "["); err != nil {
+		return err
+	}
+	for i, x := range xs {
+		if i > 0 {
+			if _, err := io.WriteString(w, ", "); err != nil {
+				return err
+			}
+		}
+		var err error
+		if m, ok := x.(map[string]any); ok && fitsMessage(m, md) {
+			err = writeTypedBlock(w, m, md, indent+1)
+		} else {
+			err = writeValue(w, x, indent+1)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	_, err := io.WriteString(w, "]")
+	return err
 }
 
 func emitTopScalar(w io.Writer, v any) error {

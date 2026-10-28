@@ -20,6 +20,8 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ### Changed
 
+- **`pxf query` writes a map field as a map** (issue [#373](https://github.com/trendvidia/protowire/issues/373)). Before, `pxf query .` on a document with a map field wrote `string_map = { k = "v" }`, and `pxf validate` rejected its output with `unexpected '=' in map, use ':' for map entries`. The query graph lowers a map and a block alike, so the emitter now walks a result against the document's bound type when the result's keys are that type's fields, and writes map fields as `key: value`: string, integer and bool keys, maps of messages, and maps inside a message or a list element. A result that is not the bound type, such as a projection or a sub-tree, is still written without the schema, and a map in it still comes out as a block.
+
 - **`go.mod` pins protocompile v0.35.1, so a `required` field no longer earns a `_null` mask.** #379 rejects `null` on a proto2 `required` or editions `LEGACY_REQUIRED` field, and RFC-001 §8.6 leaves such fields out of the mask rule (#381). With v0.35.0, `pxf build`, `validate`, `encode` and `query` still gave a message whose only candidate field was required a mask it could never use. v0.35.1 carries the fix (protocompile#257). `TestBuildNullMaskSkipsRequired` pins it: it fails on v0.35.0 with `nm.v1.Strict has a _null mask: true, want false`.
 
 - **protowire's tools add the `_null` mask to the schemas they compile** (issue [#377](https://github.com/trendvidia/protowire/issues/377)). A `null` now survives protobuf binary without a hand-declared `_null` field. `go.mod` pins protocompile v0.35.0, which generates the mask (protocompile#248, RFC-001 §8.6).
