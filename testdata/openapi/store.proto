@@ -73,8 +73,9 @@ message Customer {
 
   map<string, string> attributes = 8;
 
-  // Explicit-null presence (§6.1): optional and wrapper fields are
-  // nullable at the boundary.
+  // Explicit-null presence (§6.1): every singular field with explicit
+  // presence is nullable at the boundary, optional and wrapper fields as
+  // message fields and oneof members are (#380).
   optional string nickname = 9;
   google.protobuf.StringValue display_name = 10;
 

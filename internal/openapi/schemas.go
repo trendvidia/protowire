@@ -299,12 +299,12 @@ func (b *schemaBuilder) propertySchema(mi *messageInfo, fi *fieldInfo, msgSensit
 	if _, isRef := core.get("$ref"); isRef && extra.len() > 0 {
 		merged := newOmap()
 		merged.set("allOf", []any{core, extra})
-		return b.nullable(merged, f, chain), nil
+		return b.nullable(merged, mi, f), nil
 	}
 	for _, k := range extra.keys {
 		core.set(k, extra.vals[k])
 	}
-	return b.nullable(core, f, chain), nil
+	return b.nullable(core, mi, f), nil
 }
 
 // fieldKeywords collects what a field contributes on its own — its
@@ -441,23 +441,30 @@ func (b *schemaBuilder) fieldSizeKind(f *descriptorpb.FieldDescriptorProto, chai
 	}
 }
 
-// nullable wraps a schema when the field opted into explicit null
-// (§6.1): proto3 `optional` or a wrapper type.
-func (b *schemaBuilder) nullable(s *omap, f *descriptorpb.FieldDescriptorProto, chain []string) *omap {
-	isWrapper := false
-	if f.GetType() == descriptorpb.FieldDescriptorProto_TYPE_MESSAGE && len(chain) == 0 {
-		_, isWrapper = wrapperScalar(strings.TrimPrefix(f.GetTypeName(), "."))
-	}
-	if !f.GetProto3Optional() && !isWrapper {
+// nullable wraps a schema when the field can hold a PXF null: a
+// singular field with explicit presence (draft -01 § Booleans, Null, and
+// Identifier Values; decided by the owner on #380). That is a message
+// field, wrappers included, a proto3 optional scalar, a oneof member, a
+// proto2 optional scalar, or an editions scalar whose field_presence is
+// EXPLICIT. Not a plain proto3 scalar, a repeated or map field, or a
+// proto2 required one. ProtoJSON accepts null on every field (measured
+// on #380), so each field marked here is one the JSON boundary accepts
+// null on; the others are left unmarked because there a null would mean
+// zero, not unset.
+func (b *schemaBuilder) nullable(s *omap, mi *messageInfo, f *descriptorpb.FieldDescriptorProto) *omap {
+	if !b.m.explicitPresence(mi, f) {
 		return s
 	}
 	if t, ok := s.get("type"); ok {
-		if ts, isStr := t.(string); isStr && ts != "object" {
+		if ts, isStr := t.(string); isStr {
 			s.set("type", []any{ts, "null"})
 			return s
 		}
 	}
 	if _, isRef := s.get("$ref"); isRef {
+		return newOmap().set("anyOf", []any{s, newOmap().set("type", "null")})
+	}
+	if _, isAllOf := s.get("allOf"); isAllOf {
 		return newOmap().set("anyOf", []any{s, newOmap().set("type", "null")})
 	}
 	return s

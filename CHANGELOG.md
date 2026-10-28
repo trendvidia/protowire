@@ -22,6 +22,8 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ### Changed
 
+- **`pxf openapi` marks a field nullable exactly where PXF accepts `null`** (issue [#380](https://github.com/trendvidia/protowire/issues/380)). Decided by the owner. That means a singular field with explicit presence: message fields, wrappers, `optional` scalars, oneof members, proto2 `optional` scalars and editions EXPLICIT scalars. Before, only `optional` and wrapper fields were marked. Measured beforehand: Go's `protojson` accepts `null` on every field kind and reads it as unset. So each field now marked is one the JSON boundary accepts `null` on, and a plain scalar, where `null` would mean zero, stays unmarked. A message field's `$ref` becomes `anyOf: [$ref, {type: null}]`. `TestOpenAPINullable` pins ten cases across proto3, proto2 and editions; on the old code four of them fail.
+
 - **A map key bound twice in one message body is rejected** (issue [#396](https://github.com/trendvidia/protowire/issues/396); v1.13). Decided by the owner (option b).
   - Draft `-01` § Entries and Keys: a map field may be bound more than once, and its entries merge, but a key may not occur twice in one body's bindings of it. That covers inside one literal and across bindings, whatever the values. Keys compare as values of the key type, so `1:` and `"1":` are one key of an integer-keyed map. Each body is its own scope.
   - `testdata/duplicates/` adds five reject fixtures and two accept fixtures. `duplicates.proto` gains three map fields and `Inner.tags`. protowire-go v1.11.0 keeps the last value of a repeated key, so the five rejects are known gaps on protowire-go#191.
