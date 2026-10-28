@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/trendvidia/protowire-go/encoding/pxf"
 	"github.com/trendvidia/protowire/internal/schemaresolve"
@@ -30,6 +31,56 @@ func (s *schema) find(name string) protoreflect.MessageDescriptor {
 		return nil
 	}
 	return s.reg.Find(name)
+}
+
+// typeResolver resolves the type URL of an Any block (draft § Any
+// Blocks) by the name after its last '/', as type.googleapis.com URLs
+// are resolved, through find.
+type typeResolver struct {
+	find func(string) protoreflect.MessageDescriptor
+}
+
+func (r typeResolver) FindMessageByURL(url string) (protoreflect.MessageDescriptor, error) {
+	name := url[strings.LastIndex(url, "/")+1:]
+	if md := r.find(name); md != nil {
+		return md, nil
+	}
+	return nil, fmt.Errorf("message %q not found in resolved schema (bundled canonical types + -p + protoregistry + @proto)", name)
+}
+
+// lazyResolver is a typeResolver over the full resolution chain: -p,
+// the bundled schemas, protoregistry and the document's own @proto
+// directives. The chain is compiled at the first type URL, so a
+// document with no Any block neither pays for the compile nor fails on
+// it.
+type lazyResolver struct {
+	protos []pxf.ProtoDirective
+	once   sync.Once
+	sch    *schema
+	err    error
+}
+
+// newLazyResolver resolves through the document's named, source and
+// descriptor @proto directives. An anonymous one names no type a URL
+// can reach: it binds the @dataset after it (draft §3.4.5).
+func newLazyResolver(protos []pxf.ProtoDirective) *lazyResolver {
+	r := &lazyResolver{}
+	for _, pd := range protos {
+		if pd.Shape != pxf.ProtoAnonymous {
+			r.protos = append(r.protos, pd)
+		}
+	}
+	return r
+}
+
+func (r *lazyResolver) FindMessageByURL(url string) (protoreflect.MessageDescriptor, error) {
+	r.once.Do(func() {
+		r.sch, r.err = loadSchema(protoFiles, r.protos, registryRefFromFlags())
+	})
+	if r.err != nil {
+		return nil, r.err
+	}
+	return typeResolver{find: r.sch.find}.FindMessageByURL(url)
 }
 
 // registryRef is the local alias the CLI plumbs through from flags.

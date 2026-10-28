@@ -142,12 +142,19 @@ func encodeCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			doc, err := pxf.Parse(data)
+			if err != nil {
+				return err
+			}
 			// The full path, not the plain one: (pxf.required) and
 			// (pxf.default) are decode-time semantics of a document
 			// against a schema, and encode IS that decode followed by a
 			// marshal. The plain path leaves both to the caller, so this
-			// command wrote documents without their defaults (#269).
-			msg, _, err := pxf.UnmarshalFullDescriptor(data, desc)
+			// command wrote documents without their defaults (#269). An
+			// Any block that names its type is read through the
+			// document's schema chain (#356).
+			opts := pxf.UnmarshalOptions{TypeResolver: newLazyResolver(doc.Protos)}
+			msg, _, err := opts.UnmarshalFullDescriptor(data, desc)
 			if err != nil {
 				return err
 			}
@@ -203,14 +210,23 @@ func validateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			desc, err := validateDescriptor(data)
+			doc, err := pxf.Parse(data)
 			if err != nil {
 				return err
 			}
+			desc, err := validateDescriptor(doc)
+			if err != nil {
+				return err
+			}
+			// An Any block that names its type is read through the
+			// document's schema chain (draft § Any Blocks, #356).
+			opts := pxf.UnmarshalOptions{TypeResolver: newLazyResolver(doc.Protos)}
 			// Parse first without post-decode: a @dataset document has no
 			// body, so the --message type's (pxf.required) check would fail
 			// it whatever its rows hold.
-			_, res, err := pxf.UnmarshalOptions{SkipPostDecode: true}.UnmarshalFullDescriptor(data, desc)
+			skip := opts
+			skip.SkipPostDecode = true
+			_, res, err := skip.UnmarshalFullDescriptor(data, desc)
 			if err != nil {
 				return err
 			}
@@ -218,7 +234,7 @@ func validateCmd() *cobra.Command {
 				// The full path enforces (pxf.required), which is what the
 				// README's exit-code line promises; the plain path accepted
 				// a document with a required field absent (#269).
-				if _, _, err := pxf.UnmarshalFullDescriptor(data, desc); err != nil {
+				if _, _, err := opts.UnmarshalFullDescriptor(data, desc); err != nil {
 					return err
 				}
 			} else if err := validateDatasets(res); err != nil {
@@ -240,11 +256,7 @@ func validateCmd() *cobra.Command {
 // checked against that type whatever -m says: the embedded schema is
 // authoritative (draft § The "@proto" Directive, #370). Otherwise -m
 // names the type, and the document's @type stands in when -m is absent.
-func validateDescriptor(data []byte) (protoreflect.MessageDescriptor, error) {
-	doc, err := pxf.Parse(data)
-	if err != nil {
-		return nil, err
-	}
+func validateDescriptor(doc *pxf.Document) (protoreflect.MessageDescriptor, error) {
 	if doc.TypeURL != "" && len(doc.Protos) > 0 {
 		md, err := inDocumentType(doc)
 		if err != nil || md != nil {
@@ -309,14 +321,16 @@ func validateDatasets(res *pxf.Result) error {
 			return fmt.Errorf("%s: @dataset %s: %s", ds.Pos, ds.Type, vs[0])
 		}
 		msg := dynamicpb.NewMessage(md)
+		// The descriptor was validated once above. A cell may hold an
+		// Any block that names its type (#356).
+		opts := pxf.UnmarshalOptions{SkipValidate: true, TypeResolver: typeResolver{find: sch.find}}
 		for _, row := range ds.Rows {
 			proto.Reset(msg)
 			// BindRow binds the row as the body its cells stand for,
 			// grouping dotted columns into one block per prefix (draft
 			// §3.4.4). Its error starts with the row's position and
-			// names the column it fell in. The descriptor was validated
-			// once above.
-			if err := (pxf.UnmarshalOptions{SkipValidate: true}).BindRow(msg, ds.Columns, row); err != nil {
+			// names the column it fell in.
+			if err := opts.BindRow(msg, ds.Columns, row); err != nil {
 				return err
 			}
 		}

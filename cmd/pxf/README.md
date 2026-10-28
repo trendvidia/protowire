@@ -124,6 +124,8 @@ Parses the PXF document against the bound message and reports `valid` on stderr 
 
 A body whose `@type` names a type the document's own `@proto` defines is checked against that type, whatever `-m` says: the embedded schema is authoritative (draft § The "@proto" Directive). For any other document `-m` names the type, and the document's `@type` stands in when `-m` is absent.
 
+An `Any` block that opens with a type entry (`@type = "..."`, draft § Any Blocks) is read as the message its URL names, resolved by the name after the URL's last `/` through the same chain: `-p`, the bundled schemas, protoregistry and the document's own `@proto`. `encode` resolves it the same way, and so do `@dataset` cells.
+
 ```bash
 pxf validate -p schema.proto -m pkg.Type input.pxf
 pxf validate self-describing.pxf   # @type + @proto, no -m needed

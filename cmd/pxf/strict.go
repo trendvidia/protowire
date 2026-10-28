@@ -189,6 +189,12 @@ func stepField(idx *gojq.Index, md protoreflect.MessageDescriptor) (protoreflect
 		return nil, unknownFieldError(idx.Name, md)
 	}
 	if fd.Kind() == protoreflect.MessageKind {
+		if fd.Message().FullName() == "google.protobuf.Any" {
+			// An Any block holds whatever type its @type entry names,
+			// which only the document says: past this step there is no
+			// type to check a path against (#356).
+			return nil, nil
+		}
 		return fd.Message(), nil
 	}
 	return nil, nil
