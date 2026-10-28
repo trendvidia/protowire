@@ -66,19 +66,19 @@ func entriesToValue(entries []pxf.Entry) (any, error) {
 			if err != nil {
 				return nil, err
 			}
-			out[n.Key] = v
+			bindLoose(out, n.Key, v)
 		case *pxf.MapEntry:
 			v, err := valueToAny(n.Value)
 			if err != nil {
 				return nil, err
 			}
-			out[n.Key] = v
+			bindLoose(out, n.Key, v)
 		case *pxf.Block:
 			v, err := entriesToValue(n.Entries)
 			if err != nil {
 				return nil, err
 			}
-			out[n.Name] = v
+			bindLoose(out, n.Name, v)
 		case *pxf.TypeEntry:
 			// The type entry of an Any block (draft § Any Blocks) is the
 			// "@type" key, as in protojson. It sorts before every field
@@ -90,6 +90,37 @@ func entriesToValue(entries []pxf.Entry) (any, error) {
 		}
 	}
 	return out, nil
+}
+
+// bindLoose adds key = v to out, keeping what an earlier binding of key
+// wrote: two lists concatenate, as two bindings of a repeated field do
+// (draft -01 § Entries and Keys, #337), and two blocks or maps merge, as
+// two bindings of a map field do (#396). Otherwise the later value wins.
+// The loose graph does not validate, so a binding the draft rejects (a
+// singular field or a map key bound twice, #347 and #396) is not
+// diagnosed here; pxf validate reports it. Before, every binding replaced
+// the one before it, so a query saw only the last list or map.
+func bindLoose(out map[string]any, key string, v any) {
+	prev, ok := out[key]
+	if !ok {
+		out[key] = v
+		return
+	}
+	switch p := prev.(type) {
+	case []any:
+		if l, ok := v.([]any); ok {
+			out[key] = append(p, l...)
+			return
+		}
+	case map[string]any:
+		if m, ok := v.(map[string]any); ok {
+			for _, k := range sortedKeys(m) {
+				bindLoose(p, k, m[k])
+			}
+			return
+		}
+	}
+	out[key] = v
 }
 
 func valueToAny(v pxf.Value) (any, error) {
