@@ -187,7 +187,7 @@ add(
     "value",
     Choice(
         0,
-        n("string"), n("integer"), n("float"), n("bool"), n("null"),
+        n("string"), n("number"), n("bool"), n("null"),
         n("bytes"), n("timestamp"), n("duration"),
         n("identifier"), n("list"), n("block_value"),
     ),
@@ -228,6 +228,17 @@ add(
 
 add("bool", Choice(0, t("true"), t("false")))
 add("null", t("null"))
+
+add(
+    "number",
+    Sequence(Choice(0, n("integer"), n("float")), Optional(n("precision"))),
+)
+
+add(
+    "precision",
+    Sequence(t("p"), OneOrMore(n("digit"))),
+    note="only on a literal bound to pxf.BigFloat",
+)
 
 add(
     "integer",

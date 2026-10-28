@@ -22,10 +22,11 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ### Changed
 
-- **A `pxf.BigFloat`'s PXF text form is specified, both ways** (issues [#406](https://github.com/trendvidia/protowire/issues/406) and [#393](https://github.com/trendvidia/protowire/issues/393); v1.13). Decided by the owner.
-  - Draft `-01` § PXF Annotations: a producer writes (decimal digits of 2^prec) + 1 significant digits, round half even, in C's `%g` form. A decoder reads a literal at max(256, bit length of 10^d) bits for d significant digits, round half even, storing the significand as a full-precision integer. Zero is stored as zero.
-  - The "exact value" rule now covers BigInt and Decimal only. Measured on #406: the reference's one-digit-shorter text lost 9,157 of 20,000 random 53-bit values; the specified count lost none of about 16,000 across 24 to 13,000 bits.
-  - `testdata/bigfloat/` adds eight encode and six decode cases, computed by `generate.py` with exact rational arithmetic. protowire-go v1.11.0 agrees with the generator on eight; the other six are known gaps on protowire-go#194.
+- **A `pxf.BigFloat` literal carries its precision, and its PXF text form is specified both ways** (issues [#406](https://github.com/trendvidia/protowire/issues/406) and [#393](https://github.com/trendvidia/protowire/issues/393); v1.13). Decided by the owner.
+  - The grammar's `number` gains an optional `precision` suffix, `p` and a bit count (ABNF, `docs/grammar.ebnf` and the railroad diagram).
+  - Draft `-01` § PXF Annotations: a producer writes (decimal digits of 2^prec) + 1 significant digits, round half even, in C's `%g` form, plus the suffix. A decoder reads a suffixed literal at exactly that precision and an unsuffixed one at 256 bits. Zero is stored as zero. A suffix on a field that isn't a BigFloat, or `p0`, is rejected.
+  - Measured on #406: with the suffix, value and precision were unchanged after three round trips for all 35,600 random values from 24 to 13,000 bits. The first rule decided, reading at max(256, ⌈d·log₂10⌉) bits, grew the precision about 7 bits per round trip and lost 0.3–0.5% of values above 256 bits.
+  - `testdata/bigfloat/` adds eight encode, nine decode and two reject cases, computed by `generate.py` with exact rational arithmetic. protowire-go v1.11.0 meets eight; the other eleven are known gaps on protowire-go#194.
 
 - **`pxf openapi` leaves out the generated `_null` mask** (issue [#404](https://github.com/trendvidia/protowire/issues/404)). Decided by the owner. Since #382, every image `pxf build` writes carries the generated mask (`_null`, number 536870911, a `google.protobuf.FieldMask`), and the document listed it as a property of every such message. It is left out now; a hand-declared `_null` at any other number stays. One caveat, measured: `protojson` writes the mask for a message decoded from PXF (`{"n":1,"Null":"w"}`), so a JSON body built that way carries a property the document doesn't list.
 

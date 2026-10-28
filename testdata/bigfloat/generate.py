@@ -12,18 +12,19 @@ the rule in draft -01 § PXF Annotations, independently of any port:
     nearest with ties to even, trailing zeros removed, in the form of C's
     %g with precision N: exponent form (d.ddd e+XX, at least two exponent
     digits) when the decimal exponent is below -4 or at least N,
-    positional otherwise. prec 0, or a zero mantissa, is "0".
-  * Reading: a literal with d significant digits (the digits of its
-    mantissa, leading zeros excluded) is read at P = max(256, bit length
-    of 10^d) bits, rounded to nearest with ties to even. It is stored as
-    mantissa = the significand as a P-bit integer (top bit set),
-    exponent = binary exponent - P, prec = P. Zero is stored with every
-    field 0 (negative set for -0).
+    positional otherwise, followed by the precision suffix "p<P>".
+    prec 0, or a zero mantissa, is "0", without a suffix.
+  * Reading: a literal with a suffix "p<P>" is read at exactly P bits,
+    one without at 256 bits, rounded to nearest with ties to even. It is
+    stored as mantissa = the significand as a P-bit integer (top bit
+    set), exponent = binary exponent - P, prec = P. Zero is stored with
+    every field 0 (negative set for -0).
 
 Each enc-<name> case is a PB message (enc-<name>.binpb) and the PXF text
 an encoder MUST write for it (enc-<name>.pxf). Each dec-<name> case is a
 PXF document (dec-<name>.pxf) and the PB bytes a decoder MUST produce
-(dec-<name>.binpb). Run from anywhere; it writes next to itself, and is
+(dec-<name>.binpb). Each err-<name>.pxf is a document a decoder MUST
+reject. Run from anywhere; it writes next to itself, and is
 idempotent.
 """
 from fractions import Fraction
@@ -87,25 +88,25 @@ def write_literal(mant: int, exp: int, prec: int, neg: bool) -> str:
     sign = "-" if neg else ""
     if k < -4 or k >= n:
         body = digits[0] + ("." + digits[1:] if len(digits) > 1 else "")
-        return f"{sign}{body}e{'-' if k < 0 else '+'}{abs(k):02d}"
+        return f"{sign}{body}e{'-' if k < 0 else '+'}{abs(k):02d}p{prec}"
     if k >= 0:
         ip, fp = digits[: k + 1].ljust(k + 1, "0"), digits[k + 1 :]
-        return sign + ip + ("." + fp if fp else "")
-    return sign + "0." + "0" * (-k - 1) + digits
+        return sign + ip + ("." + fp if fp else "") + f"p{prec}"
+    return sign + "0." + "0" * (-k - 1) + digits + f"p{prec}"
 
 
 def read_literal(lit: str):
     neg = lit.startswith("-")
     s = lit.lstrip("+-")
+    s, _, suffix = s.partition("p")
     mant_part, _, exp_part = s.lower().partition("e")
     ip, _, fp = mant_part.partition(".")
-    d = len((ip + fp).lstrip("0"))
     v = Fraction(int(ip + fp or "0")) / (Fraction(10) ** len(fp))
     if exp_part:
         v *= Fraction(10) ** int(exp_part)
     if v == 0:
         return 0, 0, 0, neg
-    p = max(256, (10 ** d).bit_length())
+    p = int(suffix) if suffix else 256
     e2 = 0  # 2^(p-1) <= v / 2^e2 < 2^p
     while v / Fraction(2) ** e2 >= 2 ** p:
         e2 += 1
@@ -130,18 +131,37 @@ ENCODE = {
     "integer": (1000, 0, 64, False),
 }
 
-DECODE = ["0.1", "-2.5", "1e4932", "0", "1" + "2" * 99 + "e-50", "0.000125"]
-DECODE_NAMES = ["tenth", "minus-two-and-a-half", "1e4932", "zero", "hundred-digits", "small-positional"]
+DECODE = {
+    # name: literal
+    "tenth-unsuffixed": "0.1",
+    "tenth-p53": "0.10000000000000001p53",
+    "minus-two-and-a-half": "-2.5",
+    "1e4932": "1e4932",
+    "zero": "0",
+    "hundred-digits-unsuffixed": "1" + "2" * 99 + "e-50",
+    "hundred-digits-p333": "1" + "2" * 99 + "e-50p333",
+    "small-positional": "0.000125",
+    "2pow1024-p64": "1.79769313486231590773e+308p64",
+}
+
+# Documents a decoder MUST reject: a precision suffix on a field that is
+# not a pxf.BigFloat, and a zero precision.
+REJECT = {
+    "suffix-on-int32": "n = 5p64",
+    "precision-zero": "bf = 1.5p0",
+}
 
 
 def main() -> None:
     for name, (m, e, p, s) in ENCODE.items():
         (HERE / f"enc-{name}.binpb").write_bytes(bigfloat_pb(m, e, p, s))
         (HERE / f"enc-{name}.pxf").write_text(f"bf = {write_literal(m, e, p, s)}\n")
-    for name, lit in zip(DECODE_NAMES, DECODE):
+    for name, lit in DECODE.items():
         (HERE / f"dec-{name}.pxf").write_text(f"@type bf.v1.H\n\nbf = {lit}\n")
         (HERE / f"dec-{name}.binpb").write_bytes(bigfloat_pb(*read_literal(lit)))
-    print(f"wrote {len(ENCODE)} encode and {len(DECODE)} decode cases")
+    for name, body in REJECT.items():
+        (HERE / f"err-{name}.pxf").write_text(f"@type bf.v1.H\n\n{body}\n")
+    print(f"wrote {len(ENCODE)} encode, {len(DECODE)} decode and {len(REJECT)} reject cases")
 
 
 if __name__ == "__main__":

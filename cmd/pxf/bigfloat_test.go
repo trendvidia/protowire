@@ -21,22 +21,30 @@ import (
 // Annotations). generate.py computes every expected value with exact
 // rational arithmetic, independently of any port. An enc- case is PB
 // bytes and the PXF text an encoder writes for them; a dec- case is a
-// PXF document and the PB bytes a decoder produces.
+// PXF document and the PB bytes a decoder produces; an err- case is a
+// document a decoder rejects.
 const bigfloatDir = "../../testdata/bigfloat"
 
 // bigfloatKnownGaps are cases the pinned protowire-go does not yet meet,
 // mapped to the change that closes them. Each is asserted to still fail,
 // so the go.mod bump that closes one fails the test until it is removed.
-// v1.11.0 writes one significant digit too few, reads every literal at
-// a fixed 256 bits, and stores a zero literal as exponent -256 at 256
-// bits (protowire-go#194).
+//
+// v1.11.0 writes no precision suffix and one digit too few, cannot lex a
+// suffixed literal, and stores a zero literal as exponent -256 at 256
+// bits (protowire-go#194). Its err- verdicts already hold, but only
+// because a suffix does not lex at all.
 var bigfloatKnownGaps = map[string]string{
-	"enc-2pow1024-prec64":        "protowire-go#194",
-	"enc-long-mantissa":          "protowire-go#194",
-	"enc-tenth-as-double":        "protowire-go#194",
-	"enc-tiny-negative-exponent": "protowire-go#194",
-	"dec-hundred-digits":         "protowire-go#194",
-	"dec-zero":                   "protowire-go#194",
+	"enc-2pow1024-prec64":         "protowire-go#194",
+	"enc-integer":                 "protowire-go#194",
+	"enc-long-mantissa":           "protowire-go#194",
+	"enc-one-and-a-half":          "protowire-go#194",
+	"enc-tenth-as-double":         "protowire-go#194",
+	"enc-three-quarters-negative": "protowire-go#194",
+	"enc-tiny-negative-exponent":  "protowire-go#194",
+	"dec-2pow1024-p64":            "protowire-go#194",
+	"dec-hundred-digits-p333":     "protowire-go#194",
+	"dec-tenth-p53":               "protowire-go#194",
+	"dec-zero":                    "protowire-go#194",
 }
 
 func TestBigFloat_Corpus(t *testing.T) {
@@ -62,9 +70,11 @@ func TestBigFloat_Corpus(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			wire, err := os.ReadFile(strings.TrimSuffix(p, ".pxf") + ".binpb")
-			if err != nil {
-				t.Fatal(err)
+			var wire []byte
+			if !strings.HasPrefix(name, "err-") {
+				if wire, err = os.ReadFile(strings.TrimSuffix(p, ".pxf") + ".binpb"); err != nil {
+					t.Fatal(err)
+				}
 			}
 			var problem string
 			switch {
@@ -93,8 +103,12 @@ func TestBigFloat_Corpus(t *testing.T) {
 				if !bytes.Equal(got, wire) {
 					problem = "decode wrote PB " + hexOf(got) + ", want " + hexOf(wire)
 				}
+			case strings.HasPrefix(name, "err-"):
+				if _, err := pxf.UnmarshalDescriptor(text, md); err == nil {
+					problem = "decode accepted a document it must reject"
+				}
 			default:
-				t.Fatalf("fixture %s is neither enc- nor dec-", name)
+				t.Fatalf("fixture %s is neither enc-, dec- nor err-", name)
 			}
 			if by, known := bigfloatKnownGaps[name]; known {
 				if problem == "" {

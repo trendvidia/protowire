@@ -385,7 +385,10 @@ any-type-entry  = %s"@type" "=" string
                 ; only in a block bound to google.protobuf.Any
                 ; ({{any-blocks}})
 
-number          = float / integer
+number          = ( float / integer ) [ precision ]
+precision       = %s"p" 1*DIGIT
+                ; only on a literal bound to pxf.BigFloat
+                ; ({{pxf-annotations}})
 integer         = [ "-" ] 1*DIGIT
 float           = [ "-" ] 1*DIGIT
                   ( "." *DIGIT [ exponent ] / exponent )
@@ -811,7 +814,7 @@ The target field type determines the numeric domain:
 
 * For float and double fields, decoders MUST accept literals in the IEEE 754 {{IEEE754}} representable range; values that round to +Inf or -Inf are rejected unless explicitly written as the identifiers "inf", "+inf", "-inf", "nan".
 
-* For fields of the well-known types pxf.BigInt and pxf.Decimal ({{pxf-annotations}}), decoders MUST preserve the literal's exact value, including, for Decimal, the exact scale: the literal "1.00" decodes to a Decimal with unscaled value 100 and scale 2, distinct from "1.0" or "1". A pxf.BigFloat is binary, and most decimal literals have no exact binary value, so a decoder reads one as the nearest value at the precision {{pxf-annotations}} states.
+* For fields of the well-known types pxf.BigInt and pxf.Decimal ({{pxf-annotations}}), decoders MUST preserve the literal's exact value, including, for Decimal, the exact scale: the literal "1.00" decodes to a Decimal with unscaled value 100 and scale 2, distinct from "1.0" or "1". A pxf.BigFloat is binary, and most decimal literals have no exact binary value, so a decoder reads one as the nearest value at the precision its suffix states, or at 256 bits without one ({{pxf-annotations}}).
 
 The number of digits in any single numeric literal is bounded; see {{mandatory-limits}}.
 
@@ -1128,13 +1131,15 @@ The schema-level constraints of {{schema-constraints}} apply independently of th
 
 The well-known types pxf.BigInt, pxf.Decimal, and pxf.BigFloat are defined in {{PROTOWIRE-BIGNUM}} (this is the proto/pxf/bignum.proto file in the canonical repository). They provide arbitrary-precision signed integer, exact decimal, and binary floating-point representations respectively, encoded over PB as length-delimited unsigned big-endian magnitudes plus sign and scale fields.
 
-A pxf.BigFloat's value is (-1)^negative × mantissa × 2^exponent, mantissa an unsigned big-endian integer, at prec bits of precision; prec 0 or an empty mantissa is zero. In PXF text a BigFloat is a numeric literal, and both directions are fixed so that its value survives the text at its own precision (issue #406):
+A pxf.BigFloat's value is (-1)^negative × mantissa × 2^exponent, mantissa an unsigned big-endian integer, at prec bits of precision; prec 0 or an empty mantissa is zero. In PXF text a BigFloat is a numeric literal that carries its precision, as a "p" and a bit count after the number ("0.10000000000000001p53"; the *precision* production of {{abnf-grammar}}), so that both its value and its precision survive the text (issue #406):
 
-* Writing. A producer of PXF text writes N significant decimal digits, where N is the number of decimal digits of 2^prec plus one, rounded to nearest with ties to even. It writes them as C's "%g" conversion does with precision N: trailing zeros removed, in exponent form ("1.79769313486231590773e+308", at least two exponent digits) when the decimal exponent is below -4 or at least N, and positionally otherwise. Zero is written "0". N is the smallest digit count for which every prec-bit value is recovered from its literal; one digit fewer loses values (measured on issue #406: 9,157 of 20,000 random 53-bit values).
+* Writing. A producer of PXF text writes N significant decimal digits, where N is the number of decimal digits of 2^prec plus one, rounded to nearest with ties to even, followed by "p" and prec. It writes the digits as C's "%g" conversion does with precision N: trailing zeros removed, in exponent form ("1.79769313486231590773e+308p64", at least two exponent digits) when the decimal exponent is below -4 or at least N, and positionally otherwise. Zero is written "0", without a suffix. N is the smallest digit count for which every prec-bit value is recovered by reading its literal back at prec bits (measured on issue #406: one digit fewer lost 9,157 of 20,000 random 53-bit values; with N, value and precision were unchanged after three round trips for every one of 35,600 random values from 24 to 13,000 bits).
 
-* Reading. A decoder reads a literal with d significant digits (the digits of its mantissa, leading zeros excluded) at P bits, where P is the larger of 256 and the bit length of 10^d, rounding to nearest with ties to even. It stores mantissa as the value's significand as a P-bit integer (its top bit set), exponent as the value's binary exponent minus P, and prec as P. A zero literal stores every field as zero, with negative set for "-0".
+* Reading. A decoder reads a literal with a precision suffix at exactly that many bits, rounding to nearest with ties to even, and one without a suffix, which a person may write, at 256 bits. It stores mantissa as the value's significand as a prec-bit integer (its top bit set), exponent as the value's binary exponent minus prec, and prec as the precision read at. A zero literal stores every field as zero, with negative set for "-0". A decoder MUST reject a suffix whose precision is zero, or whose N exceeds MaxNumericLiteralDigits ({{mandatory-limits}}), before allocating anything for it.
 
-Rounding the value a decoder reads back to the original prec recovers the original value, so PB to PXF to PB preserves a BigFloat's value at its precision. It does not preserve the prec, mantissa and exponent fields themselves, which the reading rule normalizes. The fixtures under testdata/bigfloat/, generated with exact rational arithmetic, pin both directions (issue #393).
+* A precision suffix on a literal bound to any field that is not a pxf.BigFloat is grammatically well-formed but MUST be rejected by the schema layer, naming the field.
+
+PB to PXF to PB therefore preserves a BigFloat's value and its prec. It does not preserve a mantissa that was not normalized, which the reading rule stores as a prec-bit integer. Reading a literal at any precision other than the one it was written at instead rounds twice, and measured on issue #406 that lost up to 8% of values above 256 bits. The fixtures under testdata/bigfloat/, generated with exact rational arithmetic, pin both directions (issue #393).
 
 The well-known type pxf.Secret is defined in the proto/pxf/secret.proto file in the canonical repository. It holds a sensitive string, value, and two optional strings that describe the secret without revealing it: hint, what the secret is, and fingerprint, a non-reversible identifier of it. A pxf.Secret is written in either of two forms. A string literal sets value alone: 'pw = "x"'. A block names the fields: 'pw { value = "x" hint = "database password" }'. Each element of a list, and each value of a map, may take either form. Protecting the value in memory is left to the consumer, not the codec.
 
