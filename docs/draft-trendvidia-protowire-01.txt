@@ -188,16 +188,16 @@ Internet-Draft                  protowire                   October 2026
    8.  Response Envelope . . . . . . . . . . . . . . . . . . . . . .  66
    9.  Decoder Conformance . . . . . . . . . . . . . . . . . . . . .  67
      9.1.  Mandatory Limits  . . . . . . . . . . . . . . . . . . . .  67
-     9.2.  Recursion . . . . . . . . . . . . . . . . . . . . . . . .  69
+     9.2.  Recursion . . . . . . . . . . . . . . . . . . . . . . . .  70
      9.3.  UTF-8 Enforcement . . . . . . . . . . . . . . . . . . . .  70
      9.4.  SBE Bounds Checking . . . . . . . . . . . . . . . . . . .  70
      9.5.  Map Keys  . . . . . . . . . . . . . . . . . . . . . . . .  71
      9.6.  Validation Engine Conformance . . . . . . . . . . . . . .  71
-   10. Media Types . . . . . . . . . . . . . . . . . . . . . . . . .  71
+   10. Media Types . . . . . . . . . . . . . . . . . . . . . . . . .  72
    11. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  72
      11.1.  Media Type Registrations . . . . . . . . . . . . . . . .  72
      11.2.  Annotation Field Number Range  . . . . . . . . . . . . .  74
-   12. Security Considerations . . . . . . . . . . . . . . . . . . .  74
+   12. Security Considerations . . . . . . . . . . . . . . . . . . .  75
    13. References  . . . . . . . . . . . . . . . . . . . . . . . . .  76
      13.1.  Normative References . . . . . . . . . . . . . . . . . .  76
      13.2.  Informative References . . . . . . . . . . . . . . . . .  77
@@ -207,7 +207,7 @@ Internet-Draft                  protowire                   October 2026
    Appendix B.  Acknowledgments  . . . . . . . . . . . . . . . . . .  80
    Appendix C.  Implementation Status  . . . . . . . . . . . . . . .  80
    Appendix D.  Open Issues  . . . . . . . . . . . . . . . . . . . .  81
-   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  81
+   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  82
 
 1.  Introduction
 
@@ -3828,17 +3828,29 @@ Internet-Draft                  protowire                   October 2026
    a BigFloat whose binary exponent exceeds MaxBigFloatExponent in
    magnitude before materialising it, whether it arrives on the PB wire
    or as the value of a PXF literal.  A producer of PXF text that meets
-   such a value MUST fail with an error.  The default, 16384, is the
-   exponent range of IEEE 754 binary128, and admits every literal up to
-   about 1e±4932.  Rendering a BigFloat inside the bound is the
-   consumer's operation, and where the result is a PXF literal it is
-   bounded by MaxNumericLiteralDigits like any other literal.  A value
-   within one decimal rounding of 2^±MaxBigFloatExponent may print as a
-   literal just outside the bound, because a finite decimal literal
-   cannot hold a power of two exactly.  A numeric literal, or a big-
-   number message, whose value the decoder's arbitrary-precision type
-   cannot represent MUST be rejected with an error; a decoder MUST NOT
-   substitute an infinity or a truncated value.
+   such a value MUST fail with an error.  Both bounds, on a Decimal's
+   scale and on a BigFloat's exponent, apply where a value is
+   materialised, not where its fields are read.  A decoder that stores a
+   Decimal or BigFloat message's fields without computing its value,
+   such as a PXF decoder reading the block form ("f { mantissa = ...
+   exponent = ... }"), or a protobuf decoder reading the message as
+   plain fields, is not subject to them, because storing the fields
+   costs only what the input's length already bounds.  A decoder that
+   does compute the value, in whatever form it arrived, MUST apply the
+   bound first.  A value past a bound can therefore be decoded field by
+   field, but a producer of PXF text still fails on it, so it is never
+   written back out as a literal (issue #281; protowire-go#188).  The
+   default, 16384, is the exponent range of IEEE 754 binary128, and
+   admits every literal up to about 1e±4932.  Rendering a BigFloat
+   inside the bound is the consumer's operation, and where the result is
+   a PXF literal it is bounded by MaxNumericLiteralDigits like any other
+   literal.  A value within one decimal rounding of
+   2^±MaxBigFloatExponent may print as a literal just outside the bound,
+   because a finite decimal literal cannot hold a power of two exactly.
+   A numeric literal, or a big-number message, whose value the decoder's
+   arbitrary-precision type cannot represent MUST be rejected with an
+   error; a decoder MUST NOT substitute an infinity or a truncated
+   value.
 
    The two bounds MaxNumericLiteralDigits states are independent: the
    scale bound limits the work a PB decoder performs, the digit bound
@@ -3846,6 +3858,14 @@ Internet-Draft                  protowire                   October 2026
    A big number MAY therefore be representable on the wire and have no
    PXF spelling: BigInt.abs and Decimal.unscaled are bounded on the wire
    only by MaxMessageSize, and a Decimal at exactly the scale bound
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 69]
+
+Internet-Draft                  protowire                   October 2026
+
+
    renders to one digit more than the digit bound, the leading zero
    included.  A producer of PXF text (a marshaller, or a binder
    rendering a (pxf.default) carrier) that meets such a value MUST fail
@@ -3857,14 +3877,6 @@ Internet-Draft                  protowire                   October 2026
    PXF parsers descend recursively into "{...}" blocks and "[...]"
    lists; PB parsers descend into submessages, groups, and map entries.
    Conforming decoders MUST:
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 69]
-
-Internet-Draft                  protowire                   October 2026
-
 
    1.  maintain a depth counter incremented at every recursive descent;
 
@@ -3903,6 +3915,13 @@ Internet-Draft                  protowire                   October 2026
    The bounds-checking obligations in Section 5 are conformance
    requirements, restated here for emphasis.  Specifically:
 
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 70]
+
+Internet-Draft                  protowire                   October 2026
+
+
    *  Wire block length less than template block length MUST be rejected
       (Section 5.1).
 
@@ -3911,16 +3930,6 @@ Internet-Draft                  protowire                   October 2026
 
    *  A group with count > 0 and wire_block_length == 0 MUST be rejected
       before any per-element allocation (Section 5.2).
-
-
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 70]
-
-Internet-Draft                  protowire                   October 2026
-
 
 9.5.  Map Keys
 
@@ -3958,6 +3967,17 @@ Internet-Draft                  protowire                   October 2026
    unrelated to validation (e.g., code generation) and MUST NOT silently
    fail validation rules.
 
+
+
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 71]
+
+Internet-Draft                  protowire                   October 2026
+
+
 10.  Media Types
 
    This document defines the following media types.
@@ -3969,14 +3989,6 @@ Internet-Draft                  protowire                   October 2026
 
    application/protowire-pb  Protocol Buffers binary, with the protowire
       constraints (Section 4).
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 71]
-
-Internet-Draft                  protowire                   October 2026
-
 
    application/protowire-sbe  SBE binary, with the protowire constraints
       (Section 5).
@@ -4013,6 +4025,15 @@ Internet-Draft                  protowire                   October 2026
    IANA is requested to register the following media types in the "Media
    Types" registry [RFC6838]:
 
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 72]
+
+Internet-Draft                  protowire                   October 2026
+
+
    Type name:        application
    Subtype name:     pxf
    Required parameters: none
@@ -4026,13 +4047,6 @@ Internet-Draft                  protowire                   October 2026
    Fragment identifier considerations: none defined.
    Author/Change controller: IETF.
    Provisional registration: yes.
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 72]
-
-Internet-Draft                  protowire                   October 2026
-
 
    Type name:        application
    Subtype name:     protowire-pb
@@ -4068,20 +4082,6 @@ Internet-Draft                  protowire                   October 2026
        "data" field's contents).
    Encoding considerations: binary.
    Security considerations: See Section 11.
-   Interoperability considerations: See Section 8.
-   Published specification: This document.
-   Applications that use this media type: API integration.
-   Fragment identifier considerations: none defined.
-   Author/Change controller: IETF.
-   Provisional registration: yes.
-
-
-
-
-
-
-
-
 
 
 
@@ -4089,6 +4089,13 @@ Franco Jr.                 Expires 1 May 2027                  [Page 73]
 
 Internet-Draft                  protowire                   October 2026
 
+
+   Interoperability considerations: See Section 8.
+   Published specification: This document.
+   Applications that use this media type: API integration.
+   Fragment identifier considerations: none defined.
+   Author/Change controller: IETF.
+   Provisional registration: yes.
 
 11.2.  Annotation Field Number Range
 
@@ -4126,13 +4133,6 @@ Internet-Draft                  protowire                   October 2026
    Future protowire extensions SHOULD allocate within this range and
    document the assignment in a successor of this document.
 
-12.  Security Considerations
-
-   The protowire family is designed to be parsed safely on attacker-
-   controlled bytes.  Section 9 specifies the conformance requirements
-   that follow from this objective.  This section addresses the
-   considerations that do not reduce to a single conformance
-   requirement.
 
 
 
@@ -4145,6 +4145,14 @@ Franco Jr.                 Expires 1 May 2027                  [Page 74]
 
 Internet-Draft                  protowire                   October 2026
 
+
+12.  Security Considerations
+
+   The protowire family is designed to be parsed safely on attacker-
+   controlled bytes.  Section 9 specifies the conformance requirements
+   that follow from this objective.  This section addresses the
+   considerations that do not reduce to a single conformance
+   requirement.
 
    Resource exhaustion.  Without the limits in Section 9.1, every
    protowire encoding admits trivial denial-of-service inputs: deeply
@@ -4183,15 +4191,7 @@ Internet-Draft                  protowire                   October 2026
    .NET; the feature flags "disallow-doctype-decl", "external-general-
    entities", and "external-parameter-entities" in Java).
 
-   Prototype pollution.  Decoders implemented in JavaScript, TypeScript,
-   or any language with prototype-mutation semantics for reserved string
-   keys MUST avoid plain object literals as the storage for attacker-
-   keyed maps; see Section 9.5.
 
-   Cryptographic transport.  This document specifies an encoding family.
-   It does not provide confidentiality, integrity, or origin
-   authentication; transports carrying protowire payloads SHOULD use TLS
-   [RFC8446] or an equivalent.
 
 
 
@@ -4201,6 +4201,16 @@ Franco Jr.                 Expires 1 May 2027                  [Page 75]
 
 Internet-Draft                  protowire                   October 2026
 
+
+   Prototype pollution.  Decoders implemented in JavaScript, TypeScript,
+   or any language with prototype-mutation semantics for reserved string
+   keys MUST avoid plain object literals as the storage for attacker-
+   keyed maps; see Section 9.5.
+
+   Cryptographic transport.  This document specifies an encoding family.
+   It does not provide confidentiality, integrity, or origin
+   authentication; transports carrying protowire payloads SHOULD use TLS
+   [RFC8446] or an equivalent.
 
    Application-level error metadata.  AppError.metadata (Section 8) is a
    free-form string-to-string map.  Servers SHOULD NOT place sensitive
@@ -4241,6 +4251,13 @@ Internet-Draft                  protowire                   October 2026
               Timestamps", RFC 3339, DOI 10.17487/RFC3339, July 2002,
               <https://www.rfc-editor.org/rfc/rfc3339>.
 
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 76]
+
+Internet-Draft                  protowire                   October 2026
+
+
    [RFC3629]  Yergeau, F., "UTF-8, a transformation format of ISO
               10646", STD 63, RFC 3629, DOI 10.17487/RFC3629, November
               2003, <https://www.rfc-editor.org/rfc/rfc3629>.
@@ -4248,15 +4265,6 @@ Internet-Draft                  protowire                   October 2026
    [RFC4648]  Josefsson, S., "The Base16, Base32, and Base64 Data
               Encodings", RFC 4648, DOI 10.17487/RFC4648, October 2006,
               <https://www.rfc-editor.org/rfc/rfc4648>.
-
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 76]
-
-Internet-Draft                  protowire                   October 2026
-
 
    [RFC5234]  Crocker, D., Ed. and P. Overell, "Augmented BNF for Syntax
               Specifications: ABNF", STD 68, RFC 5234,
@@ -4299,14 +4307,6 @@ Internet-Draft                  protowire                   October 2026
               Heimes, C., "defusedxml: Defuses XML bombs and other
               exploits", n.d., <https://pypi.org/project/defusedxml/>.
 
-   [GRPC]     gRPC Authors, "gRPC over HTTP/2", n.d.,
-              <https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-
-              HTTP2.md>.
-
-   [I-D.ietf-dispatch-mime-protobuf]
-              Kucherawy, M., Kumari, W., and R. Sloan, "Media Type
-              Registration for Protocol Buffers", Work in Progress,
-
 
 
 Franco Jr.                 Expires 1 May 2027                  [Page 77]
@@ -4314,6 +4314,13 @@ Franco Jr.                 Expires 1 May 2027                  [Page 77]
 Internet-Draft                  protowire                   October 2026
 
 
+   [GRPC]     gRPC Authors, "gRPC over HTTP/2", n.d.,
+              <https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-
+              HTTP2.md>.
+
+   [I-D.ietf-dispatch-mime-protobuf]
+              Kucherawy, M., Kumari, W., and R. Sloan, "Media Type
+              Registration for Protocol Buffers", Work in Progress,
               Internet-Draft, draft-ietf-dispatch-mime-protobuf-07, 1
               December 2025, <https://datatracker.ietf.org/doc/html/
               draft-ietf-dispatch-mime-protobuf-07>.
@@ -4355,13 +4362,6 @@ Appendix A.  ABNF Additions in -01
    A block may also open with a type entry, for a block bound to
    google.protobuf.Any (Section 3.16); this is likewise additive:
 
-   block-tail      = "{" [ any-type-entry ] *entry "}"
-   block-value     = "{" [ any-type-entry ] *entry "}"
-   any-type-entry  = %s"@type" "=" string
-
-   The remaining productions below are additions to the *schema
-   language* grammar: they extend the file-body and declaration-body
-   productions and define the new constructs.
 
 
 
@@ -4369,6 +4369,14 @@ Franco Jr.                 Expires 1 May 2027                  [Page 78]
 
 Internet-Draft                  protowire                   October 2026
 
+
+   block-tail      = "{" [ any-type-entry ] *entry "}"
+   block-value     = "{" [ any-type-entry ] *entry "}"
+   any-type-entry  = %s"@type" "=" string
+
+   The remaining productions below are additions to the *schema
+   language* grammar: they extend the file-body and declaration-body
+   productions and define the new constructs.
 
 A.1.  New Productions
 
@@ -4410,14 +4418,6 @@ A.1.  New Productions
                    ; serves bytes-typed params
  literal-value   = literal / qualified-ident
                    ; qualified-ident = enum-value reference
- list-literal    = "[" ws [ literal-value
-                   *( ws "," ws literal-value ) ] ws "]"
- message-literal = [ qualified-ident ws ] "{" ws
-                   [ field-init *( ws "," ws field-init ) ] ws "}"
- field-init      = name ws ":" ws literal-value
-
- expression-body = ; engine-specific subgrammar; captured verbatim as
-                   ; balanced-delimiter text per {{engine-expressions}},
 
 
 
@@ -4426,6 +4426,14 @@ Franco Jr.                 Expires 1 May 2027                  [Page 79]
 Internet-Draft                  protowire                   October 2026
 
 
+ list-literal    = "[" ws [ literal-value
+                   *( ws "," ws literal-value ) ] ws "]"
+ message-literal = [ qualified-ident ws ] "{" ws
+                   [ field-init *( ws "," ws field-init ) ] ws "}"
+ field-init      = name ws ":" ws literal-value
+
+ expression-body = ; engine-specific subgrammar; captured verbatim as
+                   ; balanced-delimiter text per {{engine-expressions}},
                    ; with function references extracted per
                    ; {{function-references}}
 
@@ -4459,15 +4467,7 @@ Appendix C.  Implementation Status
    Per RFC 7942, this section records known implementations; it is not a
    conformance statement and will be removed before any RFC publication.
 
-   *  *Reference compiler* — the trendvidia/protocompile fork (Go)
-      implements the -01 grammar (contextual keywords, type / function /
-      annotation declarations, annotation use sites), the intermediate
-      representation, cross-file linking, and descriptor lowering to the
-      carrier extensions of Section 7.11, including the embedded source
-      map.  Argument-grammar conformance work (verbatim expression
-      capture, named arguments, trailing field placement, function-
-      reference extraction per Section 7.4.3) is tracked and in
-      progress.
+
 
 
 
@@ -4481,6 +4481,16 @@ Franco Jr.                 Expires 1 May 2027                  [Page 80]
 
 Internet-Draft                  protowire                   October 2026
 
+
+   *  *Reference compiler* — the trendvidia/protocompile fork (Go)
+      implements the -01 grammar (contextual keywords, type / function /
+      annotation declarations, annotation use sites), the intermediate
+      representation, cross-file linking, and descriptor lowering to the
+      carrier extensions of Section 7.11, including the embedded source
+      map.  Argument-grammar conformance work (verbatim expression
+      capture, named arguments, trailing field placement, function-
+      reference extraction per Section 7.4.3) is tracked and in
+      progress.
 
    *  *Specification artifacts* — the canonical carrier schemas
       (descriptor.proto), the report shape (report.proto,
@@ -4521,6 +4531,13 @@ Appendix D.  Open Issues
       (e.g. @encrypted(key_ref)); in this revision the schema stays
       orthogonal to key management.
 
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 81]
+
+Internet-Draft                  protowire                   October 2026
+
+
 Author's Address
 
    B. Franco Jr.
@@ -4533,4 +4550,43 @@ Author's Address
 
 
 
-Franco Jr.                 Expires 1 May 2027                  [Page 81]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 82]
