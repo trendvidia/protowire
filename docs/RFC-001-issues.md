@@ -1730,3 +1730,32 @@ is a rewrite, not a carry-over.
 - **M8** (OpenAPI): #080.
 - **Post-M8**: #081.
 - **M9+** (Per-port adoption): one issue per port repo following the same shape.
+
+## #083 — Generated `_null` mask (protocompile#248)
+
+**Repo:** `protocompile` (lowering) + `protowire` (spec, tools)
+**Milestone:** post-M8
+**Labels:** `spec`, `schema-extensions`, `protocompile`
+
+A PXF `null` survives protobuf binary only through a hand-declared
+`google.protobuf.FieldMask _null` field. Measured 2026-10-27: no
+implementation added it automatically (protowire, protowire-go, all nine
+ports and protocompile only look it up by name), and no annotation asked
+for it. So in practice a null was lost on the first binary hop.
+
+**Resolution (2026-10-28, GH protocompile#248, PR #TBD):** RFC-001 §8.6.
+Lowering may add `_null` at field number `536870911` to every message
+with a field able to hold a null, off by default in the compiler and
+enabled by protowire's tools. Authored collisions are errors, reserved
+or extension ranges over the number are warnings, a hand-declared mask
+wins, and the mask is always length-prefixed. §8.4 now says the registered
+block covers extension numbers only.
+
+### Follow-ups
+
+- `protowire` (GH #377): enable the mask in `internal/schemaresolve` and
+  `pxf build` (protowire's canonical schemas excluded), add the
+  PXF → binary → PXF round-trip test, and update the README's "Null
+  survival" section. Needs a protocompile release carrying #249, #252
+  and #254.
+

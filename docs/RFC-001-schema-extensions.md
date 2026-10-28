@@ -1092,6 +1092,8 @@ Range `1327`–`1346` is allocated to schema-extension carriers within protowire
 
 These numbers replaced `50400`–`50404`, and before that a pre-merge draft of this RFC used `50100`–`50104`. Both ranges are retired and MUST NOT be reused: the earlier one collided with SBE on `FileOptions`, and the later one sat in an unregistered `50000`–`59999` range the project had squatted rather than been granted.
 
+The registered block covers extension numbers only. The one *field* number protowire claims, inside the messages it lowers, is the generated `_null` mask's (§8.6).
+
 ### 8.5 Backward compatibility with stock tooling
 
 The carrier extensions are well-formed proto. Stock `protoc`, `protobuf-go`, and every existing protowire port treat them as opaque options when `protowire/proto/schema/v1/descriptor.proto` is not imported — preserving them as `UnknownFields`, round-tripping byte-identically. When imported, the extensions decode as typed values for tools that want structured access.
@@ -1125,6 +1127,24 @@ only `SourceCodeInfo` comments do not surface `@description`; a port
 that wants annotation-derived documentation in generated code
 requires an annotation-aware plugin, not a compiler that rewrites
 the source record.
+
+### 8.6 Generated `_null` mask
+
+A PXF `null` survives protobuf binary only through a `google.protobuf.FieldMask` field named `_null`. Decoders record in it the paths of the fields a document set to null, and encoders write those fields back as `field = null` (protowire README, "Null survival across protobuf binary"). Without the mask, a null and an absent field are the same on the wire.
+
+Lowering MAY add the mask, so that schema authors need not declare it. Protowire's tools enable it (trendvidia/protowire#377). A compiler that offers it SHOULD leave it off by default, so that its output otherwise matches `protoc`'s. When lowering adds the mask, it follows these rules.
+
+- **Which messages.** A message gets `google.protobuf.FieldMask _null` when it has a field able to hold a PXF null and declares no `_null` itself. A field able to hold a null is a singular field with explicit presence: a message field (wrappers included), a proto3 `optional` scalar, a oneof member, a proto2 singular field, or an editions field whose resolved `field_presence` is not `IMPLICIT` (draft `-01` § Booleans, Null, and Identifier Values). Map entries and message sets never get one. Neither do files under `google/protobuf/`, nor protowire's canonical schemas, whose types every port generates.
+- **Field number.** `536870911` (2²⁹ − 1, the highest legal field number), with JSON name `Null`, as the message's last field. Protowire claims this number in every message that gets a generated mask. It is fixed, so no schema change can move the mask. The §8.4 block does not cover it: a message's field numbers belong to its author, and the top of the range is the part authors almost never number by hand.
+- **Encoding.** Length-prefixed in every file. In an editions file, the generated field pins `features.message_encoding = LENGTH_PREFIXED`, so a `DELIMITED` file cannot turn it into a group.
+- **Dependency.** A file one of whose messages gets a mask gains `google/protobuf/field_mask.proto` as a dependency, and a descriptor set built from it carries that file. Its names stay invisible to the author: using `google.protobuf.FieldMask` still requires an import.
+- **Errors.** Each of these is a compile error: an authored field numbered `536870911`; an authored field whose JSON name is `Null`; a hand-declared `_null` that is not a singular `google.protobuf.FieldMask`; and an `import option` of `field_mask.proto` in a file where a message needs a mask.
+- **Warnings.** An extension range or reserved range covering `536870911`, or `reserved "_null";`, leaves the message without a mask, with a warning. Its nulls do not survive binary unless the author declares `_null` at a free number. An error would refuse ordinary proto2 schemas, where `extensions … to max` is common (`google/protobuf/descriptor.proto` declares it).
+- **Hand-declared masks.** A well-formed hand-declared `_null` wins, at whatever number the author gave it, and nothing is added.
+
+A FieldMask path cannot name a list element or a map entry, so a null inside one is not covered (protowire-go#170).
+
+Decided on trendvidia/protocompile#248 (2026-10-27; the default and the encoding on 2026-10-28). Implemented in trendvidia/protocompile#249, #252 and #254.
 
 ## 9. Engine integration
 
