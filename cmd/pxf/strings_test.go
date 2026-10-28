@@ -3,12 +3,9 @@
 package main
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/trendvidia/protowire-go/encoding/pxf"
-	"github.com/trendvidia/protowire/internal/schemaresolve"
 )
 
 // stringsDir is the cross-port simple-string fixture corpus
@@ -37,57 +34,29 @@ var stringsVerdicts = map[string]struct{ reject, s, t string }{
 var stringsKnownGaps = map[string]datasetGap{}
 
 func TestStrings_Corpus(t *testing.T) {
-	files, err := filepath.Glob(filepath.Join(stringsDir, "*.pxf"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(files) != len(stringsVerdicts) {
-		t.Errorf("found %d fixtures, the verdict table lists %d", len(files), len(stringsVerdicts))
-	}
-	reg, err := schemaresolve.Resolve(schemaresolve.CompileOptions{
-		UserFiles:    []string{filepath.Join(stringsDir, "strings.proto")},
-		BundledFiles: schemaresolve.CompileBundledAll,
-	}, schemaresolve.RegistryRef{})
-	if err != nil {
-		t.Fatalf("resolve: %v", err)
-	}
-	md := reg.Find("strings.v1.Holder")
-	if md == nil {
-		t.Fatal("strings.v1.Holder not found")
-	}
-	for _, f := range files {
-		name := filepath.Base(f)
-		t.Run(name, func(t *testing.T) {
-			want, ok := stringsVerdicts[name]
-			if !ok {
-				t.Fatal("fixture has no verdict")
+	runCorpus(t, stringsDir, []string{"strings.proto"}, stringsVerdicts, func(t *testing.T, f fixture[struct{ reject, s, t string }]) {
+		md := mustFind(t, f.reg, "strings.v1.Holder")
+		_, perr := pxf.Parse(f.data)
+		msg, derr := pxf.UnmarshalDescriptor(f.data, md)
+		verr := f.validate(t, "strings.v1.Holder")
+		if gap, known := stringsKnownGaps[f.name]; known {
+			skipGap(t, "stringsKnownGaps", gap, f.want.reject == "", perr, derr, verr)
+		}
+		for what, err := range map[string]error{"Parse": perr, "decode": derr, "validate": verr} {
+			if !errMatches(err, f.want.reject) {
+				t.Errorf("%s: want %q, got %v", what, f.want.reject, err)
 			}
-			data, err := os.ReadFile(f)
-			if err != nil {
-				t.Fatal(err)
-			}
-			_, perr := pxf.Parse(data)
-			msg, derr := pxf.UnmarshalDescriptor(data, md)
-			_, verr := runCLI(t, "validate", "-p", filepath.Join(stringsDir, "strings.proto"), "-m", "strings.v1.Holder", f)
-			if gap, known := stringsKnownGaps[name]; known {
-				skipGap(t, "stringsKnownGaps", gap, want.reject == "", perr, derr, verr)
-			}
-			for what, err := range map[string]error{"Parse": perr, "decode": derr, "validate": verr} {
-				if !errMatches(err, want.reject) {
-					t.Errorf("%s: want %q, got %v", what, want.reject, err)
-				}
-			}
-			if want.reject != "" || derr != nil {
-				return
-			}
-			fields := md.Fields()
-			r := msg.ProtoReflect()
-			if got := r.Get(fields.ByName("s")).String(); got != want.s {
-				t.Errorf("s = %q, want %q", got, want.s)
-			}
-			if got := r.Get(fields.ByName("t")).String(); got != want.t {
-				t.Errorf("t = %q, want %q", got, want.t)
-			}
-		})
-	}
+		}
+		if f.want.reject != "" || derr != nil {
+			return
+		}
+		fields := md.Fields()
+		r := msg.ProtoReflect()
+		if got := r.Get(fields.ByName("s")).String(); got != f.want.s {
+			t.Errorf("s = %q, want %q", got, f.want.s)
+		}
+		if got := r.Get(fields.ByName("t")).String(); got != f.want.t {
+			t.Errorf("t = %q, want %q", got, f.want.t)
+		}
+	})
 }

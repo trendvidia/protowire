@@ -3,13 +3,10 @@
 package main
 
 import (
-	"os"
-	"path/filepath"
 	"slices"
 	"testing"
 
 	"github.com/trendvidia/protowire-go/encoding/pxf"
-	"github.com/trendvidia/protowire/internal/schemaresolve"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
@@ -57,72 +54,44 @@ var nullsVerdicts = map[string]struct{ msg, reject, unset string }{
 var nullsKnownGaps = map[string]datasetGap{}
 
 func TestNulls_Corpus(t *testing.T) {
-	files, err := filepath.Glob(filepath.Join(nullsDir, "*.pxf"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(files) != len(nullsVerdicts) {
-		t.Errorf("found %d fixtures, the verdict table lists %d", len(files), len(nullsVerdicts))
-	}
-	schemaFiles := []string{filepath.Join(nullsDir, "nulls.proto"), filepath.Join(nullsDir, "nulls_proto2.proto"), filepath.Join(nullsDir, "nulls_editions.proto")}
-	reg, err := schemaresolve.Resolve(schemaresolve.CompileOptions{
-		UserFiles:    schemaFiles,
-		BundledFiles: schemaresolve.CompileBundledAll,
-	}, schemaresolve.RegistryRef{})
-	if err != nil {
-		t.Fatalf("resolve: %v", err)
-	}
-	for _, f := range files {
-		name := filepath.Base(f)
-		t.Run(name, func(t *testing.T) {
-			want, ok := nullsVerdicts[name]
-			if !ok {
-				t.Fatal("fixture has no verdict")
+	schemas := []string{"nulls.proto", "nulls_proto2.proto", "nulls_editions.proto"}
+	runCorpus(t, nullsDir, schemas, nullsVerdicts, func(t *testing.T, f fixture[struct{ msg, reject, unset string }]) {
+		msgName := f.want.msg
+		if msgName == "" {
+			msgName = "nulls.v1.Holder"
+		}
+		md := mustFind(t, f.reg, msgName)
+		if _, err := pxf.Parse(f.data); err != nil {
+			t.Errorf("Parse: a null is legal syntax everywhere, got %v", err)
+		}
+		msg, res, derr := pxf.UnmarshalFullDescriptor(f.data, md)
+		verr := f.validate(t, msgName)
+		if gap, known := nullsKnownGaps[f.name]; known {
+			skipGap(t, "nullsKnownGaps", gap, f.want.reject == "", derr, verr)
+		}
+		for what, err := range map[string]error{"decode": derr, "validate": verr} {
+			if !errMatches(err, f.want.reject) {
+				t.Errorf("%s: want %q, got %v", what, f.want.reject, err)
 			}
-			msgName := want.msg
-			if msgName == "" {
-				msgName = "nulls.v1.Holder"
+		}
+		if f.want.reject != "" || derr != nil {
+			return
+		}
+		// schemaresolve gives every fixture message the generated
+		// `_null` mask (#377), and the decoder records the null there.
+		fields := md.Fields()
+		for i := range fields.Len() {
+			if fd := fields.Get(i); fd.Name() != "_null" && msg.Has(fd) {
+				t.Errorf("%s = null left %s set", f.want.unset, fd.Name())
 			}
-			md := reg.Find(msgName)
-			if md == nil {
-				t.Fatalf("%s not found", msgName)
-			}
-			data, err := os.ReadFile(f)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if _, err := pxf.Parse(data); err != nil {
-				t.Errorf("Parse: a null is legal syntax everywhere, got %v", err)
-			}
-			msg, res, derr := pxf.UnmarshalFullDescriptor(data, md)
-			_, verr := runCLI(t, "validate", "-p", schemaFiles[0], "-p", schemaFiles[1], "-p", schemaFiles[2], "-m", msgName, f)
-			if gap, known := nullsKnownGaps[name]; known {
-				skipGap(t, "nullsKnownGaps", gap, want.reject == "", derr, verr)
-			}
-			for what, err := range map[string]error{"decode": derr, "validate": verr} {
-				if !errMatches(err, want.reject) {
-					t.Errorf("%s: want %q, got %v", what, want.reject, err)
-				}
-			}
-			if want.reject != "" || derr != nil {
-				return
-			}
-			// schemaresolve gives every fixture message the generated
-			// `_null` mask (#377), and the decoder records the null there.
-			fields := md.Fields()
-			for i := range fields.Len() {
-				if fd := fields.Get(i); fd.Name() != "_null" && msg.Has(fd) {
-					t.Errorf("%s = null left %s set", want.unset, fd.Name())
-				}
-			}
-			if got := nullMaskPaths(t, msg); !slices.Contains(got, want.unset) {
-				t.Errorf("_null paths = %q, want them to contain %q", got, want.unset)
-			}
-			if !res.IsNull(want.unset) {
-				t.Errorf("Result.IsNull(%q) = false, want present-but-null", want.unset)
-			}
-		})
-	}
+		}
+		if got := nullMaskPaths(t, msg); !slices.Contains(got, f.want.unset) {
+			t.Errorf("_null paths = %q, want them to contain %q", got, f.want.unset)
+		}
+		if !res.IsNull(f.want.unset) {
+			t.Errorf("Result.IsNull(%q) = false, want present-but-null", f.want.unset)
+		}
+	})
 }
 
 // nullMaskPaths returns the paths msg's `_null` FieldMask records,
