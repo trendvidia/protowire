@@ -817,11 +817,13 @@ The literals "true" and "false" denote the boolean values; "null" denotes the nu
 
 * When bound to a singular message-typed field, MUST clear the field.
 
-* When bound to a singular scalar field with explicit presence, as protobuf defines it (a proto3 "optional" scalar, a scalar member of a oneof, a proto2 singular scalar, or in an editions file a scalar whose field_presence feature is EXPLICIT), MUST leave the field unset. The field is present-but-null: it counts as present for pxf.required, and pxf.default is not applied to it.
+* When bound to a singular scalar field with explicit presence, as protobuf defines it (a proto3 "optional" scalar, a scalar member of a oneof, a proto2 "optional" scalar, or in an editions file a scalar whose field_presence feature is EXPLICIT), MUST leave the field unset. The field is present-but-null: it counts as present for pxf.required, and pxf.default is not applied to it.
 
 * When bound to a singular scalar field without explicit presence (a proto3 scalar declared without "optional", or in an editions file a scalar whose field_presence feature is IMPLICIT), MUST be rejected. Such a field has no unset state, so a null would read back as the field's zero value. A field that must be nullable is declared "optional", or as its wrapper type (e.g. google.protobuf.StringValue).
 
-* When bound to a list-typed (repeated) field, a map field included, MUST be rejected: list elements are not nullable.
+* When bound to a proto2 "required" field, or an editions field whose field_presence feature is LEGACY_REQUIRED, MUST be rejected. The field has explicit presence, but leaving it unset would make the message invalid in protobuf binary, which requires the field to be set.
+
+* When bound to a list-typed (repeated) field, a map field included, MUST be rejected; so MUST a null list element and a null map value, whatever the map's value type: list elements and map entries are not nullable. In protobuf binary a map entry without a value reads back as the value type's zero value, so the null could not be kept.
 
 * When bound to a member of a oneof, message or scalar, makes that member the one the body chose. A body that also writes another member of the same oneof writes two members, and MUST be rejected as any such body is ({{the-dataset-directive}}).
 
