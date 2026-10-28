@@ -8,8 +8,11 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -257,5 +260,115 @@ func TestOpenAPIDanglingScheme(t *testing.T) {
 	err := runPxf(t, "openapi", "--check", "--config", cfg, storeImage(t))
 	if err == nil || !strings.Contains(err.Error(), "bearerAuth") {
 		t.Fatalf("undefined security scheme not diagnosed: %v", err)
+	}
+}
+
+// A field is nullable in the generated document exactly where PXF
+// accepts null: a singular field with explicit presence (decided by the
+// owner on #380). Each case is the property's schema in a body type,
+// across proto3, proto2 and editions.
+func TestOpenAPINullable(t *testing.T) {
+	dir := t.TempDir()
+	files := map[string]string{
+		"n3.proto": `syntax = "proto3";
+package nn.v1;
+import "protowire/schema/v1/annotations.proto";
+message Inner { int32 x = 1; }
+message M3 {
+  int32 plain = 1;
+  optional int32 opt = 2;
+  oneof k { string member = 3; }
+  Inner msg = 4;
+  repeated int32 list = 5;
+  map<string, int32> dict = 6;
+}
+service S {
+  @http("POST", "/m3")
+  rpc Put3(M3) returns (M3);
+}
+`,
+		"n2.proto": `syntax = "proto2";
+package nn.v2;
+import "protowire/schema/v1/annotations.proto";
+message M2 {
+  optional int32 opt = 1;
+  required int32 req = 2;
+}
+service S2 {
+  @http("POST", "/m2")
+  rpc Put2(M2) returns (M2);
+}
+`,
+		"ne.proto": `edition = "2023";
+package nn.ed;
+import "protowire/schema/v1/annotations.proto";
+message ME {
+  int32 explicit_scalar = 1;
+  int32 implicit_scalar = 2 [features.field_presence = IMPLICIT];
+}
+service SE {
+  @http("POST", "/me")
+  rpc PutE(ME) returns (ME);
+}
+`,
+	}
+	var paths []string
+	for name, src := range files {
+		p := filepath.Join(dir, name)
+		if err := os.WriteFile(p, []byte(src), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		paths = append(paths, p)
+	}
+	image := filepath.Join(t.TempDir(), "image.binpb")
+	if err := runPxf(t, append([]string{"build", "-o", image}, paths...)...); err != nil {
+		t.Fatalf("build: %v", err)
+	}
+	var doc struct {
+		Components struct {
+			Schemas map[string]struct {
+				Properties map[string]map[string]any `yaml:"properties"`
+			} `yaml:"schemas"`
+		} `yaml:"components"`
+	}
+	if err := yaml.Unmarshal(renderOpenAPI(t, "--config", openapiConfig, image), &doc); err != nil {
+		t.Fatal(err)
+	}
+	nullable := func(s map[string]any) bool {
+		if ty, ok := s["type"].([]any); ok {
+			return slices.Contains(ty, any("null"))
+		}
+		if alts, ok := s["anyOf"].([]any); ok {
+			for _, a := range alts {
+				if m, ok := a.(map[string]any); ok && m["type"] == "null" {
+					return true
+				}
+			}
+		}
+		return false
+	}
+	for _, c := range []struct {
+		schema, prop string
+		want         bool
+	}{
+		{"nn.v1.M3", "plain", false},
+		{"nn.v1.M3", "opt", true},
+		{"nn.v1.M3", "member", true},
+		{"nn.v1.M3", "msg", true},
+		{"nn.v1.M3", "list", false},
+		{"nn.v1.M3", "dict", false},
+		{"nn.v2.M2", "opt", true},
+		{"nn.v2.M2", "req", false},
+		{"nn.ed.ME", "explicit_scalar", true},
+		{"nn.ed.ME", "implicit_scalar", false},
+	} {
+		s, ok := doc.Components.Schemas[c.schema].Properties[c.prop]
+		if !ok {
+			t.Errorf("%s.%s: not in the document", c.schema, c.prop)
+			continue
+		}
+		if got := nullable(s); got != c.want {
+			t.Errorf("%s.%s: nullable = %v, want %v; schema %v", c.schema, c.prop, got, c.want, s)
+		}
 	}
 }
