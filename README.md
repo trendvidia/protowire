@@ -523,7 +523,11 @@ Keys that aren't identifier-shaped are quoted (`"us-east-1" { replicas = 3 }`). 
 
 ### Null survival across protobuf binary
 
-Protobuf binary only has two states per field: present or not present. Both "null" and "absent" map to "not present" in binary. To preserve nulls across a protobuf binary round-trip, add a field named `_null` of type `google.protobuf.FieldMask` to your message:
+Protobuf binary only has two states per field: present or not present. Both "null" and "absent" map to "not present" in binary. A null survives a protobuf binary round-trip through a field named `_null` of type `google.protobuf.FieldMask`.
+
+protowire's own tools add that field for you. When `pxf build`, or `pxf validate`, `encode` and `query`, compile a schema from source (a `-p` file or a document's `@proto`), every message with a field that can hold `null` gets a generated `_null` field, number 536870911 (RFC-001 §8.6, [#377](https://github.com/trendvidia/protowire/issues/377)). Code that buf or protoc generates from a `pxf build` image has the field, so every port's runtime finds it. protowire's bundled canonical schemas (`pxf/`, `sbe/`, `envelope/`, `schema/`, `docs/`, `openapi/`) never get one. Nor does a schema that arrives already compiled, from protoregistry or a descriptor-set `@proto`.
+
+You can also declare `_null` by hand, with any field number. A message that declares it gets no generated one:
 
 ```proto
 import "google/protobuf/field_mask.proto";
@@ -544,7 +548,7 @@ The mask holds paths of singular fields: `email`, or `address.street` for a fiel
 
 Only a field that may hold `null` can be in the mask: a singular field with explicit presence. That is a message field, wrapper types included (`email` and `address` above), a proto3 `optional` scalar, a member of a oneof, or a proto2 singular scalar. `null` on a plain proto3 scalar such as `name`, or on a repeated or map field, is a decode error (draft `-01` § Booleans, Null, and Identifier Values; [#339](https://github.com/trendvidia/protowire/issues/339)): a plain scalar has no unset state, so a `null` would read back as its zero value. To make a scalar nullable, declare it `optional` or as its wrapper type.
 
-The FieldMask is optional. Without it, full-decode results still track nulls in memory, but the distinction is lost when serializing to protobuf binary.
+Without the field, full-decode results still track nulls in memory, but the distinction is lost when serializing to protobuf binary. That is the case for a schema compiled by a tool other than `pxf`, such as plain `protoc`, unless it declares `_null` by hand.
 
 ### Proto3 zero-value round-trips
 

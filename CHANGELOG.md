@@ -20,6 +20,12 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ### Changed
 
+- **protowire's tools add the `_null` mask to the schemas they compile** (issue [#377](https://github.com/trendvidia/protowire/issues/377)). A `null` now survives protobuf binary without a hand-declared `_null` field. `go.mod` pins protocompile v0.35.0, which generates the mask (protocompile#248, RFC-001 §8.6).
+  - `pxf build` turns it on, so the image buf or protoc generates code from carries `_null` (number 536870911) on every message with a field that can hold `null`.
+  - `pxf validate`, `encode` and `query` turn it on for `-p` files and a document's source `@proto`. Their schema loader, `internal/schemaresolve`, now compiles with the protocompile fork instead of upstream protocompile v0.14.1, which has no such option.
+  - The bundled canonical schemas never get the mask: they are shared types every port generates code for.
+  - Measured: `w = null` on a `google.protobuf.Int32Value` comes back as `w = null` after PXF → binary → PXF; with the mask off it comes back absent. An `optional` scalar needs protowire-go#182 too, and is pinned as a known gap until a release carries it.
+
 - **`docs/grammar.ebnf` and the railroad diagram catch up with the draft** (issue [#355](https://github.com/trendvidia/protowire/issues/355)). A `@dataset` cell is `[ value ]` (#341), a column may be a dotted path (#342), and `map_key` includes `bool` (#284). `row_value` is gone. `scripts/gen_railroad.py` mirrors the EBNF, and `docs/grammar.svg` is regenerated with railroad-diagrams 3.0.1.
 
 - **`pxf validate`, `encode` and `query` read an `Any` block that names its type** (issue [#356](https://github.com/trendvidia/protowire/issues/356)). Before, every such block failed: `validate` and `encode` with `cannot resolve Any type "…": no TypeResolver`, and `query` with `unsupported entry type *pxf.TypeEntry`. `validate` and `encode` now resolve the type URL through the schema chain (`-p`, bundled schemas, protoregistry, the document's own `@proto`), compiled only when a document has such a block. `@dataset` cells resolve the same way. `query` shows the type entry as the `"@type"` key, as protojson does, and strict mode checks a path up to an `Any` field but not past it.

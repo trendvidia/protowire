@@ -40,6 +40,7 @@ import (
 	"github.com/trendvidia/protocompile/source"
 
 	"github.com/trendvidia/protowire"
+	"github.com/trendvidia/protowire/internal/schemaresolve"
 )
 
 func buildCmd() *cobra.Command {
@@ -150,7 +151,7 @@ func runBuild(cmd *cobra.Command, args []string, opts buildOptions) error {
 
 	results, rep, err := incremental.Run(cmd.Context(), incremental.New(), queries.FDS{
 		Opener:    &chain,
-		Session:   new(ir.Session),
+		Session:   &ir.Session{NullMask: schemaresolve.NullMask},
 		Workspace: source.NewWorkspace(paths...),
 		Options:   fdpOpts,
 	})
