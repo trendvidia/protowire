@@ -31,13 +31,29 @@ var duplicatesVerdicts = map[string]string{
 	"err-oneof-scalar-twice.pxf":        `field "ks" conflicts with already-set field "ks"`,
 	"once-per-body.pxf":                 "",
 	"repeated-twice.pxf":                "",
+	// A map key bound twice (#396).
+	"err-map-key-twice-in-literal.pxf":      "already set",
+	"err-map-key-twice-same-value.pxf":      "already set",
+	"err-map-key-twice-across-bindings.pxf": "already set",
+	"err-map-key-twice-int-spellings.pxf":   "already set",
+	"err-map-key-twice-message-values.pxf":  "already set",
+	"map-twice-distinct-keys.pxf":           "",
+	"map-key-once-per-body.pxf":             "",
 }
 
 // duplicatesKnownGaps are fixtures the pinned protowire-go does not yet
 // meet. Each is asserted to still hold, so the go.mod bump that closes
 // one fails the test until its entry goes. Empty since protowire-go
 // v1.11.0, which rejects a singular field bound twice (protowire-go#184).
-var duplicatesKnownGaps = map[string]datasetGap{}
+// v1.11.0 keeps the last value of a map key bound twice, so it accepts
+// the #396 reject fixtures (old "").
+var duplicatesKnownGaps = map[string]datasetGap{
+	"err-map-key-twice-in-literal.pxf":      {by: "protowire-go#191"},
+	"err-map-key-twice-same-value.pxf":      {by: "protowire-go#191"},
+	"err-map-key-twice-across-bindings.pxf": {by: "protowire-go#191"},
+	"err-map-key-twice-int-spellings.pxf":   {by: "protowire-go#191"},
+	"err-map-key-twice-message-values.pxf":  {by: "protowire-go#191"},
+}
 
 func TestDuplicates_Corpus(t *testing.T) {
 	files, err := filepath.Glob(filepath.Join(duplicatesDir, "*.pxf"))
