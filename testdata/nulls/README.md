@@ -23,7 +23,8 @@ The owner settled this on #339 (2026-10-27, option 3), and the proto2
 
 Every fixture binds against [`nulls.proto`](nulls.proto) (package
 `nulls.v1`, message `Holder` unless the table names another), or
-[`nulls_proto2.proto`](nulls_proto2.proto) for the proto2 cases. Each file's leading comment states the
+[`nulls_proto2.proto`](nulls_proto2.proto) for the proto2 cases and
+[`nulls_editions.proto`](nulls_editions.proto) (`edition = "2023"`) for the editions ones. Each file's leading comment states the
 expected behavior, and `cmd/pxf/nulls_test.go` runs them through the
 reference implementation: `Parse` (no schema, which accepts them all), a
 decoder bound to `nulls.v1.Holder`, and `pxf validate`. The same rule in a
@@ -51,6 +52,8 @@ and
 | `proto2-scalar.pxf` | accept | `p = null` on a proto2 `optional int32` (`Legacy`) leaves `p` unset. |
 | `required-optional.pxf` | accept | `r = null` on an `optional int32` with `(pxf.required)` (`Required`): present, and unset. |
 | `default-optional.pxf` | accept | `d = null` on an `optional int32` with `(pxf.default) = "5"` (`Defaulted`): unset, not 5. |
+| `editions-explicit.pxf` | accept | In an editions file, `null` on a scalar with EXPLICIT presence, the 2023 default (`nulls.ed.v1.Ed`), leaves it unset ([#380](https://github.com/trendvidia/protowire/issues/380)). |
+| `err-editions-implicit.pxf` | reject | `null` on an editions scalar with `features.field_presence = IMPLICIT`. |
 
 Every accept fixture leaves no field set, and a full decode reports the
 named field present-but-null.
