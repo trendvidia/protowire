@@ -153,16 +153,7 @@ add(
 
 add(
     "row_cell",
-    Optional(n("row_value")),
-)
-
-add(
-    "row_value",
-    Choice(
-        0,
-        n("string"), n("integer"), n("float"), n("bool"), n("null"),
-        n("bytes"), n("timestamp"), n("duration"), n("identifier"),
-    ),
+    Optional(n("value")),
 )
 
 add(
@@ -189,7 +180,7 @@ add(
 
 add(
     "map_key",
-    Choice(0, n("identifier"), n("string"), n("integer")),
+    Choice(0, n("identifier"), n("string"), n("integer"), n("bool")),
 )
 
 add(

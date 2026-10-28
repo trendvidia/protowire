@@ -41,6 +41,13 @@ pxf query: strict-mode: unknown field "symbool" on trades.v1.Trade (did you mean
 
 Dynamic access patterns (array indexing, `pxf_directive(...)`, function calls, object construction) keep gojq's runtime semantics — validation tracks message field chains only.
 
+A `google.protobuf.Any` field ends the checked chain: the type an Any holds is named by the document, not the schema, so `.payload.tag` is checked up to `payload` and runs as written past it. An Any block's type entry (`@type = "..."`, draft § Any Blocks) appears in the query graph as the `"@type"` key, as in protojson, and is written back as the block's first entry:
+
+```bash
+$ pxf query -p any.proto '.payload["@type"]' doc.pxf
+value = "any.v1.Leaf"
+```
+
 ### Loose — no schema
 
 For one-off scripts and quick attribute fetches against PXF/JSON/YAML/CSV files sitting somewhere. Types are inferred per-value using cheap unambiguous rules; ambiguous cases stay as strings, and runtime type mismatches surface as `null` rather than aborting (**errors-as-null** — jq-compatible).
