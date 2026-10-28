@@ -1573,12 +1573,18 @@ Internet-Draft                  protowire                   October 2026
    *  When bound to a singular message-typed field, MUST clear the
       field.
 
-   *  When bound to a singular scalar field, MUST be rejected unless the
-      schema marks the field as nullable via a wrapper type (e.g.
-      google.protobuf.StringValue) or via a future annotation.  Explicit
-      presence does not make a scalar field nullable: a proto3
-      "optional" scalar, or a scalar member of a oneof, is a singular
-      scalar field for this rule.
+   *  When bound to a singular scalar field with explicit presence (a
+      proto3 "optional" scalar, a scalar member of a oneof, or a proto2
+      singular scalar), MUST leave the field unset.  The field is
+      present-but-null: it counts as present for pxf.required, and
+      pxf.default is not applied to it.
+
+   *  When bound to a singular scalar field without explicit presence (a
+      proto3 scalar declared without "optional"), MUST be rejected.
+      Such a field has no unset state, so a null would read back as the
+      field's zero value.  A field that must be nullable is declared
+      "optional", or as its wrapper type (e.g.
+      google.protobuf.StringValue).
 
    *  When bound to a list-typed (repeated) field, a map field included,
       MUST be rejected: list elements are not nullable.
@@ -1611,12 +1617,6 @@ Internet-Draft                  protowire                   October 2026
    ("1h30m500ms") because it is materially easier to read in human-
    authored documents.
 
-   Decoders MUST accept timestamps with arbitrary fractional-second
-   precision up to nanoseconds.  Decoders that target a fixed-precision
-   representation (typically google.protobuf.Timestamp, which has
-   nanosecond resolution) MUST reject literals exceeding that precision
-   rather than silently truncating.
-
 
 
 
@@ -1625,6 +1625,12 @@ Franco Jr.                Expires 30 April 2027                [Page 29]
 
 Internet-Draft                  protowire                   October 2026
 
+
+   Decoders MUST accept timestamps with arbitrary fractional-second
+   precision up to nanoseconds.  Decoders that target a fixed-precision
+   representation (typically google.protobuf.Timestamp, which has
+   nanosecond resolution) MUST reject literals exceeding that precision
+   rather than silently truncating.
 
    A duration literal is a sequence of one or more segments, each
    consisting of a numeric magnitude followed by a unit suffix:
@@ -1669,18 +1675,16 @@ Internet-Draft                  protowire                   October 2026
 
    A trailing comma is permitted.
 
-   List values bind only to repeated fields, to fields whose Protocol
-   Buffers type is a list-shaped well-known type, and to list elements
-   within other lists.
-
-
-
 
 
 Franco Jr.                Expires 30 April 2027                [Page 30]
 
 Internet-Draft                  protowire                   October 2026
 
+
+   List values bind only to repeated fields, to fields whose Protocol
+   Buffers type is a list-shaped well-known type, and to list elements
+   within other lists.
 
 3.12.  Blocks and Map Tails
 
@@ -1724,10 +1728,6 @@ Internet-Draft                  protowire                   October 2026
      repeated Node children = 5 [(pxf.key) = "id"];
    }
 
-   The annotation makes the field's collection-of-named-elements
-   semantics visible to the schema layer: entry order is list order, and
-   each element's identity is the value of its key field.
-
 
 
 
@@ -1737,6 +1737,10 @@ Franco Jr.                Expires 30 April 2027                [Page 31]
 
 Internet-Draft                  protowire                   October 2026
 
+
+   The annotation makes the field's collection-of-named-elements
+   semantics visible to the schema layer: entry order is list order, and
+   each element's identity is the value of its key field.
 
 3.13.1.  Schema Placement
 
@@ -1782,10 +1786,6 @@ Internet-Draft                  protowire                   October 2026
    value on a named entry is an error, since the element type is a
    message.
 
-   The existing anonymous list form remains valid for the same field,
-   with the key field written explicitly:
-
-   children = [ { id = "greeting", type = "Label" } ]
 
 
 
@@ -1793,6 +1793,11 @@ Franco Jr.                Expires 30 April 2027                [Page 32]
 
 Internet-Draft                  protowire                   October 2026
 
+
+   The existing anonymous list form remains valid for the same field,
+   with the key field written explicitly:
+
+   children = [ { id = "greeting", type = "Label" } ]
 
    The general repeated-field concatenation rule (Section 3.5) applies
    unchanged: a document may bind the same keyed field more than once
@@ -1836,11 +1841,6 @@ Internet-Draft                  protowire                   October 2026
    the schema.  In tolerant decode modes, the duplicate-key, empty-key,
    and key-conflict errors above SHOULD be surfaced as diagnostics
    rather than hard failures.
-
-
-
-
-
 
 
 

@@ -1,6 +1,7 @@
 @type nulls.v1.Holder
 
-# Reject: null on a plain scalar field. Only a wrapper type makes a
-# scalar nullable.
+# Reject: null on a plain proto3 scalar field. It has no unset state, so
+# null would read back as 0. Declare it optional, or as its wrapper type,
+# to make it nullable.
 
 n = null

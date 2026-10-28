@@ -817,7 +817,9 @@ The literals "true" and "false" denote the boolean values; "null" denotes the nu
 
 * When bound to a singular message-typed field, MUST clear the field.
 
-* When bound to a singular scalar field, MUST be rejected unless the schema marks the field as nullable via a wrapper type (e.g. google.protobuf.StringValue) or via a future annotation. Explicit presence does not make a scalar field nullable: a proto3 "optional" scalar, or a scalar member of a oneof, is a singular scalar field for this rule.
+* When bound to a singular scalar field with explicit presence (a proto3 "optional" scalar, a scalar member of a oneof, or a proto2 singular scalar), MUST leave the field unset. The field is present-but-null: it counts as present for pxf.required, and pxf.default is not applied to it.
+
+* When bound to a singular scalar field without explicit presence (a proto3 scalar declared without "optional"), MUST be rejected. Such a field has no unset state, so a null would read back as the field's zero value. A field that must be nullable is declared "optional", or as its wrapper type (e.g. google.protobuf.StringValue).
 
 * When bound to a list-typed (repeated) field, a map field included, MUST be rejected: list elements are not nullable.
 
