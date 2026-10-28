@@ -199,11 +199,11 @@ func validateCmd() *cobra.Command {
 		Short: "Validate PXF against schema",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
-			desc, err := resolveDescriptor()
+			data, err := os.ReadFile(args[0])
 			if err != nil {
 				return err
 			}
-			data, err := os.ReadFile(args[0])
+			desc, err := validateDescriptor(data)
 			if err != nil {
 				return err
 			}
@@ -233,6 +233,54 @@ func validateCmd() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+// validateDescriptor picks the type validate decodes a document against.
+// A body whose @type names a type the document's own @proto defines is
+// checked against that type whatever -m says: the embedded schema is
+// authoritative (draft § The "@proto" Directive, #370). Otherwise -m
+// names the type, and the document's @type stands in when -m is absent.
+func validateDescriptor(data []byte) (protoreflect.MessageDescriptor, error) {
+	doc, err := pxf.Parse(data)
+	if err != nil {
+		return nil, err
+	}
+	if doc.TypeURL != "" && len(doc.Protos) > 0 {
+		md, err := inDocumentType(doc)
+		if err != nil || md != nil {
+			return md, err
+		}
+	}
+	name := msgName
+	if name == "" {
+		name = doc.TypeURL
+	}
+	return resolveMessage(name)
+}
+
+// inDocumentType returns the message the document's @type names when
+// its own @proto directives define it, and nil when they do not. Only
+// the directives are compiled (their imports still resolve against the
+// canonical schemas), so a type that -p, a bundled schema or
+// protoregistry defines does not count and cannot stand in for the
+// embedded one.
+func inDocumentType(doc *pxf.Document) (protoreflect.MessageDescriptor, error) {
+	ld := &loadedDoc{protos: append([]pxf.ProtoDirective(nil), doc.Protos...)}
+	// A body consumes no anonymous @proto, so this rejects one as
+	// unbound (draft §3.4.5).
+	if err := resolveAnonymousProtos(ld); err != nil {
+		return nil, err
+	}
+	opts, err := buildCompileOptions(nil, ld.protos)
+	if err != nil {
+		return nil, err
+	}
+	opts.BundledFiles = nil
+	reg := schemaresolve.NewRegistry()
+	if err := schemaresolve.CompileSources(reg, opts); err != nil {
+		return nil, err
+	}
+	return reg.Find(doc.TypeURL), nil
 }
 
 // validateDatasets binds every row of every @dataset to its row type.
