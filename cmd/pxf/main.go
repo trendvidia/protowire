@@ -285,7 +285,8 @@ func validateDescriptor(doc *pxf.Document) (protoreflect.MessageDescriptor, *sch
 		return nil, nil, err
 	}
 	if doc.TypeURL != "" && sch != nil && sch.reg.FromDocument(doc.TypeURL) {
-		return sch.find(doc.TypeURL), sch, nil
+		md, err := sch.lookup(doc.TypeURL)
+		return md, sch, err
 	}
 	name := msgName
 	if name == "" {
@@ -318,8 +319,9 @@ func documentMessage(sch *schema, name string) (protoreflect.MessageDescriptor, 
 	if name == "" {
 		return nil, fmt.Errorf("--message is required")
 	}
-	if md := sch.find(name); md != nil {
-		return md, nil
+	md, err := sch.lookup(name)
+	if err != nil || md != nil {
+		return md, err
 	}
 	return nil, fmt.Errorf("message %q not found in resolved schema (bundled canonical types + -p + protoregistry + @proto)", name)
 }
@@ -342,7 +344,10 @@ func validateDatasets(res *pxf.Result) error {
 		return err
 	}
 	for _, ds := range doc.datasets {
-		md := sch.find(ds.Type)
+		md, err := sch.lookup(ds.Type)
+		if err != nil {
+			return fmt.Errorf("%s: @dataset %s: %w", ds.Pos, ds.Type, err)
+		}
 		if md == nil {
 			return fmt.Errorf("%s: @dataset %s: message not found in resolved schema (bundled canonical types + -p + protoregistry + @proto)", ds.Pos, ds.Type)
 		}
@@ -352,7 +357,7 @@ func validateDatasets(res *pxf.Result) error {
 		msg := dynamicpb.NewMessage(md)
 		// The descriptor was validated once above. A cell may hold an
 		// Any block that names its type (#356).
-		opts := pxf.UnmarshalOptions{SkipValidate: true, TypeResolver: typeResolver{find: sch.find}}
+		opts := pxf.UnmarshalOptions{SkipValidate: true, TypeResolver: typeResolver{find: sch.find, check: sch.check}}
 		for _, row := range ds.Rows {
 			proto.Reset(msg)
 			// BindRow binds the row as the body its cells stand for,

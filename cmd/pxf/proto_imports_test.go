@@ -22,6 +22,9 @@ var protoImportsVerdicts = map[string]string{
 	"well-known.pxf":      "",
 	"err-tool-schema.pxf": "a @proto may import only",
 	"err-filesystem.pxf":  "a @proto may import only",
+	"err-plugin.pxf":      "a @proto may import only",
+	"err-features.pxf":    "a @proto may import only",
+	"descriptor.pxf":      "",
 }
 
 // Runs from the fixture directory, so err-filesystem.pxf's sibling.proto
@@ -172,36 +175,50 @@ func TestProtoShadowing_SelfDescribing(t *testing.T) {
 	}
 }
 
-// A -p type that refers to a type the document redefines still holds
-// -p's definition (#387, not decided). The warnings say so, where before
-// the first one alone claimed the @proto definition was in use. This
-// pins the current behaviour: update it with #387's decision.
+// An external type that refers to a type the document's @proto redefines
+// differently still holds the external definition in that field, so
+// decoding through it is rejected, naming both (decided by the owner on
+// #387). Before, pxf warned and decoded W.l against l.proto's L. Every
+// command that picks a type to decode with checks it; a document whose
+// type does not reach W is unaffected.
 func TestProtoShadowing_Referrer(t *testing.T) {
 	dir := t.TempDir()
 	pFile := filepath.Join(dir, "l.proto")
-	if err := os.WriteFile(pFile, []byte("syntax = \"proto3\";\npackage l.v1;\nmessage L { int32 user = 1; }\nmessage W { L l = 1; }\n"), 0o644); err != nil {
+	if err := os.WriteFile(pFile, []byte("syntax = \"proto3\";\npackage l.v1;\nmessage L { int32 user = 1; }\nmessage W { L l = 1; }\nmessage U { int32 n = 1; }\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	doc := `@proto """
+	const proto = `@proto """
 syntax = "proto3";
 package l.v1;
 message L { string user = 1; }
 """
-@type l.v1.W
-l { user = "ann" }
 `
-	printedWarnings.Clear()
-	var err error
-	stderr := captureStderr(t, func() { err = validateDoc(t, doc, "-p", pFile) })
-	if !errMatches(err, `expected integer for field "user"`) {
-		t.Errorf("want W.l decoded against l.proto's L, got %v", err)
-	}
-	for _, w := range []string{
-		"warning: @proto defines l.v1.L differently from " + pFile,
-		"warning: l.v1.W from " + pFile + " still uses " + pFile + "'s l.v1.L, not the @proto one",
-	} {
-		if !strings.Contains(stderr, w) {
-			t.Errorf("stderr lacks %q; stderr:\n%s", w, stderr)
+	want := "l.v1.W.l, from " + pFile + ", has type l.v1.L as " + pFile + " defines it, but the document's @proto defines l.v1.L differently; add l.v1.W to the @proto, or bring " + pFile + " in line with it"
+	write := func(doc string) string {
+		p := filepath.Join(t.TempDir(), "d.pxf")
+		if err := os.WriteFile(p, []byte(doc), 0o644); err != nil {
+			t.Fatal(err)
 		}
+		return p
+	}
+	body, dataset := write(proto+"@type l.v1.W\nl { user = \"ann\" }\n"), write(proto+"@dataset l.v1.W (l.user)\n(\"ann\")\n")
+	for _, c := range []struct {
+		name string
+		args []string
+	}{
+		{"validate body", []string{"validate", "-p", pFile, body}},
+		{"validate @dataset", []string{"validate", "-p", pFile, "-m", "l.v1.W", dataset}},
+		{"query", []string{"query", "-p", pFile, "-m", "l.v1.W", ".", body}},
+		{"encode", []string{"encode", "-p", pFile, "-m", "l.v1.W", body}},
+		{"fmt", []string{"fmt", "-p", pFile, body}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			if _, err := runCLI(t, c.args...); !errMatches(err, want) {
+				t.Fatalf("want %q, got %v", want, err)
+			}
+		})
+	}
+	if err := validateDoc(t, proto+"@type l.v1.U\nn = 1\n", "-p", pFile); err != nil {
+		t.Errorf("a type that does not reach W is rejected: %v", err)
 	}
 }

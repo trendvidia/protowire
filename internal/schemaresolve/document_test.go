@@ -123,6 +123,12 @@ func TestCompileSources_DocumentImports(t *testing.T) {
 		{"sbe/annotations.proto", false},
 		{"envelope/v1/envelope.proto", false},
 		{"google/protobuf/timestamp.proto", false},
+		{"google/protobuf/descriptor.proto", false},
+		{"google/protobuf/field_mask.proto", false},
+		{"google/protobuf/struct.proto", false},
+		{"google/protobuf/compiler/plugin.proto", true},
+		{"google/protobuf/go_features.proto", true},
+		{"google/protobuf/cpp_features.proto", true},
 		{"docs/v1/topic.proto", true},
 		{"schema/catalog/v1/catalog.proto", true},
 		{"protowire/pxf/secret.proto", true},
@@ -245,16 +251,32 @@ func TestMergeDocument_Shadowing(t *testing.T) {
 			ext:      "package l.v1;\nmessage L { string user = 1; }\nmessage W { L l = 1; }\n",
 			doc:      "package l.v1;\nmessage L { string user = 1; }\n",
 			warnings: nil,
+			check: func(t *testing.T, reg *Registry) {
+				if err := reg.Check(reg.Find("l.v1.W")); err != nil {
+					t.Errorf("Check(l.v1.W) = %v, want nil: the definitions are identical", err)
+				}
+			},
 		},
 		{
-			// The referrer keeps the external L (#387): the warning says so
-			// rather than claim the @proto one is used everywhere.
-			name: "different type an external message refers to",
-			ext:  "package l.v1;\nmessage L { int32 user = 1; }\nmessage W { L l = 1; map<string, L> m = 2; }\n",
-			doc:  "package l.v1;\nmessage L { string user = 1; }\n",
-			warnings: []string{
-				"@proto defines l.v1.L differently from ext.proto; using the @proto definition",
-				"l.v1.W from ext.proto still uses ext.proto's l.v1.L, not the @proto one",
+			// The referrer's field keeps the external L, so decoding
+			// through it is rejected, not warned about (decided on #387).
+			// Only from a type that reaches it: an unrelated one passes.
+			name:     "different type an external message refers to",
+			ext:      "package l.v1;\nmessage L { int32 user = 1; }\nmessage W { map<string, L> m = 2; }\nmessage V { W w = 1; }\nmessage U { int32 n = 1; }\n",
+			doc:      "package l.v1;\nmessage L { string user = 1; }\n",
+			warnings: []string{"@proto defines l.v1.L differently from ext.proto; using the @proto definition"},
+			check: func(t *testing.T, reg *Registry) {
+				const want = "l.v1.W.m, from ext.proto, has type l.v1.L as ext.proto defines it, but the document's @proto defines l.v1.L differently; add l.v1.W to the @proto, or bring ext.proto in line with it"
+				for _, name := range []string{"l.v1.W", "l.v1.V"} {
+					if err := reg.Check(reg.Find(name)); err == nil || err.Error() != want {
+						t.Errorf("Check(%s) = %v, want %q", name, err, want)
+					}
+				}
+				for _, name := range []string{"l.v1.L", "l.v1.U"} {
+					if err := reg.Check(reg.Find(name)); err != nil {
+						t.Errorf("Check(%s) = %v, want nil: it reaches no external L", name, err)
+					}
+				}
 			},
 		},
 	}
