@@ -18,6 +18,12 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ### Changed
 
+- **Three edges of `@dataset` column paths are settled** (issue [#349](https://github.com/trendvidia/protowire/issues/349), the follow-ups of [#342](https://github.com/trendvidia/protowire/issues/342); v1.13). Decided by the owner. Each matches what protowire-go v1.10.0 already does.
+  - **`pxf.Secret`.** A path may go into one, as in `(pw.value, pw.hint)`. Secret has a string literal, but its block form is one documents are written in. The list of types a path may not go into is closed, and Secret is not on it. The draft defines `pxf.Secret` and its two forms for the first time, in § PXF Annotations.
+  - **`google.protobuf.Any`.** A path into one names the Any's own fields, `type_url` and `value`, as a block with no type entry does (§ Any Blocks). It cannot reach the fields of the message the Any holds.
+  - **A table with no rows.** The header rules that need the row type are checked when a row binds. A table with no rows is not rejected for breaking one, and a decoder MUST NOT reject it. A linter may still report it. The draft had also called them rules that "do not depend on the row", which read as if a reader should check them when it opens the table.
+  - Fixtures in `testdata/dataset/`: `dotted-into-secret`, `dotted-into-any` and `dotted-bad-header-no-rows`, all accept. `paths.proto` gains a `pxf.Secret` and a `google.protobuf.Any` field.
+
 - **`go.mod` pins protowire-go v1.10.0, and `cmd/pxf` handles dotted `@dataset` columns** (issue [#348](https://github.com/trendvidia/protowire/issues/348)). Every corpus gap list is now empty: the dotted-column, `duplicate-column`, raw-newline and `Any`-block fixtures all meet their verdicts on v1.10.0, and `go test ./cmd/pxf` runs 385 tests and subtests, none skipped.
   - `pxf validate` binds each row through `pxf.BindRow`, which groups dotted columns into one block per prefix as draft §3.4.4 defines. Its own flat-body binder is gone. An error reads `3:1: column int32_field: …`, where it read `3:1: @dataset row, column int32_field: …`.
   - `pxf query` types a dotted column's cell by the leaf field its path names, so a bare `inf` in a `double` leaf becomes +Inf. The row key stays the column name.

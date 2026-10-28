@@ -72,6 +72,9 @@ prefix.
 | `dotted-through-scalar` | reject (header) | a path through a scalar field |
 | `dotted-unknown-segment` | reject (header) | a segment names no field |
 | `dotted-bad-header-empty-row` | reject (header) | a header rule holds for a row of empty cells |
+| `dotted-bad-header-no-rows` | accept | the same header with no rows: the rules are checked per row (#349) |
+| `dotted-into-secret` | accept | a path may go into a `pxf.Secret`, whose block form is written (#349) |
+| `dotted-into-any` | accept | a path into an `Any` names its own fields, `type_url` and `value` (#349) |
 | `dotted-overlap` | reject (header) | a field and a path inside it are both columns |
 | `dotted-overlap-deep` | reject (header) | the same, below the top level |
 | `dotted-empty-segment` | reject (header) | a path with an empty segment (`a..b`) |

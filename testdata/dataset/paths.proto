@@ -9,11 +9,13 @@ syntax = "proto3";
 
 package dataset.v1;
 
+import "google/protobuf/any.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/wrappers.proto";
 import "pxf/annotations.proto";
 import "pxf/bignum.proto";
+import "pxf/secret.proto";
 
 message Tempo {
   int32 min_bpm = 1;
@@ -52,4 +54,6 @@ message Event {
   google.protobuf.Int32Value wrap = 10;
   google.protobuf.Duration dur = 11;
   pxf.BigInt big = 12;
+  google.protobuf.Any payload = 13;
+  pxf.Secret pw = 14;
 }
