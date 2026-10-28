@@ -134,15 +134,25 @@ func encodeCmd() *cobra.Command {
 		Short: "Encode PXF to protobuf binary (stdout)",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
-			desc, err := resolveDescriptor()
-			if err != nil {
-				return err
+			if msgName == "" {
+				return fmt.Errorf("--message is required")
 			}
 			data, err := os.ReadFile(args[0])
 			if err != nil {
 				return err
 			}
 			doc, err := pxf.Parse(data)
+			if err != nil {
+				return err
+			}
+			// -m resolves with the document's own @proto in the chain, so
+			// a type it defines is the document's (draft § The "@proto"
+			// Directive, #371).
+			sch, err := documentSchema(doc)
+			if err != nil {
+				return err
+			}
+			desc, err := documentMessage(sch, msgName)
 			if err != nil {
 				return err
 			}
@@ -153,7 +163,7 @@ func encodeCmd() *cobra.Command {
 			// command wrote documents without their defaults (#269). An
 			// Any block that names its type is read through the
 			// document's schema chain (#356).
-			opts := pxf.UnmarshalOptions{TypeResolver: newLazyResolver(doc.Protos)}
+			opts := pxf.UnmarshalOptions{TypeResolver: newLazyResolver(doc.Protos).withSchema(sch)}
 			msg, _, err := opts.UnmarshalFullDescriptor(data, desc)
 			if err != nil {
 				return err
@@ -214,13 +224,13 @@ func validateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			desc, err := validateDescriptor(doc)
+			desc, sch, err := validateDescriptor(doc)
 			if err != nil {
 				return err
 			}
 			// An Any block that names its type is read through the
 			// document's schema chain (draft § Any Blocks, #356).
-			opts := pxf.UnmarshalOptions{TypeResolver: newLazyResolver(doc.Protos)}
+			opts := pxf.UnmarshalOptions{TypeResolver: newLazyResolver(doc.Protos).withSchema(sch)}
 			// Parse first without post-decode: a @dataset document has no
 			// body, so the --message type's (pxf.required) check would fail
 			// it whatever its rows hold.
@@ -251,48 +261,67 @@ func validateCmd() *cobra.Command {
 	}
 }
 
-// validateDescriptor picks the type validate decodes a document against.
-// A body whose @type names a type the document's own @proto defines is
-// checked against that type whatever -m says: the embedded schema is
-// authoritative (draft § The "@proto" Directive, #370). Otherwise -m
-// names the type, and the document's @type stands in when -m is absent.
-func validateDescriptor(doc *pxf.Document) (protoreflect.MessageDescriptor, error) {
+// validateDescriptor picks the type validate decodes a document against,
+// and returns the schema it resolved it in when the document has @proto
+// directives (nil when it has none). A body whose @type names a type the
+// document's own @proto defines is checked against that type whatever -m
+// says: the embedded schema is authoritative (draft § The "@proto"
+// Directive, #370). Otherwise -m names the type, and the document's
+// @type stands in when -m is absent. The chain is resolved once, with
+// the document's directives in it, so a type they define shadows -p's
+// and protoregistry's under either name, and a difference is warned
+// about (#371).
+func validateDescriptor(doc *pxf.Document) (protoreflect.MessageDescriptor, *schema, error) {
 	if doc.TypeURL != "" && len(doc.Protos) > 0 {
-		md, err := inDocumentType(doc)
-		if err != nil || md != nil {
-			return md, err
+		// A body consumes no anonymous @proto, so this rejects one as
+		// unbound (draft §3.4.5).
+		ld := &loadedDoc{protos: append([]pxf.ProtoDirective(nil), doc.Protos...)}
+		if err := resolveAnonymousProtos(ld); err != nil {
+			return nil, nil, err
 		}
+	}
+	sch, err := documentSchema(doc)
+	if err != nil {
+		return nil, nil, err
+	}
+	if doc.TypeURL != "" && sch != nil && sch.reg.FromDocument(doc.TypeURL) {
+		return sch.find(doc.TypeURL), sch, nil
 	}
 	name := msgName
 	if name == "" {
 		name = doc.TypeURL
 	}
-	return resolveMessage(name)
+	md, err := documentMessage(sch, name)
+	return md, sch, err
 }
 
-// inDocumentType returns the message the document's @type names when
-// its own @proto directives define it, and nil when they do not. Only
-// the directives are compiled (their imports still resolve against the
-// canonical schemas), so a type that -p, a bundled schema or
-// protoregistry defines does not count and cannot stand in for the
-// embedded one.
-func inDocumentType(doc *pxf.Document) (protoreflect.MessageDescriptor, error) {
-	ld := &loadedDoc{protos: append([]pxf.ProtoDirective(nil), doc.Protos...)}
-	// A body consumes no anonymous @proto, so this rejects one as
-	// unbound (draft §3.4.5).
-	if err := resolveAnonymousProtos(ld); err != nil {
-		return nil, err
+// documentSchema resolves the full chain with the document's named,
+// source and descriptor @proto directives in it, or returns nil for a
+// document with none. An anonymous @proto is left out: it binds the
+// @dataset after it, not the body (draft §3.4.5).
+func documentSchema(doc *pxf.Document) (*schema, error) {
+	protos := namedProtos(doc.Protos)
+	if len(protos) == 0 {
+		return nil, nil
 	}
-	opts, err := buildCompileOptions(nil, ld.protos)
-	if err != nil {
-		return nil, err
+	return loadSchema(protoFiles, protos, registryRefFromFlags())
+}
+
+// documentMessage resolves name in sch, a documentSchema, so that a
+// type the document defines is the document's (draft § The "@proto"
+// Directive, "Precedence with external schemas"). A nil sch resolves
+// against the chain without a document, as resolveMessage does.
+func documentMessage(sch *schema, name string) (protoreflect.MessageDescriptor, error) {
+	if sch == nil {
+		return resolveMessage(name)
 	}
-	opts.BundledFiles = nil
-	reg := schemaresolve.NewRegistry()
-	if err := schemaresolve.CompileSources(reg, opts); err != nil {
-		return nil, err
+	if name == "" {
+		return nil, fmt.Errorf("--message is required")
 	}
-	return reg.Find(doc.TypeURL), nil
+	if md := sch.find(name); md != nil {
+		return md, nil
+	}
+	return nil, fmt.Errorf("message %q not found in resolved schema (bundled canonical types + -p + protoregistry + @proto)", name)
 }
 
 // validateDatasets binds every row of every @dataset to its row type.
@@ -370,7 +399,13 @@ func fmtCmd() *cobra.Command {
 				name = doc.TypeURL
 			}
 			if name != "" {
-				desc, err := resolveMessage(name)
+				// A type the document's own @proto defines is the
+				// document's (draft § The "@proto" Directive, #371).
+				sch, err := documentSchema(doc)
+				if err != nil {
+					return err
+				}
+				desc, err := documentMessage(sch, name)
 				if err != nil {
 					return err
 				}

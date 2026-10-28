@@ -4,6 +4,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -64,13 +65,30 @@ type lazyResolver struct {
 // descriptor @proto directives. An anonymous one names no type a URL
 // can reach: it binds the @dataset after it (draft §3.4.5).
 func newLazyResolver(protos []pxf.ProtoDirective) *lazyResolver {
-	r := &lazyResolver{}
-	for _, pd := range protos {
-		if pd.Shape != pxf.ProtoAnonymous {
-			r.protos = append(r.protos, pd)
-		}
+	return &lazyResolver{protos: namedProtos(protos)}
+}
+
+// withSchema hands r sch, the chain already resolved for the same
+// directives (documentSchema), so the first type URL does not resolve
+// it again. A nil sch leaves r to resolve its own.
+func (r *lazyResolver) withSchema(sch *schema) *lazyResolver {
+	if sch != nil {
+		r.once.Do(func() { r.sch = sch })
 	}
 	return r
+}
+
+// namedProtos returns the named, source and descriptor @proto
+// directives, the ones that name types: an anonymous one is the row
+// type of the @dataset after it.
+func namedProtos(protos []pxf.ProtoDirective) []pxf.ProtoDirective {
+	var out []pxf.ProtoDirective
+	for _, pd := range protos {
+		if pd.Shape != pxf.ProtoAnonymous {
+			out = append(out, pd)
+		}
+	}
+	return out
 }
 
 func (r *lazyResolver) FindMessageByURL(url string) (protoreflect.MessageDescriptor, error) {
@@ -106,7 +124,23 @@ func loadSchema(protoFiles []string, inDoc []pxf.ProtoDirective, reg registryRef
 	if err != nil {
 		return nil, err
 	}
+	printWarnings(r)
 	return &schema{reg: r}, nil
+}
+
+// printedWarnings keeps a warning that several resolutions of one
+// document notice (validate, then an Any block's lazy resolver) to one
+// line on stderr.
+var printedWarnings sync.Map
+
+// printWarnings writes the registry's warnings to stderr, each once per
+// process.
+func printWarnings(r *schemaresolve.Registry) {
+	for _, w := range r.Warnings() {
+		if _, dup := printedWarnings.LoadOrStore(w, true); !dup {
+			fmt.Fprintln(os.Stderr, "warning: "+w)
+		}
+	}
 }
 
 // buildCompileOptions translates the cmd/pxf view of the world

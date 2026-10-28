@@ -1197,34 +1197,34 @@ Internet-Draft                  protowire                   October 2026
       "google/protobuf/timestamp.proto", "google/protobuf/
       duration.proto");
 
-   *  the canonical PXF and SBE annotation schemas ("pxf/
-      annotations.proto", "sbe/annotations.proto");
+   *  the canonical PXF and SBE schemas ("pxf/annotations.proto", "pxf/
+      bignum.proto", "pxf/secret.proto", "sbe/annotations.proto");
 
    *  the canonical envelope ("envelope/v1/envelope.proto");
 
    *  another "@proto" directive in the same document.
 
-   Imports from the filesystem or a remote schema registry are NOT
-   permitted from inside a source-form "@proto" body.  An import that
-   does not resolve to one of the four sources above MUST be rejected.
+   Imports from the filesystem, a remote schema registry, or an external
+   schema supplied to the decoder (such as a tool's -p flag) are NOT
+   permitted from inside a source-form "@proto" body, and neither is any
+   other schema the canonical repository distributes.  The list above is
+   exhaustive.  An import that does not resolve to one of the four
+   sources above MUST be rejected.  The fixtures under testdata/proto-
+   imports/ pin both verdicts (issue #369).
 
    Precedence with external schemas.  When a decoder is supplied with an
    external schema (via a tool's -p flag or a pre-bound descriptor) and
    the document also carries an "@proto" directive, the embedded schema
    is authoritative.  Decoders MAY verify that the external schema
-   agrees with the embedded one by comparing the normalized
-   FileDescriptorSet bytes of each; on disagreement, decoders MUST
-   reject the document.
+   agrees with the embedded one, by comparing the definitions of the
+   message types both of them define.  The file each definition lives in
+   is not part of the comparison, since an embedded schema is not a file
+   a decoder was given.  A decoder that finds a disagreement MUST either
+   reject the document or report the disagreement to its caller (a
+   warning suffices); either way, a document it decodes is decoded
+   against the embedded schema (issue #371).
 
    Conformance:
-
-   *  A decoder MUST support the descriptor form.  Decoders MAY support
-      the source, named, and anonymous forms.  A decoder that does not
-      support a body shape encountered in a document MUST report an
-      error indicating which shape was rejected; pre-compilation by a
-      separate tool (e.g. protowire compile) is the recommended
-      fallback.
-
 
 
 
@@ -1233,6 +1233,13 @@ Franco Jr.                Expires 30 April 2027                [Page 22]
 
 Internet-Draft                  protowire                   October 2026
 
+
+   *  A decoder MUST support the descriptor form.  Decoders MAY support
+      the source, named, and anonymous forms.  A decoder that does not
+      support a body shape encountered in a document MUST report an
+      error indicating which shape was rejected; pre-compilation by a
+      separate tool (e.g. protowire compile) is the recommended
+      fallback.
 
    *  A decoder MUST reject an anonymous "@proto" directive that is not
       consumed by a subsequent typed directive in the same document.
@@ -1276,19 +1283,15 @@ Internet-Draft                  protowire                   October 2026
       functions, access control). v1 decoders MUST reject these as
       unknown reserved directives.
 
-   *  "null", "true", "false" — value keywords (Section 3.9); excluded
-      to keep the directive-name lexer unambiguous.
-
-
-
-
-
 
 
 Franco Jr.                Expires 30 April 2027                [Page 23]
 
 Internet-Draft                  protowire                   October 2026
 
+
+   *  "null", "true", "false" — value keywords (Section 3.9); excluded
+      to keep the directive-name lexer unambiguous.
 
    The check is case-sensitive: directive names such as "@TABLE",
    "@Proto", "@DATASOURCE" lex as ordinary application directives
@@ -1329,13 +1332,10 @@ Internet-Draft                  protowire                   October 2026
       integer types (int32, int64, sint32, sint64, uint32, uint64,
       fixed32, fixed64, sfixed32, sfixed64, bool encoded as 0/1).
 
-   *  A bool key — the keyword true or false, bare — is permitted only
-      inside a map<K,V> literal, and matches a map<bool,V> field.  It is
-      the spelling an author naturally writes; the integer spelling
-      above remains valid for the same field.  An identifier key inside
-      a map<K,V> literal whose K is bool matches nothing: an identifier
-      names a field, and a map has none, so "t", "TRUE" and "yes" are
-      errors rather than values.
+
+
+
+
 
 
 
@@ -1345,6 +1345,14 @@ Franco Jr.                Expires 30 April 2027                [Page 24]
 
 Internet-Draft                  protowire                   October 2026
 
+
+   *  A bool key — the keyword true or false, bare — is permitted only
+      inside a map<K,V> literal, and matches a map<bool,V> field.  It is
+      the spelling an author naturally writes; the integer spelling
+      above remains valid for the same field.  An identifier key inside
+      a map<K,V> literal whose K is bool matches nothing: an identifier
+      names a field, and a map has none, so "t", "TRUE" and "yes" are
+      errors rather than values.
 
    Canonical spelling of map keys.  Because the bare spellings true,
    false and 123 are a bool key, a bool key and an integer key rather
@@ -1386,14 +1394,6 @@ Internet-Draft                  protowire                   October 2026
       it is equivalent to "= { ... }".  Like assignment-tail, it takes
       an identifier key or a string key (quoted entry name, keyed
       repeated fields only), and parsers MUST reject a block-tail with
-      an integer key at parse time.  Map values that are themselves
-      messages MUST use the explicit form "key: { ... }"; the bare-block
-      form is not accepted in map context.
-
-
-
-
-
 
 
 
@@ -1401,6 +1401,10 @@ Franco Jr.                Expires 30 April 2027                [Page 25]
 
 Internet-Draft                  protowire                   October 2026
 
+
+      an integer key at parse time.  Map values that are themselves
+      messages MUST use the explicit form "key: { ... }"; the bare-block
+      form is not accepted in map context.
 
    Inside a "{ ... }" block the parser cannot statically tell whether
    the surrounding field is message-typed or map-typed; both _field-
@@ -1446,10 +1450,6 @@ Internet-Draft                  protowire                   October 2026
    \t      U+0009 CHARACTER TABULATION
    \v      U+000B LINE TABULATION
 
-   Numeric escapes:
-
-
-
 
 
 
@@ -1457,6 +1457,8 @@ Franco Jr.                Expires 30 April 2027                [Page 26]
 
 Internet-Draft                  protowire                   October 2026
 
+
+   Numeric escapes:
 
    \xHH        two hex digits, denotes the byte 0xHH
    \NNN        three octal digits, value MUST be <= 0xFF;
@@ -1505,14 +1507,14 @@ Internet-Draft                  protowire                   October 2026
    A bytes literal is the lowercase letter "b" immediately followed by a
    double-quoted body containing only base64 characters [RFC4648]:
 
-   b"SGVsbG8sIHdvcmxkIQ=="
-
 
 
 Franco Jr.                Expires 30 April 2027                [Page 27]
 
 Internet-Draft                  protowire                   October 2026
 
+
+   b"SGVsbG8sIHdvcmxkIQ=="
 
    Decoders MUST accept both the standard base64 alphabet and the URL-
    safe alphabet [RFC4648] Section 5; padding ("=") is OPTIONAL and MUST
@@ -1560,8 +1562,6 @@ Internet-Draft                  protowire                   October 2026
    The literals "true" and "false" denote the boolean values; "null"
    denotes the null value.  All three are case-sensitive.  A "null"
    literal:
-
-
 
 
 
