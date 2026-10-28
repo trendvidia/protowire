@@ -289,3 +289,36 @@ message M {
 		t.Errorf("canonical pxf.Secret got a generated %s field", f.Name())
 	}
 }
+
+// TestBuildNullMaskSkipsRequired: a proto2 required field cannot hold a
+// null (#379), so a message whose only such field is required gets no
+// mask, while an optional field in the same file still earns one. Needs
+// protocompile v0.35.1 (protocompile#257).
+func TestBuildNullMaskSkipsRequired(t *testing.T) {
+	dir := t.TempDir()
+	schema := `syntax = "proto2";
+package nm.v1;
+message Strict { required int32 r = 1; }
+message Loose { optional int32 o = 1; }
+`
+	if err := os.WriteFile(filepath.Join(dir, "nm2.proto"), []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	fds := &descriptorpb.FileDescriptorSet{}
+	if err := proto.Unmarshal(buildImage(t, filepath.Join(dir, "nm2.proto")), fds); err != nil {
+		t.Fatal(err)
+	}
+	files, err := protodesc.NewFiles(fds)
+	if err != nil {
+		t.Fatalf("stock protodesc rejects the lowered image: %v", err)
+	}
+	for name, want := range map[string]bool{"nm.v1.Strict": false, "nm.v1.Loose": true} {
+		d, err := files.FindDescriptorByName(protoreflect.FullName(name))
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if got := d.(protoreflect.MessageDescriptor).Fields().ByName("_null") != nil; got != want {
+			t.Errorf("%s has a _null mask: %v, want %v", name, got, want)
+		}
+	}
+}
