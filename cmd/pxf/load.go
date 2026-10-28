@@ -79,6 +79,12 @@ func entriesToValue(entries []pxf.Entry) (any, error) {
 				return nil, err
 			}
 			out[n.Name] = v
+		case *pxf.TypeEntry:
+			// The type entry of an Any block (draft § Any Blocks) is the
+			// "@type" key, as in protojson. It sorts before every field
+			// name, so the emitter writes it back first, where the
+			// grammar puts it.
+			out["@type"] = n.URL
 		default:
 			return nil, fmt.Errorf("unsupported entry type %T", e)
 		}
