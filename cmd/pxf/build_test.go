@@ -13,6 +13,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protodesc"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/descriptorpb"
 )
 
@@ -241,5 +242,50 @@ func TestBuildImportPathCollision(t *testing.T) {
 	err := runPxf(t, "build", "-o", filepath.Join(t.TempDir(), "out.binpb"), dirA, dirB)
 	if err == nil || !strings.Contains(err.Error(), "claimed by both") {
 		t.Fatalf("expected import-path collision error, got %v", err)
+	}
+}
+
+// TestBuildNullMask: the image `pxf build` lowers gives a user message
+// that can hold a null the generated `_null` FieldMask, so code that
+// buf or protoc generates from it has the field (#377). The canonical
+// schemas it pulls in from the bundle get none.
+func TestBuildNullMask(t *testing.T) {
+	dir := t.TempDir()
+	schema := `syntax = "proto3";
+package nm.v1;
+import "google/protobuf/wrappers.proto";
+import "pxf/secret.proto";
+message M {
+  google.protobuf.Int32Value w = 1;
+  pxf.Secret s = 2;
+}
+`
+	if err := os.WriteFile(filepath.Join(dir, "nm.proto"), []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	fds := &descriptorpb.FileDescriptorSet{}
+	if err := proto.Unmarshal(buildImage(t, filepath.Join(dir, "nm.proto")), fds); err != nil {
+		t.Fatal(err)
+	}
+	files, err := protodesc.NewFiles(fds)
+	if err != nil {
+		t.Fatalf("stock protodesc rejects the lowered image: %v", err)
+	}
+	find := func(name string) protoreflect.MessageDescriptor {
+		d, err := files.FindDescriptorByName(protoreflect.FullName(name))
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		return d.(protoreflect.MessageDescriptor)
+	}
+	fd := find("nm.v1.M").Fields().ByName("_null")
+	if fd == nil {
+		t.Fatal("nm.v1.M has no generated _null field in the image")
+	}
+	if fd.Number() != 536870911 || fd.Message() == nil || fd.Message().FullName() != "google.protobuf.FieldMask" {
+		t.Errorf("_null is number %d, type %v; want 536870911, google.protobuf.FieldMask", fd.Number(), fd.Message())
+	}
+	if f := find("pxf.Secret").Fields().ByNumber(536870911); f != nil {
+		t.Errorf("canonical pxf.Secret got a generated %s field", f.Name())
 	}
 }

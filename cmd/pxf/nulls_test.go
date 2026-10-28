@@ -5,10 +5,12 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/trendvidia/protowire-go/encoding/pxf"
 	"github.com/trendvidia/protowire/internal/schemaresolve"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 // nullsDir is the cross-port null-binding fixture corpus
@@ -108,15 +110,39 @@ func TestNulls_Corpus(t *testing.T) {
 			if want.reject != "" || derr != nil {
 				return
 			}
+			// schemaresolve gives every fixture message the generated
+			// `_null` mask (#377), and the decoder records the null there.
 			fields := md.Fields()
 			for i := range fields.Len() {
-				if fd := fields.Get(i); msg.Has(fd) {
+				if fd := fields.Get(i); fd.Name() != "_null" && msg.Has(fd) {
 					t.Errorf("%s = null left %s set", want.unset, fd.Name())
 				}
+			}
+			if got := nullMaskPaths(t, msg); !slices.Contains(got, want.unset) {
+				t.Errorf("_null paths = %q, want them to contain %q", got, want.unset)
 			}
 			if !res.IsNull(want.unset) {
 				t.Errorf("Result.IsNull(%q) = false, want present-but-null", want.unset)
 			}
 		})
 	}
+}
+
+// nullMaskPaths returns the paths msg's `_null` FieldMask records,
+// failing the test when the message has no such field.
+func nullMaskPaths(t *testing.T, msg protoreflect.Message) []string {
+	t.Helper()
+	fd := msg.Descriptor().Fields().ByName("_null")
+	if fd == nil {
+		t.Fatalf("%s has no _null field", msg.Descriptor().FullName())
+	}
+	if fd.Number() != 536870911 || fd.Message() == nil || fd.Message().FullName() != "google.protobuf.FieldMask" {
+		t.Fatalf("%s._null is not the generated mask: number %d, type %v", msg.Descriptor().FullName(), fd.Number(), fd.Message())
+	}
+	list := msg.Get(fd).Message().Get(fd.Message().Fields().ByName("paths")).List()
+	out := make([]string, list.Len())
+	for i := range list.Len() {
+		out[i] = list.Get(i).String()
+	}
+	return out
 }
