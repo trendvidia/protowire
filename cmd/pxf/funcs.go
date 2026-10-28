@@ -160,7 +160,10 @@ func directiveList(env *funcEnv, name string) []any {
 func datasetToValueWithSchema(ds pxf.DatasetDirective, sch *schema) (any, error) {
 	var md protoreflect.MessageDescriptor
 	if sch != nil && ds.Type != "" {
-		md = sch.find(ds.Type)
+		var err error
+		if md, err = sch.lookup(ds.Type); err != nil {
+			return nil, fmt.Errorf("@dataset %s: %w", ds.Type, err)
+		}
 	}
 
 	rows := make([]any, 0, len(ds.Rows))

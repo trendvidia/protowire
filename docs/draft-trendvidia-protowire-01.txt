@@ -1193,9 +1193,12 @@ Internet-Draft                  protowire                   October 2026
    Imports.  Source-form "@proto" directives that contain "import"
    statements MUST resolve those imports from one of:
 
-   *  the bundled Protocol Buffers well-known types (e.g.
-      "google/protobuf/timestamp.proto", "google/protobuf/
-      duration.proto");
+   *  the Protocol Buffers well-known types under "google/protobuf/":
+      "any.proto", "api.proto", "descriptor.proto", "duration.proto",
+      "empty.proto", "field_mask.proto", "source_context.proto",
+      "struct.proto", "timestamp.proto", "type.proto" and
+      "wrappers.proto", and no other file protoc bundles there (issue
+      #388);
 
    *  the canonical PXF and SBE schemas ("pxf/annotations.proto", "pxf/
       bignum.proto", "pxf/secret.proto", "sbe/annotations.proto");
@@ -1222,10 +1225,7 @@ Internet-Draft                  protowire                   October 2026
    a decoder was given.  A decoder that finds a disagreement MUST either
    reject the document or report the disagreement to its caller (a
    warning suffices); either way, a document it decodes is decoded
-   against the embedded schema (issue #371).
-
-   Conformance:
-
+   against the embedded schema (issue #371).  An external type that the
 
 
 
@@ -1233,6 +1233,15 @@ Franco Jr.                 Expires 1 May 2027                  [Page 22]
 
 Internet-Draft                  protowire                   October 2026
 
+
+   embedded schema does not define can refer to one that it does, as a
+   field's type.  When the two definitions of the referred type
+   disagree, decoding through that field against the embedded definition
+   is not possible without rebuilding the external schema, so a decoder
+   that does not rebuild it MUST reject a document whose type reaches
+   such a field (issue #387).  Identical definitions raise nothing.
+
+   Conformance:
 
    *  A decoder MUST support the descriptor form.  Decoders MAY support
       the source, named, and anonymous forms.  A decoder that does not
@@ -1272,6 +1281,15 @@ Internet-Draft                  protowire                   October 2026
 
    *  "entry" — bundle/manifest sub-messages (Section 3.4.3).
 
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 23]
+
+Internet-Draft                  protowire                   October 2026
+
+
    *  "table" — reserved for a future revision describing the storage
       shape of tabular data (column types, primary keys, indexes,
       partitioning, constraints). v1 decoders MUST reject "@table" as an
@@ -1282,13 +1300,6 @@ Internet-Draft                  protowire                   October 2026
       metadata (data origin, view definitions, stored procedures and
       functions, access control). v1 decoders MUST reject these as
       unknown reserved directives.
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 23]
-
-Internet-Draft                  protowire                   October 2026
-
 
    *  "null", "true", "false" — value keywords (Section 3.9); excluded
       to keep the directive-name lexer unambiguous.
@@ -1327,17 +1338,6 @@ Internet-Draft                  protowire                   October 2026
       (Section 3.9): "1" and "0" are integer literals, and a string key
       carrying one does not match a bool K.
 
-   *  An integer key is permitted only inside a map<K,V> literal, and
-      matches a map<K,V> field whose K is one of the protobuf scalar
-      integer types (int32, int64, sint32, sint64, uint32, uint64,
-      fixed32, fixed64, sfixed32, sfixed64, bool encoded as 0/1).
-
-
-
-
-
-
-
 
 
 
@@ -1345,6 +1345,11 @@ Franco Jr.                 Expires 1 May 2027                  [Page 24]
 
 Internet-Draft                  protowire                   October 2026
 
+
+   *  An integer key is permitted only inside a map<K,V> literal, and
+      matches a map<K,V> field whose K is one of the protobuf scalar
+      integer types (int32, int64, sint32, sint64, uint32, uint64,
+      fixed32, fixed64, sfixed32, sfixed64, bool encoded as 0/1).
 
    *  A bool key — the keyword true or false, bare — is permitted only
       inside a map<K,V> literal, and matches a map<bool,V> field.  It is
@@ -1389,11 +1394,6 @@ Internet-Draft                  protowire                   October 2026
       message, never a map<K,V>); parsers MUST reject ":" at the top
       level with an error indicating that field assignments use "=".
 
-   *  A block-tail "{ ... }" with no preceding "=" or ":" is permitted
-      only in message context, where the bound field is message-typed;
-      it is equivalent to "= { ... }".  Like assignment-tail, it takes
-      an identifier key or a string key (quoted entry name, keyed
-      repeated fields only), and parsers MUST reject a block-tail with
 
 
 
@@ -1402,6 +1402,11 @@ Franco Jr.                 Expires 1 May 2027                  [Page 25]
 Internet-Draft                  protowire                   October 2026
 
 
+   *  A block-tail "{ ... }" with no preceding "=" or ":" is permitted
+      only in message context, where the bound field is message-typed;
+      it is equivalent to "= { ... }".  Like assignment-tail, it takes
+      an identifier key or a string key (quoted entry name, keyed
+      repeated fields only), and parsers MUST reject a block-tail with
       an integer key at parse time.  Map values that are themselves
       messages MUST use the explicit form "key: { ... }"; the bare-block
       form is not accepted in map context.
@@ -1445,11 +1450,6 @@ Internet-Draft                  protowire                   October 2026
    across two bindings ("labels = { a: "1" }" then "labels = { a: "2"
    }"), whatever the two values are.  Keys compare as values of the
    map's key type, so for an integer-keyed map "1: "x"" and ""1": "y""
-   name the same key.  As for singular fields, each message body is a
-   scope of its own: the same key in the maps of two list elements, or
-   of two sub-messages, occurs once in each.
-
-
 
 
 
@@ -1457,6 +1457,10 @@ Franco Jr.                 Expires 1 May 2027                  [Page 26]
 
 Internet-Draft                  protowire                   October 2026
 
+
+   name the same key.  As for singular fields, each message body is a
+   scope of its own: the same key in the maps of two list elements, or
+   of two sub-messages, occurs once in each.
 
 3.6.  String Literals
 
@@ -1502,10 +1506,6 @@ Internet-Draft                  protowire                   October 2026
    The interpretation of \xHH and octal escapes depends on the target
    field type:
 
-   *  When the surrounding string literal is bound to a proto3 string-
-      typed field, the result of escape expansion MUST be valid UTF-8.
-      Decoders MUST reject a string-typed value whose escape-expanded
-      byte sequence is not valid UTF-8 (Section 9.3).
 
 
 
@@ -1513,6 +1513,11 @@ Franco Jr.                 Expires 1 May 2027                  [Page 27]
 
 Internet-Draft                  protowire                   October 2026
 
+
+   *  When the surrounding string literal is bound to a proto3 string-
+      typed field, the result of escape expansion MUST be valid UTF-8.
+      Decoders MUST reject a string-typed value whose escape-expanded
+      byte sequence is not valid UTF-8 (Section 9.3).
 
    *  When the surrounding string literal is bound to a proto3 bytes-
       typed field, no UTF-8 constraint applies.
@@ -1557,11 +1562,6 @@ Internet-Draft                  protowire                   October 2026
    Integers are sequences of decimal digits, optionally preceded by "-".
    Hexadecimal, octal, and binary integer literals are NOT defined in
    this version.
-
-
-
-
-
 
 
 
