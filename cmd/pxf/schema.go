@@ -34,16 +34,42 @@ func (s *schema) find(name string) protoreflect.MessageDescriptor {
 	return s.reg.Find(name)
 }
 
+// lookup returns the descriptor for name to decode with, nil if it is
+// not registered, or an error when decoding through it would reach an
+// external type the document's @proto redefined differently (#387).
+func (s *schema) lookup(name string) (protoreflect.MessageDescriptor, error) {
+	md := s.find(name)
+	if err := s.check(md); err != nil {
+		return nil, err
+	}
+	return md, nil
+}
+
+// check is Registry.Check on s, which may be nil.
+func (s *schema) check(md protoreflect.MessageDescriptor) error {
+	if s == nil {
+		return nil
+	}
+	return s.reg.Check(md)
+}
+
 // typeResolver resolves the type URL of an Any block (draft § Any
 // Blocks) by the name after its last '/', as type.googleapis.com URLs
 // are resolved, through find.
 type typeResolver struct {
 	find func(string) protoreflect.MessageDescriptor
+	// check, when set, vets a resolved type as schema.check does.
+	check func(protoreflect.MessageDescriptor) error
 }
 
 func (r typeResolver) FindMessageByURL(url string) (protoreflect.MessageDescriptor, error) {
 	name := url[strings.LastIndex(url, "/")+1:]
 	if md := r.find(name); md != nil {
+		if r.check != nil {
+			if err := r.check(md); err != nil {
+				return nil, err
+			}
+		}
 		return md, nil
 	}
 	return nil, fmt.Errorf("message %q not found in resolved schema (bundled canonical types + -p + protoregistry + @proto)", name)
@@ -98,7 +124,7 @@ func (r *lazyResolver) FindMessageByURL(url string) (protoreflect.MessageDescrip
 	if r.err != nil {
 		return nil, r.err
 	}
-	return typeResolver{find: r.sch.find}.FindMessageByURL(url)
+	return typeResolver{find: r.sch.find, check: r.sch.check}.FindMessageByURL(url)
 }
 
 // registryRef is the local alias the CLI plumbs through from flags.

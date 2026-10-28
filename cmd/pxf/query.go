@@ -103,6 +103,9 @@ func runQueryCmd(_ *cobra.Command, args []string) error {
 		return err
 	}
 	rootType := resolveRootType(msgName, doc, sch)
+	if err := sch.check(rootType); err != nil {
+		return err
+	}
 	strict, err := effectiveMode(mode, rootType != nil)
 	if err != nil {
 		return err

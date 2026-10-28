@@ -654,7 +654,7 @@ Descriptor form. The bytes-literal body is a base64-encoded google.protobuf.File
 
 Imports. Source-form "@proto" directives that contain "import" statements MUST resolve those imports from one of:
 
-* the bundled Protocol Buffers well-known types (e.g. "google/protobuf/timestamp.proto", "google/protobuf/duration.proto");
+* the Protocol Buffers well-known types under "google/protobuf/": "any.proto", "api.proto", "descriptor.proto", "duration.proto", "empty.proto", "field_mask.proto", "source_context.proto", "struct.proto", "timestamp.proto", "type.proto" and "wrappers.proto", and no other file protoc bundles there (issue #388);
 
 * the canonical PXF and SBE schemas ("pxf/annotations.proto", "pxf/bignum.proto", "pxf/secret.proto", "sbe/annotations.proto");
 
@@ -664,7 +664,7 @@ Imports. Source-form "@proto" directives that contain "import" statements MUST r
 
 Imports from the filesystem, a remote schema registry, or an external schema supplied to the decoder (such as a tool's `-p` flag) are NOT permitted from inside a source-form "@proto" body, and neither is any other schema the canonical repository distributes. The list above is exhaustive. An import that does not resolve to one of the four sources above MUST be rejected. The fixtures under testdata/proto-imports/ pin both verdicts (issue #369).
 
-Precedence with external schemas. When a decoder is supplied with an external schema (via a tool's `-p` flag or a pre-bound descriptor) and the document also carries an "@proto" directive, the embedded schema is authoritative. Decoders MAY verify that the external schema agrees with the embedded one, by comparing the definitions of the message types both of them define. The file each definition lives in is not part of the comparison, since an embedded schema is not a file a decoder was given. A decoder that finds a disagreement MUST either reject the document or report the disagreement to its caller (a warning suffices); either way, a document it decodes is decoded against the embedded schema (issue #371).
+Precedence with external schemas. When a decoder is supplied with an external schema (via a tool's `-p` flag or a pre-bound descriptor) and the document also carries an "@proto" directive, the embedded schema is authoritative. Decoders MAY verify that the external schema agrees with the embedded one, by comparing the definitions of the message types both of them define. The file each definition lives in is not part of the comparison, since an embedded schema is not a file a decoder was given. A decoder that finds a disagreement MUST either reject the document or report the disagreement to its caller (a warning suffices); either way, a document it decodes is decoded against the embedded schema (issue #371). An external type that the embedded schema does not define can refer to one that it does, as a field's type. When the two definitions of the referred type disagree, decoding through that field against the embedded definition is not possible without rebuilding the external schema, so a decoder that does not rebuild it MUST reject a document whose type reaches such a field (issue #387). Identical definitions raise nothing.
 
 Conformance:
 

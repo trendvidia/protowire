@@ -54,8 +54,7 @@ type Registry struct {
 	// defined, which shadow any external definition of the same name.
 	fromDocument map[protoreflect.FullName]bool
 	// differs holds the external types a document's type shadowed with
-	// a different definition, and the types nested in them, until
-	// warnReferrers reads it.
+	// a different definition, and the types nested in them, for Check.
 	differs  map[protoreflect.FullName]bool
 	warnings []string
 }
@@ -197,40 +196,62 @@ func (r *Registry) drop(d protoreflect.Descriptor) {
 	}
 }
 
-// warnReferrers warns about each external message with a field whose
-// type a document redefined differently. A descriptor's field types are
-// bound when its file is built, so that field still holds the external
-// definition: shadowing replaces what a name looks up, not what other
-// external types refer to.
-func (r *Registry) warnReferrers() {
-	if len(r.differs) == 0 {
-		return
+// Check reports an error when md, or a message type reachable from it
+// through its fields, has a field still bound to an external type that a
+// document's @proto redefined differently. A descriptor's field types are
+// bound when its file is built, so shadowing replaces what a name looks
+// up but not what other external types refer to: decoding through such a
+// field would use the external definition, where the draft says a
+// document is decoded against its embedded schema. The draft lets a
+// decoder reject a disagreement, and the owner decided that is what pxf
+// does here (#387). Identical definitions pass: the field then has the
+// document's definition in all but identity.
+func (r *Registry) Check(md protoreflect.MessageDescriptor) error {
+	if r == nil || md == nil || len(r.differs) == 0 {
+		return nil
 	}
-	names := make([]protoreflect.FullName, 0, len(r.byFullName))
-	for name := range r.byFullName {
-		if !r.fromDocument[name] {
-			names = append(names, name)
+	seen := map[protoreflect.FullName]bool{}
+	var walk func(m protoreflect.MessageDescriptor) error
+	walk = func(m protoreflect.MessageDescriptor) error {
+		if seen[m.FullName()] {
+			return nil
 		}
-	}
-	slices.Sort(names)
-	for _, name := range names {
-		md := r.byFullName[name]
-		if md.IsMapEntry() {
-			continue
-		}
-		warned := map[protoreflect.FullName]bool{}
-		for i := range md.Fields().Len() {
-			t := fieldType(md.Fields().Get(i))
-			if t == nil || !r.differs[t.FullName()] || warned[t.FullName()] {
+		seen[m.FullName()] = true
+		fields := m.Fields()
+		for i := range fields.Len() {
+			f := fields.Get(i)
+			t := fieldType(f)
+			if t == nil {
 				continue
 			}
-			warned[t.FullName()] = true
-			r.warnings = append(r.warnings, fmt.Sprintf(
-				"%s from %s still uses %s's %s, not the @proto one",
-				name, md.ParentFile().Path(), t.ParentFile().Path(), t.FullName()))
+			if r.differs[t.FullName()] && !r.isDocument(t) {
+				return fmt.Errorf("%s.%s, from %s, has type %s as %s defines it, but the document's @proto defines %s differently; add %s to the @proto, or bring %s in line with it",
+					m.FullName(), f.Name(), m.ParentFile().Path(), t.FullName(), t.ParentFile().Path(), t.FullName(), m.FullName(), t.ParentFile().Path())
+			}
+			if tm, ok := t.(protoreflect.MessageDescriptor); ok {
+				if err := walk(tm); err != nil {
+					return err
+				}
+			}
 		}
+		return nil
 	}
-	r.differs = nil
+	return walk(md)
+}
+
+// isDocument reports whether d is the document's own definition of its
+// name, as against an external one that it shadowed.
+func (r *Registry) isDocument(d protoreflect.Descriptor) bool {
+	if !r.fromDocument[d.FullName()] {
+		return false
+	}
+	switch d := d.(type) {
+	case protoreflect.MessageDescriptor:
+		return r.byFullName[d.FullName()] == d
+	case protoreflect.EnumDescriptor:
+		return r.enums[d.FullName()] == d
+	}
+	return false
 }
 
 // fieldType returns the message or enum f holds, a map's value type for
@@ -376,6 +397,27 @@ var InDocumentImports = []string{
 	"envelope/v1/envelope.proto",
 }
 
+// DocumentWellKnownTypes are the google/protobuf/ files a source-form
+// @proto may import (draft § The "@proto" Directive, decided by the owner
+// on #388): the well-known types protobuf documents, and descriptor.proto,
+// which custom options need and pxf/ and sbe/annotations.proto import.
+// Every other file protoc bundles there, such as compiler/plugin.proto and
+// the language features files, is refused. field_mask.proto must stay: the
+// generated `_null` mask imports it.
+var DocumentWellKnownTypes = []string{
+	"google/protobuf/any.proto",
+	"google/protobuf/api.proto",
+	"google/protobuf/descriptor.proto",
+	"google/protobuf/duration.proto",
+	"google/protobuf/empty.proto",
+	"google/protobuf/field_mask.proto",
+	"google/protobuf/source_context.proto",
+	"google/protobuf/struct.proto",
+	"google/protobuf/timestamp.proto",
+	"google/protobuf/type.proto",
+	"google/protobuf/wrappers.proto",
+}
+
 // CompileSources compiles opts into reg in two passes.
 //
 // The external pass compiles BundledFiles and UserFiles. Its imports
@@ -426,16 +468,27 @@ func compileDocument(reg *Registry, opts CompileOptions) error {
 			virtual[v.Name] = v.Body
 			files = append(files, v.Name)
 		}
-		accessor := func(filename string) (io.ReadCloser, error) {
+		// Not WithStandardImports, which would serve every file protoc
+		// bundles under google/protobuf/ once this refused it. An allowed
+		// well-known type is answered "not found", and the compiler's own
+		// copy serves it; any other error stops the lookup.
+		resolver := protocompile.ResolverFunc(func(filename string) (protocompile.SearchResult, error) {
 			if data, ok := virtual[filename]; ok {
-				return io.NopCloser(bytes.NewReader(data)), nil
+				return protocompile.SearchResult{Source: bytes.NewReader(data)}, nil
 			}
 			if slices.Contains(InDocumentImports, filename) {
-				return readBundled(filename)
+				rc, err := readBundled(filename)
+				if err != nil {
+					return protocompile.SearchResult{}, err
+				}
+				return protocompile.SearchResult{Source: rc}, nil
 			}
-			return nil, fmt.Errorf("a @proto may import only the well-known types, %s and another @proto in the document", strings.Join(InDocumentImports, ", "))
-		}
-		result, err := compile(accessor, files)
+			if slices.Contains(DocumentWellKnownTypes, filename) {
+				return protocompile.SearchResult{}, nil
+			}
+			return protocompile.SearchResult{}, fmt.Errorf("a @proto may import only another @proto in the document, %s, or the well-known types %s", strings.Join(InDocumentImports, ", "), strings.Join(DocumentWellKnownTypes, ", "))
+		})
+		result, err := compileWith(resolver, files)
 		if err != nil {
 			return fmt.Errorf("compile schemas: %w", err)
 		}
@@ -451,7 +504,6 @@ func compileDocument(reg *Registry, opts CompileOptions) error {
 			return err
 		}
 	}
-	reg.warnReferrers()
 	return nil
 }
 
@@ -459,8 +511,13 @@ func compileDocument(reg *Registry, opts CompileOptions) error {
 // asks for it, resolving imports through accessor and the well-known
 // types.
 func compile(accessor func(string) (io.ReadCloser, error), files []string) ([]protoreflect.FileDescriptor, error) {
+	return compileWith(protocompile.WithStandardImports(&protocompile.SourceResolver{Accessor: accessor}), files)
+}
+
+// compileWith is compile with the resolver given whole.
+func compileWith(resolver protocompile.Resolver, files []string) ([]protoreflect.FileDescriptor, error) {
 	comp := protocompile.Compiler{
-		Resolver: protocompile.WithStandardImports(&protocompile.SourceResolver{Accessor: accessor}),
+		Resolver: resolver,
 		NullMask: NullMask,
 	}
 	result, err := comp.Compile(context.Background(), files...)
