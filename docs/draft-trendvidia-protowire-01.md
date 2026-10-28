@@ -4,7 +4,7 @@ docname: draft-trendvidia-protowire-01
 title: The Proto eXpressive Format (PXF) and the protowire Encoding Family
 abbrev: protowire
 category: info
-date: 2026-10-27
+date: 2026-10-28
 ipr: trust200902
 stream: IETF
 area: Applications
@@ -569,7 +569,7 @@ Three-state cells. Each row cell denotes one of three states, carried into the b
 
 Row arity. Each row MUST have the same number of cells as the header column list. Decoders MUST reject a row whose arity differs from the column count. Trailing-empty shorthand (a row with fewer cells implying absent tail columns) is not permitted in v1.
 
-Column paths. A column entry is a field name declared on \<type\>, or a dotted path to a field inside a sub-message of \<type\>: "desc.energy" names the field "energy" of the message-typed field "desc". A row binds as the message body built by grouping its non-empty cells by path prefix. A non-empty cell in column "a.b.c" contributes the entry "c = \<value\>" inside the block "a { b { ... } }", and every cell of the same row whose column starts with "a." contributes to that same one "a" block. One block per prefix is required, not a style: two blocks for one sub-message merge, but two blocks for one oneof member are rejected, so cells written as separate blocks would fail whenever two columns reach the same oneof member.
+Column paths. A column entry is a field name declared on \<type\>, or a dotted path to a field inside a sub-message of \<type\>: "desc.energy" names the field "energy" of the message-typed field "desc". A row binds as the message body built by grouping its non-empty cells by path prefix. A non-empty cell in column "a.b.c" contributes the entry "c = \<value\>" inside the block "a { b { ... } }", and every cell of the same row whose column starts with "a." contributes to that same one "a" block. One block per prefix is required, not a style: two blocks for one sub-message bind that field twice, which a body may not do ({{entries-and-keys}}), so cells written as separate blocks would fail whenever two columns share a prefix.
 
 ~~~
 @dataset ev.Event ( id, desc.energy, desc.tempo.min_bpm, desc.tags )
@@ -725,6 +725,8 @@ The three entry tails are NOT interchangeable; the grammar in {{abnf-grammar}} s
 Inside a "{ ... }" block the parser cannot statically tell whether the surrounding field is message-typed or map-typed; both *field-entry* and *map-entry* are accepted in that position and the message-vs-map disambiguation is performed by the schema-resolution step that runs after parsing.
 
 A repeated field is written with a list value ("tags = \[A, B\]"). A repeated field MAY be bound more than once. Its value is then the elements of every binding, concatenated in document order, so "tags = \[A\]" followed by "tags = \[B\]" denotes the same value as "tags = \[A, B\]". A decoder MUST reject a repeated field bound to a scalar ("tags = A") or to a block ("items { ... }" or "items = { ... }"). The one exception is the keyed surface form of a keyed repeated field ({{keyed-surface-form}}): its block holds named elements, not a single element.
+
+A singular field, meaning any field that is neither repeated nor a map, MUST NOT be bound more than once in one message body, and a decoder MUST reject the second binding (issue #347). That holds whatever the two bindings are: two different values, the same value twice ("s = \"a\"" twice), "null" and then a value, or two blocks for one message-typed field ("m { a = 1 }" then "m { b = 2 }", or "m = { ... }" then "m { ... }"). Two blocks do not merge. A oneof's members are singular fields, so a member bound twice is rejected by this rule, and binding a second member of the same oneof is rejected as {{booleans-null-and-identifier-values}} says. Each message body is a scope of its own: a field bound once in each of two sub-messages, or once in each element of a list, is bound once in each. The fixtures under testdata/duplicates/ pin each case.
 
 ## String Literals {#string-literals}
 
