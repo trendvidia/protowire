@@ -68,6 +68,17 @@ def pb_decimal(scale: int) -> bytes:
     return b"\x12" + varint(len(sub)) + sub
 
 
+def pb_bigfloat(mantissa: int, exponent: int, prec: int = 64) -> bytes:
+    """PB binary: BigNumHolder.big_float (field 3) carrying pxf.BigFloat
+    with the given mantissa, exponent (a plain int32 varint, sign-extended
+    to 64 bits when negative) and precision."""
+    mant = mantissa.to_bytes((mantissa.bit_length() + 7) // 8, "big")
+    sub = b"\x0a" + varint(len(mant)) + mant
+    sub += b"\x10" + varint(exponent & 0xFFFFFFFFFFFFFFFF)
+    sub += b"\x18" + varint(prec)
+    return b"\x1a" + varint(len(sub)) + sub
+
+
 def pb_nested_tree(depth: int) -> bytes:
     """PB binary: `depth` levels of length-delimited Tree.child=1 (wire-type 2).
 
@@ -179,6 +190,27 @@ def main() -> None:
     write_bytes(HERE / "pb" / "decimal-huge-scale.binpb", pb_decimal(2**31 - 1))
     write_bytes(HERE / "pb" / "decimal-huge-negative-scale.binpb", pb_decimal(-(2**31)))
     write_bytes(HERE / "pb" / "decimal-scale-4096.binpb", pb_decimal(4096))
+
+    # --- BigFloat exponent bound (#281) ---
+    # HARDENING § Mandatory limits bounds the binary exponent of a
+    # pxf.BigFloat value (wire exponent + mantissa bit length) by
+    # MaxBigFloatExponent = 16384: rendering it in decimal costs time that
+    # grows with the square of that exponent, and five wire bytes or a
+    # thirteen-byte literal set it. Mantissa 1 has one bit, so exponent
+    # 16383 is exactly the bound and 16384 is one past it.
+    write_bytes(HERE / "pb" / "bigfloat-huge-exponent.binpb", pb_bigfloat(1, 2**31 - 1))
+    write_bytes(HERE / "pb" / "bigfloat-huge-negative-exponent.binpb", pb_bigfloat(1, -(2**31)))
+    write_bytes(HERE / "pb" / "bigfloat-exponent-past-bound.binpb", pb_bigfloat(1, 16384))
+    write_bytes(HERE / "pb" / "bigfloat-exponent-at-bound.binpb", pb_bigfloat(1, 16383))
+    write_bytes(HERE / "pb" / "bigfloat-negative-exponent-at-bound.binpb", pb_bigfloat(1, -16385))
+    write_text(
+        HERE / "pxf" / "bigfloat-huge-exponent.pxf",
+        "@type adversarial.v1.BigNumHolder\n\nbig_float = 1e646456992\n",
+    )
+    write_text(
+        HERE / "pxf" / "bigfloat-exponent-at-bound.pxf",
+        "@type adversarial.v1.BigNumHolder\n\nbig_float = 1e4932\n",
+    )
 
     # --- PB: deep submessage ---
     write_bytes(HERE / "pb" / "deep-submessage-200.binpb", pb_nested_tree(200))
