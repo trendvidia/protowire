@@ -83,3 +83,59 @@ func TestQuery_MapsRoundTrip(t *testing.T) {
 		})
 	}
 }
+
+// pxf query keeps every binding of a field bound twice: two lists
+// concatenate (#337) and two maps merge (#396), as a decoder reads them.
+// Before, the loader kept only the last binding, so `.` printed one list
+// or map where the document had two.
+func TestQuery_BoundTwiceKeepsBoth(t *testing.T) {
+	dir := t.TempDir()
+	protoPath := filepath.Join(dir, "qm.proto")
+	if err := os.WriteFile(protoPath, []byte(queryMapsProto), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	md := func() *schema {
+		sch, err := loadSchema([]string{protoPath}, nil, registryRef{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return sch
+	}().find("qm.v1.M")
+	for name, body := range map[string]string{
+		"repeated":             "many = [{ name = \"a\" }]\nmany = [{ name = \"b\" }]",
+		"map":                  "s = {\n  a: \"1\"\n}\ns = {\n  b: \"2\"\n}",
+		"map in a sub-message": "one { counts = {\n  a: 1\n} }\none { counts = {\n  b: 2\n} }",
+	} {
+		t.Run(name, func(t *testing.T) {
+			in := "@type qm.v1.M\n" + body + "\n"
+			inPath := filepath.Join(t.TempDir(), "in.pxf")
+			if err := os.WriteFile(inPath, []byte(in), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			out, err := runCLI(t, "query", "-p", protoPath, ".", inPath)
+			if err != nil {
+				t.Fatalf("query: %v", err)
+			}
+			// A message bound twice is rejected since #347, so only the
+			// repeated and map cases have a decoded value to compare to.
+			got, err := pxf.UnmarshalDescriptor([]byte(out), md)
+			if err != nil {
+				t.Fatalf("query's output does not decode: %v\n%s", err, out)
+			}
+			if name == "map in a sub-message" {
+				counts := got.Get(md.Fields().ByName("one")).Message()
+				if n := counts.Get(counts.Descriptor().Fields().ByName("counts")).Map().Len(); n != 2 {
+					t.Errorf("one.counts has %d entries, want 2:\n%s", n, out)
+				}
+				return
+			}
+			want, err := pxf.UnmarshalDescriptor([]byte(in), md)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !proto.Equal(want, got) {
+				t.Errorf("query dropped a binding:\nin:\n%s\nout:\n%s", in, out)
+			}
+		})
+	}
+}
