@@ -393,3 +393,63 @@ func firstSentence(s string) string {
 	}
 	return s
 }
+
+// explicitPresence reports whether f, a field of mi, is singular with
+// explicit presence, the fields a PXF null binds to (#380): a message
+// field, a oneof member, a proto3 optional scalar, a proto2 optional
+// one, or an editions scalar whose field_presence feature, resolved
+// field first, then each enclosing message, then the file, is EXPLICIT
+// (the edition 2023 default).
+func (m *model) explicitPresence(mi *messageInfo, f *descriptorpb.FieldDescriptorProto) bool {
+	if f.GetLabel() == descriptorpb.FieldDescriptorProto_LABEL_REPEATED {
+		return false
+	}
+	switch f.GetType() {
+	case descriptorpb.FieldDescriptorProto_TYPE_MESSAGE, descriptorpb.FieldDescriptorProto_TYPE_GROUP:
+		return true
+	}
+	if f.OneofIndex != nil {
+		return true
+	}
+	fd := m.fileNamed(mi.file)
+	switch fd.GetSyntax() {
+	case "proto3":
+		return f.GetProto3Optional()
+	case "editions":
+		return m.fieldPresence(mi, f, fd) == descriptorpb.FeatureSet_EXPLICIT
+	}
+	return f.GetLabel() == descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL
+}
+
+// fieldPresence resolves f's field_presence feature: f's own, then each
+// enclosing message's from the innermost out, then the file's, and
+// EXPLICIT, the default of every edition so far, when none sets it.
+func (m *model) fieldPresence(mi *messageInfo, f *descriptorpb.FieldDescriptorProto, fd *descriptorpb.FileDescriptorProto) descriptorpb.FeatureSet_FieldPresence {
+	if p := f.GetOptions().GetFeatures().GetFieldPresence(); p != descriptorpb.FeatureSet_FIELD_PRESENCE_UNKNOWN {
+		return p
+	}
+	for fqn := mi.fqn; fqn != ""; fqn = fqn[:max(strings.LastIndex(fqn, "."), 0)] {
+		if enc, ok := m.messages[fqn]; ok {
+			if p := enc.desc.GetOptions().GetFeatures().GetFieldPresence(); p != descriptorpb.FeatureSet_FIELD_PRESENCE_UNKNOWN {
+				return p
+			}
+		}
+		if !strings.Contains(fqn, ".") {
+			break
+		}
+	}
+	if p := fd.GetOptions().GetFeatures().GetFieldPresence(); p != descriptorpb.FeatureSet_FIELD_PRESENCE_UNKNOWN {
+		return p
+	}
+	return descriptorpb.FeatureSet_EXPLICIT
+}
+
+// fileNamed returns the file named name, or nil.
+func (m *model) fileNamed(name string) *descriptorpb.FileDescriptorProto {
+	for _, f := range m.files {
+		if f.GetName() == name {
+			return f
+		}
+	}
+	return nil
+}
