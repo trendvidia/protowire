@@ -1743,7 +1743,7 @@ implementation added it automatically (protowire, protowire-go, all nine
 ports and protocompile only look it up by name), and no annotation asked
 for it. So in practice a null was lost on the first binary hop.
 
-**Resolution (2026-10-28, GH protocompile#248, PR #TBD):** RFC-001 §8.6.
+**Resolution (2026-10-28, GH protocompile#248, PR #378):** RFC-001 §8.6.
 Lowering may add `_null` at field number `536870911` to every message
 with a field able to hold a null, off by default in the compiler and
 enabled by protowire's tools. Authored collisions are errors, reserved
