@@ -43,6 +43,9 @@ var nullsVerdicts = map[string]struct{ msg, reject, unset string }{
 	"proto2-scalar.pxf":         {msg: "nulls.v1.Legacy", unset: "p"},
 	"required-optional.pxf":     {msg: "nulls.v1.Required", unset: "r"},
 	"default-optional.pxf":      {msg: "nulls.v1.Defaulted", unset: "d"},
+	// Editions (#380): a scalar's presence is its field_presence feature.
+	"editions-explicit.pxf":     {msg: "nulls.ed.v1.Ed", unset: "explicit_scalar"},
+	"err-editions-implicit.pxf": {msg: "nulls.ed.v1.Ed", reject: `null is not allowed on scalar field "implicit_scalar"`},
 }
 
 // nullsKnownGaps maps fixtures the pinned protowire-go does not yet meet
@@ -61,7 +64,7 @@ func TestNulls_Corpus(t *testing.T) {
 	if len(files) != len(nullsVerdicts) {
 		t.Errorf("found %d fixtures, the verdict table lists %d", len(files), len(nullsVerdicts))
 	}
-	schemaFiles := []string{filepath.Join(nullsDir, "nulls.proto"), filepath.Join(nullsDir, "nulls_proto2.proto")}
+	schemaFiles := []string{filepath.Join(nullsDir, "nulls.proto"), filepath.Join(nullsDir, "nulls_proto2.proto"), filepath.Join(nullsDir, "nulls_editions.proto")}
 	reg, err := schemaresolve.Resolve(schemaresolve.CompileOptions{
 		UserFiles:    schemaFiles,
 		BundledFiles: schemaresolve.CompileBundledAll,
@@ -92,7 +95,7 @@ func TestNulls_Corpus(t *testing.T) {
 				t.Errorf("Parse: a null is legal syntax everywhere, got %v", err)
 			}
 			msg, res, derr := pxf.UnmarshalFullDescriptor(data, md)
-			_, verr := runCLI(t, "validate", "-p", schemaFiles[0], "-p", schemaFiles[1], "-m", msgName, f)
+			_, verr := runCLI(t, "validate", "-p", schemaFiles[0], "-p", schemaFiles[1], "-p", schemaFiles[2], "-m", msgName, f)
 			if gap, known := nullsKnownGaps[name]; known {
 				skipGap(t, "nullsKnownGaps", gap, want.reject == "", derr, verr)
 			}
