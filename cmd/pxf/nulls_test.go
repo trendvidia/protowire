@@ -48,16 +48,10 @@ var nullsVerdicts = map[string]struct{ msg, reject, unset string }{
 // nullsKnownGaps maps fixtures the pinned protowire-go does not yet meet
 // to the change that closes the gap and what the pinned release does
 // instead. Each is asserted to still hold, so the go.mod bump that closes
-// it fails the test until it is removed. v1.10.0 shipped the stricter
-// rule #339 first decided (protowire-go#150), which rejects null on every
-// scalar that is not a wrapper; the owner then chose option 3.
-var nullsKnownGaps = map[string]datasetGap{
-	"optional-scalar.pxf":   {by: "protowire-go#182", old: `null is not allowed on scalar field "o"`},
-	"oneof-scalar.pxf":      {by: "protowire-go#182", old: `null is not allowed on scalar field "ks"`},
-	"proto2-scalar.pxf":     {by: "protowire-go#182", old: `null is not allowed on scalar field "p"`},
-	"required-optional.pxf": {by: "protowire-go#182", old: `null is not allowed on scalar field "r"`},
-	"default-optional.pxf":  {by: "protowire-go#182", old: `null is not allowed on scalar field "d"`},
-}
+// it fails the test until it is removed. Empty since protowire-go
+// v1.11.0, which accepts null on a scalar with explicit presence
+// (protowire-go#182, #339 option 3).
+var nullsKnownGaps = map[string]datasetGap{}
 
 func TestNulls_Corpus(t *testing.T) {
 	files, err := filepath.Glob(filepath.Join(nullsDir, "*.pxf"))

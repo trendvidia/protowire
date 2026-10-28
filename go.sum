@@ -47,8 +47,8 @@ github.com/trendvidia/protocompile v0.35.1 h1:lwfw6Zdwn6JX8I189w/gDcIzREJ+3K+JTC
 github.com/trendvidia/protocompile v0.35.1/go.mod h1:UNTOsxI9xwsCnwIuNEfAVqRivwSwbmzeurVOT8b3DYk=
 github.com/trendvidia/protoregistry v0.72.0 h1:vvuVe9O/t6XL5uWVD/DIGJ40pRDY+XEQNOvD3nzZZEY=
 github.com/trendvidia/protoregistry v0.72.0/go.mod h1:7pFkNB/vToykc5b/TGXPx7AzS+jRGGUxwUsPRKL+yVc=
-github.com/trendvidia/protowire-go v1.10.0 h1:8ISnEQ2tPMTR3bppC8Q4ghrG4hWTG0zQFkcCupe84ms=
-github.com/trendvidia/protowire-go v1.10.0/go.mod h1:8Fda5+lHl1BkLpE1HTL/7j08kwDoyD8nKUDD4wWOSyQ=
+github.com/trendvidia/protowire-go v1.11.0 h1:l5xqMPCwEfQWRF85djt4MVDQF4KdDZul5EeeD1pPzo0=
+github.com/trendvidia/protowire-go v1.11.0/go.mod h1:R+KKnxU5IOZal/vEYxJzD4wQEyKPhHlBWf1xwjkRX9Y=
 go.yaml.in/yaml/v3 v3.0.4/go.mod h1:DhzuOOF2ATzADvBadXxruRBLzYTpT36CKvDb3+aBEFg=
 go.yaml.in/yaml/v3 v3.0.5 h1:N6y/pJk8buWs9NY5ERU2HSMfm+IuD/OtfdAnq6kESPw=
 go.yaml.in/yaml/v3 v3.0.5/go.mod h1:HVTZu1O7/Vkt2N+BFy8Zza+lnLsABggaTM2ZpNIGuKg=
