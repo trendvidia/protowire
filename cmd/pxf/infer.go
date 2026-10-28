@@ -5,7 +5,9 @@ package main
 import (
 	"fmt"
 	"io"
+	"maps"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -98,11 +100,13 @@ func pickDataset(doc *loadedDoc, format string) (pxf.DatasetDirective, error) {
 	return doc.datasets[0], nil
 }
 
-// inferredType is the lattice the candidate-fix phase walks per
-// column. Types widen along: bool → int → float → string. Anything
-// that doesn't fit in float64 ergonomics (date-like literals, free
-// strings) terminates at string. nullable is orthogonal — sticky once
-// any null cell appears.
+// inferredType is the field type inference gives a column. Only one
+// widening holds: an int cell binds to a double field, so int and float
+// join to double. Every other pair has no field type a PXF decoder binds
+// both to (a string field rejects 1, an int64 field rejects true,
+// measured on #360), so a column that mixes them is refused rather than
+// typed string, which would give a schema that rejects its own input.
+// Whether a column holds a null is orthogonal: see columnReport.
 type inferredType int
 
 const (
@@ -110,6 +114,9 @@ const (
 	typeInt
 	typeFloat
 	typeString
+	typeBytes
+	typeTimestamp
+	typeDuration
 )
 
 func (t inferredType) protoType() string {
@@ -120,25 +127,66 @@ func (t inferredType) protoType() string {
 		return "int64"
 	case typeFloat:
 		return "double"
-	case typeString:
-		return "string"
+	case typeBytes:
+		return "bytes"
+	case typeTimestamp:
+		return "google.protobuf.Timestamp"
+	case typeDuration:
+		return "google.protobuf.Duration"
 	}
 	return "string"
 }
 
+// isMessage reports whether t is a message type, which has presence of
+// its own and so holds a null as it is.
+func (t inferredType) isMessage() bool {
+	return t == typeTimestamp || t == typeDuration
+}
+
+// wrapperType is the wrapper a scalar column that holds a null becomes
+// (decided by the owner on #360): since #339 a null binds only to a field
+// with explicit presence, and a wrapper is the scalar's nullable form.
+func (t inferredType) wrapperType() string {
+	switch t {
+	case typeBool:
+		return "google.protobuf.BoolValue"
+	case typeInt:
+		return "google.protobuf.Int64Value"
+	case typeFloat:
+		return "google.protobuf.DoubleValue"
+	case typeBytes:
+		return "google.protobuf.BytesValue"
+	}
+	return "google.protobuf.StringValue"
+}
+
+// noun names t in a diagnostic.
+func (t inferredType) noun() string {
+	switch t {
+	case typeBool:
+		return "a bool"
+	case typeInt:
+		return "an integer"
+	case typeFloat:
+		return "a float"
+	case typeBytes:
+		return "a bytes literal"
+	case typeTimestamp:
+		return "a timestamp"
+	case typeDuration:
+		return "a duration"
+	}
+	return "a string"
+}
+
 func (t inferredType) String() string { return t.protoType() }
 
-// classifyCellValue picks an inferredType for one cell. Mirrors the
-// CSV adapter's per-cell classifier but expressed in the inference
-// lattice. nil cells (absent in PXF / empty in CSV) don't constrain
-// the type.
-func classifyCellValue(c pxf.Value) (inferredType, bool) {
-	if c == nil {
-		return 0, false
-	}
-	switch v := c.(type) {
+// classifyCellValue picks an inferredType for one non-null cell. ok is
+// false for a cell no inferred type holds: an identifier, which binds
+// only to an enum field, and infer-schema infers no enums.
+func classifyCellValue(c pxf.Value) (t inferredType, ok bool) {
+	switch c.(type) {
 	case *pxf.BoolVal:
-		_ = v
 		return typeBool, true
 	case *pxf.IntVal:
 		return typeInt, true
@@ -146,14 +194,14 @@ func classifyCellValue(c pxf.Value) (inferredType, bool) {
 		return typeFloat, true
 	case *pxf.StringVal:
 		return typeString, true
-	case *pxf.IdentVal:
-		// Identifiers in a CSV/PXF cell don't have a clean proto
-		// type without an enum context; treat as string for the
-		// purpose of schema inference.
-		return typeString, true
-	default:
-		return typeString, true
+	case *pxf.BytesVal:
+		return typeBytes, true
+	case *pxf.TimestampVal:
+		return typeTimestamp, true
+	case *pxf.DurationVal:
+		return typeDuration, true
 	}
+	return 0, false
 }
 
 // columnReport is the per-column accumulator the inference loop
@@ -163,8 +211,9 @@ type columnReport struct {
 	name        string
 	typ         inferredType
 	typSet      bool
-	nullable    bool
-	firstSeenAt int // 1-indexed row number where typ was first set
+	nullable    bool // an empty cell: the field is optional
+	holdsNull   bool // a null cell: the field needs explicit presence that binds null (#360)
+	firstSeenAt int  // 1-indexed row number where typ was first set
 }
 
 // inferReport is the full per-column accumulator + any collected
@@ -204,6 +253,9 @@ func inferDataset(ds pxf.DatasetDirective, sampleRows int, fullScan bool) (*infe
 				continue
 			}
 			switch cell.(type) {
+			case *pxf.NullVal:
+				cr.holdsNull = true
+				continue
 			case *pxf.ListVal, *pxf.BlockVal:
 				// A value cell (draft §3.4.4) is a repeated field or a
 				// sub-message, which the scalar lattice cannot type (#348).
@@ -211,7 +263,7 @@ func inferDataset(ds pxf.DatasetDirective, sampleRows int, fullScan bool) (*infe
 			}
 			t, ok := classifyCellValue(cell)
 			if !ok {
-				continue
+				return nil, fmt.Errorf("infer-schema: row %d, column %q holds an identifier, which binds only to an enum field; infer-schema infers no enums, so write that field by hand", rowNum, cr.name)
 			}
 			if !cr.typSet {
 				// First non-null cell in this column — fix the candidate.
@@ -223,12 +275,29 @@ func inferDataset(ds pxf.DatasetDirective, sampleRows int, fullScan bool) (*infe
 			if t == cr.typ {
 				continue
 			}
+			widened, ok := widen(cr.typ, t)
+			if !ok {
+				// No field type binds both, inside the sample window or
+				// past it, so this is a refusal and not a contradiction a
+				// larger window could fix (decided by the owner on #360).
+				// --full-scan collects these with the contradictions.
+				msg := fmt.Sprintf("column %q holds %s (row %d) and %s (row %d), and no field type holds both; write that field by hand", cr.name, cr.typ.noun(), cr.firstSeenAt, t.noun(), rowNum)
+				if !fullScan {
+					return nil, fmt.Errorf("infer-schema: %s", msg)
+				}
+				rep.contradictions = append(rep.contradictions, msg)
+				continue
+			}
+			if widened == cr.typ {
+				// The candidate already holds this cell: an int in a
+				// double column.
+				continue
+			}
 			// Conflict. Widen vs. abort?
 			//
 			// Within the sample window: widen along the type lattice
 			// (the candidate-fix phase is allowed to broaden).
 			// Past the sample window: abort or accumulate.
-			widened := widen(cr.typ, t)
 			if rowNum <= sampleRows {
 				cr.typ = widened
 				continue
@@ -265,22 +334,41 @@ func inferDataset(ds pxf.DatasetDirective, sampleRows int, fullScan bool) (*infe
 	return rep, nil
 }
 
-// widen returns the join of two inferred types along the lattice.
-// Used during the sample window when the candidate hasn't been pinned
-// yet. After the window, conflicts become contradictions.
-func widen(a, b inferredType) inferredType {
-	if a > b {
-		return a
+// widen returns the type that holds both a and b, and false when none
+// does. The only join of two different types is int and float to double.
+func widen(a, b inferredType) (inferredType, bool) {
+	switch {
+	case a == b:
+		return a, true
+	case (a == typeInt && b == typeFloat) || (a == typeFloat && b == typeInt):
+		return typeFloat, true
 	}
-	return b
+	return 0, false
 }
 
 // emitProtoFile writes a minimal .proto matching the inference report.
 // fields use snake_case names as-is, sequential numbers from 1, and
 // `optional` keyword on nullable columns so the absent-vs-zero
-// distinction round-trips through proto3 presence.
+// distinction round-trips through proto3 presence. A scalar column that
+// holds a null is its wrapper type instead, and a timestamp or duration
+// column is its message type, which has presence of its own.
 func emitProtoFile(w io.Writer, fqName string, rep *inferReport) error {
 	pkg, msg := splitDottedName(fqName)
+	fields := make([]string, len(rep.columns))
+	imports := map[string]bool{}
+	for i, col := range rep.columns {
+		typ, prefix := col.typ.protoType(), ""
+		switch {
+		case col.typ.isMessage():
+			imports["google/protobuf/"+strings.ToLower(strings.TrimPrefix(typ, "google.protobuf."))+".proto"] = true
+		case col.holdsNull:
+			typ = col.typ.wrapperType()
+			imports["google/protobuf/wrappers.proto"] = true
+		case col.nullable:
+			prefix = "optional "
+		}
+		fields[i] = fmt.Sprintf("  %s%s %s = %d;\n", prefix, typ, col.name, i+1)
+	}
 	var b strings.Builder
 	b.WriteString("// SPDX-License-Identifier: MIT\n")
 	b.WriteString("// Copyright (c) 2026 TrendVidia, LLC.\n")
@@ -291,17 +379,19 @@ func emitProtoFile(w io.Writer, fqName string, rep *inferReport) error {
 		fmt.Fprintf(&b, "package %s;\n", pkg)
 	}
 	b.WriteString("\n")
+	if len(imports) > 0 {
+		for _, imp := range slices.Sorted(maps.Keys(imports)) {
+			fmt.Fprintf(&b, "import %q;\n", imp)
+		}
+		b.WriteString("\n")
+	}
 	fmt.Fprintf(&b, "message %s {\n", msg)
 
 	// Header order is the natural one — column 0 first, column 1
 	// second, etc. — which keeps output deterministic across runs
 	// against the same input.
-	for i, col := range rep.columns {
-		prefix := ""
-		if col.nullable {
-			prefix = "optional "
-		}
-		fmt.Fprintf(&b, "  %s%s %s = %d;\n", prefix, col.typ.protoType(), col.name, i+1)
+	for _, f := range fields {
+		b.WriteString(f)
 	}
 	b.WriteString("}\n")
 	_, err := io.WriteString(w, b.String())
