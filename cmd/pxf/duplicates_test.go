@@ -33,20 +33,11 @@ var duplicatesVerdicts = map[string]string{
 	"repeated-twice.pxf":                "",
 }
 
-// duplicatesKnownGaps are fixtures protowire-go v1.10.0 does not yet
-// meet: it keeps the last scalar and merges two blocks, so it accepts
-// them (old ""). Each is asserted to still hold, so the go.mod bump that
-// closes protowire-go#184 fails the test until its entries go.
-var duplicatesKnownGaps = map[string]datasetGap{
-	"err-scalar-twice.pxf":              {by: "protowire-go#184"},
-	"err-scalar-same-value.pxf":         {by: "protowire-go#184"},
-	"err-wrapper-twice.pxf":             {by: "protowire-go#184"},
-	"err-message-twice.pxf":             {by: "protowire-go#184"},
-	"err-message-assign-then-block.pxf": {by: "protowire-go#184"},
-	"err-nested-scalar-twice.pxf":       {by: "protowire-go#184"},
-	"err-null-then-value.pxf":           {by: "protowire-go#184"},
-	"err-optional-twice.pxf":            {by: "protowire-go#184"},
-}
+// duplicatesKnownGaps are fixtures the pinned protowire-go does not yet
+// meet. Each is asserted to still hold, so the go.mod bump that closes
+// one fails the test until its entry goes. Empty since protowire-go
+// v1.11.0, which rejects a singular field bound twice (protowire-go#184).
+var duplicatesKnownGaps = map[string]datasetGap{}
 
 func TestDuplicates_Corpus(t *testing.T) {
 	files, err := filepath.Glob(filepath.Join(duplicatesDir, "*.pxf"))

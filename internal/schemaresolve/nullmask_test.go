@@ -77,13 +77,14 @@ func TestNullMask_RoundTrip(t *testing.T) {
 		t.Errorf("wrapper null lost in the round trip; got:\n%s", out)
 	}
 
-	// The optional scalar needs protowire-go#182, which accepts null on a
-	// field with explicit presence (#339, option 3). The pinned release
-	// still rejects it; this fails once the bump that closes the gap
-	// lands, so a round trip of the optional scalar can replace it.
-	_, _, err := pxf.UnmarshalFullDescriptor([]byte("o = null\n"), md)
-	if err == nil || !strings.Contains(err.Error(), `null is not allowed on scalar field "o"`) {
-		t.Errorf("known gap protowire-go#182 changed: decode of o = null gave %v; replace this with the round trip of the optional scalar", err)
+	// An optional scalar holds a null too (#339, option 3), since
+	// protowire-go v1.11.0 (protowire-go#182).
+	if out := roundTrip(t, md, "o = null\nn = 5\n"); !strings.Contains(out, "o = null") {
+		t.Errorf("optional-scalar null lost in the round trip; got:\n%s", out)
+	}
+	// Both in one document: the mask records each.
+	if out := roundTrip(t, md, "w = null\no = null\n"); !strings.Contains(out, "w = null") || !strings.Contains(out, "o = null") {
+		t.Errorf("a null lost in the round trip of both; got:\n%s", out)
 	}
 }
 

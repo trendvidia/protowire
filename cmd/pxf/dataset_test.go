@@ -86,13 +86,9 @@ var datasetVerdicts = map[string]string{
 // to the change that closes the gap and what the pinned release does
 // with the fixture instead. Each entry is asserted to still behave that
 // way, so the go.mod bump that closes it flips the test and forces the
-// entry's removal. Empty since protowire-go v1.10.0, which binds dotted
-// column paths (protowire-go#159) and rejects a raw newline in a simple
-// string (protowire-go#167). v1.10.0 rejects null on an optional scalar
-// (protowire-go#150), which #339's option 3 accepts.
-var datasetKnownGaps = map[string]datasetGap{
-	"null-on-optional-cell.pxf": {by: "protowire-go#182", old: `null is not allowed on scalar field "opt"`},
-}
+// entry's removal. Empty since protowire-go v1.11.0, which accepts null
+// on an optional scalar as #339's option 3 does (protowire-go#182).
+var datasetKnownGaps = map[string]datasetGap{}
 
 // datasetGap is a known gap: by is the change that closes it, and old is
 // a substring of the pinned release's rejection, or "" if it accepts. An
