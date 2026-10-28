@@ -122,8 +122,11 @@ pxf decode -p schema.proto -m pkg.Type input.pb > output.pxf
 
 Parses the PXF document against the bound message and reports `valid` on stderr if it round-trips cleanly. Used as a CI step before publishing PXF artifacts. The validation runs through `pxf.UnmarshalDescriptor`, so all the v1.0 grammar (directives, `@dataset`, presence semantics) is honoured.
 
+A body whose `@type` names a type the document's own `@proto` defines is checked against that type, whatever `-m` says: the embedded schema is authoritative (draft § The "@proto" Directive). For any other document `-m` names the type, and the document's `@type` stands in when `-m` is absent.
+
 ```bash
 pxf validate -p schema.proto -m pkg.Type input.pxf
+pxf validate self-describing.pxf   # @type + @proto, no -m needed
 # stderr: valid
 # exit:   0 on success, 1 on any parse / bind / required-field error
 ```
