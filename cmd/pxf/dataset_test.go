@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -76,37 +77,10 @@ var datasetVerdicts = map[string]string{
 // to the change that closes the gap and what the pinned release does
 // with the fixture instead. Each entry is asserted to still behave that
 // way, so the go.mod bump that closes it flips the test and forces the
-// entry's removal.
-var datasetKnownGaps = map[string]datasetGap{
-	// Column paths (#342): protowire-go v1.9.0 refuses a dotted column at
-	// parse time, and accepts a column named twice. protowire-go#159
-	// accepts the paths and applies the header rules.
-	"dotted-column.pxf":               dottedGap,
-	"dotted-grouping.pxf":             dottedGap,
-	"dotted-null-leaf.pxf":            dottedGap,
-	"dotted-oneof.pxf":                dottedGap,
-	"dotted-required.pxf":             dottedGap,
-	"dotted-with-value-cells.pxf":     dottedGap,
-	"dotted-oneof-two-members.pxf":    dottedGap,
-	"dotted-through-repeated.pxf":     dottedGap,
-	"dotted-through-map.pxf":          dottedGap,
-	"dotted-into-timestamp.pxf":       dottedGap,
-	"dotted-into-wrapper.pxf":         dottedGap,
-	"dotted-overlap.pxf":              dottedGap,
-	"dotted-required-missing.pxf":     dottedGap,
-	"dotted-empty-segment.pxf":        dottedGap,
-	"dotted-trailing-dot.pxf":         dottedGap,
-	"dotted-unknown-segment.pxf":      dottedGap,
-	"dotted-through-scalar.pxf":       dottedGap,
-	"dotted-into-duration.pxf":        dottedGap,
-	"dotted-into-bignum.pxf":          dottedGap,
-	"dotted-overlap-deep.pxf":         dottedGap,
-	"dotted-bad-header-empty-row.pxf": dottedGap,
-	"duplicate-column.pxf":            {by: dottedGap.by, old: ""},
-	// Raw LF in a simple string (#350): protowire-go v1.9.0 keeps it in
-	// the string and accepts the row. protowire-go#167 rejects it.
-	"string-newline-in-cell.pxf": {by: "protowire-go#167", old: ""},
-}
+// entry's removal. Empty since protowire-go v1.10.0, which binds dotted
+// column paths (protowire-go#159) and rejects a raw newline in a simple
+// string (protowire-go#167).
+var datasetKnownGaps = map[string]datasetGap{}
 
 // datasetGap is a known gap: by is the change that closes it, and old is
 // a substring of the pinned release's rejection, or "" if it accepts. An
@@ -114,8 +88,6 @@ var datasetKnownGaps = map[string]datasetGap{
 // fixture the fixed release accepts too, so the bump would never flip
 // the test.
 type datasetGap struct{ by, old string }
-
-var dottedGap = datasetGap{by: "protowire-go#159", old: "dotted column paths are not supported"}
 
 // datasetStreamGaps are fixtures the pinned DatasetReader streams through
 // without error where the verdict is rejection: it ends the row sequence
@@ -324,7 +296,7 @@ func TestDataset_ValidateBindsRows(t *testing.T) {
 	if err == nil {
 		t.Fatal("validate accepted a string in an int32 column")
 	}
-	if want := `3:1: @dataset row, column int32_field: expected integer for field "int32_field"`; !strings.Contains(err.Error(), want) {
+	if want := `3:1: column int32_field: expected integer for field "int32_field"`; !strings.Contains(err.Error(), want) {
 		t.Fatalf("want %q in %v", want, err)
 	}
 }
@@ -334,7 +306,7 @@ func TestDataset_ValidateBindsRows(t *testing.T) {
 func TestDataset_ValidateNamesTheColumn(t *testing.T) {
 	doc := "@dataset test.v1.AllTypes (string_field, int32_field, int64_field, bool_field)\n(\"a\", 1, \"x\", true)\n"
 	err := validateDoc(t, doc, "-p", testProto(), "-m", "test.v1.AllTypes")
-	if err == nil || !strings.Contains(err.Error(), "2:1: @dataset row, column int64_field: ") {
+	if err == nil || !strings.Contains(err.Error(), "2:1: column int64_field: ") {
 		t.Fatalf("want the error at row 2:1 naming int64_field, got %v", err)
 	}
 }
@@ -349,13 +321,18 @@ func TestDataset_ValidateRejectsEmptyRequiredCell(t *testing.T) {
 	if err == nil {
 		t.Fatal("validate accepted an empty cell in a (pxf.required) column")
 	}
-	if want := `3:1: @dataset row: required field "name" is absent`; !strings.Contains(err.Error(), want) {
+	if want := `3:1: required field "name" is absent`; !strings.Contains(err.Error(), want) {
 		t.Fatalf("want %q in %v", want, err)
 	}
-	// null is present-but-null, which satisfies (pxf.required).
+	// A null cell is present-but-null, which satisfies (pxf.required) on a
+	// field that can hold null; protowire-go's TestBindRow_Required pins
+	// that on a StringValue. "name" is a plain string, which cannot hold
+	// null (draft § Booleans, Null, and Identifier Values; #339), so the
+	// row is rejected for the null, not for the missing value.
 	doc = "@dataset settings.v1.Settings (name, retries)\n(null, 1)\n"
-	if err := validateDoc(t, doc, args...); err != nil {
-		t.Fatalf("validate rejected a null cell in a (pxf.required) column: %v", err)
+	err = validateDoc(t, doc, args...)
+	if want := `2:1: column name: null is not allowed on scalar field "name"`; err == nil || !strings.Contains(err.Error(), want) {
+		t.Fatalf("want %q, got %v", want, err)
 	}
 }
 
@@ -393,5 +370,28 @@ func TestDataset_ValidateBindsAnonymousProto(t *testing.T) {
 	doc = schema + "@dataset (sym, px)\n(\"A\", \"x\")\n"
 	if err := validateDoc(t, doc, "-m", "test.v1.AllTypes", "-p", testProto()); err == nil || !strings.Contains(err.Error(), "column px") {
 		t.Fatalf("want a binding error on column px, got %v", err)
+	}
+}
+
+// query types a dotted column's cell by the leaf field its path names
+// (#348). desc.energy is a double, so a bare `inf` cell becomes +Inf; a
+// lookup by the whole column name finds no field and leaves the string
+// "inf". The row key stays the column name.
+func TestDataset_QueryTypesDottedColumnByLeaf(t *testing.T) {
+	sch, err := loadSchema([]string{pathsProto()}, nil, registryRef{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := pxf.Parse([]byte("@dataset dataset.v1.Event (id, desc.energy)\n(\"e1\", inf)\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	v, err := datasetToValueWithSchema(res.Datasets[0], sch)
+	if err != nil {
+		t.Fatal(err)
+	}
+	row := v.(map[string]any)["rows"].([]any)[0].(map[string]any)
+	if f, ok := row["desc.energy"].(float64); !ok || !math.IsInf(f, 1) {
+		t.Fatalf(`row["desc.energy"] = %#v, want +Inf`, row["desc.energy"])
 	}
 }
