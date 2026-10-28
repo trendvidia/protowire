@@ -73,42 +73,25 @@ func errMatches(err error, want string) bool {
 }
 
 func TestAny_Corpus(t *testing.T) {
-	files, err := filepath.Glob(filepath.Join(anyDir, "*.pxf"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(files) != len(anyVerdicts) {
-		t.Errorf("found %d fixtures, the verdict table lists %d", len(files), len(anyVerdicts))
-	}
-	md, opts := anySetup(t)
-	for _, f := range files {
-		name := filepath.Base(f)
-		t.Run(name, func(t *testing.T) {
-			want, ok := anyVerdicts[name]
-			if !ok {
-				t.Fatal("fixture has no verdict")
+	runCorpus(t, anyDir, []string{"any.proto"}, anyVerdicts, func(t *testing.T, f fixture[anyVerdict]) {
+		md := mustFind(t, f.reg, "any.v1.Holder")
+		opts := pxf.UnmarshalOptions{TypeResolver: typeResolver{find: f.reg.Find}}
+		_, perr := pxf.Parse(f.data)
+		msg := dynamicpb.NewMessage(md)
+		derr := opts.Unmarshal(f.data, msg)
+		if gap, known := anyKnownGaps[f.name]; known {
+			if !errMatches(perr, gap.parse) || !errMatches(derr, gap.decode) {
+				t.Fatalf("the pinned protowire-go no longer treats this fixture as before (Parse: %v; decode: %v); gap %s is closed, remove it from anyKnownGaps", perr, derr, gap.by)
 			}
-			data, err := os.ReadFile(f)
-			if err != nil {
-				t.Fatal(err)
-			}
-			_, perr := pxf.Parse(data)
-			msg := dynamicpb.NewMessage(md)
-			derr := opts.Unmarshal(data, msg)
-			if gap, known := anyKnownGaps[name]; known {
-				if !errMatches(perr, gap.parse) || !errMatches(derr, gap.decode) {
-					t.Fatalf("the pinned protowire-go no longer treats this fixture as before (Parse: %v; decode: %v); gap %s is closed, remove it from anyKnownGaps", perr, derr, gap.by)
-				}
-				t.Skipf("known gap, closed by %s", gap.by)
-			}
-			if !errMatches(perr, want.parse) {
-				t.Errorf("Parse: want %q, got %v", want.parse, perr)
-			}
-			if !errMatches(derr, want.decode) {
-				t.Errorf("decode: want %q, got %v", want.decode, derr)
-			}
-		})
-	}
+			t.Skipf("known gap, closed by %s", gap.by)
+		}
+		if !errMatches(perr, f.want.parse) {
+			t.Errorf("Parse: want %q, got %v", f.want.parse, perr)
+		}
+		if !errMatches(derr, f.want.decode) {
+			t.Errorf("decode: want %q, got %v", f.want.decode, derr)
+		}
+	})
 }
 
 // TestAny_Values checks what the accept fixtures decode to: the type URL
