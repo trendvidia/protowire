@@ -30,7 +30,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bufbuild/protocompile"
+	"github.com/trendvidia/protocompile"
+	_ "github.com/trendvidia/protocompile/experimentalcompile" // registers the fork's compile pipeline
 	registrypb "github.com/trendvidia/protoregistry/proto/protoregistry/v1"
 	"github.com/trendvidia/protowire"
 	"google.golang.org/grpc"
@@ -146,6 +147,7 @@ func CompileSources(reg *Registry, opts CompileOptions) error {
 		}
 		comp := protocompile.Compiler{
 			Resolver: protocompile.WithStandardImports(&protocompile.SourceResolver{Accessor: accessor}),
+			NullMask: NullMask,
 		}
 		files := make([]string, 0, len(opts.BundledFiles)+len(opts.UserFiles)+len(opts.VirtualFiles))
 		files = append(files, opts.BundledFiles...)
@@ -197,6 +199,27 @@ func CompileBundledFiles(files ...string) ([]protoreflect.FileDescriptor, error)
 		out = append(out, f)
 	}
 	return out, nil
+}
+
+// NullMask selects the files whose messages get protocompile's generated
+// `_null` FieldMask, the field a PXF null survives protobuf binary in
+// (protocompile#248, RFC-001 §8.6). Every file gets one except the
+// canonical schemas this repository bundles: those are shared types
+// every port generates code for, so they must not grow a field (#377).
+// google/protobuf/ files never get one; protocompile excludes them.
+func NullMask(path string) bool {
+	return !IsBundled(path)
+}
+
+// IsBundled reports whether path names a canonical schema served from
+// the embedded proto/ tree, under either spelling readBundled accepts.
+func IsBundled(filename string) bool {
+	rc, err := readBundled(filename)
+	if err != nil {
+		return false
+	}
+	rc.Close()
+	return true
 }
 
 // readBundled opens a canonical schema from the embedded proto/ tree.

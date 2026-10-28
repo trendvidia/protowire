@@ -20,6 +20,12 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ### Changed
 
+- **protowire's tools add the `_null` mask to the schemas they compile** (issue [#377](https://github.com/trendvidia/protowire/issues/377)). A `null` now survives protobuf binary without a hand-declared `_null` field. `go.mod` pins protocompile v0.35.0, which generates the mask (protocompile#248, RFC-001 §8.6).
+  - `pxf build` turns it on, so the image buf or protoc generates code from carries `_null` (number 536870911) on every message with a field that can hold `null`.
+  - `pxf validate`, `encode` and `query` turn it on for `-p` files and a document's source `@proto`. Their schema loader, `internal/schemaresolve`, now compiles with the protocompile fork instead of upstream protocompile v0.14.1, which has no such option.
+  - The bundled canonical schemas never get the mask: they are shared types every port generates code for.
+  - Measured: `w = null` on a `google.protobuf.Int32Value` comes back as `w = null` after PXF → binary → PXF; with the mask off it comes back absent. An `optional` scalar needs protowire-go#182 too, and is pinned as a known gap until a release carries it.
+  
 - **`null` on a proto2 `required` field, and as a map value, is rejected** (issues [#379](https://github.com/trendvidia/protowire/issues/379), [#380](https://github.com/trendvidia/protowire/issues/380)). Decided by the owner on 2026-10-28. Draft `-01` § Booleans, Null, and Identifier Values had left both open after #339's option 3:
   - **A proto2 `required` field** (or an editions `LEGACY_REQUIRED` one) has explicit presence, but a `null` there would leave it unset, which protobuf binary does not allow.
   - **A map value** is an entry of a list-typed field, and an entry without a value reads back as the zero value.
