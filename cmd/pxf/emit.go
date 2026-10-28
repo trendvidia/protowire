@@ -33,16 +33,44 @@ import (
 // lowers a block and a map alike to map[string]any, and only the schema
 // says that a field is a map, written `key: value` (#373). Any other
 // result, such as a projection or a sub-tree, is written loose.
-func emitPXF(w io.Writer, v any, root protoreflect.MessageDescriptor) error {
+//
+// anyType, when not nil, resolves the type URL an Any block names
+// (draft § Any Blocks), so the block is written against that type and a
+// map in it as a map (#390).
+func emitPXF(w io.Writer, v any, root protoreflect.MessageDescriptor, anyType func(url string) protoreflect.MessageDescriptor) error {
+	e := emitter{anyType: anyType}
 	switch x := v.(type) {
 	case map[string]any:
 		if !fitsMessage(x, root) {
 			root = nil
 		}
-		return emitTopMap(w, x, root)
+		return e.emitTopMap(w, x, root)
 	default:
 		return emitTopScalar(w, v)
 	}
+}
+
+// emitter writes a result against a schema. anyType may be nil.
+type emitter struct {
+	anyType func(url string) protoreflect.MessageDescriptor
+}
+
+// blockType returns the type to write m, a block bound to a field of
+// type md, against: md when m's keys are its fields, the type m names
+// when md is google.protobuf.Any and m has a "@type" entry anyType
+// resolves, and nil otherwise (written loose).
+func (e emitter) blockType(m map[string]any, md protoreflect.MessageDescriptor) protoreflect.MessageDescriptor {
+	if md != nil && md.FullName() == "google.protobuf.Any" && e.anyType != nil {
+		if url, ok := m["@type"].(string); ok {
+			if t := e.anyType(url); t != nil && fitsMessage(m, t) {
+				return t
+			}
+		}
+	}
+	if fitsMessage(m, md) {
+		return md
+	}
+	return nil
 }
 
 // fitsMessage reports whether every key of m, but an Any's "@type", is
@@ -67,7 +95,7 @@ func fieldOf(md protoreflect.MessageDescriptor, k string) protoreflect.FieldDesc
 	return md.Fields().ByName(protoreflect.Name(k))
 }
 
-func emitTopMap(w io.Writer, m map[string]any, md protoreflect.MessageDescriptor) error {
+func (e emitter) emitTopMap(w io.Writer, m map[string]any, md protoreflect.MessageDescriptor) error {
 	// `@type` is a directive (draft §3.4.1), not a field assignment.
 	// Emit it first so consumers can parse the type before scanning
 	// the body, matching what pxf.Format produces for typed messages.
@@ -87,7 +115,7 @@ func emitTopMap(w io.Writer, m map[string]any, md protoreflect.MessageDescriptor
 		if _, err := fmt.Fprintf(w, "%s = ", k); err != nil {
 			return err
 		}
-		if err := writeField(w, m[k], fieldOf(md, k), 0); err != nil {
+		if err := e.writeField(w, m[k], fieldOf(md, k), 0); err != nil {
 			return err
 		}
 		if _, err := io.WriteString(w, "\n"); err != nil {
@@ -99,21 +127,21 @@ func emitTopMap(w io.Writer, m map[string]any, md protoreflect.MessageDescriptor
 
 // writeField writes v, the value of field fd, or writes it loose when
 // fd is nil or v does not have the field's shape.
-func writeField(w io.Writer, v any, fd protoreflect.FieldDescriptor, indent int) error {
+func (e emitter) writeField(w io.Writer, v any, fd protoreflect.FieldDescriptor, indent int) error {
 	if fd == nil {
 		return writeValue(w, v, indent)
 	}
 	switch x := v.(type) {
 	case map[string]any:
 		if fd.IsMap() {
-			return writeMap(w, x, fd, indent)
+			return e.writeMap(w, x, fd, indent)
 		}
-		if fd.Message() != nil && fitsMessage(x, fd.Message()) {
-			return writeTypedBlock(w, x, fd.Message(), indent)
+		if t := e.blockType(x, fd.Message()); t != nil {
+			return e.writeTypedBlock(w, x, t, indent)
 		}
 	case []any:
 		if fd.IsList() && fd.Message() != nil {
-			return writeTypedList(w, x, fd.Message(), indent)
+			return e.writeTypedList(w, x, fd.Message(), indent)
 		}
 	}
 	return writeValue(w, v, indent)
@@ -121,7 +149,7 @@ func writeField(w io.Writer, v any, fd protoreflect.FieldDescriptor, indent int)
 
 // writeMap writes a map field's entries as `key: value`, the map
 // syntax of draft -01 § Maps, with each key spelled for its key type.
-func writeMap(w io.Writer, m map[string]any, fd protoreflect.FieldDescriptor, indent int) error {
+func (e emitter) writeMap(w io.Writer, m map[string]any, fd protoreflect.FieldDescriptor, indent int) error {
 	if len(m) == 0 {
 		_, err := io.WriteString(w, "{}")
 		return err
@@ -134,7 +162,7 @@ func writeMap(w io.Writer, m map[string]any, fd protoreflect.FieldDescriptor, in
 		if _, err := fmt.Fprintf(w, "%s%s: ", pad, mapKey(k, fd.MapKey().Kind())); err != nil {
 			return err
 		}
-		if err := writeField(w, m[k], fd.MapValue(), indent+1); err != nil {
+		if err := e.writeField(w, m[k], fd.MapValue(), indent+1); err != nil {
 			return err
 		}
 		if _, err := io.WriteString(w, "\n"); err != nil {
@@ -172,7 +200,7 @@ func identifierSafe(s string) bool {
 	return true
 }
 
-func writeTypedBlock(w io.Writer, m map[string]any, md protoreflect.MessageDescriptor, indent int) error {
+func (e emitter) writeTypedBlock(w io.Writer, m map[string]any, md protoreflect.MessageDescriptor, indent int) error {
 	if len(m) == 0 {
 		_, err := io.WriteString(w, "{}")
 		return err
@@ -185,7 +213,7 @@ func writeTypedBlock(w io.Writer, m map[string]any, md protoreflect.MessageDescr
 		if _, err := fmt.Fprintf(w, "%s%s = ", pad, k); err != nil {
 			return err
 		}
-		if err := writeField(w, m[k], fieldOf(md, k), indent+1); err != nil {
+		if err := e.writeField(w, m[k], fieldOf(md, k), indent+1); err != nil {
 			return err
 		}
 		if _, err := io.WriteString(w, "\n"); err != nil {
@@ -197,7 +225,7 @@ func writeTypedBlock(w io.Writer, m map[string]any, md protoreflect.MessageDescr
 }
 
 // writeTypedList writes a list of md messages, each element against md.
-func writeTypedList(w io.Writer, xs []any, md protoreflect.MessageDescriptor, indent int) error {
+func (e emitter) writeTypedList(w io.Writer, xs []any, md protoreflect.MessageDescriptor, indent int) error {
 	if len(xs) == 0 {
 		_, err := io.WriteString(w, "[]")
 		return err
@@ -212,8 +240,8 @@ func writeTypedList(w io.Writer, xs []any, md protoreflect.MessageDescriptor, in
 			}
 		}
 		var err error
-		if m, ok := x.(map[string]any); ok && fitsMessage(m, md) {
-			err = writeTypedBlock(w, m, md, indent+1)
+		if m, ok := x.(map[string]any); ok && e.blockType(m, md) != nil {
+			err = e.writeTypedBlock(w, m, e.blockType(m, md), indent+1)
 		} else {
 			err = writeValue(w, x, indent+1)
 		}
