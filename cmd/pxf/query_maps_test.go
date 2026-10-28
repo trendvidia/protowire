@@ -139,3 +139,68 @@ func TestQuery_BoundTwiceKeepsBoth(t *testing.T) {
 		})
 	}
 }
+
+const queryAnyProto = `syntax = "proto3";
+package qa.v1;
+import "google/protobuf/any.proto";
+message Leaf { map<string, int32> counts = 1; string name = 2; }
+message H {
+  google.protobuf.Any one = 1;
+  repeated google.protobuf.Any many = 2;
+  map<string, google.protobuf.Any> by_key = 3;
+}
+`
+
+// A map inside the message an Any block names is written as a map, the
+// block resolved by its @type through the document's schema (#390).
+// Before, the walk stopped at the Any, whose own fields are type_url and
+// value, and the map came out as a block.
+func TestQuery_MapsInAnyBodies(t *testing.T) {
+	dir := t.TempDir()
+	protoPath := filepath.Join(dir, "qa.proto")
+	if err := os.WriteFile(protoPath, []byte(queryAnyProto), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	sch, err := loadSchema([]string{protoPath}, nil, registryRef{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	md := sch.find("qa.v1.H")
+	leaf := "{\n    @type = \"type.googleapis.com/qa.v1.Leaf\"\n    counts = {\n      a: 1\n      \"b c\": 2\n    }\n  }"
+	for name, body := range map[string]string{
+		"singular":  "one " + leaf,
+		"list":      "many = [" + leaf + ", " + leaf + "]",
+		"map value": "by_key = {\n  k: " + leaf + "\n}",
+	} {
+		t.Run(name, func(t *testing.T) {
+			in := "@type qa.v1.H\n" + body + "\n"
+			inPath := filepath.Join(t.TempDir(), "in.pxf")
+			if err := os.WriteFile(inPath, []byte(in), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			out, err := runCLI(t, "query", "-p", protoPath, ".", inPath)
+			if err != nil {
+				t.Fatalf("query: %v", err)
+			}
+			outPath := filepath.Join(t.TempDir(), "out.pxf")
+			if err := os.WriteFile(outPath, []byte(out), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := runCLI(t, "validate", "-p", protoPath, "-m", "qa.v1.H", outPath); err != nil {
+				t.Fatalf("validate rejects query's output: %v\n%s", err, out)
+			}
+			opts := pxf.UnmarshalOptions{TypeResolver: typeResolver{find: sch.find}}
+			want, err := opts.UnmarshalDescriptor([]byte(in), md)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got, err := opts.UnmarshalDescriptor([]byte(out), md)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !proto.Equal(want, got) {
+				t.Errorf("round trip changed the message:\nin:\n%s\nout:\n%s", in, out)
+			}
+		})
+	}
+}

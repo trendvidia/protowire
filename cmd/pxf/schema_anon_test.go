@@ -32,7 +32,7 @@ func runE2EAnonResolved(t *testing.T, query, input string) string {
 	}
 	var sb strings.Builder
 	for _, r := range results {
-		if err := emitPXF(&sb, r, nil); err != nil {
+		if err := emitPXF(&sb, r, nil, nil); err != nil {
 			t.Fatalf("emit: %v", err)
 		}
 	}
