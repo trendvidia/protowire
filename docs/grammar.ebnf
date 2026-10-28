@@ -104,12 +104,14 @@ directive_name    = identifier - ( 'type'        | 'dataset'    | 'proto'
  *   ( <val1>, <val2>, ... )
  *
  * <type> is the row message type. The column list (>= 1 entry) names
- * top-level fields on <type>; v1 does not permit dotted paths. Each
- * row is a parenthesized, comma-separated tuple whose arity MUST
- * equal the column count.
+ * fields on <type>: a field name, or a dotted path to a field in a
+ * sub-message ('desc.label'), since v1.13 (#342). Each row is a
+ * parenthesized, comma-separated tuple whose arity MUST equal the
+ * column count.
  *
- * Cells are restricted to scalar-shaped values in v1: list ('[ ... ]')
- * and block ('{ ... }') values are NOT permitted. Three-state cells:
+ * A cell holds any value, list ('[ ... ]') and block ('{ ... }')
+ * included, and means what 'column = value' means in a body of <type>
+ * (since v1.13, #341). Three-state cells:
  *   - empty (between two commas, or leading/trailing inside a row)
  *     denotes an absent field;
  *   - the bare token 'null' denotes a present-but-null field;
@@ -127,16 +129,7 @@ directive_name    = identifier - ( 'type'        | 'dataset'    | 'proto'
 dataset_directive = '@dataset' , [ identifier ] , '(' , column_list , ')' , { row } ;
 column_list       = identifier , { ',' , identifier } ;
 row               = '(' , row_cell , { ',' , row_cell } , ')' ;
-row_cell          = [ row_value ] ;
-row_value         = string
-                  | integer
-                  | float
-                  | bool
-                  | null
-                  | bytes
-                  | timestamp
-                  | duration
-                  | identifier ;
+row_cell          = [ value ] ;
 
 
 (* === Proto directive === *)
@@ -209,10 +202,12 @@ proto_descriptor_body = bytes ;
  *                 one opaque key, never a path.
  *
  *   map_entry   — ':' value. The key may be identifier | string |
- *                 integer because protobuf map keys can be any of the
- *                 scalar key types (int*, sint*, fixed*, bool, string).
- *                 Bare identifiers cover bool and bare-token forms;
- *                 strings cover string keys; integers cover int* keys.
+ *                 integer | bool because protobuf map keys can be any
+ *                 of the scalar key types (int*, sint*, fixed*, bool,
+ *                 string). Strings cover string keys, integers cover
+ *                 int* keys, and the keywords 'true' / 'false' cover
+ *                 bool keys (#284); on any other key type a bool key
+ *                 is rejected. Bare identifiers cover bare-token forms.
  *)
 entry         = field_entry | map_entry ;
 
@@ -223,7 +218,7 @@ assignment_tail = '=' , value ;
 map_tail        = ':' , value ;
 block_tail      = '{' , [ any_type_entry ] , { entry } , '}' ;
 
-map_key       = identifier | string | integer ;
+map_key       = identifier | string | integer | bool ;
 
 
 (* === Values === *)

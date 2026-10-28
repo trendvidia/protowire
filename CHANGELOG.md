@@ -18,6 +18,8 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ### Changed
 
+- **`docs/grammar.ebnf` and the railroad diagram catch up with the draft** (issue [#355](https://github.com/trendvidia/protowire/issues/355)). A `@dataset` cell is `[ value ]` (#341), a column may be a dotted path (#342), and `map_key` includes `bool` (#284). `row_value` is gone. `scripts/gen_railroad.py` mirrors the EBNF, and `docs/grammar.svg` is regenerated with railroad-diagrams 3.0.1.
+
 - **Three edges of `@dataset` column paths are settled** (issue [#349](https://github.com/trendvidia/protowire/issues/349), the follow-ups of [#342](https://github.com/trendvidia/protowire/issues/342); v1.13). Decided by the owner. Each matches what protowire-go v1.10.0 already does.
   - **`pxf.Secret`.** A path may go into one, as in `(pw.value, pw.hint)`. Secret has a string literal, but its block form is one documents are written in. The list of types a path may not go into is closed, and Secret is not on it. The draft defines `pxf.Secret` and its two forms for the first time, in § PXF Annotations.
   - **`google.protobuf.Any`.** A path into one names the Any's own fields, `type_url` and `value`, as a block with no type entry does (§ Any Blocks). It cannot reach the fields of the message the Any holds.
