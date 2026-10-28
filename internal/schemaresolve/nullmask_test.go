@@ -12,10 +12,6 @@ import (
 	"google.golang.org/protobuf/types/dynamicpb"
 )
 
-// nullMaskNumber is the field number protocompile gives the generated
-// `_null` mask (RFC-001 §8.6).
-const nullMaskNumber = 536870911
-
 const nullMaskSchema = `syntax = "proto3";
 package nm.v1;
 import "google/protobuf/wrappers.proto";

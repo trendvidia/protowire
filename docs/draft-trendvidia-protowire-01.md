@@ -656,15 +656,15 @@ Imports. Source-form "@proto" directives that contain "import" statements MUST r
 
 * the bundled Protocol Buffers well-known types (e.g. "google/protobuf/timestamp.proto", "google/protobuf/duration.proto");
 
-* the canonical PXF and SBE annotation schemas ("pxf/annotations.proto", "sbe/annotations.proto");
+* the canonical PXF and SBE schemas ("pxf/annotations.proto", "pxf/bignum.proto", "pxf/secret.proto", "sbe/annotations.proto");
 
 * the canonical envelope ("envelope/v1/envelope.proto");
 
 * another "@proto" directive in the same document.
 
-Imports from the filesystem or a remote schema registry are NOT permitted from inside a source-form "@proto" body. An import that does not resolve to one of the four sources above MUST be rejected.
+Imports from the filesystem, a remote schema registry, or an external schema supplied to the decoder (such as a tool's `-p` flag) are NOT permitted from inside a source-form "@proto" body, and neither is any other schema the canonical repository distributes. The list above is exhaustive. An import that does not resolve to one of the four sources above MUST be rejected. The fixtures under testdata/proto-imports/ pin both verdicts (issue #369).
 
-Precedence with external schemas. When a decoder is supplied with an external schema (via a tool's `-p` flag or a pre-bound descriptor) and the document also carries an "@proto" directive, the embedded schema is authoritative. Decoders MAY verify that the external schema agrees with the embedded one by comparing the normalized FileDescriptorSet bytes of each; on disagreement, decoders MUST reject the document.
+Precedence with external schemas. When a decoder is supplied with an external schema (via a tool's `-p` flag or a pre-bound descriptor) and the document also carries an "@proto" directive, the embedded schema is authoritative. Decoders MAY verify that the external schema agrees with the embedded one, by comparing the definitions of the message types both of them define. The file each definition lives in is not part of the comparison, since an embedded schema is not a file a decoder was given. A decoder that finds a disagreement MUST either reject the document or report the disagreement to its caller (a warning suffices); either way, a document it decodes is decoded against the embedded schema (issue #371).
 
 Conformance:
 
