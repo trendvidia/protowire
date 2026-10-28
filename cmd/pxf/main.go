@@ -134,15 +134,25 @@ func encodeCmd() *cobra.Command {
 		Short: "Encode PXF to protobuf binary (stdout)",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
-			desc, err := resolveDescriptor()
-			if err != nil {
-				return err
+			if msgName == "" {
+				return fmt.Errorf("--message is required")
 			}
 			data, err := os.ReadFile(args[0])
 			if err != nil {
 				return err
 			}
 			doc, err := pxf.Parse(data)
+			if err != nil {
+				return err
+			}
+			// -m resolves with the document's own @proto in the chain, so
+			// a type it defines is the document's (draft § The "@proto"
+			// Directive, #371).
+			sch, err := documentSchema(doc)
+			if err != nil {
+				return err
+			}
+			desc, err := documentMessage(sch, msgName)
 			if err != nil {
 				return err
 			}
@@ -153,7 +163,7 @@ func encodeCmd() *cobra.Command {
 			// command wrote documents without their defaults (#269). An
 			// Any block that names its type is read through the
 			// document's schema chain (#356).
-			opts := pxf.UnmarshalOptions{TypeResolver: newLazyResolver(doc.Protos)}
+			opts := pxf.UnmarshalOptions{TypeResolver: newLazyResolver(doc.Protos).withSchema(sch)}
 			msg, _, err := opts.UnmarshalFullDescriptor(data, desc)
 			if err != nil {
 				return err
@@ -389,7 +399,13 @@ func fmtCmd() *cobra.Command {
 				name = doc.TypeURL
 			}
 			if name != "" {
-				desc, err := resolveMessage(name)
+				// A type the document's own @proto defines is the
+				// document's (draft § The "@proto" Directive, #371).
+				sch, err := documentSchema(doc)
+				if err != nil {
+					return err
+				}
+				desc, err := documentMessage(sch, name)
 				if err != nil {
 					return err
 				}

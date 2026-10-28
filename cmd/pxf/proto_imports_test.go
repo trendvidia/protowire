@@ -121,6 +121,8 @@ func TestProtoShadowing(t *testing.T) {
 			{"validate -m body", []string{"validate", "-p", pFile, "-m", "l.v1.L", untypedPath}},
 			{"validate @dataset", []string{"validate", "-p", pFile, "-m", "l.v1.L", datasetPath}},
 			{"query", []string{"query", "-p", pFile, ".", datasetPath}},
+			{"encode", []string{"encode", "-p", pFile, "-m", "l.v1.L", untypedPath}},
+			{"fmt", []string{"fmt", "-p", pFile, bodyPath}},
 		} {
 			t.Run(c.name+"/"+cmd.name, func(t *testing.T) {
 				printedWarnings.Clear()
@@ -138,6 +140,35 @@ func TestProtoShadowing(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+// encode and fmt read a self-describing document with no -p: the type
+// its @type or -m names is the document's own. Before, both resolved it
+// against -p and protoregistry only, and failed with "not found".
+func TestProtoShadowing_SelfDescribing(t *testing.T) {
+	body, untyped, _ := shadowDocs("string")
+	dir := t.TempDir()
+	bodyPath, untypedPath := filepath.Join(dir, "body.pxf"), filepath.Join(dir, "untyped.pxf")
+	for path, doc := range map[string]string{bodyPath: body, untypedPath: untyped} {
+		if err := os.WriteFile(path, []byte(doc), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	out, err := runCLI(t, "encode", "-m", "l.v1.L", untypedPath)
+	if err != nil {
+		t.Fatalf("encode: %v", err)
+	}
+	// Field 1, wire type 2 (length-delimited), "ann".
+	if want := "\x0a\x03ann"; out != want {
+		t.Errorf("encode wrote %q, want %q", out, want)
+	}
+	out, err = runCLI(t, "fmt", bodyPath)
+	if err != nil {
+		t.Fatalf("fmt: %v", err)
+	}
+	if !strings.Contains(out, `user = "ann"`) {
+		t.Errorf("fmt output lacks the body:\n%s", out)
 	}
 }
 
