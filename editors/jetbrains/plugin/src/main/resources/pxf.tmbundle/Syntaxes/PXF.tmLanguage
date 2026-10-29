@@ -241,7 +241,7 @@
 		<key>float</key>
 		<dict>
 			<key>match</key>
-			<string>-?\b\d+(?:\.\d+(?:[eE][+-]?\d+)?|[eE][+-]?\d+)(?:p\d+)?\b</string>
+			<string>-?\b\d+(?:\.\d*(?:[eE][+-]?\d+)?|[eE][+-]?\d+)(?:p\d+)?(?!\w)</string>
 			<key>name</key>
 			<string>constant.numeric.float.pxf</string>
 		</dict>

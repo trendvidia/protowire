@@ -197,7 +197,7 @@
     },
     "float": {
       "name": "constant.numeric.float.pxf",
-      "match": "-?\\b\\d+(?:\\.\\d+(?:[eE][+-]?\\d+)?|[eE][+-]?\\d+)(?:p\\d+)?\\b"
+      "match": "-?\\b\\d+(?:\\.\\d*(?:[eE][+-]?\\d+)?|[eE][+-]?\\d+)(?:p\\d+)?(?!\\w)"
     },
     "integer": {
       "name": "constant.numeric.integer.pxf",
