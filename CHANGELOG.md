@@ -26,11 +26,7 @@ loosely; the project follows [SemVer](https://semver.org/) per
   - **Edits now go to protos first.** The files here are exact copies, and `TestBundledSchemasMirrorProtos` fails if one differs from the protos version `go.mod` pins.
   - **Server reflection:** a gRPC server that offers it imports `github.com/trendvidia/protos/protowire/schema/v1/annotationsreg`, so a client can resolve `annotations.proto`.
 
-### Changed
-
 - **`buf generate` on a `pxf build` image generates only the files named to `pxf build`** (issue [#430](https://github.com/trendvidia/protowire/issues/430)). Each file in the image now carries buf's image marker (field 8042, as `buf build` writes it): `is_import` for a file the arguments did not name, and `is_syntax_unspecified`. Before, buf treated every file as a target and wrote copies of the dependencies into the user's tree, `google/protobuf/field_mask.pb.go` and `wrappers.pb.go` included. A program that linked such a copy beside Go's own registered the file twice. Stock protoc and plugins ignore the field. `TestBuildMatchesBuf` now compares against buf's image with the marker kept.
-
-### Changed
 
 - **`go run github.com/trendvidia/protowire/cmd/pxf@<version>` works** (issue [#424](https://github.com/trendvidia/protowire/issues/424)). Go refuses `go run` and `go install` with a version for a module whose `go.mod` has a `replace`. This repository's `go.mod` replaced `google.golang.org/protobuf` with the `trendvidia/protobuf-go` fork, so a project could not pin `pxf` the way it pins other code generators. The replace is gone, and `pxf` builds on stock protobuf v1.36.12. Nothing it links calls the fork's additions. protowire-go uses the fork's `dynamicpb` `SetUnsafe` only when it is there, and otherwise falls back to the standard `Set`, so `pxf` output does not change. ROADMAP, GOVERNANCE.md and `governance.pxf` say so.
 
