@@ -33,5 +33,3 @@ require (
 	golang.org/x/text v0.41.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260729162451-8efbd57d26e0 // indirect
 )
-
-replace google.golang.org/protobuf => github.com/trendvidia/protobuf-go v1.36.14

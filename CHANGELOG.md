@@ -10,6 +10,10 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+### Changed
+
+- **`go run github.com/trendvidia/protowire/cmd/pxf@<version>` works** (issue [#424](https://github.com/trendvidia/protowire/issues/424)). Go refuses `go run` and `go install` with a version for a module whose `go.mod` has a `replace`. This repository's `go.mod` replaced `google.golang.org/protobuf` with the `trendvidia/protobuf-go` fork, so a project could not pin `pxf` the way it pins other code generators. The replace is gone, and `pxf` builds on stock protobuf v1.36.12. Nothing it links calls the fork's additions. protowire-go uses the fork's `dynamicpb` `SetUnsafe` only when it is there, and otherwise falls back to the standard `Set`, so `pxf` output does not change. ROADMAP, GOVERNANCE.md and `governance.pxf` say so.
+
 ## [1.13.0] – 2026-10-28
 
 Everything since v1.12.0, which is mostly the text format made exact. `null` binds only where a field has explicit presence. A field, or a map key, bound twice in one body is rejected. A `pxf.BigFloat` literal carries its precision, so its text round-trips. A `@dataset` cell may hold a list or a block, and a column may be a dotted path. A document's `@proto` may import a fixed list of schemas. Block entries are separated by whitespace only. The reference's `pb` bytes change in three places so that the family's bytes agree: a map entry always carries its key and its value, `Decimal.scale` and `BigFloat.exponent` are plain varints, and a BigFloat zero has one encoding. [`STABILITY.md`](STABILITY.md) § v1.13 says what each change means for documents and for readers.

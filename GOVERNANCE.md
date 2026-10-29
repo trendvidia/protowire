@@ -48,7 +48,7 @@ Reputation decays so the roadmap stays driven by active maintainers.
 Steward enforces these non-negotiable configurations. Violations are rejected without a vote.
 
 1. **Supply chain.** Only `MIT`, `Apache-2.0`, and `BSD-3-Clause` transitive dependencies are permitted. GPL/Copyleft dependencies trigger an immediate block.
-2. **Pinned dependencies.** All external modules must be strictly pinned. Wildcard / caret versioning is blocked. (Currently relaxed for `trendvidia/protobuf-go` while it tags its first public release — see `immune_system.require_pinned_dependencies` for current state.)
+2. **Pinned dependencies.** All external modules must be strictly pinned. Wildcard / caret versioning is blocked. This repository's own module has no `replace` directives: it builds on stock `google.golang.org/protobuf`, so `go run` and `go install` of `cmd/pxf` work (#424). A `replace` that remains in a separate module, such as `internal/schemaext`, must point at a tagged version.
 3. **Domain Anomaly Quarantine.** A contributor whose reputation is >90% concentrated in `documentation` who attempts to modify `**/encoding/**` or `**/proto/**` triggers a 72-hour timelock before voting opens. This catches doc-only contributors who suddenly attempt cryptographic / wire-format changes.
 4. **Slashing.** When a merged PR is later proven (via post-merge regression) to have introduced a bug, the original author's reputation is slashed in the relevant domain. Base 50 points; growth half-life 720h; max 100×.
 
