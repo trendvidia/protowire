@@ -141,7 +141,7 @@ Internet-Draft                  protowire                   October 2026
      6.1.  PXF Annotations . . . . . . . . . . . . . . . . . . . . .  41
        6.1.1.  Default Placement . . . . . . . . . . . . . . . . . .  44
        6.1.2.  Oneof Members . . . . . . . . . . . . . . . . . . . .  45
-     6.2.  SBE Annotations . . . . . . . . . . . . . . . . . . . . .  46
+     6.2.  SBE Annotations . . . . . . . . . . . . . . . . . . . . .  47
      6.3.  Schema Extension Annotations  . . . . . . . . . . . . . .  47
    7.  Schema Language Extensions  . . . . . . . . . . . . . . . . .  48
      7.1.  Overview  . . . . . . . . . . . . . . . . . . . . . . . .  48
@@ -195,17 +195,17 @@ Internet-Draft                  protowire                   October 2026
      9.6.  Validation Engine Conformance . . . . . . . . . . . . . .  73
    10. Media Types . . . . . . . . . . . . . . . . . . . . . . . . .  74
    11. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  74
-     11.1.  Media Type Registrations . . . . . . . . . . . . . . . .  74
+     11.1.  Media Type Registrations . . . . . . . . . . . . . . . .  75
      11.2.  Annotation Field Number Range  . . . . . . . . . . . . .  76
    12. Security Considerations . . . . . . . . . . . . . . . . . . .  77
    13. References  . . . . . . . . . . . . . . . . . . . . . . . . .  78
      13.1.  Normative References . . . . . . . . . . . . . . . . . .  78
-     13.2.  Informative References . . . . . . . . . . . . . . . . .  79
-   Appendix A.  ABNF Additions in -01  . . . . . . . . . . . . . . .  80
+     13.2.  Informative References . . . . . . . . . . . . . . . . .  80
+   Appendix A.  ABNF Additions in -01  . . . . . . . . . . . . . . .  81
      A.1.  New Productions . . . . . . . . . . . . . . . . . . . . .  81
      A.2.  Contextual Keywords . . . . . . . . . . . . . . . . . . .  82
-   Appendix B.  Acknowledgments  . . . . . . . . . . . . . . . . . .  82
-   Appendix C.  Implementation Status  . . . . . . . . . . . . . . .  82
+   Appendix B.  Acknowledgments  . . . . . . . . . . . . . . . . . .  83
+   Appendix C.  Implementation Status  . . . . . . . . . . . . . . .  83
    Appendix D.  Open Issues  . . . . . . . . . . . . . . . . . . . .  83
    Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  84
 
@@ -2334,18 +2334,18 @@ Internet-Draft                  protowire                   October 2026
    unsigned big-endian magnitudes plus sign and scale fields.
 
    A pxf.BigFloat's value is (-1)^negative × mantissa × 2^exponent,
-   mantissa an unsigned big-endian integer, at prec bits of precision;
-   prec 0 or a zero mantissa (empty, or only zero bytes) is zero.  In
-   PXF text a BigFloat is a numeric literal that carries its precision,
-   as a "p" and a bit count after the number ("0.10000000000000001p53";
-   the _precision_ production of Section 3.3), so that both its value
-   and its precision survive the text (issue #406):
+   mantissa an unsigned big-endian integer, rounded to prec bits of
+   precision with ties to even: a mantissa wider than prec bits denotes
+   that rounded value (issue #410). prec 0 or a zero mantissa (empty, or
+   only zero bytes) is zero.  In PXF text a BigFloat is a numeric
+   literal that carries its precision, as a "p" and a bit count after
+   the number ("0.10000000000000001p53"; the _precision_ production of
+   Section 3.3), so that both its value and its precision survive the
+   text (issue #406):
 
    *  Writing.  A producer of PXF text writes N significant decimal
       digits, where N is the number of decimal digits of 2^prec plus
       one, rounded to nearest with ties to even, followed by "p" and
-      prec.  It writes the digits as C's "%g" conversion does with
-      precision N: trailing zeros removed, in exponent form
 
 
 
@@ -2354,24 +2354,29 @@ Franco Jr.                 Expires 1 May 2027                  [Page 42]
 Internet-Draft                  protowire                   October 2026
 
 
+      prec.  It writes the digits as C's "%g" conversion does with
+      precision N: trailing zeros removed, in exponent form
       ("1.79769313486231590773e+308p64", at least two exponent digits)
       when the decimal exponent is below -4 or at least N, and
-      positionally otherwise.  Zero is written "0", without a suffix.  N
-      is the smallest digit count for which every prec-bit value is
-      recovered by reading its literal back at prec bits (measured on
-      issue #406: one digit fewer lost 9,157 of 20,000 random 53-bit
-      values; with N, value and precision were unchanged after three
-      round trips for every one of 35,600 random values from 24 to
-      13,000 bits).
+      positionally otherwise.  A zero is written "0p" and prec, or "-0p"
+      and prec when negative is set, so that its precision and sign
+      survive; only a zero whose prec is 0 is written without a suffix,
+      "0" or "-0" (issue #410).  N is the smallest digit count for which
+      every prec-bit value is recovered by reading its literal back at
+      prec bits (measured on issue #406: one digit fewer lost 9,157 of
+      20,000 random 53-bit values; with N, value and precision were
+      unchanged after three round trips for every one of 35,600 random
+      values from 24 to 13,000 bits).
 
    *  Reading.  A decoder reads a literal with a precision suffix at
       exactly that many bits, rounding to nearest with ties to even, and
       one without a suffix, which a person may write, at 256 bits.  It
       stores mantissa as the value's significand as a prec-bit integer
       (its top bit set), exponent as the value's binary exponent minus
-      prec, and prec as the precision read at.  A zero literal stores
-      every field as zero, with negative set for "-0".  A decoder MUST
-      reject a suffix whose precision is zero, or whose N exceeds
+      prec, and prec as the precision read at.  A zero literal stores an
+      empty mantissa and exponent 0, prec as the precision its suffix
+      states (0 without one), and negative for a leading "-".  A decoder
+      MUST reject a suffix whose precision is zero, or whose N exceeds
       MaxNumericLiteralDigits (Section 9.1), before allocating anything
       for it.  N exceeds a limit L exactly when prec exceeds floor((L -
       1) / log10(2)), 13603 at the default, so a decoder compares the
@@ -2382,26 +2387,21 @@ Internet-Draft                  protowire                   October 2026
       pxf.BigFloat is grammatically well-formed but MUST be rejected by
       the schema layer, naming the field.
 
-   PB to PXF to PB therefore preserves the value and prec of a non-zero
-   BigFloat whose mantissa fits in prec bits.  It does not preserve a
-   mantissa that was not normalized, which the reading rule stores as a
-   prec-bit integer.  It does not cover three other values (issue #410):
-   a zero, which is written "0" and so loses its prec and its sign; a
-   mantissa wider than prec bits, whose literal holds the value rounded
-   to prec; and a value within one decimal rounding of 2^-
-   MaxBigFloatExponent, whose literal may lie just past the bound
-   (Section 9.1).  Reading a literal at any precision other than the one
-   it was written at instead rounds twice: the two such read rules
-   measured on issue #406 lost 0.3% to 0.5%, and 5% to 8%, of values
-   above 256 bits.  The fixtures under testdata/bigfloat/, generated
-   with exact rational arithmetic, pin both directions (issue #393).
+   PB to PXF to PB therefore preserves every BigFloat's value, its sign,
+   and its prec, zeros included (issue #410).  It does not preserve a
+   mantissa's bytes as written: the reading rule stores the significand
+   as a prec-bit integer, so a mantissa that was not normalized, or was
+   wider than prec bits, comes back normalized to the same value.  A
+   value at MaxBigFloatExponent may print as a literal whose exact value
+   lies just past the bound; the bound applies to the value after
+   rounding to the read precision (Section 9.1), so that literal reads
+   back.  Reading a literal at any precision other than the one it was
+   written at instead rounds twice: the two such read rules measured on
+   issue #406 lost 0.3% to 0.5%, and 5% to 8%, of values above 256 bits.
+   The fixtures under testdata/bigfloat/, generated with exact rational
+   arithmetic, pin both directions (issue #393).
 
-   The well-known type pxf.Secret is defined in the proto/pxf/
-   secret.proto file in the canonical repository.  It holds a sensitive
-   string, value, and two optional strings that describe the secret
-   without revealing it: hint, what the secret is, and fingerprint, a
-   non-reversible identifier of it.  A pxf.Secret is written in either
-   of two forms.  A string literal sets value alone: 'pw = "x"'.  A
+
 
 
 
@@ -2410,6 +2410,12 @@ Franco Jr.                 Expires 1 May 2027                  [Page 43]
 Internet-Draft                  protowire                   October 2026
 
 
+   The well-known type pxf.Secret is defined in the proto/pxf/
+   secret.proto file in the canonical repository.  It holds a sensitive
+   string, value, and two optional strings that describe the secret
+   without revealing it: hint, what the secret is, and fingerprint, a
+   non-reversible identifier of it.  A pxf.Secret is written in either
+   of two forms.  A string literal sets value alone: 'pw = "x"'.  A
    block names the fields: 'pw { value = "x" hint = "database password"
    }'.  Each element of a list, and each value of a map, may take either
    form.  Protecting the value in memory is left to the consumer, not
@@ -2447,14 +2453,8 @@ Internet-Draft                  protowire                   October 2026
    field, and on the message types enumerated above.  On an enum field
    the literal is either a value name or the decimal value number.
 
-   The constraint is on placement, not on the literal.  A literal that
-   does not parse as the annotated field's type — "abc" on an int32
-   field — is a decode-time error raised where the default is applied,
-   not a bind-time rejection.  Placement is determinable from the
-   descriptor alone, whereas rejecting the literal at bind time would
-   oblige every binding tool to implement the value parser.
 
-   Conformance:
+
 
 
 
@@ -2465,6 +2465,15 @@ Franco Jr.                 Expires 1 May 2027                  [Page 44]
 
 Internet-Draft                  protowire                   October 2026
 
+
+   The constraint is on placement, not on the literal.  A literal that
+   does not parse as the annotated field's type — "abc" on an int32
+   field — is a decode-time error raised where the default is applied,
+   not a bind-time rejection.  Placement is determinable from the
+   descriptor alone, whereas rejecting the literal at bind time would
+   oblige every binding tool to implement the value parser.
+
+   Conformance:
 
    *  Tools that bind a protobuf descriptor for PXF use MUST reject a
       non-conforming placement at bind time, independently of what any
@@ -2506,6 +2515,13 @@ Internet-Draft                  protowire                   October 2026
 
    pxf.default MAY be set on a member of a oneof, subject to:
 
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 45]
+
+Internet-Draft                  protowire                   October 2026
+
+
    *  the default applies only when NO member of the oneof is present in
       the document.  When any member is present the default MUST NOT be
       applied — applying it would clear the member the document
@@ -2514,13 +2530,6 @@ Internet-Draft                  protowire                   October 2026
    *  a member bound to "null" counts as present for this test,
       consistent with the rule above that "null" suppresses a default;
       and
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 45]
-
-Internet-Draft                  protowire                   October 2026
-
 
    *  at most one member of any one oneof may carry pxf.default.  Tools
       that bind a descriptor for PXF use MUST reject a schema in which
@@ -2559,15 +2568,6 @@ Internet-Draft                  protowire                   October 2026
       Section 3.14, rejecting such a schema on upgrade surfaces a pre-
       existing latent bug rather than introducing one.
 
-6.2.  SBE Annotations
-
-   SBE annotations apply at three scopes:
-
-
-
-
-
-
 
 
 
@@ -2577,6 +2577,10 @@ Franco Jr.                 Expires 1 May 2027                  [Page 46]
 
 Internet-Draft                  protowire                   October 2026
 
+
+6.2.  SBE Annotations
+
+   SBE annotations apply at three scopes:
 
    extend google.protobuf.FileOptions {
      uint32 schema_id = 1319;
@@ -2618,10 +2622,6 @@ Internet-Draft                  protowire                   October 2026
    extension described in Section 7.11.
 
    The framework-defined annotations are:
-
-
-
-
 
 
 
@@ -3878,11 +3878,14 @@ Internet-Draft                  protowire                   October 2026
    |                         | MiB)           | to a single decode     |
    |                         |                | call                   |
    +-------------------------+----------------+------------------------+
-   | MaxNumericLiteralDigits | 4096           | Digit count of any     |
-   |                         |                | PXF numeric literal;   |
-   |                         |                | magnitude of           |
-   |                         |                | pxf.Decimal.scale on   |
-   |                         |                | the PB wire; the       |
+   | MaxNumericLiteralDigits | 4096           | Significant digits     |
+   |                         |                | of any PXF numeric     |
+   |                         |                | literal's mantissa,    |
+   |                         |                | its exponent and       |
+   |                         |                | precision suffix not   |
+   |                         |                | counted; magnitude     |
+   |                         |                | of pxf.Decimal.scale   |
+   |                         |                | on the PB wire; the    |
    |                         |                | digit count N a        |
    |                         |                | pxf.BigFloat           |
    |                         |                | precision suffix       |
@@ -3909,11 +3912,8 @@ Internet-Draft                  protowire                   October 2026
 
                                   Table 7
 
-   A decoder presented with input that requires exceeding any limit MUST
-   return an error before allocating memory proportional to the
-   violating quantity.  It MUST NOT abort, panic, raise an uncatchable
-   exception, or unwind into a state from which the caller cannot
-   recover.
+
+
 
 
 
@@ -3922,13 +3922,23 @@ Franco Jr.                 Expires 1 May 2027                  [Page 70]
 Internet-Draft                  protowire                   October 2026
 
 
+   A decoder presented with input that requires exceeding any limit MUST
+   return an error before allocating memory proportional to the
+   violating quantity.  It MUST NOT abort, panic, raise an uncatchable
+   exception, or unwind into a state from which the caller cannot
+   recover.
+
    Length arithmetic MUST be performed in 64-bit unsigned arithmetic and
    checked against the buffer length before any narrowing conversion to
    a native integer width and before any allocation.
 
-   Arbitrary-precision magnitudes.  MaxNumericLiteralDigits also bounds
-   the magnitude of pxf.Decimal.scale as encoded over PB (Section 6.1):
-   a scale is a digit count, and a decoder that materialises the value
+   Arbitrary-precision magnitudes.  MaxNumericLiteralDigits counts the
+   significant digits of a literal's mantissa only: an exponent is
+   bounded by MaxBigFloatExponent and a precision suffix by the N it
+   implies, and a producer writes up to MaxNumericLiteralDigits
+   significant digits plus both (issue #410).  It also bounds the
+   magnitude of pxf.Decimal.scale as encoded over PB (Section 6.1): a
+   scale is a digit count, and a decoder that materialises the value
    computes 10^scale, which costs time and memory proportional to a
    quantity the input sets directly.  A decoder MUST reject a Decimal
    whose scale magnitude exceeds the limit before materialising
@@ -3960,16 +3970,6 @@ Internet-Draft                  protowire                   October 2026
    admits every literal up to about 1e±4932.  Rendering a BigFloat
    inside the bound is the consumer's operation, and where the result is
    a PXF literal it is bounded by MaxNumericLiteralDigits like any other
-   literal.  A value within one decimal rounding of
-   2^±MaxBigFloatExponent may print as a literal just outside the bound,
-   because a finite decimal literal cannot hold a power of two exactly.
-   A numeric literal, or a big-number message, whose value the decoder's
-   arbitrary-precision type cannot represent MUST be rejected with an
-   error; a decoder MUST NOT substitute an infinity or a truncated
-   value.
-
-
-
 
 
 
@@ -3978,17 +3978,30 @@ Franco Jr.                 Expires 1 May 2027                  [Page 71]
 Internet-Draft                  protowire                   October 2026
 
 
+   literal.  The bound applies to a literal's value after rounding to
+   the precision it is read at, not to its exact decimal value: a finite
+   decimal literal cannot hold a power of two exactly, so the literal of
+   a value at 2^±MaxBigFloatExponent may lie just past the bound, and
+   rounding brings it back (issue #410).  A numeric literal, or a big-
+   number message, whose value the decoder's arbitrary-precision type
+   cannot represent MUST be rejected with an error; a decoder MUST NOT
+   substitute an infinity or a truncated value.
+
    The two bounds MaxNumericLiteralDigits states are independent: the
    scale bound limits the work a PB decoder performs, the digit bound
    limits the length of a text literal, and neither implies the other.
    A big number MAY therefore be representable on the wire and have no
    PXF spelling: BigInt.abs and Decimal.unscaled are bounded on the wire
-   only by MaxMessageSize, and a Decimal at exactly the scale bound
-   renders to one digit more than the digit bound, the leading zero
-   included.  A producer of PXF text (a marshaller, or a binder
-   rendering a (pxf.default) carrier) that meets such a value MUST fail
-   with an error rather than truncate, round or change notation; the
-   wire value itself remains valid and MUST be accepted by a PB decoder.
+   only by MaxMessageSize, and a Decimal at a scale of
+   -MaxNumericLiteralDigits renders its unscaled digits followed by that
+   many zeros, one digit more than the digit bound.  A Decimal at a
+   positive scale has a spelling at the bound ("0.000...1"): leading
+   zeros are not significant, so the digit bound does not count them
+   (issue #410, reversing in part the reading of issue #310).  A
+   producer of PXF text (a marshaller, or a binder rendering a
+   (pxf.default) carrier) that meets such a value MUST fail with an
+   error rather than truncate, round or change notation; the wire value
+   itself remains valid and MUST be accepted by a PB decoder.
 
 9.2.  Recursion
 
@@ -4012,6 +4025,15 @@ Internet-Draft                  protowire                   October 2026
    Proto3 string fields are sequences of valid UTF-8 [RFC3629].
    Conforming decoders:
 
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 72]
+
+Internet-Draft                  protowire                   October 2026
+
+
    *  MUST validate UTF-8 strictly when populating any string-typed
       field, regardless of the source encoding (PB length-delimited
       bytes, SBE char-array fields, SBE varData, PXF simple-string or
@@ -4024,15 +4046,6 @@ Internet-Draft                  protowire                   October 2026
       UTF-8 when the surrounding literal is bound to a string-typed
       field.  The same byte sequences are permitted inside b"..." (bytes
       literal) and inside string literals bound to bytes-typed fields.
-
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 72]
-
-Internet-Draft                  protowire                   October 2026
-
 
    *  MUST reject PXF \uHHHH and \UHHHHHHHH escapes that encode a
       surrogate code point or a code point above U+10FFFF.
@@ -4069,6 +4082,14 @@ Internet-Draft                  protowire                   October 2026
 
    *  implement the presence semantics specified in Section 7.7;
 
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 73]
+
+Internet-Draft                  protowire                   October 2026
+
+
    *  emit Violations whose shape conforms to the structure defined in
       Section 7.10;
 
@@ -4081,14 +4102,6 @@ Internet-Draft                  protowire                   October 2026
 
    *  either refuse to start or substitute a documented fallback when a
       referenced function has no registered body.
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 73]
-
-Internet-Draft                  protowire                   October 2026
-
 
    An implementation MAY ship without a validation engine; in that case
    the implementation processes the schema's declarations for purposes
@@ -4118,6 +4131,21 @@ Internet-Draft                  protowire                   October 2026
 
 11.  IANA Considerations
 
+
+
+
+
+
+
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 74]
+
+Internet-Draft                  protowire                   October 2026
+
+
 11.1.  Media Type Registrations
 
    Relationship to "application/protobuf" and "application/x-protobuf".
@@ -4138,13 +4166,6 @@ Internet-Draft                  protowire                   October 2026
    with a client that advertises only "application/protobuf" SHOULD
    downgrade to that media type and accept the loss of protowire-
    specific guarantees rather than refuse the request.
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 74]
-
-Internet-Draft                  protowire                   October 2026
-
 
    IANA is requested to register the following media types in the "Media
    Types" registry [RFC6838]:
@@ -4173,6 +4194,14 @@ Internet-Draft                  protowire                   October 2026
    Published specification: This document.
    Applications that use this media type: API integration.
    Fragment identifier considerations: none defined.
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 75]
+
+Internet-Draft                  protowire                   October 2026
+
+
    Author/Change controller: IETF.
    Provisional registration: yes.
 
@@ -4194,14 +4223,6 @@ Internet-Draft                  protowire                   October 2026
    Subtype name:     protowire-envelope
    Required parameters: none
    Optional parameters: envelope-data-type (media type of the
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 75]
-
-Internet-Draft                  protowire                   October 2026
-
-
        "data" field's contents).
    Encoding considerations: binary.
    Security considerations: See Section 11.
@@ -4223,6 +4244,19 @@ Internet-Draft                  protowire                   October 2026
    defined in Section 6 and for future extensions of this document; they
    MUST NOT be reused for unrelated extensions.  The currently assigned
    numbers are:
+
+
+
+
+
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 76]
+
+Internet-Draft                  protowire                   October 2026
+
 
    pxf.required          1314
    pxf.default           1315
@@ -4248,16 +4282,6 @@ Internet-Draft                  protowire                   October 2026
    Future protowire extensions SHOULD allocate within this range and
    document the assignment in a successor of this document.
 
-
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 76]
-
-Internet-Draft                  protowire                   October 2026
-
-
 12.  Security Considerations
 
    The protowire family is designed to be parsed safely on attacker-
@@ -4279,6 +4303,16 @@ Internet-Draft                  protowire                   October 2026
    Implementations in languages whose default integer width on the host
    platform is 32 bits MUST be particularly careful to use explicit
    64-bit types.
+
+
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 77]
+
+Internet-Draft                  protowire                   October 2026
+
 
    Trapping conversions.  Several implementation languages provide
    integer conversions that abort the process on out-of-range input
@@ -4302,17 +4336,6 @@ Internet-Draft                  protowire                   October 2026
    [DEFUSEDXML] in Python; XmlReaderSettings.DtdProcessing = Prohibit in
    .NET; the feature flags "disallow-doctype-decl", "external-general-
    entities", and "external-parameter-entities" in Java).
-
-
-
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 77]
-
-Internet-Draft                  protowire                   October 2026
-
 
    Prototype pollution.  Decoders implemented in JavaScript, TypeScript,
    or any language with prototype-mutation semantics for reserved string
@@ -4340,6 +4363,13 @@ Internet-Draft                  protowire                   October 2026
    [IEEE754]  IEEE, "IEEE Standard for Floating-Point Arithmetic",
               IEEE 754-2019, July 2019.
 
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 78]
+
+Internet-Draft                  protowire                   October 2026
+
+
    [PROTOBUF] Google, "Protocol Buffers Language Specification
               (proto3)", n.d.,
               <https://protobuf.dev/reference/protobuf/proto3-spec/>.
@@ -4362,13 +4392,6 @@ Internet-Draft                  protowire                   October 2026
    [RFC3339]  Klyne, G. and C. Newman, "Date and Time on the Internet:
               Timestamps", RFC 3339, DOI 10.17487/RFC3339, July 2002,
               <https://www.rfc-editor.org/rfc/rfc3339>.
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 78]
-
-Internet-Draft                  protowire                   October 2026
-
 
    [RFC3629]  Yergeau, F., "UTF-8, a transformation format of ISO
               10646", STD 63, RFC 3629, DOI 10.17487/RFC3629, November
@@ -4396,6 +4419,13 @@ Internet-Draft                  protowire                   October 2026
               2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
               May 2017, <https://www.rfc-editor.org/rfc/rfc8174>.
 
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 79]
+
+Internet-Draft                  protowire                   October 2026
+
+
    [RFC8259]  Bray, T., Ed., "The JavaScript Object Notation (JSON) Data
               Interchange Format", STD 90, RFC 8259,
               DOI 10.17487/RFC8259, December 2017,
@@ -4418,13 +4448,6 @@ Internet-Draft                  protowire                   October 2026
    [DEFUSEDXML]
               Heimes, C., "defusedxml: Defuses XML bombs and other
               exploits", n.d., <https://pypi.org/project/defusedxml/>.
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 79]
-
-Internet-Draft                  protowire                   October 2026
-
 
    [GRPC]     gRPC Authors, "gRPC over HTTP/2", n.d.,
               <https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-
@@ -4451,6 +4474,14 @@ Internet-Draft                  protowire                   October 2026
               <https://github.com/trendvidia/protowire/blob/main/docs/
               RFC-001-schema-extensions.md>.
 
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 80]
+
+Internet-Draft                  protowire                   October 2026
+
+
    [RFC6648]  Saint-Andre, P., Crocker, D., and M. Nottingham,
               "Deprecating the "X-" Prefix and Similar Constructs in
               Application Protocols", BCP 178, RFC 6648,
@@ -4473,14 +4504,6 @@ Appendix A.  ABNF Additions in -01
 
    A block may also open with a type entry, for a block bound to
    google.protobuf.Any (Section 3.16); this is likewise additive:
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 80]
-
-Internet-Draft                  protowire                   October 2026
-
 
    block-tail      = "{" [ any-type-entry ] *entry "}"
    block-value     = "{" [ any-type-entry ] *entry "}"
@@ -4507,6 +4530,14 @@ A.1.  New Productions
                    [ ws option-list ] [ ws annotation-list ] ws ";"
  param-list      = param *( ws "," ws param )
  param           = name ws ":" ws type-ref
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 81]
+
+Internet-Draft                  protowire                   October 2026
+
+
  option-list     = "[" ws option *( ws "," ws option ) ws "]"
 
  annotation-decl = "annotation" ws name ws "(" [ annot-param-list ]
@@ -4530,14 +4561,6 @@ A.1.  New Productions
                    ; serves bytes-typed params
  literal-value   = literal / qualified-ident
                    ; qualified-ident = enum-value reference
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 81]
-
-Internet-Draft                  protowire                   October 2026
-
-
  list-literal    = "[" ws [ literal-value
                    *( ws "," ws literal-value ) ] ws "]"
  message-literal = [ qualified-ident ws ] "{" ws
@@ -4563,6 +4586,14 @@ A.2.  Contextual Keywords
    they MUST be accepted as identifiers, preserving backward
    compatibility with the schema constraints defined in -00.
 
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 82]
+
+Internet-Draft                  protowire                   October 2026
+
+
 Appendix B.  Acknowledgments
 
    The schema language extensions specified in this revision draw on
@@ -4578,21 +4609,6 @@ Appendix C.  Implementation Status
 
    Per RFC 7942, this section records known implementations; it is not a
    conformance statement and will be removed before any RFC publication.
-
-
-
-
-
-
-
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 82]
-
-Internet-Draft                  protowire                   October 2026
-
 
    *  *Reference compiler* — the trendvidia/protocompile fork (Go)
       implements the -01 grammar (contextual keywords, type / function /
@@ -4625,6 +4641,15 @@ Appendix D.  Open Issues
    RPC validation (Section 7.8), and the validation-report wire shape
    (Section 7.10.1).
 
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 83]
+
+Internet-Draft                  protowire                   October 2026
+
+
    The following items are formally deferred to a future revision and
    tracked in [PROTOWIRE-RFC-001] and the protowire issue tracker:
 
@@ -4643,36 +4668,11 @@ Appendix D.  Open Issues
       (e.g. @encrypted(key_ref)); in this revision the schema stays
       orthogonal to key management.
 
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 83]
-
-Internet-Draft                  protowire                   October 2026
-
-
 Author's Address
 
    B. Franco Jr.
    TrendVidia, LLC
    Email: contact@trendvidia.com
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
