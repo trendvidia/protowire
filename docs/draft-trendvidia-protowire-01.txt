@@ -1794,8 +1794,8 @@ Franco Jr.                 Expires 1 May 2027                  [Page 32]
 Internet-Draft                  protowire                   October 2026
 
 
-   address = { city = "Berlin", zip = "10115" }
-   address   { city = "Berlin", zip = "10115" }   ; same value
+   address = { city = "Berlin" zip = "10115" }
+   address   { city = "Berlin" zip = "10115" }   ; same value
 
    A map field is bound with "=" between the field name and the block,
    but the entries inside the block use ":" because each entry is a key-
@@ -1809,10 +1809,12 @@ Internet-Draft                  protowire                   October 2026
    Decoders MUST reject "=" inside a map block and ":" inside a message
    block (Section 3.5).
 
-   Within either kind of block, entries MAY be separated by ";" or by
-   newlines or by both; this is consistent with the ABNF in Section 3.3,
-   where entries are juxtaposed without an explicit separator and the
-   optional ";" is consumed as whitespace.
+   Within either kind of block, entries are separated by whitespace,
+   newlines included, and by nothing else: in the ABNF in Section 3.3
+   entries are juxtaposed with no separator token.  A "," or ";" between
+   two entries of a block is not whitespace, and a decoder MUST reject
+   it.  The comma separates list elements only.  The fixtures under
+   testdata/blocks/ pin both rejections (issue #312).
 
 3.13.  Keyed Repeated Fields
 
@@ -1839,8 +1841,6 @@ Internet-Draft                  protowire                   October 2026
       type (scalar fields, map fields, and singular message fields do
       not accept it);
 
-   *  the annotation value does not name a field of the element message;
-      or
 
 
 
@@ -1849,6 +1849,9 @@ Franco Jr.                 Expires 1 May 2027                  [Page 33]
 
 Internet-Draft                  protowire                   October 2026
 
+
+   *  the annotation value does not name a field of the element message;
+      or
 
    *  the named key field is not a singular field of type string.
 
@@ -1884,7 +1887,7 @@ Internet-Draft                  protowire                   October 2026
    The existing anonymous list form remains valid for the same field,
    with the key field written explicitly:
 
-   children = [ { id = "greeting", type = "Label" } ]
+   children = [ { id = "greeting" type = "Label" } ]
 
    The general repeated-field concatenation rule (Section 3.5) applies
    unchanged: a document may bind the same keyed field more than once
@@ -1894,9 +1897,6 @@ Internet-Draft                  protowire                   October 2026
    "user.name { }" is a legal unquoted entry name; tools that build
    symbol paths from entry names MUST treat each name as one opaque key,
    never as path segments.
-
-
-
 
 
 
