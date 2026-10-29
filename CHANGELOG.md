@@ -10,6 +10,10 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+### Changed
+
+- **`pxf build` images carry `SourceCodeInfo`, and `--null-mask=false` leaves out the `_null` mask** (issue [#424](https://github.com/trendvidia/protowire/issues/424)). Code generated from an image used to lose every doc comment, because the image had no source info. It now has it by default, as `buf build`'s does; `--source-info=false` leaves it out. `--null-mask=false` adds no generated `_null` field (RFC-001 §8.6) and no `field_mask.proto` dependency, for a project that does not carry PXF nulls over binary. With it, a file with no v1.2 syntax builds to the descriptor `buf build` makes of it, so `buf generate image.binpb` makes the same Go as `buf generate` from source. `testdata/stock-image/` holds a buf-built image the test compares against.
+
 ## [1.13.0] – 2026-10-28
 
 Everything since v1.12.0, which is mostly the text format made exact. `null` binds only where a field has explicit presence. A field, or a map key, bound twice in one body is rejected. A `pxf.BigFloat` literal carries its precision, so its text round-trips. A `@dataset` cell may hold a list or a block, and a column may be a dotted path. A document's `@proto` may import a fixed list of schemas. Block entries are separated by whitespace only. The reference's `pb` bytes change in three places so that the family's bytes agree: a map entry always carries its key and its value, `Decimal.scale` and `BigFloat.exponent` are plain varints, and a BigFloat zero has one encoding. [`STABILITY.md`](STABILITY.md) § v1.13 says what each change means for documents and for readers.
