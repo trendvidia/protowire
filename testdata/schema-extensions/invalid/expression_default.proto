@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Invalid fixture: expression_default — a default on an
+// `expression`-typed parameter names an enum value that does not
+// exist. A default is checked exactly as an argument bound to the
+// parameter would be, with names resolved from the declaration's
+// scope, so it MUST NOT compile (RFC-001 §5.1 "Expression defaults";
+// issue #437): the error is reported at the name. Before #437 a
+// default was read as a literal and this compiled clean, leaving the
+// engine a rule it could not resolve. The default is a bare name on
+// purpose: it is the one expression shape the old literal reading
+// accepted, so a compiler without the check passes this fixture
+// rather than failing it for an unrelated parse error.
+
+syntax = "proto3";
+
+package fixtures.invalid.expression_default;
+
+import "protowire/schema/v1/annotations.proto";
+
+enum Mode {
+  MODE_UNSPECIFIED = 0;
+  MODE_MATCH = 1;
+}
+
+annotation mode_known(rule: expression = MODE_NOPE);
+
+message Settings {
+  Mode mode = 1 @mode_known;
+}

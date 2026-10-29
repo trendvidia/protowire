@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Invalid fixture: non_boolean_rule — a rule written in quotes. The
+// capture is a §5.4 string literal, which parses, but a rule is a
+// boolean, so it MUST NOT compile (RFC-001 §5.1 rule 3, §5.4; issue
+// #437): the error is reported at the string's span. Before #437 this
+// compiled and then failed every message it was evaluated against.
+
+syntax = "proto3";
+
+package fixtures.invalid.non_boolean_rule;
+
+import "protowire/schema/v1/annotations.proto";
+
+message Account {
+  string handle = 1
+    @validate("this.size() > 0", code = "account.handle");
+}
