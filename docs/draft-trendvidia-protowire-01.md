@@ -885,8 +885,8 @@ A block value "{ entry-list }" denotes a nested message when the surrounding con
 A nested message field is bound with "=" (or with the bare-block form, which is its abbreviation):
 
 ~~~
-address = { city = "Berlin", zip = "10115" }
-address   { city = "Berlin", zip = "10115" }   ; same value
+address = { city = "Berlin" zip = "10115" }
+address   { city = "Berlin" zip = "10115" }   ; same value
 ~~~
 
 A map field is bound with "=" between the field name and the block, but the entries inside the block use ":" because each entry is a key-of-the-map-to-value pair:
@@ -900,7 +900,7 @@ headers = {
 
 Decoders MUST reject "=" inside a map block and ":" inside a message block ({{entries-and-keys}}).
 
-Within either kind of block, entries MAY be separated by ";" or by newlines or by both; this is consistent with the ABNF in {{abnf-grammar}}, where entries are juxtaposed without an explicit separator and the optional ";" is consumed as whitespace.
+Within either kind of block, entries are separated by whitespace, newlines included, and by nothing else: in the ABNF in {{abnf-grammar}} entries are juxtaposed with no separator token. A "," or ";" between two entries of a block is not whitespace, and a decoder MUST reject it. The comma separates list elements only. The fixtures under testdata/blocks/ pin both rejections (issue #312).
 
 ## Keyed Repeated Fields {#keyed-repeated-fields}
 
@@ -952,7 +952,7 @@ Because a block-tail is an abbreviation of "= { ... }" ({{entries-and-keys}}), a
 The existing anonymous list form remains valid for the same field, with the key field written explicitly:
 
 ~~~
-children = [ { id = "greeting", type = "Label" } ]
+children = [ { id = "greeting" type = "Label" } ]
 ~~~
 
 The general repeated-field concatenation rule ({{entries-and-keys}}) applies unchanged: a document may bind the same keyed field more than once (in either form), and elements concatenate in document order.
