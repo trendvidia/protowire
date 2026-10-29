@@ -140,24 +140,24 @@ Internet-Draft                  protowire                   October 2026
    6.  Annotation Extensions . . . . . . . . . . . . . . . . . . . .  41
      6.1.  PXF Annotations . . . . . . . . . . . . . . . . . . . . .  41
        6.1.1.  Default Placement . . . . . . . . . . . . . . . . . .  44
-       6.1.2.  Oneof Members . . . . . . . . . . . . . . . . . . . .  45
+       6.1.2.  Oneof Members . . . . . . . . . . . . . . . . . . . .  46
      6.2.  SBE Annotations . . . . . . . . . . . . . . . . . . . . .  47
-     6.3.  Schema Extension Annotations  . . . . . . . . . . . . . .  47
-   7.  Schema Language Extensions  . . . . . . . . . . . . . . . . .  48
-     7.1.  Overview  . . . . . . . . . . . . . . . . . . . . . . . .  48
+     6.3.  Schema Extension Annotations  . . . . . . . . . . . . . .  48
+   7.  Schema Language Extensions  . . . . . . . . . . . . . . . . .  49
+     7.1.  Overview  . . . . . . . . . . . . . . . . . . . . . . . .  49
      7.2.  Reserved Keywords . . . . . . . . . . . . . . . . . . . .  49
      7.3.  Type Declarations . . . . . . . . . . . . . . . . . . . .  50
-       7.3.1.  Composition Semantics . . . . . . . . . . . . . . . .  50
+       7.3.1.  Composition Semantics . . . . . . . . . . . . . . . .  51
        7.3.2.  Use at Field Sites  . . . . . . . . . . . . . . . . .  51
      7.4.  Function Declarations . . . . . . . . . . . . . . . . . .  51
-       7.4.1.  Return Contract . . . . . . . . . . . . . . . . . . .  51
+       7.4.1.  Return Contract . . . . . . . . . . . . . . . . . . .  52
        7.4.2.  Parameter Types . . . . . . . . . . . . . . . . . . .  52
        7.4.3.  Function References at Validation Sites . . . . . . .  52
      7.5.  Annotation Declarations . . . . . . . . . . . . . . . . .  52
      7.6.  Annotation Use Sites  . . . . . . . . . . . . . . . . . .  53
        7.6.1.  Literal Values  . . . . . . . . . . . . . . . . . . .  53
        7.6.2.  Engine Expressions  . . . . . . . . . . . . . . . . .  54
-       7.6.3.  Expression Language . . . . . . . . . . . . . . . . .  54
+       7.6.3.  Expression Language . . . . . . . . . . . . . . . . .  55
        7.6.4.  Placement . . . . . . . . . . . . . . . . . . . . . .  57
        7.6.5.  Coexistence with Bracket Options  . . . . . . . . . .  57
      7.7.  Presence Semantics  . . . . . . . . . . . . . . . . . . .  57
@@ -2337,15 +2337,15 @@ Internet-Draft                  protowire                   October 2026
    mantissa an unsigned big-endian integer, rounded to prec bits of
    precision with ties to even: a mantissa wider than prec bits denotes
    that rounded value (issue #410). prec 0 or a zero mantissa (empty, or
-   only zero bytes) is zero.  In PXF text a BigFloat is a numeric
-   literal that carries its precision, as a "p" and a bit count after
-   the number ("0.10000000000000001p53"; the _precision_ production of
-   Section 3.3), so that both its value and its precision survive the
-   text (issue #406):
-
-   *  Writing.  A producer of PXF text writes N significant decimal
-      digits, where N is the number of decimal digits of 2^prec plus
-      one, rounded to nearest with ties to even, followed by "p" and
+   only zero bytes) is zero.  A producer MUST encode a zero, at any
+   prec, with an empty mantissa and exponent 0, keeping its prec and
+   negative, so that a zero has one PB encoding: the one a decoder
+   stores when it reads a zero literal.  A decoder still reads any zero
+   mantissa as zero, whatever the exponent (protowire-go#196).  In PXF
+   text a BigFloat is a numeric literal that carries its precision, as a
+   "p" and a bit count after the number ("0.10000000000000001p53"; the
+   _precision_ production of Section 3.3), so that both its value and
+   its precision survive the text (issue #406):
 
 
 
@@ -2354,6 +2354,9 @@ Franco Jr.                 Expires 1 May 2027                  [Page 42]
 Internet-Draft                  protowire                   October 2026
 
 
+   *  Writing.  A producer of PXF text writes N significant decimal
+      digits, where N is the number of decimal digits of 2^prec plus
+      one, rounded to nearest with ties to even, followed by "p" and
       prec.  It writes the digits as C's "%g" conversion does with
       precision N: trailing zeros removed, in exponent form
       ("1.79769313486231590773e+308p64", at least two exponent digits)
@@ -2387,6 +2390,26 @@ Internet-Draft                  protowire                   October 2026
       pxf.BigFloat is grammatically well-formed but MUST be rejected by
       the schema layer, naming the field.
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 43]
+
+Internet-Draft                  protowire                   October 2026
+
+
    PB to PXF to PB therefore preserves every BigFloat's value, its sign,
    and its prec, zeros included (issue #410).  It does not preserve a
    mantissa's bytes as written: the reading rule stores the significand
@@ -2400,15 +2423,6 @@ Internet-Draft                  protowire                   October 2026
    issue #406 lost 0.3% to 0.5%, and 5% to 8%, of values above 256 bits.
    The fixtures under testdata/bigfloat/, generated with exact rational
    arithmetic, pin both directions (issue #393).
-
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 43]
-
-Internet-Draft                  protowire                   October 2026
-
 
    The well-known type pxf.Secret is defined in the proto/pxf/
    secret.proto file in the canonical repository.  It holds a sensitive
@@ -2444,6 +2458,14 @@ Internet-Draft                  protowire                   October 2026
       google.protobuf wrapper types (BoolValue, BytesValue, DoubleValue,
       FloatValue, Int32Value, Int64Value, StringValue, UInt32Value,
       UInt64Value), pxf.BigInt, pxf.Decimal, or pxf.BigFloat.  These are
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 44]
+
+Internet-Draft                  protowire                   October 2026
+
+
       the message types a PXF literal can denote (Section 3.10; the
       wrapper types take the literal of the type they wrap, and the
       arbitrary-precision types take a numeric literal).  For any other
@@ -2452,19 +2474,6 @@ Internet-Draft                  protowire                   October 2026
    pxf.default is valid on every singular scalar field, on every enum
    field, and on the message types enumerated above.  On an enum field
    the literal is either a value name or the decimal value number.
-
-
-
-
-
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 44]
-
-Internet-Draft                  protowire                   October 2026
-
 
    The constraint is on placement, not on the literal.  A literal that
    does not parse as the annotated field's type — "abc" on an int32
@@ -2505,6 +2514,14 @@ Internet-Draft                  protowire                   October 2026
    A field that satisfies the above but is a member of a oneof carries
    the additional constraints of Section 6.1.2.
 
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 45]
+
+Internet-Draft                  protowire                   October 2026
+
+
 6.1.2.  Oneof Members
 
    Setting any member of a oneof clears the others, so the per-field
@@ -2514,13 +2531,6 @@ Internet-Draft                  protowire                   October 2026
    additional constraints there.
 
    pxf.default MAY be set on a member of a oneof, subject to:
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 45]
-
-Internet-Draft                  protowire                   October 2026
-
 
    *  the default applies only when NO member of the oneof is present in
       the document.  When any member is present the default MUST NOT be
@@ -2561,22 +2571,19 @@ Internet-Draft                  protowire                   October 2026
       without regard to oneof membership does exactly that, and is non-
       conforming.
 
-   *  These placements bound cleanly before this revision and decoded
-      destructively: a document choosing one arm decoded as though it
-      had chosen another, and a document choosing a valid arm was
-      rejected for the absence of a different one.  As with
-      Section 3.14, rejecting such a schema on upgrade surfaces a pre-
-      existing latent bug rather than introducing one.
-
-
-
-
 
 
 Franco Jr.                 Expires 1 May 2027                  [Page 46]
 
 Internet-Draft                  protowire                   October 2026
 
+
+   *  These placements bound cleanly before this revision and decoded
+      destructively: a document choosing one arm decoded as though it
+      had chosen another, and a document choosing a valid arm was
+      rejected for the absence of a different one.  As with
+      Section 3.14, rejecting such a schema on upgrade surfaces a pre-
+      existing latent bug rather than introducing one.
 
 6.2.  SBE Annotations
 
@@ -2612,16 +2619,9 @@ Internet-Draft                  protowire                   October 2026
    range; decoders MUST sign-extend or zero-extend per the SBE primitive
    when populating the wider Protocol Buffers field.
 
-6.3.  Schema Extension Annotations
 
-   A new family of annotations is defined in package protowire.schema.v1
-   to support the schema language extensions specified in Section 7.
-   These annotations are declared, not extended onto FieldOptions
-   individually — they participate in the unified annotation framework
-   defined in Section 7.5 and Section 7.6, and they lower to the carrier
-   extension described in Section 7.11.
 
-   The framework-defined annotations are:
+
 
 
 
@@ -2633,6 +2633,17 @@ Franco Jr.                 Expires 1 May 2027                  [Page 47]
 
 Internet-Draft                  protowire                   October 2026
 
+
+6.3.  Schema Extension Annotations
+
+   A new family of annotations is defined in package protowire.schema.v1
+   to support the schema language extensions specified in Section 7.
+   These annotations are declared, not extended onto FieldOptions
+   individually — they participate in the unified annotation framework
+   defined in Section 7.5 and Section 7.6, and they lower to the carrier
+   extension described in Section 7.11.
+
+   The framework-defined annotations are:
 
    +=============+================================+===================+
    | Name        | Parameters                     | Attaches to       |
@@ -2670,6 +2681,15 @@ Internet-Draft                  protowire                   October 2026
    the bracket forms remain valid input that decoders MUST accept
    indefinitely.
 
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 48]
+
+Internet-Draft                  protowire                   October 2026
+
+
 7.  Schema Language Extensions
 
    This section is new in -01.
@@ -2682,14 +2702,6 @@ Internet-Draft                  protowire                   October 2026
    schema MAY contain:
 
    type  A named refinement alias bundling a base type with zero or more
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 48]
-
-Internet-Draft                  protowire                   October 2026
-
-
       validation rules.  See Section 7.3.
 
    function  A signature for a named validation predicate whose body is
@@ -2724,6 +2736,16 @@ Internet-Draft                  protowire                   October 2026
    distinguish the two contexts; lookahead at the file-scope production
    is sufficient.
 
+
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 49]
+
+Internet-Draft                  protowire                   October 2026
+
+
    The contextual treatment preserves complete backward compatibility:
    every schema valid under -00 (protowire v1.0 or v1.1) that uses type,
    function, or annotation as a message, oneof, field, or enum-value
@@ -2738,13 +2760,6 @@ Internet-Draft                  protowire                   October 2026
    The word expression is a parameter-type designator usable only inside
    annotation X(arg: expression) declarations (Section 7.5); elsewhere
    it MUST be treated as a regular identifier.
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 49]
-
-Internet-Draft                  protowire                   October 2026
-
 
    The word this is bound only inside engine-language bodies of
    @validate(...) and similar annotations.  Protobuf parsers capture
@@ -2779,6 +2794,14 @@ Internet-Draft                  protowire                   October 2026
    Forward references within a file are permitted; cyclic references
    MUST be rejected by the parser.
 
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 50]
+
+Internet-Draft                  protowire                   October 2026
+
+
 7.3.1.  Composition Semantics
 
    When a type declaration D names another type declaration B as its
@@ -2792,15 +2815,6 @@ Internet-Draft                  protowire                   October 2026
    type's base MUST resolve to the same primitive, enum, wrapper, or
    message kind as its ancestor's; deriving an int32 type from a string-
    based type declaration is a parse error.
-
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 50]
-
-Internet-Draft                  protowire                   October 2026
-
 
 7.3.2.  Use at Field Sites
 
@@ -2836,6 +2850,14 @@ Internet-Draft                  protowire                   October 2026
    Section 7.12.  The signature alone is the contract between the schema
    and the runtime.
 
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 51]
+
+Internet-Draft                  protowire                   October 2026
+
+
 7.4.1.  Return Contract
 
    Every function declared per -01 returns a pair of values: a boolean
@@ -2849,14 +2871,6 @@ Internet-Draft                  protowire                   October 2026
    The specific syntax for expressing this pair in any given runtime
    language is per-runtime; the contract is what crosses the schema/
    runtime boundary.
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 51]
-
-Internet-Draft                  protowire                   October 2026
-
 
 7.4.2.  Parameter Types
 
@@ -2892,6 +2906,14 @@ Internet-Draft                  protowire                   October 2026
 
    An annotation declaration specifies a named use site for metadata:
 
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 52]
+
+Internet-Draft                  protowire                   October 2026
+
+
    annotation-decl = "annotation" ws name ws "("
                      [ annot-param-list ] ")" ";"
    annot-param-list = annot-param *( "," ws annot-param )
@@ -2906,13 +2928,6 @@ Internet-Draft                  protowire                   October 2026
    language of Section 7.6.3 rather than a typed Protocol Buffers
    literal; the parser captures it as text (Section 7.6.2) and the
    compiler then parses the capture under that language.
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 52]
-
-Internet-Draft                  protowire                   October 2026
-
 
    The any parameter type accepts any literal value that the consuming
    target permits; specific compatibility is enforced at the lowering
@@ -2947,6 +2962,14 @@ Internet-Draft                  protowire                   October 2026
    A message literal's type comes from the annotation parameter's
    declared type; when the parameter — or, recursively, the message
    field being initialized — is typed any (or google.protobuf.Any), the
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 53]
+
+Internet-Draft                  protowire                   October 2026
+
+
    explicit leading type name is REQUIRED.  When a concrete message type
    is declared, the type name is OPTIONAL; if present it MUST resolve to
    exactly the declared type.  The type is never inferred from the
@@ -2961,14 +2984,6 @@ Internet-Draft                  protowire                   October 2026
    fields are not supported in this revision.  Lists are homogeneous,
    MAY nest, and MAY be empty; expression bodies never appear inside
    literals.
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 53]
-
-Internet-Draft                  protowire                   October 2026
-
 
 7.6.2.  Engine Expressions
 
@@ -3002,6 +3017,15 @@ Internet-Draft                  protowire                   October 2026
        other argument MUST re-parse as a literal or qualified identifier
        (Section 7.6.1); any other shape is an error.
 
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 54]
+
+Internet-Draft                  protowire                   October 2026
+
+
    Once bound, the capture is parsed under Section 7.6.3: the compiler
    checks the grammar, that every call resolves to a declared function
    or a builtin, and arity (Section 7.4.3); a capture that fails is a
@@ -3017,14 +3041,6 @@ Internet-Draft                  protowire                   October 2026
 
    Grammar, over the Protocol Buffers lexical forms for identifiers and
    for integer, float and string literals:
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 54]
-
-Internet-Draft                  protowire                   October 2026
-
 
  expr    = or
  or      = and *( "||" and )
@@ -3053,22 +3069,6 @@ Internet-Draft                  protowire                   October 2026
    Builtins.  This is the complete set; an engine MUST NOT accept any
    other name in an expression argument, and a compiler MUST reject a
    call to any other name.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
