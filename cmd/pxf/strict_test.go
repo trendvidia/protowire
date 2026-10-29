@@ -289,10 +289,11 @@ func TestRunQuery_LooseModeRunsTypoToCompletion(t *testing.T) {
 	}
 }
 
-// A runtime error becomes null in strict mode too, so its stderr line
-// must not say "loose mode" (#403). Covers --strict and the implicit
-// strict mode a bound root type selects.
-func TestStrict_RuntimeErrorLabel(t *testing.T) {
+// A strict run fails on a runtime error, as jq does, after writing the
+// results produced before it; a loose run degrades the error to null
+// (#403). Covers --strict, the implicit strict mode a bound root type
+// selects, and --loose.
+func TestStrict_RuntimeErrorFails(t *testing.T) {
 	p := writeProto(t, `syntax = "proto3"; package l.v1; message W { int32 n = 1; }
 `)
 	doc := filepath.Join(t.TempDir(), "u.pxf")
@@ -302,24 +303,32 @@ func TestStrict_RuntimeErrorLabel(t *testing.T) {
 	var sink bytes.Buffer
 	errSink = &sink
 	t.Cleanup(func() { errSink = io.Discard })
+	const query = `.n, pxf_proto("l.v1.Missing"; {}), 3`
 
 	for _, mode := range [][]string{{"--strict"}, nil} {
 		sink.Reset()
 		args := append([]string{"query", "-p", p, "-m", "l.v1.W"}, mode...)
-		args = append(args, `pxf_proto("l.v1.Missing"; {})`, doc)
-		out, err := runCLI(t, args...)
-		if err != nil {
-			t.Fatalf("%v: unexpected error: %v", mode, err)
+		out, err := runCLI(t, append(args, query, doc)...)
+		if !errMatches(err, `strict-mode: runtime error: pxf_proto("l.v1.Missing")`) {
+			t.Errorf("%v: err = %v, want a strict-mode runtime error naming pxf_proto", mode, err)
 		}
-		if !strings.Contains(out, "value = null") {
-			t.Errorf("%v: stdout = %q, want value = null", mode, out)
+		if !strings.Contains(out, "value = 1") || strings.Contains(out, "value = 3") || strings.Contains(out, "null") {
+			t.Errorf("%v: stdout = %q, want the result before the error only", mode, out)
 		}
-		hint := sink.String()
-		if !strings.Contains(hint, `pxf_proto("l.v1.Missing")`) || !strings.Contains(hint, "(runtime error → null)") {
-			t.Errorf("%v: stderr = %q, want the pxf_proto error labelled (runtime error → null)", mode, hint)
+		if sink.Len() != 0 {
+			t.Errorf("%v: stderr = %q, want no null hint", mode, sink.String())
 		}
-		if strings.Contains(hint, "loose mode") {
-			t.Errorf("%v: stderr = %q names loose mode", mode, hint)
-		}
+	}
+
+	sink.Reset()
+	out, err := runCLI(t, "query", "-p", p, "-m", "l.v1.W", "--loose", query, doc)
+	if err != nil {
+		t.Fatalf("--loose: unexpected error: %v", err)
+	}
+	if !strings.Contains(out, "value = null") || !strings.Contains(out, "value = 3") {
+		t.Errorf("--loose: stdout = %q, want null in place of the error and the result after it", out)
+	}
+	if hint := sink.String(); !strings.Contains(hint, `pxf_proto("l.v1.Missing")`) || !strings.Contains(hint, "(runtime error → null)") {
+		t.Errorf("--loose: stderr = %q, want the pxf_proto error labelled (runtime error → null)", hint)
 	}
 }
