@@ -39,6 +39,8 @@ $ pxf query -p trades.proto -m trades.v1.Trade '.symbool' march.csv
 pxf query: strict-mode: unknown field "symbool" on trades.v1.Trade (did you mean "symbol"?)
 ```
 
+Strict mode checks field names only. A runtime error, such as a type mismatch or `pxf_proto` naming a type the schema doesn't hold, becomes `null` in both modes, as in jq, with a `pxf: … (runtime error → null)` line on stderr.
+
 Dynamic access patterns (array indexing, `pxf_directive(...)`, function calls, object construction) keep gojq's runtime semantics — validation tracks message field chains only.
 
 A `google.protobuf.Any` field ends the checked chain: the type an Any holds is named by the document, not the schema, so `.payload.tag` is checked up to `payload` and runs as written past it. An Any block's type entry (`@type = "..."`, draft § Any Blocks) appears in the query graph as the `"@type"` key, as in protojson, and is written back as the block's first entry:

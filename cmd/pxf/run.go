@@ -20,7 +20,7 @@ type strictOpts struct {
 	root    protoreflect.MessageDescriptor
 }
 
-// stderr is the destination for loose-mode runtime-error hints. Tests
+// stderr is the destination for runtime-error hints. Tests
 // override it via `errSink = io.Discard` to keep test output clean;
 // production goes to os.Stderr.
 var errSink io.Writer = os.Stderr
@@ -46,8 +46,8 @@ func docBody(doc *loadedDoc) any {
 // When opts.enabled is true and opts.root is non-nil, the parsed gojq
 // AST is validated against the descriptor before compile; unknown
 // field references error before the query runs. Loose mode skips
-// this step entirely; runtime errors degrade to nil (jq's
-// errors-as-null model).
+// this step entirely. In both modes runtime errors degrade to nil
+// (jq's errors-as-null model).
 func runQuery(query string, doc *loadedDoc, sch *schema, opts strictOpts) ([]any, error) {
 	q, err := gojq.Parse(query)
 	if err != nil {
@@ -72,13 +72,14 @@ func runQuery(query string, doc *loadedDoc, sch *schema, opts strictOpts) ([]any
 		if !ok {
 			break
 		}
-		// In loose mode, runtime errors degrade to null per the README
-		// (errors-as-null, jq-compatible). Surface the error string on
+		// In both modes, runtime errors degrade to null per QUERY.md
+		// (errors-as-null, jq-compatible); strict mode only adds the
+		// compile-time field check above. Surface the error string on
 		// stderr at most once per kind so a typo isn't completely silent
 		// — Stage A keeps that helper minimal; Stage C will swap it for
 		// the per-file hint the README describes.
 		if e, isErr := v.(error); isErr {
-			fmt.Fprintf(stderr(), "pxf: %s (loose mode → null)\n", e)
+			fmt.Fprintf(stderr(), "pxf: %s (runtime error → null)\n", e)
 			out = append(out, nil)
 			continue
 		}

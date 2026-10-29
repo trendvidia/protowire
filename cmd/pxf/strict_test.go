@@ -3,6 +3,10 @@
 package main
 
 import (
+	"bytes"
+	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -282,5 +286,40 @@ func TestRunQuery_LooseModeRunsTypoToCompletion(t *testing.T) {
 	}
 	if len(out) != 1 || out[0] != nil {
 		t.Errorf("expected single nil result, got: %#v", out)
+	}
+}
+
+// A runtime error becomes null in strict mode too, so its stderr line
+// must not say "loose mode" (#403). Covers --strict and the implicit
+// strict mode a bound root type selects.
+func TestStrict_RuntimeErrorLabel(t *testing.T) {
+	p := writeProto(t, `syntax = "proto3"; package l.v1; message W { int32 n = 1; }
+`)
+	doc := filepath.Join(t.TempDir(), "u.pxf")
+	if err := os.WriteFile(doc, []byte("n = 1\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var sink bytes.Buffer
+	errSink = &sink
+	t.Cleanup(func() { errSink = io.Discard })
+
+	for _, mode := range [][]string{{"--strict"}, nil} {
+		sink.Reset()
+		args := append([]string{"query", "-p", p, "-m", "l.v1.W"}, mode...)
+		args = append(args, `pxf_proto("l.v1.Missing"; {})`, doc)
+		out, err := runCLI(t, args...)
+		if err != nil {
+			t.Fatalf("%v: unexpected error: %v", mode, err)
+		}
+		if !strings.Contains(out, "value = null") {
+			t.Errorf("%v: stdout = %q, want value = null", mode, out)
+		}
+		hint := sink.String()
+		if !strings.Contains(hint, `pxf_proto("l.v1.Missing")`) || !strings.Contains(hint, "(runtime error → null)") {
+			t.Errorf("%v: stderr = %q, want the pxf_proto error labelled (runtime error → null)", mode, hint)
+		}
+		if strings.Contains(hint, "loose mode") {
+			t.Errorf("%v: stderr = %q names loose mode", mode, hint)
+		}
 	}
 }
