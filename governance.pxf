@@ -126,10 +126,8 @@ decay {
 
 immune_system {
   allowed_licenses = ["MIT", "Apache-2.0", "BSD-3-Clause"]
-  # All `replace` directives now point at tagged-or-pseudo-version repos
-  # (no local paths remain), so the pinned-deps gate is on. Once
-  # trendvidia/protobuf-go publishes a `v1.36.11` tag, swap the
-  # pseudo-version in go.mod for the named tag.
+  # The root go.mod has no `replace` directives (#424). A `replace` in a
+  # separate module (internal/schemaext) points at a tagged version.
   require_pinned_dependencies = true
   anomaly_quarantine {
     documentation_concentration = 0.90

@@ -117,7 +117,7 @@ These are cross-port concerns: each milestone's acceptance applies to every port
 
 ### M6 — Security audit + threat model (target: 0.74.0)
 
-**Problem.** No formal security review of the wire codecs. Threats include parser DoS, unsafe deserialization (Java/C# reflection paths), supply-chain integrity (Go's `protobuf-go` fork).
+**Problem.** No formal security review of the wire codecs. Threats include parser DoS, unsafe deserialization (Java/C# reflection paths), supply-chain integrity (Go's `protobuf-go` fork, which `cmd/pxf` no longer links but the forked `protoc-gen-go` and opted-in protowire-go builds still use).
 
 **Plan.**
 1. Threat model document in `docs/THREAT_MODEL.md` enumerating the assets, trust boundaries, and known risks per port.
@@ -165,9 +165,10 @@ The reference implementation. Fewest gaps; the focus here is supply-chain hygien
 
 - ✅ **`pxf.Secret` well-known type recognition.** PXF scalar shorthand (`pw = "x"`) and explicit block form (`pw { value = "x", hint = "h" }`) both decode; encode picks the form based on whether `hint`/`fingerprint` is set so authoring metadata round-trips. Canonical descriptor in `proto/pxf/secret.proto`; codec stays free of any memory-protection dependency (mlock/wipe semantics are the consumer runtime's concern). See `encoding/pxf/secret_test.go` for the conformance set. Sibling ports gain equivalent recognition as consumer demand appears — see "Cross-port follow-up" below.
 
+- ✅ **This repository builds on stock `google.golang.org/protobuf`** (issue [#424](https://github.com/trendvidia/protowire/issues/424), 2026-10-29). Its `go.mod` no longer replaces it with the `trendvidia/protobuf-go` fork, so `go run github.com/trendvidia/protowire/cmd/pxf@<tag>` and `go install …@<tag>` work. Go refuses both for a module whose `go.mod` has a `replace`. That replaces the earlier plan to pin the fork to a SHA here. The fork still exists for two things. protowire-go uses its `dynamicpb` `SetUnsafe` / `AppendUnsafe` when present and falls back to the standard `Set` / `Append` when not, so `pxf` now takes the fallback: the same result, plus the type check and the boxing allocation the fast path skips when it decodes into dynamic messages. And the forked `protoc-gen-go` generates RFC-001 function stubs and annotation doc comments; it is a separate binary that `cmd/pxf` does not link. `internal/schemaext`, a separate module, still replaces protobuf with the fork, because its round-trip test builds that `protoc-gen-go`.
+
 #### Pending
 
-- **0.71.0** — Pin `trendvidia/protobuf-go` fork to a specific SHA in `go.mod` with a comment explaining (a) why the fork exists, (b) what the diff against upstream is, (c) when we'll attempt upstreaming.
 - **0.72.0** — Reproducible-build verification: `go install github.com/trendvidia/protowire/cmd/pxf@<tag>` produces byte-identical binaries given the same Go toolchain version.
 - **0.74.0** — File the upstream issue against `google.golang.org/protobuf` for `dynamicpb.SetUnsafe` / `AppendUnsafe` / `MapSetUnsafe`. If accepted, drop the fork at 1.0.0; if rejected, document the fork as permanent.
 
