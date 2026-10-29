@@ -322,6 +322,15 @@ a 25,024-input parity test against hand-written checks disagreed on 21
 inputs, all of them NaN. NaN now follows IEEE 754, and `is_nan()` is
 added so that a rule can refuse it.)
 
+(Amended 2026-10-29, issue #427. Three common rules had no spelling:
+an enum value by name, "a defined value of its enum", and "no
+duplicates" in a list. Moving daysong's rules from protocheck brackets
+to `@validate` left 16 fields on brackets for these alone, and the only
+expression form of "mode is MATCH or REGULATE" was `this in [1, 2]`, a
+list of numbers that goes stale when the enum changes. The language
+gains enum value references, recorded resolved in the carrier (§8.1),
+and the builtins `defined()` and `unique()`.)
+
 **Grammar.** Over the proto lexical forms for identifiers and for
 integer, float and string literals — the §5.1 capture already requires
 string literals to be proto strings:
@@ -336,9 +345,11 @@ cmp     := term ( ( "==" | "!=" | "<=" | ">=" | "<" | ">" ) term )?
 term    := INT | FLOAT | STRING | "true" | "false" | list
          | "this" postfix*
          | call
+         | enumref
          | "(" expr ")"
 postfix := "." IDENT "(" args ")"                  builtin, method form
 call    := IDENT ( "." IDENT )* "(" args ")"       declared function, or builtin in function form
+enumref := IDENT ( "." IDENT )*                    enum value; not followed by "("
 args    := ( expr ( "," expr )* )?
 list    := "[" ( term ( "," term )* )? "]"
 ```
@@ -351,6 +362,20 @@ visible `function` declaration (§8.1) dispatches to the §9.2 registry;
 otherwise the name MUST be one of the builtins below. A builtin's
 method form `this.m(a, …)` is the same call as its function form
 `m(this, a, …)`.
+
+**Enum value references.** An `enumref` names an enum value. It is an
+identifier run not followed by `(`, other than `this`, `true`, `false`
+and the operator `in`. It resolves like any proto symbol reference from
+the scope of the annotated declaration: the same lookup a declared
+function call uses (§8.1). Proto scoping puts an enum value beside its
+enum, not inside it, so `MODE_MATCH` and `pkg.MODE_MATCH` resolve and
+`Mode.MODE_MATCH` does not. A reference that resolves to nothing, or to
+anything but an enum value, is a compile error. Its value is the enum
+value's number (§6.2 rule 6), so `this in [MODE_MATCH, MODE_REGULATE]`
+means `this in [1, 2]`, and renumbering the enum updates the rule. The
+compiler records each reference resolved in `Expression.enum_values`
+(§8.1). An engine takes the number from that record and never resolves a
+name itself; a reference missing from the record is a load-time error.
 
 **Builtins.** This is the complete set. An engine MUST NOT accept any
 other name in an expression argument, and a compiler MUST reject a
@@ -366,6 +391,8 @@ schema portable (§10).
 | `matches(pattern)` | string | one string, an RE2 pattern | bool — whether the pattern matches anywhere in the receiver (unanchored) |
 | `now()` | — | none | the engine-native current instant (§6.2 rules 2 and 5) |
 | `is_nan()` | number | none | bool — whether the receiver is a floating-point NaN; false for every integer |
+| `defined()` | enum value | none | bool — whether the number is a declared value of the receiver's enum type |
+| `unique()` | list | none | bool — whether no two elements are equal under `==` |
 
 **Typing and evaluation.** The language is dynamically typed: a
 compiler checks syntax, name resolution and arity; an engine checks
@@ -386,6 +413,15 @@ operand kinds when it evaluates.
   refuse NaN in every shape says so: `!this.is_nan()`. Infinities are
   ordinary ordered values.
 - `in` requires a list on its right and tests membership with `==`.
+- `defined()` requires an enum value: `this` bound from an enum field,
+  from an element of a repeated enum, or from an enum map value (§6.2
+  rule 6), or an enum value reference. On any other receiver, an integer
+  included, it is an evaluation error. Excluding the zero value is a
+  separate test: `this.defined() && this != MODE_UNSPECIFIED`.
+- `unique()` compares every pair of elements with `==`. If a pair
+  cannot be compared (messages, bytes, mixed kinds), it is an
+  evaluation error. Two NaNs are never equal, so they are not
+  duplicates.
 - Any other combination — a non-boolean operand to `!`, `&&` or `||`,
   a string ordered against a number, a builtin applied to the wrong
   receiver kind or with the wrong number of arguments, a non-boolean
@@ -473,15 +509,13 @@ already-lowered alias *means* at evaluation time.
    unsound.
 
 6. **Enums**: `this` binds to the value's **number**, and a rule compares
-   it with integer literals (`type SettledStatus = OrderStatus
-   @validate(this == 2 || this == 3);` — fixture 14). §5.4 has no
-   enum-value reference: `OrderStatus.SHIPPED` is not a term, and the
-   compiler rejects it. This is what the reference engine has always
-   evaluated (protocheck binds an enum `this` to its number and never
-   resolved a qualified name). A name-resolved spelling is a candidate for
-   a later minor, filed when a schema author asks for it; it would be a
-   §5.4 grammar addition every engine, the LSP and every port mirror.
-   (Added 2026-09-10, issue #324, decision B.)
+   it with integer literals or enum value references (§5.4). Fixture 14
+   writes `type SettledStatus = OrderStatus @validate(this == 2 ||
+   this == 3);`; by name that is `this == SHIPPED || this == CANCELLED`.
+   The number keeps its enum type, which only `defined()` reads; every
+   operator sees the number alone. (Added 2026-09-10, issue #324,
+   decision B; enum value references and `defined()` added 2026-10-29,
+   issue #427.)
 
 ### 6.3 Type refinement and composition
 
@@ -953,6 +987,12 @@ message Expression {
   string source = 1;                                 // raw engine source
   repeated FunctionRef calls = 2;                    // extracted at compile
   SourceLocation location = 3;
+  repeated EnumValueRef enum_values = 4;             // resolved enum value names (§5.4)
+}
+
+message EnumValueRef {
+  string spelling = 1;                               // as written: "MODE_MATCH", "pkg.MODE_MATCH"
+  EnumLiteral value = 2;
 }
 
 extend google.protobuf.FileOptions      { AnnotationList file_annotations       = 1327; }
@@ -1031,6 +1071,16 @@ compile error at the call's source span (resolved 2026-09-07, issue
 left them undiagnosed). Consumers (engine init walks, source-map
 `callAnchor`s in §8.3.1) may therefore rely on `calls` being complete
 with respect to declared functions.
+
+`Expression.enum_values` is populated the same way (issue #427). Every
+maximal qualified identifier not followed by `(`, other than `this`,
+`true`, `false` and `in`, is an enum value reference (§5.4). The compiler
+resolves it from the annotated declaration's scope and records it once
+per distinct spelling, as an `EnumValueRef`: the spelling as written,
+and the resolved `EnumLiteral`. A reference that does not resolve to an
+enum value is a compile error at its span. As with `Literal`, consumers
+never re-resolve a name against a descriptor pool: an engine substitutes
+`EnumLiteral.number` for the spelling.
 
 ### 8.2 File-scope declaration carriers
 
@@ -1404,7 +1454,7 @@ built):
 | `(buf.validate.field).cel = {id, message, expression}` | `@validate(<expression rewritten per §5.4>, code = <id>, message = <message>)` | Same `this` binding: field value, wrapper unwrap, native temporals (§6.2). Comparisons, `in`, the boolean operators, the five string builtins and `isNan()` map one-to-one (`startsWith` → `starts_with`, `isNan()` → `is_nan()`), except that CEL makes ordering a NaN an error where §5.4 makes it false, so a negated ordering such as `!(this < 0.0)` refuses NaN in CEL and accepts it here; add `!this.is_nan()` when rewriting one; everything else CEL offers — protovalidate's `isEmail()` family, macros, ternaries, field selection — becomes a declared `function`. `id` must not use the reserved `protowire.` prefix (§7). |
 | `(buf.validate.message).cel` | leading `@validate` on the message | `this` binds to the message in both systems; §5.4 has no field selection, so the rule body is a declared `function` taking the message (`same_domain(this)`). |
 | `(buf.validate.field).required = true` | `@required` | **Semantic delta:** protovalidate rejects zero values on implicit-presence scalars; protowire `@required` checks *presence* only (§6.1) and null counts as present. Fields relying on zero-rejection need an explicit rule (e.g. `@validate(this != "")`) or explicit presence. |
-| Standard rules (`string.min_len`, `int32.gt`, …) | `@validate` with the equivalent §5.4 expression; shared shapes become `type` aliases (`type NonEmptyString = string @validate(this.size() >= 1)`) | Type aliases (§6.3) are the idiomatic replacement for rule sets repeated across fields. |
+| Standard rules (`string.min_len`, `int32.gt`, `enum.defined_only`, `repeated.unique`, …) | `@validate` with the equivalent §5.4 expression (`enum.defined_only` → `this.defined()`, `repeated.unique` → `this.unique()`, `enum.in` → `this in [A, B]` by value name); shared shapes become `type` aliases (`type NonEmptyString = string @validate(this.size() >= 1)`) | Type aliases (§6.3) are the idiomatic replacement for rule sets repeated across fields. |
 | `ignore` / zero-value knobs | none needed | protowire never evaluates rules on unset fields (§6.1); the knob's job disappears. |
 
 **Phase 2 — retire.** Drop `buf/validate/validate.proto` imports and

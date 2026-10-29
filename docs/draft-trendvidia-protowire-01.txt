@@ -153,14 +153,14 @@ Internet-Draft                  protowire                   October 2026
        7.4.1.  Return Contract . . . . . . . . . . . . . . . . . . .  52
        7.4.2.  Parameter Types . . . . . . . . . . . . . . . . . . .  52
        7.4.3.  Function References at Validation Sites . . . . . . .  52
-     7.5.  Annotation Declarations . . . . . . . . . . . . . . . . .  52
+     7.5.  Annotation Declarations . . . . . . . . . . . . . . . . .  53
      7.6.  Annotation Use Sites  . . . . . . . . . . . . . . . . . .  53
-       7.6.1.  Literal Values  . . . . . . . . . . . . . . . . . . .  53
+       7.6.1.  Literal Values  . . . . . . . . . . . . . . . . . . .  54
        7.6.2.  Engine Expressions  . . . . . . . . . . . . . . . . .  54
        7.6.3.  Expression Language . . . . . . . . . . . . . . . . .  55
-       7.6.4.  Placement . . . . . . . . . . . . . . . . . . . . . .  57
-       7.6.5.  Coexistence with Bracket Options  . . . . . . . . . .  57
-     7.7.  Presence Semantics  . . . . . . . . . . . . . . . . . . .  58
+       7.6.4.  Placement . . . . . . . . . . . . . . . . . . . . . .  58
+       7.6.5.  Coexistence with Bracket Options  . . . . . . . . . .  58
+     7.7.  Presence Semantics  . . . . . . . . . . . . . . . . . . .  59
        7.7.1.  Well-Known Type Binding . . . . . . . . . . . . . . .  59
 
 
@@ -171,43 +171,43 @@ Internet-Draft                  protowire                   October 2026
 
 
        7.7.2.  Evaluation Order and Result Aggregation . . . . . . .  60
-       7.7.3.  Recursion Depth . . . . . . . . . . . . . . . . . . .  60
+       7.7.3.  Recursion Depth . . . . . . . . . . . . . . . . . . .  61
      7.8.  Streaming RPC Validation  . . . . . . . . . . . . . . . .  61
-     7.9.  Sensitivity Classification  . . . . . . . . . . . . . . .  61
+     7.9.  Sensitivity Classification  . . . . . . . . . . . . . . .  62
      7.10. Error Model . . . . . . . . . . . . . . . . . . . . . . .  62
-       7.10.1.  Report Wire Shape  . . . . . . . . . . . . . . . . .  64
-       7.10.2.  Localization . . . . . . . . . . . . . . . . . . . .  64
-     7.11. Lowering to FileDescriptorSet . . . . . . . . . . . . . .  64
-       7.11.1.  Extension Number Allocation  . . . . . . . . . . . .  65
-       7.11.2.  Choosing the Argument Member . . . . . . . . . . . .  66
+       7.10.1.  Report Wire Shape  . . . . . . . . . . . . . . . . .  65
+       7.10.2.  Localization . . . . . . . . . . . . . . . . . . . .  65
+     7.11. Lowering to FileDescriptorSet . . . . . . . . . . . . . .  65
+       7.11.1.  Extension Number Allocation  . . . . . . . . . . . .  66
+       7.11.2.  Choosing the Argument Member . . . . . . . . . . . .  67
        7.11.3.  Backward Compatibility with Stock Protocol Buffers
-               Tooling . . . . . . . . . . . . . . . . . . . . . . .  66
-     7.12. Cross-Runtime Considerations  . . . . . . . . . . . . . .  67
-       7.12.1.  Engine Configuration . . . . . . . . . . . . . . . .  67
-       7.12.2.  Multi-Runtime Schemas  . . . . . . . . . . . . . . .  68
-   8.  Response Envelope . . . . . . . . . . . . . . . . . . . . . .  68
-   9.  Decoder Conformance . . . . . . . . . . . . . . . . . . . . .  69
-     9.1.  Mandatory Limits  . . . . . . . . . . . . . . . . . . . .  69
-     9.2.  Recursion . . . . . . . . . . . . . . . . . . . . . . . .  72
-     9.3.  UTF-8 Enforcement . . . . . . . . . . . . . . . . . . . .  72
-     9.4.  SBE Bounds Checking . . . . . . . . . . . . . . . . . . .  73
-     9.5.  Map Keys  . . . . . . . . . . . . . . . . . . . . . . . .  73
-     9.6.  Validation Engine Conformance . . . . . . . . . . . . . .  73
-   10. Media Types . . . . . . . . . . . . . . . . . . . . . . . . .  74
-   11. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  74
-     11.1.  Media Type Registrations . . . . . . . . . . . . . . . .  75
-     11.2.  Annotation Field Number Range  . . . . . . . . . . . . .  76
-   12. Security Considerations . . . . . . . . . . . . . . . . . . .  77
-   13. References  . . . . . . . . . . . . . . . . . . . . . . . . .  78
-     13.1.  Normative References . . . . . . . . . . . . . . . . . .  78
-     13.2.  Informative References . . . . . . . . . . . . . . . . .  80
-   Appendix A.  ABNF Additions in -01  . . . . . . . . . . . . . . .  81
-     A.1.  New Productions . . . . . . . . . . . . . . . . . . . . .  81
-     A.2.  Contextual Keywords . . . . . . . . . . . . . . . . . . .  82
-   Appendix B.  Acknowledgments  . . . . . . . . . . . . . . . . . .  83
-   Appendix C.  Implementation Status  . . . . . . . . . . . . . . .  83
-   Appendix D.  Open Issues  . . . . . . . . . . . . . . . . . . . .  83
-   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  84
+               Tooling . . . . . . . . . . . . . . . . . . . . . . .  67
+     7.12. Cross-Runtime Considerations  . . . . . . . . . . . . . .  68
+       7.12.1.  Engine Configuration . . . . . . . . . . . . . . . .  68
+       7.12.2.  Multi-Runtime Schemas  . . . . . . . . . . . . . . .  69
+   8.  Response Envelope . . . . . . . . . . . . . . . . . . . . . .  69
+   9.  Decoder Conformance . . . . . . . . . . . . . . . . . . . . .  70
+     9.1.  Mandatory Limits  . . . . . . . . . . . . . . . . . . . .  70
+     9.2.  Recursion . . . . . . . . . . . . . . . . . . . . . . . .  73
+     9.3.  UTF-8 Enforcement . . . . . . . . . . . . . . . . . . . .  73
+     9.4.  SBE Bounds Checking . . . . . . . . . . . . . . . . . . .  74
+     9.5.  Map Keys  . . . . . . . . . . . . . . . . . . . . . . . .  74
+     9.6.  Validation Engine Conformance . . . . . . . . . . . . . .  74
+   10. Media Types . . . . . . . . . . . . . . . . . . . . . . . . .  75
+   11. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  75
+     11.1.  Media Type Registrations . . . . . . . . . . . . . . . .  76
+     11.2.  Annotation Field Number Range  . . . . . . . . . . . . .  77
+   12. Security Considerations . . . . . . . . . . . . . . . . . . .  78
+   13. References  . . . . . . . . . . . . . . . . . . . . . . . . .  79
+     13.1.  Normative References . . . . . . . . . . . . . . . . . .  79
+     13.2.  Informative References . . . . . . . . . . . . . . . . .  81
+   Appendix A.  ABNF Additions in -01  . . . . . . . . . . . . . . .  82
+     A.1.  New Productions . . . . . . . . . . . . . . . . . . . . .  82
+     A.2.  Contextual Keywords . . . . . . . . . . . . . . . . . . .  83
+   Appendix B.  Acknowledgments  . . . . . . . . . . . . . . . . . .  84
+   Appendix C.  Implementation Status  . . . . . . . . . . . . . . .  84
+   Appendix D.  Open Issues  . . . . . . . . . . . . . . . . . . . .  84
+   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  85
 
 1.  Introduction
 
@@ -2902,10 +2902,10 @@ Internet-Draft                  protowire                   October 2026
    Expression.calls being complete with respect to declared functions
    and free of builtins.
 
-7.5.  Annotation Declarations
-
-   An annotation declaration specifies a named use site for metadata:
-
+   Every maximal qualified identifier not followed by (, other than
+   this, true, false and in, is an enum value reference.  The compiler
+   MUST resolve it from the annotated declaration's scope and emit it
+   into Expression.enum_values once per distinct spelling, with the
 
 
 
@@ -2913,6 +2913,14 @@ Franco Jr.                 Expires 1 May 2027                  [Page 52]
 
 Internet-Draft                  protowire                   October 2026
 
+
+   resolved enum type, value name and number; one that does not resolve
+   to an enum value is a compile-time error attributed to its span.
+   Consumers MUST NOT re-resolve these names.
+
+7.5.  Annotation Declarations
+
+   An annotation declaration specifies a named use site for metadata:
 
    annotation-decl = "annotation" ws name ws "("
                      [ annot-param-list ] ")" ";"
@@ -2952,6 +2960,16 @@ Internet-Draft                  protowire                   October 2026
    Use-site arguments MAY be positional or named.  Named arguments MAY
    follow positional ones; positional MUST NOT follow named.
 
+
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 53]
+
+Internet-Draft                  protowire                   October 2026
+
+
 7.6.1.  Literal Values
 
    Non-scalar argument values take one of three literal forms (see
@@ -2962,14 +2980,6 @@ Internet-Draft                  protowire                   October 2026
    A message literal's type comes from the annotation parameter's
    declared type; when the parameter — or, recursively, the message
    field being initialized — is typed any (or google.protobuf.Any), the
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 53]
-
-Internet-Draft                  protowire                   October 2026
-
-
    explicit leading type name is REQUIRED.  When a concrete message type
    is declared, the type name is OPTIONAL; if present it MUST resolve to
    exactly the declared type.  The type is never inferred from the
@@ -3009,6 +3019,13 @@ Internet-Draft                  protowire                   October 2026
        and = are consumed before capture.  Expression fragments
        beginning with an identifier followed by == are unaffected.
 
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 54]
+
+Internet-Draft                  protowire                   October 2026
+
+
    3.  At resolution time, an argument bound to an expression-typed
        parameter keeps the captured source verbatim, trimmed of leading
        and trailing whitespace.  Quotation marks are NOT stripped: a
@@ -3016,15 +3033,6 @@ Internet-Draft                  protowire                   October 2026
        literal expression and evaluates as such in the engine.  Every
        other argument MUST re-parse as a literal or qualified identifier
        (Section 7.6.1); any other shape is an error.
-
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 54]
-
-Internet-Draft                  protowire                   October 2026
-
 
    Once bound, the capture is parsed under Section 7.6.3: the compiler
    checks the grammar, that every call resolves to a declared function
@@ -3051,24 +3059,16 @@ Internet-Draft                  protowire                   October 2026
  term    = INT / FLOAT / STRING / "true" / "false" / list
          / "this" *postfix
          / call
+         / enumref
          / "(" expr ")"
  postfix = "." IDENT "(" args ")"             ; builtin, method form
  call    = IDENT *( "." IDENT ) "(" args ")"  ; declared function, or
                                               ; builtin in function form
+ enumref = IDENT *( "." IDENT )               ; enum value; not
+                                              ; followed by "("
  args    = [ expr *( "," expr ) ]
  list    = "[" [ term *( "," term ) ] "]"
 
-   this is the only bound identifier.  There is no field selection:
-   this.name is not an expression; a rule over a message's fields is a
-   declared function taking the message.  A call whose name resolves to
-   a visible function declaration dispatches to the engine's registry
-   (Section 9.6); otherwise the name MUST be one of the builtins below.
-   A builtin's method form this.m(a, ...) is the same call as its
-   function form m(this, a, ...).
-
-   Builtins.  This is the complete set; an engine MUST NOT accept any
-   other name in an expression argument, and a compiler MUST reject a
-   call to any other name.
 
 
 
@@ -3081,6 +3081,29 @@ Franco Jr.                 Expires 1 May 2027                  [Page 55]
 
 Internet-Draft                  protowire                   October 2026
 
+
+   this is the only bound identifier.  There is no field selection:
+   this.name is not an expression; a rule over a message's fields is a
+   declared function taking the message.  A call whose name resolves to
+   a visible function declaration dispatches to the engine's registry
+   (Section 9.6); otherwise the name MUST be one of the builtins below.
+   A builtin's method form this.m(a, ...) is the same call as its
+   function form m(this, a, ...).
+
+   An enumref names an enum value: an identifier run not followed by (,
+   other than this, true, false and the operator in.  It resolves like
+   any Protocol Buffers symbol reference from the scope of the annotated
+   declaration.  An enum value is scoped beside its enum, so MODE_MATCH
+   and pkg.MODE_MATCH resolve and Mode.MODE_MATCH does not.  A reference
+   that resolves to nothing, or to anything but an enum value, is a
+   compile-time error.  Its value is the enum value's number.  The
+   compiler records each reference resolved in the descriptor's
+   Expression.enum_values; an engine takes the number from that record
+   and MUST NOT resolve a name itself.
+
+   Builtins.  This is the complete set; an engine MUST NOT accept any
+   other name in an expression argument, and a compiler MUST reject a
+   call to any other name.
 
    +=====================+===========+===========+=====================+
    | Builtin             | Receiver  | Further   | Result              |
@@ -3107,6 +3130,14 @@ Internet-Draft                  protowire                   October 2026
    |                     |           | string,   | the pattern         |
    |                     |           | an RE2    | matches anywhere    |
    |                     |           | pattern   | in the receiver     |
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 56]
+
+Internet-Draft                  protowire                   October 2026
+
+
    |                     |           |           | (unanchored)        |
    +---------------------+-----------+-----------+---------------------+
    | now()               | none      | none      | the engine-         |
@@ -3121,6 +3152,17 @@ Internet-Draft                  protowire                   October 2026
    |                     |           |           | NaN; false for      |
    |                     |           |           | every integer       |
    +---------------------+-----------+-----------+---------------------+
+   | defined()           | enum      | none      | bool: whether       |
+   |                     | value     |           | the number is a     |
+   |                     |           |           | declared value      |
+   |                     |           |           | of the              |
+   |                     |           |           | receiver's enum     |
+   |                     |           |           | type                |
+   +---------------------+-----------+-----------+---------------------+
+   | unique()            | list      | none      | bool: whether no    |
+   |                     |           |           | two elements are    |
+   |                     |           |           | equal under ==      |
+   +---------------------+-----------+-----------+---------------------+
 
                                   Table 2
 
@@ -3130,14 +3172,6 @@ Internet-Draft                  protowire                   October 2026
    operands; ! requires a boolean operand. == and != compare numbers by
    value regardless of representation, strings, booleans, and temporal
    values of the same kind; <, <=, > and >= order numbers, strings
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 56]
-
-Internet-Draft                  protowire                   October 2026
-
-
    (byte-wise), and temporal values of the same kind.  A floating-point
    NaN follows IEEE 754: it equals no number, itself included, so == is
    false and != is true; it is unordered, so <, <=, > and >= are false
@@ -3145,17 +3179,30 @@ Internet-Draft                  protowire                   October 2026
    this >= 0.0 && this <= 1.0 refuses NaN, but !(this < 0.0) and this !=
    0.0 accept it; a rule that must refuse NaN in every shape says
    !this.is_nan().  Infinities are ordinary ordered values. in requires
-   a list on its right and tests membership with ==. Any other
-   combination is an evaluation error: the rule fails, and the
-   violation's fallback message carries the engine's error text.  The
-   statically visible cases (wrong builtin arity; a builtin in function
-   form with no receiver argument) are compile errors as well.
+   a list on its right and tests membership with ==. defined() requires
+   an enum value (this bound from an enum, or an enum value reference);
+   on any other receiver, an integer included, it is an evaluation
+   error. unique() compares every pair of elements with ==; a pair that
+   cannot be compared is an evaluation error, and two NaNs are never
+   duplicates.  Any other combination is an evaluation error: the rule
+   fails, and the violation's fallback message carries the engine's
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 57]
+
+Internet-Draft                  protowire                   October 2026
+
+
+   error text.  The statically visible cases (wrong builtin arity; a
+   builtin in function form with no receiver argument) are compile
+   errors as well.
 
    The language has no field selection on this, no temporal or duration
-   literals, no enum-value references, no arithmetic, no ternary, no
-   comprehensions and no string formatting.  Each of those is either a
-   declared function or a future revision of this section; extending the
-   language is a specification change, never an engine extension.
+   literals, no arithmetic, no ternary, no comprehensions and no string
+   formatting.  Each of those is either a declared function or a future
+   revision of this section; extending the language is a specification
+   change, never an engine extension.
 
 7.6.4.  Placement
 
@@ -3186,18 +3233,22 @@ Internet-Draft                  protowire                   October 2026
    synthesize one surface from the other.  In particular, @required and
    @default do NOT emit (pxf.required) / (pxf.default): a consumer
    reading only the -00 extension numbers observes bracket-written
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 57]
-
-Internet-Draft                  protowire                   October 2026
-
-
    options and nothing else, so deployments MUST upgrade carrier-aware
    consumers before migrating schemas from brackets to annotations.
    When both forms of the same semantic appear on one field with
    conflicting values, a compiler MAY warn; it MUST NOT reconcile them.
+
+
+
+
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 58]
+
+Internet-Draft                  protowire                   October 2026
+
 
 7.7.  Presence Semantics
 
@@ -3239,17 +3290,6 @@ Internet-Draft                  protowire                   October 2026
    For map<K,V> fields, value rules apply per value; key rules apply per
    key when the key's declared type is a type declaration.
 
-
-
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 58]
-
-Internet-Draft                  protowire                   October 2026
-
-
 7.7.1.  Well-Known Type Binding
 
    Six rules define what the identifier this binds to inside a rule, by
@@ -3258,6 +3298,13 @@ Internet-Draft                  protowire                   October 2026
    1.  For a well-known wrapper type (google.protobuf.StringValue etc.),
        this binds to the *unwrapped* scalar value when the wrapper is
        set; the rule is NOT evaluated when the wrapper is null.
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 59]
+
+Internet-Draft                  protowire                   October 2026
+
 
    2.  For google.protobuf.Timestamp and google.protobuf.Duration, this
        binds to the *engine-native temporal value* — parallel to wrapper
@@ -3287,24 +3334,13 @@ Internet-Draft                  protowire                   October 2026
        Report observes the same instant.
 
    6.  For an enum type, this binds to the value's *number*, and a rule
-       compares it with integer literals.  The expression language has
-       no enum-value reference: a qualified name such as
-       OrderStatus.SHIPPED is not a term.
+       compares it with integer literals or enum value references.  The
+       number keeps its enum type, which only defined() reads; every
+       operator sees the number alone.
 
    These rules pin evaluation-time meaning only; they do not change
    descriptor lowering — a type declaration always records its literal
    base-type name.
-
-
-
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 59]
-
-Internet-Draft                  protowire                   October 2026
-
 
 7.7.2.  Evaluation Order and Result Aggregation
 
@@ -3317,6 +3353,14 @@ Internet-Draft                  protowire                   October 2026
    into a single Report (see Section 7.10).  An engine-level option MAY
    provide a fail-fast mode that terminates at the first violation; the
    collect-all mode is the conformance-mandated default.
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 60]
+
+Internet-Draft                  protowire                   October 2026
+
 
    When rules are evaluated against a @default-substituted value (the
    absent-with-default row of the presence table above), every resulting
@@ -3349,19 +3393,6 @@ Internet-Draft                  protowire                   October 2026
    specification-defined codes; user schemas and engines MUST NOT mint
    codes in it.
 
-
-
-
-
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 60]
-
-Internet-Draft                  protowire                   October 2026
-
-
 7.8.  Streaming RPC Validation
 
    Validation over streaming RPCs is *per-message*: each message is
@@ -3371,6 +3402,21 @@ Internet-Draft                  protowire                   October 2026
    validate before transmission.  There is no stream-scoped rule surface
    in this revision (aggregate invariants across a stream's messages are
    an open issue; see Appendix D).
+
+
+
+
+
+
+
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 61]
+
+Internet-Draft                  protowire                   October 2026
+
 
    The first invalid message terminates the stream with an error
    carrying the Report; there is no lenient mode and no rollback of
@@ -3410,20 +3456,23 @@ Internet-Draft                  protowire                   October 2026
       sensitive declarations; an @example on a sensitive declaration is
       a compile-time warning.
 
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 61]
-
-Internet-Draft                  protowire                   October 2026
-
-
    @sensitive lowers through the standard annotation carrier
    (Section 7.11); it has no dedicated descriptor surface.
 
 7.10.  Error Model
 
    A Violation is a structured value with the following abstract shape:
+
+
+
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 62]
+
+Internet-Draft                  protowire                   October 2026
+
 
      +==================+========+==================================+
      | Field            | Type   | Description                      |
@@ -3469,7 +3518,14 @@ Internet-Draft                  protowire                   October 2026
 
 
 
-Franco Jr.                 Expires 1 May 2027                  [Page 62]
+
+
+
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 63]
 
 Internet-Draft                  protowire                   October 2026
 
@@ -3525,7 +3581,7 @@ Internet-Draft                  protowire                   October 2026
 
 
 
-Franco Jr.                 Expires 1 May 2027                  [Page 63]
+Franco Jr.                 Expires 1 May 2027                  [Page 64]
 
 Internet-Draft                  protowire                   October 2026
 
@@ -3581,7 +3637,7 @@ Internet-Draft                  protowire                   October 2026
 
 
 
-Franco Jr.                 Expires 1 May 2027                  [Page 64]
+Franco Jr.                 Expires 1 May 2027                  [Page 65]
 
 Internet-Draft                  protowire                   October 2026
 
@@ -3637,7 +3693,7 @@ Internet-Draft                  protowire                   October 2026
 
 
 
-Franco Jr.                 Expires 1 May 2027                  [Page 65]
+Franco Jr.                 Expires 1 May 2027                  [Page 66]
 
 Internet-Draft                  protowire                   October 2026
 
@@ -3693,7 +3749,7 @@ Internet-Draft                  protowire                   October 2026
 
 
 
-Franco Jr.                 Expires 1 May 2027                  [Page 66]
+Franco Jr.                 Expires 1 May 2027                  [Page 67]
 
 Internet-Draft                  protowire                   October 2026
 
@@ -3749,7 +3805,7 @@ Internet-Draft                  protowire                   October 2026
 
 
 
-Franco Jr.                 Expires 1 May 2027                  [Page 67]
+Franco Jr.                 Expires 1 May 2027                  [Page 68]
 
 Internet-Draft                  protowire                   October 2026
 
@@ -3805,7 +3861,7 @@ Internet-Draft                  protowire                   October 2026
 
 
 
-Franco Jr.                 Expires 1 May 2027                  [Page 68]
+Franco Jr.                 Expires 1 May 2027                  [Page 69]
 
 Internet-Draft                  protowire                   October 2026
 
@@ -3861,7 +3917,7 @@ Internet-Draft                  protowire                   October 2026
 
 
 
-Franco Jr.                 Expires 1 May 2027                  [Page 69]
+Franco Jr.                 Expires 1 May 2027                  [Page 70]
 
 Internet-Draft                  protowire                   October 2026
 
@@ -3917,7 +3973,7 @@ Internet-Draft                  protowire                   October 2026
 
 
 
-Franco Jr.                 Expires 1 May 2027                  [Page 70]
+Franco Jr.                 Expires 1 May 2027                  [Page 71]
 
 Internet-Draft                  protowire                   October 2026
 
@@ -3973,7 +4029,7 @@ Internet-Draft                  protowire                   October 2026
 
 
 
-Franco Jr.                 Expires 1 May 2027                  [Page 71]
+Franco Jr.                 Expires 1 May 2027                  [Page 72]
 
 Internet-Draft                  protowire                   October 2026
 
@@ -4029,7 +4085,7 @@ Internet-Draft                  protowire                   October 2026
 
 
 
-Franco Jr.                 Expires 1 May 2027                  [Page 72]
+Franco Jr.                 Expires 1 May 2027                  [Page 73]
 
 Internet-Draft                  protowire                   October 2026
 
@@ -4085,7 +4141,7 @@ Internet-Draft                  protowire                   October 2026
 
 
 
-Franco Jr.                 Expires 1 May 2027                  [Page 73]
+Franco Jr.                 Expires 1 May 2027                  [Page 74]
 
 Internet-Draft                  protowire                   October 2026
 
@@ -4141,7 +4197,7 @@ Internet-Draft                  protowire                   October 2026
 
 
 
-Franco Jr.                 Expires 1 May 2027                  [Page 74]
+Franco Jr.                 Expires 1 May 2027                  [Page 75]
 
 Internet-Draft                  protowire                   October 2026
 
@@ -4197,7 +4253,7 @@ Internet-Draft                  protowire                   October 2026
 
 
 
-Franco Jr.                 Expires 1 May 2027                  [Page 75]
+Franco Jr.                 Expires 1 May 2027                  [Page 76]
 
 Internet-Draft                  protowire                   October 2026
 
@@ -4253,7 +4309,7 @@ Internet-Draft                  protowire                   October 2026
 
 
 
-Franco Jr.                 Expires 1 May 2027                  [Page 76]
+Franco Jr.                 Expires 1 May 2027                  [Page 77]
 
 Internet-Draft                  protowire                   October 2026
 
@@ -4309,7 +4365,7 @@ Internet-Draft                  protowire                   October 2026
 
 
 
-Franco Jr.                 Expires 1 May 2027                  [Page 77]
+Franco Jr.                 Expires 1 May 2027                  [Page 78]
 
 Internet-Draft                  protowire                   October 2026
 
@@ -4365,7 +4421,7 @@ Internet-Draft                  protowire                   October 2026
 
 
 
-Franco Jr.                 Expires 1 May 2027                  [Page 78]
+Franco Jr.                 Expires 1 May 2027                  [Page 79]
 
 Internet-Draft                  protowire                   October 2026
 
@@ -4421,7 +4477,7 @@ Internet-Draft                  protowire                   October 2026
 
 
 
-Franco Jr.                 Expires 1 May 2027                  [Page 79]
+Franco Jr.                 Expires 1 May 2027                  [Page 80]
 
 Internet-Draft                  protowire                   October 2026
 
@@ -4477,7 +4533,7 @@ Internet-Draft                  protowire                   October 2026
 
 
 
-Franco Jr.                 Expires 1 May 2027                  [Page 80]
+Franco Jr.                 Expires 1 May 2027                  [Page 81]
 
 Internet-Draft                  protowire                   October 2026
 
@@ -4533,7 +4589,7 @@ A.1.  New Productions
 
 
 
-Franco Jr.                 Expires 1 May 2027                  [Page 81]
+Franco Jr.                 Expires 1 May 2027                  [Page 82]
 
 Internet-Draft                  protowire                   October 2026
 
@@ -4589,7 +4645,7 @@ A.2.  Contextual Keywords
 
 
 
-Franco Jr.                 Expires 1 May 2027                  [Page 82]
+Franco Jr.                 Expires 1 May 2027                  [Page 83]
 
 Internet-Draft                  protowire                   October 2026
 
@@ -4645,7 +4701,7 @@ Appendix D.  Open Issues
 
 
 
-Franco Jr.                 Expires 1 May 2027                  [Page 83]
+Franco Jr.                 Expires 1 May 2027                  [Page 84]
 
 Internet-Draft                  protowire                   October 2026
 
@@ -4701,4 +4757,4 @@ Author's Address
 
 
 
-Franco Jr.                 Expires 1 May 2027                  [Page 84]
+Franco Jr.                 Expires 1 May 2027                  [Page 85]

@@ -1441,6 +1441,14 @@ error attributed to the callee. Consumers MAY therefore rely on
 `Expression.calls` being complete with respect to declared functions
 and free of builtins.
 
+Every maximal qualified identifier not followed by `(`, other than
+`this`, `true`, `false` and `in`, is an enum value reference. The
+compiler MUST resolve it from the annotated declaration's scope and
+emit it into `Expression.enum_values` once per distinct spelling, with
+the resolved enum type, value name and number; one that does not
+resolve to an enum value is a compile-time error attributed to its
+span. Consumers MUST NOT re-resolve these names.
+
 ## Annotation Declarations {#annotation-declarations}
 
 An annotation declaration specifies a named use site for metadata:
@@ -1570,10 +1578,13 @@ cmp     = term [ ( "==" / "!=" / "<=" / ">=" / "<" / ">" ) term ]
 term    = INT / FLOAT / STRING / "true" / "false" / list
         / "this" *postfix
         / call
+        / enumref
         / "(" expr ")"
 postfix = "." IDENT "(" args ")"             ; builtin, method form
 call    = IDENT *( "." IDENT ) "(" args ")"  ; declared function, or
                                              ; builtin in function form
+enumref = IDENT *( "." IDENT )               ; enum value; not
+                                             ; followed by "("
 args    = [ expr *( "," expr ) ]
 list    = "[" [ term *( "," term ) ] "]"
 ~~~
@@ -1585,6 +1596,17 @@ to a visible `function` declaration dispatches to the engine's
 registry ({{validation-conformance}}); otherwise the name MUST be one
 of the builtins below. A builtin's method form `this.m(a, ...)` is the
 same call as its function form `m(this, a, ...)`.
+
+An `enumref` names an enum value: an identifier run not followed by
+`(`, other than `this`, `true`, `false` and the operator `in`. It
+resolves like any Protocol Buffers symbol reference from the scope of
+the annotated declaration. An enum value is scoped beside its enum, so
+`MODE_MATCH` and `pkg.MODE_MATCH` resolve and `Mode.MODE_MATCH` does
+not. A reference that resolves to nothing, or to anything but an enum
+value, is a compile-time error. Its value is the enum value's number.
+The compiler records each reference resolved in the descriptor's
+`Expression.enum_values`; an engine takes the number from that record
+and MUST NOT resolve a name itself.
 
 Builtins. This is the complete set; an engine MUST NOT accept any
 other name in an expression argument, and a compiler MUST reject a
@@ -1599,6 +1621,8 @@ call to any other name.
 | `matches(pattern)` | string | one string, an RE2 pattern | bool: whether the pattern matches anywhere in the receiver (unanchored) |
 | `now()` | none | none | the engine-native current instant ({{wkt-binding}} rules 2 and 5) |
 | `is_nan()` | number | none | bool: whether the receiver is a floating-point NaN; false for every integer |
+| `defined()` | enum value | none | bool: whether the number is a declared value of the receiver's enum type |
+| `unique()` | list | none | bool: whether no two elements are equal under `==` |
 
 Typing and evaluation. The language is dynamically typed: a compiler
 checks syntax, name resolution and arity; an engine checks operand
@@ -1613,14 +1637,18 @@ so `<`, `<=`, `>` and `>=` are false whichever side it is on; none of
 these is an evaluation error. So `this >= 0.0 && this <= 1.0` refuses
 NaN, but `!(this < 0.0)` and `this != 0.0` accept it; a rule that must
 refuse NaN in every shape says `!this.is_nan()`. Infinities are
-ordinary ordered values. `in` requires a list on its right and tests membership with
-`==`. Any other combination is an evaluation error: the rule fails,
+ordinary ordered values. `in` requires a list on its right and tests
+membership with `==`. `defined()` requires an enum value (`this` bound
+from an enum, or an enum value reference); on any other receiver, an
+integer included, it is an evaluation error. `unique()` compares every
+pair of elements with `==`; a pair that cannot be compared is an
+evaluation error, and two NaNs are never duplicates. Any other combination is an evaluation error: the rule fails,
 and the violation's fallback message carries the engine's error text.
 The statically visible cases (wrong builtin arity; a builtin in
 function form with no receiver argument) are compile errors as well.
 
 The language has no field selection on `this`, no temporal or
-duration literals, no enum-value references, no arithmetic, no
+duration literals, no arithmetic, no
 ternary, no comprehensions and no string formatting. Each of those is
 either a declared `function` or a future revision of this section;
 extending the language is a specification change, never an engine
@@ -1722,9 +1750,9 @@ by the kind of the value's declared type:
    Report observes the same instant.
 
 6. For an enum type, `this` binds to the value's **number**, and a
-   rule compares it with integer literals. The expression language has
-   no enum-value reference: a qualified name such as
-   `OrderStatus.SHIPPED` is not a term.
+   rule compares it with integer literals or enum value references.
+   The number keeps its enum type, which only `defined()` reads; every
+   operator sees the number alone.
 
 These rules pin evaluation-time meaning only; they do not change
 descriptor lowering — a type declaration always records its literal
