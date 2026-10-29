@@ -71,41 +71,9 @@ var bigfloatVerdicts = map[string]string{
 // mapped to the change that closes them. Each is asserted to still fail,
 // so the go.mod bump that closes one fails the test until it is removed.
 //
-// v1.11.0 writes no precision suffix and one digit too few, cannot lex a
-// suffixed literal, and stores a zero literal as exponent -256 at 256
-// bits (protowire-go#194). It rejects every err- case, but only because a
-// suffix does not lex at all, which bigfloatSuffixControl tells apart.
-var bigfloatKnownGaps = map[string]string{
-	"enc-2pow1024-prec64.pxf":             "protowire-go#194",
-	"enc-integer.pxf":                     "protowire-go#194",
-	"enc-long-mantissa.pxf":               "protowire-go#194",
-	"enc-one-and-a-half.pxf":              "protowire-go#194",
-	"enc-tenth-as-double.pxf":             "protowire-go#194",
-	"enc-three-quarters-negative.pxf":     "protowire-go#194",
-	"enc-tiny-negative-exponent.pxf":      "protowire-go#194",
-	"dec-2pow1024-p64.pxf":                "protowire-go#194",
-	"dec-exponent-only-p24.pxf":           "protowire-go#194",
-	"dec-hundred-digits-p333.pxf":         "protowire-go#194",
-	"dec-integer-p64.pxf":                 "protowire-go#194",
-	"dec-negative-zero.pxf":               "protowire-go#194",
-	"dec-one-at-max-precision.pxf":        "protowire-go#194",
-	"dec-rounds-up-to-power-p8.pxf":       "protowire-go#194",
-	"dec-tenth-p53.pxf":                   "protowire-go#194",
-	"dec-zero.pxf":                        "protowire-go#194",
-	"err-precision-overflow.pxf":          "protowire-go#194",
-	"err-precision-past-limit.pxf":        "protowire-go#194",
-	"err-precision-zero.pxf":              "protowire-go#194",
-	"err-suffix-on-int32.pxf":             "protowire-go#194",
-	"enc-zero-prec64.pxf":                 "protowire-go#194",
-	"enc-zero-prec64-negative.pxf":        "protowire-go#194",
-	"enc-wide-mantissa-prec53.pxf":        "protowire-go#194",
-	"enc-exponent-bound-prec256.pxf":      "protowire-go#194",
-	"enc-max-precision-with-exponent.pxf": "protowire-go#194",
-	"dec-zero-p64.pxf":                    "protowire-go#194",
-	"dec-negative-zero-p64.pxf":           "protowire-go#194",
-	"dec-exponent-bound-prec256.pxf":      "protowire-go#194",
-	"dec-max-precision-with-exponent.pxf": "protowire-go#194",
-}
+// Empty since protowire-go v1.12.0, which writes and reads the
+// precision suffix (protowire-go#194).
+var bigfloatKnownGaps = map[string]string{}
 
 // bigfloatSuffixControl is a well-formed suffixed document. A decoder
 // that rejects it cannot lex a precision suffix at all, so its rejection
