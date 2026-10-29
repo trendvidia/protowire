@@ -402,7 +402,7 @@ registered, memoizable — or a future revision of this section.
 Extending the language is a spec change, never an engine extension.
 
 Conformance fixture: `testdata/schema-extensions/24_expression_language.proto`
-(every builtin in both forms, `now()`, `is_nan()`, every operator) and
+(every builtin in both forms, `now()`, every operator) and
 `invalid/unresolved_expression_call.proto`,
 `invalid/expression_syntax.proto` (the two compile-error classes this
 section adds).
