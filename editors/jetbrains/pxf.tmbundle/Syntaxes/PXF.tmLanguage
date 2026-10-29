@@ -241,14 +241,14 @@
 		<key>float</key>
 		<dict>
 			<key>match</key>
-			<string>-?\b\d+\.\d+(?:[eE][+-]?\d+)?\b</string>
+			<string>-?\b\d+(?:\.\d+(?:[eE][+-]?\d+)?|[eE][+-]?\d+)(?:p\d+)?\b</string>
 			<key>name</key>
 			<string>constant.numeric.float.pxf</string>
 		</dict>
 		<key>integer</key>
 		<dict>
 			<key>match</key>
-			<string>-?\b\d+\b</string>
+			<string>-?\b\d+(?:p\d+)?\b</string>
 			<key>name</key>
 			<string>constant.numeric.integer.pxf</string>
 		</dict>
