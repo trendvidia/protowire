@@ -7,10 +7,12 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
 
+	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -320,5 +322,108 @@ message Loose { optional int32 o = 1; }
 		if got := d.(protoreflect.MessageDescriptor).Fields().ByName("_null") != nil; got != want {
 			t.Errorf("%s has a _null mask: %v, want %v", name, got, want)
 		}
+	}
+}
+
+// stockImageDir holds plain.proto, a schema with no v1.2 syntax, and
+// the image the buf CLI builds of it (testdata/stock-image/README.md).
+// The schema has a field of every kind that earns a `_null` mask, and
+// doc comments on each kind of declaration whose comment generated code
+// carries.
+const stockImageDir = "../../testdata/stock-image"
+
+// buildPlain returns plain.proto's file from the image `pxf build`
+// makes of it with extraArgs.
+func buildPlain(t *testing.T, extraArgs ...string) *descriptorpb.FileDescriptorProto {
+	t.Helper()
+	fds := &descriptorpb.FileDescriptorSet{}
+	if err := proto.Unmarshal(buildImage(t, append(extraArgs, filepath.Join(stockImageDir, "plain.proto"))...), fds); err != nil {
+		t.Fatal(err)
+	}
+	return imageFile(t, fds, "plain.proto")
+}
+
+func imageFile(t *testing.T, fds *descriptorpb.FileDescriptorSet, name string) *descriptorpb.FileDescriptorProto {
+	t.Helper()
+	for _, f := range fds.File {
+		if f.GetName() == name {
+			return f
+		}
+	}
+	t.Fatalf("%s is not in the image", name)
+	return nil
+}
+
+// TestBuildMatchesBuf: with --null-mask=false, a file with no v1.2
+// syntax lowers to the descriptor `buf build` makes of it, SourceCodeInfo
+// included, so code generated from the image is the code `buf generate`
+// makes from source (#424). buf's own extension 8042 on the file is the
+// one difference, and no plugin reads it. Measured by hand on the same
+// schema: the Go protoc-gen-go generated from the two images was
+// byte-identical.
+func TestBuildMatchesBuf(t *testing.T) {
+	got := buildPlain(t, "--null-mask=false")
+
+	raw, err := os.ReadFile(filepath.Join(stockImageDir, "plain.buf.binpb"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	fds := &descriptorpb.FileDescriptorSet{}
+	if err := proto.Unmarshal(raw, fds); err != nil {
+		t.Fatal(err)
+	}
+	want := imageFile(t, fds, "plain.proto")
+	if len(want.ProtoReflect().GetUnknown()) == 0 {
+		t.Fatal("the buf image has no extension 8042; was it rebuilt by another tool?")
+	}
+	want.ProtoReflect().SetUnknown(nil)
+
+	if got.SourceCodeInfo == nil {
+		t.Fatal("the image carries no SourceCodeInfo")
+	}
+	if !proto.Equal(got, want) {
+		t.Errorf("pxf build --null-mask=false differs from buf build:\n got: %v\nwant: %v", prototext.Format(got), prototext.Format(want))
+	}
+}
+
+// TestBuildNullMaskOff: --null-mask=false adds no `_null` field and no
+// field_mask.proto dependency, while the default build does both (#424).
+func TestBuildNullMaskOff(t *testing.T) {
+	for _, c := range []struct {
+		args []string
+		want bool
+	}{{nil, true}, {[]string{"--null-mask=false"}, false}} {
+		f := buildPlain(t, c.args...)
+		var masked bool
+		for _, m := range f.MessageType {
+			for _, fd := range m.Field {
+				masked = masked || fd.GetName() == "_null"
+			}
+		}
+		if masked != c.want {
+			t.Errorf("%v: a message has a _null field: %v, want %v", c.args, masked, c.want)
+		}
+		if dep := slices.Contains(f.Dependency, "google/protobuf/field_mask.proto"); dep != c.want {
+			t.Errorf("%v: field_mask.proto is a dependency: %v, want %v", c.args, dep, c.want)
+		}
+	}
+}
+
+// TestBuildSourceInfo: the image keeps the schema's doc comments unless
+// --source-info=false, so generated code keeps them too (#424).
+func TestBuildSourceInfo(t *testing.T) {
+	var comments []string
+	for _, loc := range buildPlain(t).GetSourceCodeInfo().GetLocation() {
+		if c := strings.TrimSpace(loc.GetLeadingComments()); c != "" {
+			comments = append(comments, c)
+		}
+	}
+	for _, want := range []string{"ErrorCode is documented.", "Req is a request.", "w doc.", "Svc is a service.", "Get gets."} {
+		if !slices.Contains(comments, want) {
+			t.Errorf("the image has no leading comment %q; it has %q", want, comments)
+		}
+	}
+	if si := buildPlain(t, "--source-info=false").SourceCodeInfo; si != nil {
+		t.Errorf("--source-info=false still carries %d source locations", len(si.Location))
 	}
 }
