@@ -8,19 +8,43 @@ The roadmap is itself governed by [Steward](https://steward-dev.ai) — the [`go
 
 ## Versioning policy
 
-All ports share a single major.minor release cadence so cross-port wire-equivalence is verified at known points in time. Patch numbers are per-port and may diverge.
+**What is true today: each repository has its own version line.** A spec release in this repository does not imply a port release. A port tags a release when its own code changes, so most spec releases leave most ports untouched. For example, v1.10.0 changed only compiler and CLI output, and its PXF, `pb`, SBE, envelope and report bytes are identical to v1.9.0's. Each release's section in [`STABILITY.md`](STABILITY.md) and [`CHANGELOG.md`](CHANGELOG.md) says which outputs changed, and so which ports have anything to pick up.
 
-- **0.70.0** — current baseline. Library code works; published packages, CI gating, security review, and several per-port features are still missing. Not recommended for production in the senses described in the README "Limitations & open gaps" section of each port.
-- **0.71.0 → 0.79.x** — see milestones below.
-- **1.0.0** — declared only when (a) all ports are published on their native registry, (b) cross-port wire-equivalence runs in CI on every PR, (c) the wire format has a formal stability statement, and (d) PXF parsing has been fuzzed. Not before.
+The latest version of each repository, measured on 2026-10-28 from git tags and from each registry's public API:
 
-The version drift across port manifests at the start of 0.70 (some at `0.0.0`, some at `0.1.0`, one at `1.0.0`) was an artifact of independent slice work and has been reset.
+| Repository | Latest tag | Registry, latest version there |
+|---|---|---|
+| `protowire` (spec, `cmd/pxf`) | v1.12.0 | proxy.golang.org: v1.12.0 |
+| `protowire-go` | v1.12.0 | proxy.golang.org: v1.12.0 |
+| `protocompile` | v0.35.1 | proxy.golang.org: v0.35.1 |
+| `protowire-java` | v1.2.0 | Maven Central `org.protowire:protowire-pxf`: 1.1.0 |
+| `protowire-kotlin` | v1.0.0 | Maven Central `org.protowire:protowire-kotlin`: 1.0.0 |
+| `protowire-typescript` | v1.2.0 | npm `@trendvidia/protowire`: 1.2.0 |
+| `protowire-cpp` | v1.1.0 | none: not in vcpkg or Conan Center |
+| `protowire-rust` | v1.0.0 | crates.io `protowire`: 1.0.0 |
+| `protowire-python` | v1.0.0 | PyPI `protowire-python`: 1.0.0 (PyPI's `protowire` is an unrelated project) |
+| `protowire-csharp` | v1.0.0 | NuGet `Protowire.Pxf`, `Protowire.Pb`: 1.0.0 |
+| `protowire-dart` | v1.0.0 | pub.dev `protowire`: 1.0.0 |
+| `protowire-swift` | v1.0.0 | none: SwiftPM reads the git tag; not on Swift Package Index or CocoaPods |
+
+This table is a snapshot, so check the registry before relying on a row.
+
+**The goal: one shared major.minor across the ports**, so that cross-port wire equivalence is checked at known points. It is not in place, and nothing above should be read as promising it.
+
+**1.0.0 shipped on 2026-05-13 without the gate this section used to state.** The gate required four conditions, and on 2026-10-28 they stand as follows:
+
+- (a) every port published on its native registry: not met. C++ and Swift are on none of the registries listed for them in M2.
+- (b) cross-port wire equivalence in CI on every PR: partly met. It runs on PRs that touch wire-relevant paths, for Go, C++, TypeScript and Java only (M1).
+- (c) a formal stability statement for the wire format: met, in [`STABILITY.md`](STABILITY.md).
+- (d) PXF parsing fuzzed: not met as M4 states it. protowire-go has fuzz targets (`encoding/pxf/fuzz_test.go`, `encoding/pb/fuzz_test.go`) but no scheduled fuzz job, and the other ports were not checked.
+
+The milestones below keep their original `0.7x` targets as labels. They are not release numbers.
 
 ---
 
 ## Family-wide milestones
 
-These ship together — each gates a release across all 9 ports.
+These are cross-port concerns: each milestone's acceptance applies to every port. They do not gate releases, since each repository releases on its own line ([Versioning policy](#versioning-policy)).
 
 ### M1 — CI gating (target: 0.71.0)
 
@@ -38,6 +62,8 @@ These ship together — each gates a release across all 9 ports.
 ### M2 — Publishing pipelines (target: 0.72.0)
 
 **Problem.** Nothing is published. To use any port today you vendor source. That's an absolute bar for any organization with supply-chain review.
+
+**Status (2026-10-28).** Every port except C++ and Swift is now on its registry; see the table under [Versioning policy](#versioning-policy). The C++ (vcpkg, Conan) and Swift (Swift Package Index, CocoaPods) rows of the plan are not done, and neither is the acceptance test below.
 
 **Plan.** Each port publishes to its native registry, with reproducible-build receipts where available:
 
