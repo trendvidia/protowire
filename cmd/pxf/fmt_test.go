@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/trendvidia/protocompile/ast"
 )
 
 const fmtFixtureDir = "../../testdata/fmt"
@@ -69,8 +71,8 @@ func TestFmtProtoKeepsAnnotations(t *testing.T) {
 // TestFmtProtoMatchesBufFormat: on a file with no v1.2 syntax, pxf fmt
 // writes what buf format writes, so a project switching over does not
 // reformat its untouched files (#425). Measured beyond this fixture: on
-// every stock .proto in this repository that buf format accepts (37
-// files), the two were byte-identical.
+// every stock .proto in this repository that buf format accepts (39
+// files, protocompile v0.36.0), the two were byte-identical.
 func TestFmtProtoMatchesBufFormat(t *testing.T) {
 	out, err := runCLI(t, "fmt", filepath.Join(fmtFixtureDir, "stock.proto"))
 	if err != nil {
@@ -131,23 +133,45 @@ func TestFmtDirectory(t *testing.T) {
 	}
 }
 
-// TestFmtRefusesToLoseSource: when the printer's output says less than
-// the input, pxf fmt fails and leaves the file alone. The shape is
-// trendvidia/protocompile#273: the printer drops a comment after `};`.
-// This pins that bug: once protocompile keeps the comment, the format
-// succeeds, this test fails, and its expectation should flip to success.
-func TestFmtRefusesToLoseSource(t *testing.T) {
+// TestFmtKeepsCommentAfterBody: the printer used to drop a comment after
+// `};` with no error (trendvidia/protocompile#273), and pxf fmt refused
+// the file. Since protocompile v0.36.0 the comment survives, so the file
+// formats.
+func TestFmtKeepsCommentAfterBody(t *testing.T) {
 	src := "syntax = \"proto3\";\npackage fmt.v1;\n\nmessage Foo {\n  oneof choice {\n    string a = 1;\n  }; // this comment is dropped\n}\n"
 	path := filepath.Join(t.TempDir(), "drop.proto")
 	if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	_, err := runCLI(t, "fmt", "-w", path)
-	if err == nil || !strings.Contains(err.Error(), "would lose comment //thiscommentisdropped") {
-		t.Fatalf("err = %v, want a refusal naming the lost comment (protocompile#273)", err)
+	if _, err := runCLI(t, "fmt", "-w", path); err != nil {
+		t.Fatal(err)
 	}
-	if got := readFile(t, path); got != src {
-		t.Errorf("the refused file was rewritten:\n%s", got)
+	if got := readFile(t, path); !strings.Contains(got, "// this comment is dropped") {
+		t.Errorf("the comment after }; was lost:\n%s", got)
+	}
+}
+
+// TestLostTokens: the check pxf fmt runs on the printer's output names
+// what the output lacks, so a printer that drops source again (as
+// protocompile#258 and #273 did) is refused instead of written.
+func TestLostTokens(t *testing.T) {
+	parse := func(src string) *ast.File {
+		t.Helper()
+		f, err := parseProto("x.proto", []byte(src))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return f
+	}
+	before := parse("syntax = \"proto3\";\npackage p;\n// doc\nmessage M {\n  int32 a = 1 @required; // trailing\n}\n")
+	for _, c := range []struct{ after, want string }{
+		{"syntax = \"proto3\";\npackage p;\n// doc\nmessage M {\n  int32 a = 1 @required; // trailing\n}\n", ""},
+		{"syntax = \"proto3\";\npackage p;\n// doc\nmessage M {\n  int32 a = 1; // trailing\n}\n", "Ident required (1 of 1), annotation use @ (1 of 1)"},
+		{"syntax = \"proto3\";\npackage p;\nmessage M {\n  int32 a = 1 @required;\n}\n", "comment //doc (1 of 1), comment //trailing (1 of 1)"},
+	} {
+		if got := lostTokens(before, parse(c.after)); got != c.want {
+			t.Errorf("lostTokens = %q, want %q", got, c.want)
+		}
 	}
 }
 

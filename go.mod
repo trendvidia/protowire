@@ -7,7 +7,7 @@ require (
 	github.com/itchyny/gojq v0.12.19
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
 	github.com/spf13/cobra v1.10.2
-	github.com/trendvidia/protocompile v0.35.2-0.20261029094157-73b41418acea
+	github.com/trendvidia/protocompile v0.36.0
 	github.com/trendvidia/protoregistry v0.72.0
 	github.com/trendvidia/protos v0.1.1
 	github.com/trendvidia/protowire-go v1.12.0
@@ -18,8 +18,6 @@ require (
 )
 
 require (
-	buf.build/gen/go/bufbuild/protodescriptor/protocolbuffers/go v1.36.12-20261012172039-ff528c23443f.2 // indirect
-	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.12-20260415201107-50325440f8f2.1 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/itchyny/timefmt-go v0.1.8 // indirect
 	github.com/kr/text v0.2.0 // indirect
@@ -27,7 +25,6 @@ require (
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/spf13/pflag v1.0.9 // indirect
 	github.com/tidwall/btree v1.8.2 // indirect
-	github.com/trendvidia/protos v0.1.0 // indirect
 	golang.org/x/exp v0.0.0-20250911091902-df9299821621 // indirect
 	golang.org/x/net v0.58.0 // indirect
 	golang.org/x/sync v0.24.0 // indirect
