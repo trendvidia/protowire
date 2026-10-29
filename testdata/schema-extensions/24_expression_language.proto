@@ -4,7 +4,8 @@
 // Fixture: 24_expression_language
 // Exercises: the normative expression language (§5.4, issue #282) —
 // every builtin in both its method form and its function form,
-// now() against a Timestamp field, every operator, every literal
+// now() against a Timestamp field, is_nan() in both forms on a double
+// field, every operator, every literal
 // kind, nested parentheses, a declared-function call, and a type
 // alias rule propagated onto a repeated field (§6.4: per element).
 //
@@ -52,7 +53,8 @@ message Profile {
     @validate(this >= 0 && this < 150 && this != 42);
 
   double score = 5
-    @validate((this > 0.0 && this <= 1.0) || (this == 2.5));
+    @validate((this > 0.0 && this <= 1.0) || (this == 2.5))
+    @validate(!this.is_nan() && !is_nan(this));
 
   bool verified = 6
     @validate(this == true || this == false);
