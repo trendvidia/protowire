@@ -3091,12 +3091,12 @@ Internet-Draft                  protowire                   October 2026
    function form m(this, a, ...).
 
    An enumref names an enum value: an identifier run not followed by (,
-   other than this, true, false and the operator in.  It resolves like
-   any Protocol Buffers symbol reference from the scope of the annotated
-   declaration.  An enum value is scoped beside its enum, so MODE_MATCH
-   and pkg.MODE_MATCH resolve and Mode.MODE_MATCH does not.  A reference
-   that resolves to nothing, or to anything but an enum value, is a
-   compile-time error.  Its value is the enum value's number.  The
+   other than this, true, false and the operator in.  It resolves from
+   the scope of the annotated declaration exactly as an enum-typed
+   annotation argument does: by the value's scoped name (MODE_MATCH,
+   pkg.MODE_MATCH) or in the enum-qualified form (Mode.MODE_MATCH).  A
+   reference that resolves to nothing, or to anything but an enum value,
+   is a compile-time error.  Its value is the enum value's number.  The
    compiler records each reference resolved in the descriptor's
    Expression.enum_values; an engine takes the number from that record
    and MUST NOT resolve a name itself.

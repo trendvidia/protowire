@@ -208,7 +208,7 @@ message Expression {
 }
 
 // EnumValueRef is one enum value reference in an expression: the
-// spelling as written (`MODE_MATCH`, `pkg.MODE_MATCH`) and what it
+// spelling as written (`MODE_MATCH`, `Mode.MODE_MATCH`) and what it
 // resolved to.
 message EnumValueRef {
   string spelling = 1;

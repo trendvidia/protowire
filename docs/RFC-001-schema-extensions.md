@@ -365,12 +365,13 @@ method form `this.m(a, …)` is the same call as its function form
 
 **Enum value references.** An `enumref` names an enum value. It is an
 identifier run not followed by `(`, other than `this`, `true`, `false`
-and the operator `in`. It resolves like any proto symbol reference from
-the scope of the annotated declaration: the same lookup a declared
-function call uses (§8.1). Proto scoping puts an enum value beside its
-enum, not inside it, so `MODE_MATCH` and `pkg.MODE_MATCH` resolve and
-`Mode.MODE_MATCH` does not. A reference that resolves to nothing, or to
-anything but an enum value, is a compile error. Its value is the enum
+and the operator `in`. It resolves from the scope of the annotated
+declaration exactly as an enum-typed annotation argument does (§5.1
+rule 4), so both of its spellings work: the value's proto-scoped name
+(`MODE_MATCH`, `pkg.MODE_MATCH`; proto puts an enum value beside its
+enum) and the enum-qualified form (`Mode.MODE_MATCH`). A reference that
+resolves to nothing, or to anything but an enum value, is a compile
+error. Its value is the enum
 value's number (§6.2 rule 6), so `this in [MODE_MATCH, MODE_REGULATE]`
 means `this in [1, 2]`, and renumbering the enum updates the rule. The
 compiler records each reference resolved in `Expression.enum_values`
@@ -991,7 +992,7 @@ message Expression {
 }
 
 message EnumValueRef {
-  string spelling = 1;                               // as written: "MODE_MATCH", "pkg.MODE_MATCH"
+  string spelling = 1;                               // as written: "MODE_MATCH", "Mode.MODE_MATCH"
   EnumLiteral value = 2;
 }
 
@@ -1075,7 +1076,8 @@ with respect to declared functions.
 `Expression.enum_values` is populated the same way (issue #427). Every
 maximal qualified identifier not followed by `(`, other than `this`,
 `true`, `false` and `in`, is an enum value reference (§5.4). The compiler
-resolves it from the annotated declaration's scope and records it once
+resolves it from the annotated declaration's scope, as it resolves an
+enum-typed argument, and records it once
 per distinct spelling, as an `EnumValueRef`: the spelling as written,
 and the resolved `EnumLiteral`. A reference that does not resolve to an
 enum value is a compile error at its span. As with `Literal`, consumers
