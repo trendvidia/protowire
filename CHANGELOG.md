@@ -22,6 +22,8 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ### Changed
 
+- **A `pxf.BigFloat` zero has one PB encoding** ([protowire-go#196](https://github.com/trendvidia/protowire-go/issues/196)). Decided by the owner (option A). A producer MUST encode a zero, at any `prec`, with an empty `mantissa` and `exponent` 0, keeping `prec` and `negative`. That is what a decoder already stores for a zero literal (`dec-zero-p64`). protowire-go's Go-struct codec wrote a zero at `prec` 64 with `exponent` −64, so the same value had two encodings. A decoder still reads any zero mantissa as zero, whatever the exponent. Draft `-01` § PXF Annotations says so. Ports that write BigFloat bytes from a native big-number type must match.
+
 - **Four edges of a `pxf.BigFloat`'s PXF text are settled** (issue [#410](https://github.com/trendvidia/protowire/issues/410)). Decided by the owner.
   - A zero is written `0p<prec>` or `-0p<prec>`, so it keeps its precision and sign.
   - A mantissa wider than `prec` denotes the value rounded to `prec`.
