@@ -29,7 +29,9 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	pbwire "google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/descriptorpb"
 
 	"github.com/trendvidia/protocompile/engineconfig"
 	"github.com/trendvidia/protocompile/fdp"
@@ -203,9 +205,12 @@ func runBuild(cmd *cobra.Command, args []string, opts buildOptions) error {
 	if len(results) != 1 || results[0].Value == nil {
 		return fmt.Errorf("compiling schemas: expected 1 non-nil FileDescriptorSet result, got %d", len(results))
 	}
+	image := proto.Clone(results[0].Value).(*descriptorpb.FileDescriptorSet)
+	markImports(image, paths)
+
 	// Deterministic marshaling keeps the image byte-stable across runs —
 	// the acceptance bar for caching it as a build artifact.
-	raw, err := proto.MarshalOptions{Deterministic: true}.Marshal(results[0].Value)
+	raw, err := proto.MarshalOptions{Deterministic: true}.Marshal(image)
 	if err != nil {
 		return err
 	}
@@ -214,6 +219,83 @@ func runBuild(cmd *cobra.Command, args []string, opts buildOptions) error {
 		return err
 	}
 	return os.WriteFile(opts.output, raw, 0o644)
+}
+
+// bufImageFileExtension is the field buf's image format adds to every file
+// (buf.alpha.image.v1.ImageFile, field buf_extension). buf generate skips a
+// file whose is_import (field 1) is set unless given --include-imports, so
+// without it buf generated every dependency of a pxf build image, a
+// second copy of field_mask.proto included (#430).
+const bufImageFileExtension = 8042
+
+// markImports writes buf's image marker on every file of fds: is_import
+// for a file the arguments did not name, and is_syntax_unspecified (field
+// 3) as buf writes it. Stock protoc and plugins ignore the field.
+func markImports(fds *descriptorpb.FileDescriptorSet, targets []string) {
+	for _, f := range fds.File {
+		ext := pbwire.AppendTag(nil, 1, pbwire.VarintType)
+		ext = pbwire.AppendVarint(ext, pbwire.EncodeBool(!slices.Contains(targets, f.GetName())))
+		ext = pbwire.AppendTag(ext, 3, pbwire.VarintType)
+		ext = pbwire.AppendVarint(ext, pbwire.EncodeBool(syntaxUnspecified(f)))
+
+		raw := f.ProtoReflect().GetUnknown()
+		raw = pbwire.AppendTag(raw, bufImageFileExtension, pbwire.BytesType)
+		raw = pbwire.AppendBytes(raw, ext)
+		f.ProtoReflect().SetUnknown(raw)
+	}
+}
+
+// syntaxUnspecified reports whether f's source has no syntax statement.
+// protocompile records that in buf's SourceCodeInfo extension (field
+// 536000000, is_syntax_unspecified = 2), so it is known only when the
+// image carries source info; without it this reports false. It reads the
+// marshaled bytes: whether the extension decodes as a known field or an
+// unknown one depends on whether buf's Go package is linked, which
+// protocompile is removing (trendvidia/protocompile#266).
+func syntaxUnspecified(f *descriptorpb.FileDescriptorProto) bool {
+	const sourceCodeInfoExtension, isSyntaxUnspecified = 536000000, 2
+	if f.GetSourceCodeInfo() == nil {
+		return false
+	}
+	b, err := proto.Marshal(f.GetSourceCodeInfo())
+	if err != nil {
+		return false
+	}
+	for len(b) > 0 {
+		num, typ, n := pbwire.ConsumeTag(b)
+		if n < 0 {
+			return false
+		}
+		b = b[n:]
+		if num == sourceCodeInfoExtension && typ == pbwire.BytesType {
+			ext, n := pbwire.ConsumeBytes(b)
+			if n < 0 {
+				return false
+			}
+			for len(ext) > 0 {
+				num, typ, m := pbwire.ConsumeTag(ext)
+				if m < 0 {
+					return false
+				}
+				ext = ext[m:]
+				if num == isSyntaxUnspecified && typ == pbwire.VarintType {
+					v, _ := pbwire.ConsumeVarint(ext)
+					return v != 0
+				}
+				if m = pbwire.ConsumeFieldValue(num, typ, ext); m < 0 {
+					return false
+				}
+				ext = ext[m:]
+			}
+			b = b[n:]
+			continue
+		}
+		if n = pbwire.ConsumeFieldValue(num, typ, b); n < 0 {
+			return false
+		}
+		b = b[n:]
+	}
+	return false
 }
 
 // collectBuildInputs turns the positional arguments into import roots
