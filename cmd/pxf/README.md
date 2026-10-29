@@ -133,9 +133,18 @@ pxf validate self-describing.pxf   # @type + @proto, no -m needed
 # exit:   0 on success, 1 on any parse / bind / required-field error
 ```
 
-### `pxf fmt <file.pxf>`
+### `pxf fmt [-w | --check] <file-or-dir>...`
 
-Reads the PXF document, re-encodes it through the canonical writer, and prints the result to stdout. Idempotent: `pxf fmt input.pxf | pxf fmt -` (once stdin support lands on `fmt`) produces identical output. Today `fmt` requires a real file path.
+Formats `.pxf` documents and `.proto` schema sources. A directory argument covers every `.pxf` and `.proto` beneath it. Without a flag, the one file's result goes to stdout. `-w` rewrites files in place. `--check` writes nothing, prints a unified diff for each file that is not formatted, and exits non-zero if there is one: the CI replacement for `buf format --diff --exit-code`, which cannot parse `@` ([#425](https://github.com/trendvidia/protowire/issues/425)).
+
+```bash
+pxf fmt --check ./schemas    # CI: fails, with a diff, on an unformatted file
+pxf fmt -w ./schemas         # rewrite in place
+```
+
+**`.proto` sources**, v1.2 syntax included, are laid out as `buf format` lays them out. That is protocompile's `Legacy` printer preset, which protolsp's "format document" uses too. On every stock `.proto` in this repository that `buf format` accepts, the two outputs are byte-identical. A file that does not parse is reported and left alone. So is a file whose formatted output would lose a comment, an annotation use, or any name, string or number: the formatter refuses rather than delete source.
+
+**`.pxf` documents** are re-encoded through the canonical writer, and `fmt` is idempotent on them.
 
 The canonical writer follows the formatting rules in draft §3.10:
 

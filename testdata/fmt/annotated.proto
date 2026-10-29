@@ -1,0 +1,32 @@
+syntax = "proto3";
+package fmt.v1;
+import "protowire/schema/v1/annotations.proto";
+
+function   tempo_ordered(t: Tempo);
+
+// Tempo is a closed range of beats per minute.
+@validate(tempo_ordered(this), code = "tempo.order",   message = "min must not exceed max")
+message Tempo {
+  // min doc.
+  int32 min = 1   @validate(this >= 40 && this <= 220);
+  int32 max = 2 @validate(this >= 40);   // trailing on max
+  oneof   source {
+    string label = 3   @deprecated("use tag");
+    string tag = 4 @required;
+  }
+}
+
+/* Mode block comment. */
+@deprecated
+enum Mode {
+  MODE_UNSPECIFIED = 0;
+  MODE_MATCH = 1 @deprecated("use MODE_REGULATE");
+  MODE_REGULATE = 2;
+}
+
+@description("tempo service")
+service Tempos {
+  // Get doc.
+  @deprecated
+  rpc Get(Tempo) returns (Tempo);
+}
