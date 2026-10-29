@@ -1,0 +1,26 @@
+syntax = "proto3";
+package plain.v1;
+import "google/protobuf/wrappers.proto";
+
+// ErrorCode is documented.
+enum ErrorCode {
+  // Unspecified.
+  ERROR_CODE_UNSPECIFIED = 0;
+  ERROR_CODE_X = 1; // trailing
+}
+
+// Req is a request.
+message Req {
+  // w doc.
+  google.protobuf.Int32Value w = 1;
+  optional int32 o = 2;
+  oneof k { string a = 3; int64 c = 4; }
+  map<string, Req> m = 5;
+  message Inner { repeated int32 v = 1 [packed = false]; }
+}
+
+// Svc is a service.
+service Svc {
+  // Get gets.
+  rpc Get(Req) returns (Req);
+}

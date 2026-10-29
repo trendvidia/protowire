@@ -31,6 +31,7 @@ var descriptorFixtures = map[string][]protowire.Number{
 	"sbe-bench.binpb":               {1319, 1320, 1321, 1322},
 	"annotations/settings.binpb":    {1314, 1315},
 	"adversarial/adversarial.binpb": {1319, 1320, 1321},
+	"stock-image/plain.buf.binpb":   nil,
 }
 
 // notDescriptorSets are the testdata directories whose .binpb files are
