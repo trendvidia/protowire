@@ -52,7 +52,7 @@ func queryCmd() *cobra.Command {
 			"root type is in scope, loose otherwise")
 	f.BoolVar(&looseFlag, "loose", false,
 		"force loose mode (skip strict-mode validation) even when a "+
-			"root type is in scope; runtime errors degrade to null per jq")
+			"root type is in scope; unknown fields read as null")
 	return cmd
 }
 

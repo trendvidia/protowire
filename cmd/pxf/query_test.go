@@ -11,7 +11,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	// Loose-mode hint goes to stderr in production; silence it during
+	// Runtime-error hints go to stderr in production; silence it during
 	// tests so the output a test inspects is just the query result.
 	errSink = io.Discard
 	m.Run()
