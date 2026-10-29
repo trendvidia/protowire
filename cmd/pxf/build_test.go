@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"google.golang.org/protobuf/encoding/prototext"
+	pbwire "google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -357,11 +358,10 @@ func imageFile(t *testing.T, fds *descriptorpb.FileDescriptorSet, name string) *
 
 // TestBuildMatchesBuf: with --null-mask=false, a file with no v1.2
 // syntax lowers to the descriptor `buf build` makes of it, SourceCodeInfo
-// included, so code generated from the image is the code `buf generate`
-// makes from source (#424). buf's own extension 8042 on the file is the
-// one difference, and no plugin reads it. Measured by hand on the same
-// schema: the Go protoc-gen-go generated from the two images was
-// byte-identical.
+// and buf's image marker (field 8042) included, so code generated from
+// the image is the code `buf generate` makes from source (#424, #430).
+// Measured by hand on the same schema: the Go protoc-gen-go generated
+// from the two images was byte-identical.
 func TestBuildMatchesBuf(t *testing.T) {
 	got := buildPlain(t, "--null-mask=false")
 
@@ -377,13 +377,89 @@ func TestBuildMatchesBuf(t *testing.T) {
 	if len(want.ProtoReflect().GetUnknown()) == 0 {
 		t.Fatal("the buf image has no extension 8042; was it rebuilt by another tool?")
 	}
-	want.ProtoReflect().SetUnknown(nil)
 
 	if got.SourceCodeInfo == nil {
 		t.Fatal("the image carries no SourceCodeInfo")
 	}
 	if !proto.Equal(got, want) {
 		t.Errorf("pxf build --null-mask=false differs from buf build:\n got: %v\nwant: %v", prototext.Format(got), prototext.Format(want))
+	}
+}
+
+// isImport reads buf's image marker on f: whether it is present, and its
+// is_import field.
+func isImport(t *testing.T, f *descriptorpb.FileDescriptorProto) (present, imported bool) {
+	t.Helper()
+	b := f.ProtoReflect().GetUnknown()
+	for len(b) > 0 {
+		num, typ, n := pbwire.ConsumeTag(b)
+		if n < 0 {
+			t.Fatalf("%s: malformed unknown fields", f.GetName())
+		}
+		b = b[n:]
+		m := pbwire.ConsumeFieldValue(num, typ, b)
+		if num == bufImageFileExtension {
+			ext, _ := pbwire.ConsumeBytes(b)
+			for len(ext) > 0 {
+				num, typ, k := pbwire.ConsumeTag(ext)
+				ext = ext[k:]
+				if num == 1 {
+					v, _ := pbwire.ConsumeVarint(ext)
+					return true, v != 0
+				}
+				ext = ext[pbwire.ConsumeFieldValue(num, typ, ext):]
+			}
+			return true, false
+		}
+		b = b[m:]
+	}
+	return false, false
+}
+
+// TestBuildMarksImports: a file named on the command line is a target in
+// buf's image marker, and every file it pulls in is an import, so `buf
+// generate image.binpb` writes only the named files (#430). A file with
+// no syntax statement is marked is_syntax_unspecified, as buf marks it.
+func TestBuildMarksImports(t *testing.T) {
+	fds := &descriptorpb.FileDescriptorSet{}
+	if err := proto.Unmarshal(buildImage(t, filepath.Join(stockImageDir, "plain.proto")), fds); err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]bool{
+		"plain.proto":                      false,
+		"google/protobuf/wrappers.proto":   true,
+		"google/protobuf/field_mask.proto": true,
+	}
+	for _, f := range fds.File {
+		present, imported := isImport(t, f)
+		if !present {
+			t.Errorf("%s has no buf image marker", f.GetName())
+			continue
+		}
+		if w, ok := want[f.GetName()]; !ok || imported != w {
+			t.Errorf("%s: is_import = %v, want %v (listed: %v)", f.GetName(), imported, w, ok)
+		}
+		delete(want, f.GetName())
+	}
+	for name := range want {
+		t.Errorf("%s is not in the image", name)
+	}
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "nosyntax.proto"), []byte("package ns;\nmessage A { optional int32 x = 1; }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "proto2.proto"), []byte("syntax = \"proto2\";\npackage p2;\nmessage B { optional int32 x = 1; }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	fds = &descriptorpb.FileDescriptorSet{}
+	if err := proto.Unmarshal(buildImage(t, dir), fds); err != nil {
+		t.Fatal(err)
+	}
+	for name, want := range map[string]bool{"nosyntax.proto": true, "proto2.proto": false} {
+		if got := syntaxUnspecified(imageFile(t, fds, name)); got != want {
+			t.Errorf("%s: is_syntax_unspecified = %v, want %v", name, got, want)
+		}
 	}
 }
 
