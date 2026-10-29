@@ -50,6 +50,8 @@ func buildCmd() *cobra.Command {
 		configTxt     string
 		funcLibs      []string
 		googleAPIHTTP bool
+		nullMask      bool
+		sourceInfo    bool
 	)
 	cmd := &cobra.Command{
 		Use:   "build [flags] <schema-root-or-file>...",
@@ -74,7 +76,13 @@ func buildCmd() *cobra.Command {
 			"whole operation surface, and the routing skeleton is written again as\n" +
 			"the standard google.api.http option, so connect vanguard, grpc-gateway,\n" +
 			"Envoy and buf's OpenAPI plugins bind the routes off a stock image.\n" +
-			"Pass --google-api-http=false to emit the carrier alone.",
+			"Pass --google-api-http=false to emit the carrier alone.\n\n" +
+			"Every message with a field that can hold a null gets the generated\n" +
+			"_null FieldMask (RFC-001 §8.6); --null-mask=false adds none, so a\n" +
+			"project that does not carry PXF nulls over binary keeps protoc's\n" +
+			"messages. The image carries SourceCodeInfo, as `buf build`'s does,\n" +
+			"so generated code keeps its doc comments; --source-info=false\n" +
+			"leaves it out.",
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var flags engineconfig.Overrides
@@ -87,6 +95,8 @@ func buildCmd() *cobra.Command {
 				configTxt:     configTxt,
 				flags:         flags,
 				googleAPIHTTP: googleAPIHTTP,
+				nullMask:      nullMask,
+				sourceInfo:    sourceInfo,
 			})
 		},
 	}
@@ -96,6 +106,8 @@ func buildCmd() *cobra.Command {
 	f.StringVar(&configTxt, "config", "", "explicit protowire.config.textproto path (skips PROTOWIRE_CONFIG and discovery)")
 	f.StringSliceVar(&funcLibs, "function-library", nil, "function library import path(s); overrides the configured function_libraries")
 	f.BoolVar(&googleAPIHTTP, "google-api-http", true, "also lower @http's routing skeleton to the standard google.api.http option")
+	f.BoolVar(&nullMask, "null-mask", true, "add the generated _null FieldMask to messages with a field that can hold a null (RFC-001 §8.6)")
+	f.BoolVar(&sourceInfo, "source-info", true, "include SourceCodeInfo (comments and source positions) in the image")
 	return cmd
 }
 
@@ -110,6 +122,14 @@ type buildOptions struct {
 	// skeleton is also written as the standard google.api.http option
 	// (RFC-001 §5.2, issue #213). Default true.
 	googleAPIHTTP bool
+	// nullMask mirrors --null-mask: whether user messages get the
+	// generated `_null` FieldMask (RFC-001 §8.6, #377). Default true; off
+	// for a project whose generated code must match protoc's (#424).
+	nullMask bool
+	// sourceInfo mirrors --source-info: whether the image carries
+	// SourceCodeInfo, without which every generated doc comment is lost
+	// (#424). Default true, as for `buf build`.
+	sourceInfo bool
 }
 
 func runBuild(cmd *cobra.Command, args []string, opts buildOptions) error {
@@ -147,11 +167,17 @@ func runBuild(cmd *cobra.Command, args []string, opts buildOptions) error {
 	// (RFC-001 §5.2, issue #213). EmitGoogleAPIHTTP(true) is the zero
 	// value, so Options stays comparable for the incremental query key.
 	var fdpOpts fdp.Options
-	fdpOpts.Apply(fdp.EmitGoogleAPIHTTP(opts.googleAPIHTTP))
+	fdpOpts.Apply(fdp.EmitGoogleAPIHTTP(opts.googleAPIHTTP), fdp.IncludeSourceCodeInfo(opts.sourceInfo))
+
+	// A nil selector generates no mask anywhere.
+	var nullMask func(string) bool
+	if opts.nullMask {
+		nullMask = schemaresolve.NullMask
+	}
 
 	results, rep, err := incremental.Run(cmd.Context(), incremental.New(), queries.FDS{
 		Opener:    &chain,
-		Session:   &ir.Session{NullMask: schemaresolve.NullMask},
+		Session:   &ir.Session{NullMask: nullMask},
 		Workspace: source.NewWorkspace(paths...),
 		Options:   fdpOpts,
 	})
