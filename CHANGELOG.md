@@ -16,6 +16,18 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ### Changed
 
+- **The shared schemas carry Go, Java and C# options, and their canonical home is [trendvidia/protos](https://github.com/trendvidia/protos)** (issue [#424](https://github.com/trendvidia/protowire/issues/424), trendvidia/protos#1).
+  - **What was broken:** a schema importing `pxf/annotations.proto`, `pxf/bignum.proto`, `pxf/secret.proto`, `sbe/annotations.proto` or `protowire/schema/v1/annotations.proto` could not generate Go. None had a `go_package`, so `protoc-gen-go` stopped with `unable to determine Go import path`. `envelope/v1/envelope.proto` had one, naming a package that was never published.
+  - **What changed:** all eight files under `proto/` (those five, plus `envelope/v1/envelope.proto`, `schema/v1/descriptor.proto` and `report.proto`) now carry:
+    - `go_package = "github.com/trendvidia/protos/<dir>"`, where their generated Go is published;
+    - `java_package = "org.protowire.protos.<dir>"`, with `java_multiple_files` and `java_outer_classname`;
+    - `csharp_namespace = "Protowire.Protos.<Dir>"`.
+  - **Effect on code generated from these files:** Java and C# names change from protoc's defaults (package `pxf`, namespace `Pxf`) to these. Nothing else in the files changed.
+  - **Edits now go to protos first.** The files here are exact copies, and `TestBundledSchemasMirrorProtos` fails if one differs from the protos version `go.mod` pins.
+  - **Server reflection:** a gRPC server that offers it imports `github.com/trendvidia/protos/protowire/schema/v1/annotationsreg`, so a client can resolve `annotations.proto`.
+
+### Changed
+
 - **`go run github.com/trendvidia/protowire/cmd/pxf@<version>` works** (issue [#424](https://github.com/trendvidia/protowire/issues/424)). Go refuses `go run` and `go install` with a version for a module whose `go.mod` has a `replace`. This repository's `go.mod` replaced `google.golang.org/protobuf` with the `trendvidia/protobuf-go` fork, so a project could not pin `pxf` the way it pins other code generators. The replace is gone, and `pxf` builds on stock protobuf v1.36.12. Nothing it links calls the fork's additions. protowire-go uses the fork's `dynamicpb` `SetUnsafe` only when it is there, and otherwise falls back to the standard `Set`, so `pxf` output does not change. ROADMAP, GOVERNANCE.md and `governance.pxf` say so.
 
 - **NaN in `@validate` expressions follows IEEE 754, and `is_nan()` is a builtin** (RFC-001 §5.4, decided on [trendvidia/protocheck#9](https://github.com/trendvidia/protocheck/issues/9)). §5.4 said numbers "compare by value" and did not say what NaN does. The reference engine read NaN as equal to every number when ordering, so a range rule such as `this >= 0.0 && this <= 1.0` accepted NaN. Now `==` with a NaN is false, `!=` is true, and `<`, `<=`, `>` and `>=` are false whichever side the NaN is on; none is an evaluation error. A negated ordering (`!(this < 0.0)`) therefore still accepts NaN, so the new `is_nan()` builtin (method and function form, any number, false for integers) lets a rule refuse it explicitly. The IETF draft `-01`, the `annotations.proto` and `descriptor.proto` comments and the protovalidate migration table (Appendix C: CEL errors on ordering a NaN, §5.4 does not) say the same. The compiler learns the builtin in [trendvidia/protocompile#265](https://github.com/trendvidia/protocompile/pull/265); fixture `24_expression_language.proto` gains `is_nan()` once `go.mod` pins a protocompile release carrying it. Ports that evaluate §5.4 must make NaN ordering false and add `is_nan()`; protocheck is the only one today.
