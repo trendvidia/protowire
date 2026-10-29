@@ -372,56 +372,6 @@ func validateDatasets(res *pxf.Result) error {
 	return nil
 }
 
-func fmtCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "fmt <file.pxf>",
-		Short: "Format a PXF document, canonicalizing keyed repeated fields",
-		Long: "Reformat a PXF document losslessly (comments and structure are\n" +
-			"preserved). When a schema can be bound — via --message, or the\n" +
-			"document's @type directive — keyed repeated fields are canonicalized\n" +
-			"per draft §3.13: eligible collections are rewritten to the keyed\n" +
-			"block form, entry names are unquoted where identifier-safe, and\n" +
-			"redundant key-field assignments are dropped. Formatting itself needs\n" +
-			"no schema; only the keyed canonicalization does, and a document that\n" +
-			"cannot be typed is still formatted.",
-		Args: cobra.ExactArgs(1),
-		RunE: func(_ *cobra.Command, args []string) error {
-			data, err := os.ReadFile(args[0])
-			if err != nil {
-				return err
-			}
-			doc, err := pxf.Parse(data)
-			if err != nil {
-				return err
-			}
-			// Keyed canonicalization needs a schema; plain formatting does
-			// not. Prefer --message, then the document's own @type. If no
-			// name is available we format without canonicalizing; if a name
-			// is available but fails to resolve, that is a real error the
-			// user asked for and we surface it.
-			name := msgName
-			if name == "" {
-				name = doc.TypeURL
-			}
-			if name != "" {
-				// A type the document's own @proto defines is the
-				// document's (draft § The "@proto" Directive, #371).
-				sch, err := documentSchema(doc)
-				if err != nil {
-					return err
-				}
-				desc, err := documentMessage(sch, name)
-				if err != nil {
-					return err
-				}
-				pxf.CanonicalizeKeyed(doc, desc)
-			}
-			_, err = os.Stdout.Write(pxf.FormatDocument(doc))
-			return err
-		},
-	}
-}
-
 func sbe2protoCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "sbe2proto <schema.xml>",

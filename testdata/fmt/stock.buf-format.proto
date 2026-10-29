@@ -1,0 +1,22 @@
+syntax = "proto3";
+package fmt.v1;
+
+import "google/protobuf/wrappers.proto";
+
+option go_package = "example.com/fmt/v1;fmtv1";
+// Req is a request.
+message Req {
+  google.protobuf.Int32Value w = 1; // trailing
+  optional int32 o = 2 [deprecated = true];
+  map<string, Req> m = 3;
+  message Inner {
+    repeated int32 v = 1;
+  }
+  enum E {
+    E_UNSPECIFIED = 0;
+    E_A = 1;
+  }
+}
+service Svc {
+  rpc Get(Req) returns (Req);
+}
