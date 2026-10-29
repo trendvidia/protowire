@@ -160,8 +160,8 @@ Internet-Draft                  protowire                   October 2026
        7.6.3.  Expression Language . . . . . . . . . . . . . . . . .  55
        7.6.4.  Placement . . . . . . . . . . . . . . . . . . . . . .  57
        7.6.5.  Coexistence with Bracket Options  . . . . . . . . . .  57
-     7.7.  Presence Semantics  . . . . . . . . . . . . . . . . . . .  57
-       7.7.1.  Well-Known Type Binding . . . . . . . . . . . . . . .  58
+     7.7.  Presence Semantics  . . . . . . . . . . . . . . . . . . .  58
+       7.7.1.  Well-Known Type Binding . . . . . . . . . . . . . . .  59
 
 
 
@@ -170,11 +170,11 @@ Franco Jr.                 Expires 1 May 2027                   [Page 3]
 Internet-Draft                  protowire                   October 2026
 
 
-       7.7.2.  Evaluation Order and Result Aggregation . . . . . . .  59
+       7.7.2.  Evaluation Order and Result Aggregation . . . . . . .  60
        7.7.3.  Recursion Depth . . . . . . . . . . . . . . . . . . .  60
-     7.8.  Streaming RPC Validation  . . . . . . . . . . . . . . . .  60
+     7.8.  Streaming RPC Validation  . . . . . . . . . . . . . . . .  61
      7.9.  Sensitivity Classification  . . . . . . . . . . . . . . .  61
-     7.10. Error Model . . . . . . . . . . . . . . . . . . . . . . .  61
+     7.10. Error Model . . . . . . . . . . . . . . . . . . . . . . .  62
        7.10.1.  Report Wire Shape  . . . . . . . . . . . . . . . . .  64
        7.10.2.  Localization . . . . . . . . . . . . . . . . . . . .  64
      7.11. Lowering to FileDescriptorSet . . . . . . . . . . . . . .  64
@@ -3115,6 +3115,12 @@ Internet-Draft                  protowire                   October 2026
    |                     |           |           | (Section 7.7.1      |
    |                     |           |           | rules 2 and 5)      |
    +---------------------+-----------+-----------+---------------------+
+   | is_nan()            | number    | none      | bool: whether       |
+   |                     |           |           | the receiver is     |
+   |                     |           |           | a floating-point    |
+   |                     |           |           | NaN; false for      |
+   |                     |           |           | every integer       |
+   +---------------------+-----------+-----------+---------------------+
 
                                   Table 2
 
@@ -3124,12 +3130,6 @@ Internet-Draft                  protowire                   October 2026
    operands; ! requires a boolean operand. == and != compare numbers by
    value regardless of representation, strings, booleans, and temporal
    values of the same kind; <, <=, > and >= order numbers, strings
-   (byte-wise), and temporal values of the same kind. in requires a list
-   on its right and tests membership with ==. Any other combination is
-   an evaluation error: the rule fails, and the violation's fallback
-   message carries the engine's error text.  The statically visible
-   cases (wrong builtin arity; a builtin in function form with no
-   receiver argument) are compile errors as well.
 
 
 
@@ -3137,6 +3137,19 @@ Franco Jr.                 Expires 1 May 2027                  [Page 56]
 
 Internet-Draft                  protowire                   October 2026
 
+
+   (byte-wise), and temporal values of the same kind.  A floating-point
+   NaN follows IEEE 754: it equals no number, itself included, so == is
+   false and != is true; it is unordered, so <, <=, > and >= are false
+   whichever side it is on; none of these is an evaluation error.  So
+   this >= 0.0 && this <= 1.0 refuses NaN, but !(this < 0.0) and this !=
+   0.0 accept it; a rule that must refuse NaN in every shape says
+   !this.is_nan().  Infinities are ordinary ordered values. in requires
+   a list on its right and tests membership with ==. Any other
+   combination is an evaluation error: the rule fails, and the
+   violation's fallback message carries the engine's error text.  The
+   statically visible cases (wrong builtin arity; a builtin in function
+   form with no receiver argument) are compile errors as well.
 
    The language has no field selection on this, no temporal or duration
    literals, no enum-value references, no arithmetic, no ternary, no
@@ -3173,6 +3186,14 @@ Internet-Draft                  protowire                   October 2026
    synthesize one surface from the other.  In particular, @required and
    @default do NOT emit (pxf.required) / (pxf.default): a consumer
    reading only the -00 extension numbers observes bracket-written
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 57]
+
+Internet-Draft                  protowire                   October 2026
+
+
    options and nothing else, so deployments MUST upgrade carrier-aware
    consumers before migrating schemas from brackets to annotations.
    When both forms of the same semantic appear on one field with
@@ -3184,15 +3205,6 @@ Internet-Draft                  protowire                   October 2026
    specified for PXF in -00 (Section 3, "Field presence: set, null,
    absent").  This subsection restates the model from the validation
    layer's perspective:
-
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 57]
-
-Internet-Draft                  protowire                   October 2026
-
 
    +=======================+===========================================+
    | State of the field    | Action by validator                       |
@@ -3227,6 +3239,17 @@ Internet-Draft                  protowire                   October 2026
    For map<K,V> fields, value rules apply per value; key rules apply per
    key when the key's declared type is a type declaration.
 
+
+
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 58]
+
+Internet-Draft                  protowire                   October 2026
+
+
 7.7.1.  Well-Known Type Binding
 
    Six rules define what the identifier this binds to inside a rule, by
@@ -3242,14 +3265,6 @@ Internet-Draft                  protowire                   October 2026
        support the comparison operators <, <=, ==, >=, > between
        temporal values of the same kind. now() is a builtin of
        Section 7.6.3; the language has no temporal or duration literal,
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 58]
-
-Internet-Draft                  protowire                   October 2026
-
-
        so a rule that needs one declares a function taking the temporal
        value.  As with wrappers, the rule is NOT evaluated when the
        field is unset.
@@ -3280,6 +3295,17 @@ Internet-Draft                  protowire                   October 2026
    descriptor lowering — a type declaration always records its literal
    base-type name.
 
+
+
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 59]
+
+Internet-Draft                  protowire                   October 2026
+
+
 7.7.2.  Evaluation Order and Result Aggregation
 
    For a given field, rules evaluate in source-list order: base-type
@@ -3298,14 +3324,6 @@ Internet-Draft                  protowire                   October 2026
    TYPE_REFINEMENT kind the same rule would carry for a producer-set
    value, and actual_value MUST carry the substituted default.  Such a
    Violation reports a schema-authoring error — the declared default
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 59]
-
-Internet-Draft                  protowire                   October 2026
-
-
    fails the field's own rules, so no producer input can trigger it and
    no producer change can fix it.  Tooling MAY reject such defaults at
    schema-compile time; a schema that passes that check never yields a
@@ -3331,6 +3349,19 @@ Internet-Draft                  protowire                   October 2026
    specification-defined codes; user schemas and engines MUST NOT mint
    codes in it.
 
+
+
+
+
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 60]
+
+Internet-Draft                  protowire                   October 2026
+
+
 7.8.  Streaming RPC Validation
 
    Validation over streaming RPCs is *per-message*: each message is
@@ -3350,17 +3381,6 @@ Internet-Draft                  protowire                   October 2026
    INTERNAL; a client-side receiver check surfaces as a local error
    without a wire status.  The Report travels in
    google.rpc.Status.details as a google.protobuf.Any.
-
-
-
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 60]
-
-Internet-Draft                  protowire                   October 2026
-
 
 7.9.  Sensitivity Classification
 
@@ -3390,26 +3410,6 @@ Internet-Draft                  protowire                   October 2026
       sensitive declarations; an @example on a sensitive declaration is
       a compile-time warning.
 
-   @sensitive lowers through the standard annotation carrier
-   (Section 7.11); it has no dedicated descriptor surface.
-
-7.10.  Error Model
-
-   A Violation is a structured value with the following abstract shape:
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -3417,6 +3417,13 @@ Franco Jr.                 Expires 1 May 2027                  [Page 61]
 
 Internet-Draft                  protowire                   October 2026
 
+
+   @sensitive lowers through the standard annotation carrier
+   (Section 7.11); it has no dedicated descriptor surface.
+
+7.10.  Error Model
+
+   A Violation is a structured value with the following abstract shape:
 
      +==================+========+==================================+
      | Field            | Type   | Description                      |
@@ -3448,13 +3455,6 @@ Internet-Draft                  protowire                   October 2026
 
    The engine MUST further enrich each emitted Violation with at least
    the following context:
-
-
-
-
-
-
-
 
 
 

@@ -315,6 +315,13 @@ language its rule was written in, and the `cel` default named a
 runtime that was never built. The grammar below is the dialect the
 reference engine shipped, plus `now()`, which §6.2 already promised.)
 
+(Amended 2026-10-29, trendvidia/protocheck#9. The text said numbers
+"compare by value" and was silent on NaN. The reference engine read an
+unordered pair as equal, so `this >= 0.0 && this <= 1.0` accepted NaN:
+a 25,024-input parity test against hand-written checks disagreed on 21
+inputs, all of them NaN. NaN now follows IEEE 754, and `is_nan()` is
+added so that a rule can refuse it.)
+
 **Grammar.** Over the proto lexical forms for identifiers and for
 integer, float and string literals — the §5.1 capture already requires
 string literals to be proto strings:
@@ -358,6 +365,7 @@ schema portable (§10).
 | `contains(substr)` | string | one string | bool |
 | `matches(pattern)` | string | one string, an RE2 pattern | bool — whether the pattern matches anywhere in the receiver (unanchored) |
 | `now()` | — | none | the engine-native current instant (§6.2 rules 2 and 5) |
+| `is_nan()` | number | none | bool — whether the receiver is a floating-point NaN; false for every integer |
 
 **Typing and evaluation.** The language is dynamically typed: a
 compiler checks syntax, name resolution and arity; an engine checks
@@ -370,6 +378,13 @@ operand kinds when it evaluates.
   strings, booleans, and temporal values of the same kind (§6.2 rule
   2). `<`, `<=`, `>` and `>=` order numbers, strings (byte-wise), and
   temporal values of the same kind.
+- A floating-point NaN follows IEEE 754. It equals no number, itself
+  included: `==` is false and `!=` is true. It is unordered: `<`,
+  `<=`, `>` and `>=` are false whichever side it is on. None of these
+  is an evaluation error. So `this >= 0.0 && this <= 1.0` refuses NaN,
+  but `!(this < 0.0)` and `this != 0.0` accept it. A rule that must
+  refuse NaN in every shape says so: `!this.is_nan()`. Infinities are
+  ordinary ordered values.
 - `in` requires a list on its right and tests membership with `==`.
 - Any other combination — a non-boolean operand to `!`, `&&` or `||`,
   a string ordered against a number, a builtin applied to the wrong
@@ -1386,7 +1401,7 @@ built):
 
 | protovalidate form | protowire v1.2 form | Notes |
 |---|---|---|
-| `(buf.validate.field).cel = {id, message, expression}` | `@validate(<expression rewritten per §5.4>, code = <id>, message = <message>)` | Same `this` binding: field value, wrapper unwrap, native temporals (§6.2). Comparisons, `in`, the boolean operators and the five string builtins map one-to-one (`startsWith` → `starts_with`); everything else CEL offers — protovalidate's `isEmail()` family, macros, ternaries, field selection — becomes a declared `function`. `id` must not use the reserved `protowire.` prefix (§7). |
+| `(buf.validate.field).cel = {id, message, expression}` | `@validate(<expression rewritten per §5.4>, code = <id>, message = <message>)` | Same `this` binding: field value, wrapper unwrap, native temporals (§6.2). Comparisons, `in`, the boolean operators, the five string builtins and `isNan()` map one-to-one (`startsWith` → `starts_with`, `isNan()` → `is_nan()`), except that CEL makes ordering a NaN an error where §5.4 makes it false, so a negated ordering such as `!(this < 0.0)` refuses NaN in CEL and accepts it here; add `!this.is_nan()` when rewriting one; everything else CEL offers — protovalidate's `isEmail()` family, macros, ternaries, field selection — becomes a declared `function`. `id` must not use the reserved `protowire.` prefix (§7). |
 | `(buf.validate.message).cel` | leading `@validate` on the message | `this` binds to the message in both systems; §5.4 has no field selection, so the rule body is a declared `function` taking the message (`same_domain(this)`). |
 | `(buf.validate.field).required = true` | `@required` | **Semantic delta:** protovalidate rejects zero values on implicit-presence scalars; protowire `@required` checks *presence* only (§6.1) and null counts as present. Fields relying on zero-rejection need an explicit rule (e.g. `@validate(this != "")`) or explicit presence. |
 | Standard rules (`string.min_len`, `int32.gt`, …) | `@validate` with the equivalent §5.4 expression; shared shapes become `type` aliases (`type NonEmptyString = string @validate(this.size() >= 1)`) | Type aliases (§6.3) are the idiomatic replacement for rule sets repeated across fields. |

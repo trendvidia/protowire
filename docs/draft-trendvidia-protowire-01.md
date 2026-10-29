@@ -1598,6 +1598,7 @@ call to any other name.
 | `contains(substr)` | string | one string | bool |
 | `matches(pattern)` | string | one string, an RE2 pattern | bool: whether the pattern matches anywhere in the receiver (unanchored) |
 | `now()` | none | none | the engine-native current instant ({{wkt-binding}} rules 2 and 5) |
+| `is_nan()` | number | none | bool: whether the receiver is a floating-point NaN; false for every integer |
 
 Typing and evaluation. The language is dynamically typed: a compiler
 checks syntax, name resolution and arity; an engine checks operand
@@ -1606,7 +1607,13 @@ boolean operands; `!` requires a boolean operand. `==` and `!=`
 compare numbers by value regardless of representation, strings,
 booleans, and temporal values of the same kind; `<`, `<=`, `>` and
 `>=` order numbers, strings (byte-wise), and temporal values of the
-same kind. `in` requires a list on its right and tests membership with
+same kind. A floating-point NaN follows IEEE 754: it equals no number,
+itself included, so `==` is false and `!=` is true; it is unordered,
+so `<`, `<=`, `>` and `>=` are false whichever side it is on; none of
+these is an evaluation error. So `this >= 0.0 && this <= 1.0` refuses
+NaN, but `!(this < 0.0)` and `this != 0.0` accept it; a rule that must
+refuse NaN in every shape says `!this.is_nan()`. Infinities are
+ordinary ordered values. `in` requires a list on its right and tests membership with
 `==`. Any other combination is an evaluation error: the rule fails,
 and the violation's fallback message carries the engine's error text.
 The statically visible cases (wrong builtin arity; a builtin in
