@@ -26,7 +26,7 @@ loosely; the project follows [SemVer](https://semver.org/) per
   - A zero is written `0p<prec>` or `-0p<prec>`, so it keeps its precision and sign.
   - A mantissa wider than `prec` denotes the value rounded to `prec`.
   - `MaxBigFloatExponent` is checked after rounding to the read precision.
-  - `MaxNumericLiteralDigits` counts mantissa digits only.
+  - `MaxNumericLiteralDigits` counts a mantissa's significant digits only: no leading zeros, exponent or suffix. That gives a `pxf.Decimal` at scale +4096 a literal, `0.000…1`, which #310 had ruled out. Scale −4096 still has none.
   - Draft `-01` § PXF Annotations, § Mandatory Limits and HARDENING.md say so. The round-trip guarantee now covers every BigFloat, zeros included.
   - `testdata/bigfloat/` adds five encode and four decode cases: zeros at prec 64, a 100-bit mantissa at prec 53, 2^−16385 at the 256-bit default, and a 4095-digit literal with exponent and suffix at the top precision. All nine are known gaps on protowire-go#194.
 

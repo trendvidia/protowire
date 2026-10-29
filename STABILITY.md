@@ -242,7 +242,7 @@ v1.13 changes the bytes the reference implementation writes for two shapes, in o
   - **Zero:** a zero keeps its precision and sign, written `0p<prec>` or `-0p<prec>`; only a prec-0 zero is written `0`.
   - **A mantissa wider than `prec`** denotes the value rounded to `prec`, which the reference already used when reading one from PB.
   - **`MaxBigFloatExponent`** applies after rounding to the read precision, so a producer's literal at the bound reads back.
-  - **`MaxNumericLiteralDigits`** counts a literal's mantissa digits only.
+  - **`MaxNumericLiteralDigits`** counts a literal's significant mantissa digits only: no leading zeros, exponent or suffix. A `pxf.Decimal` at scale +4096 therefore has a literal, which #310 had ruled out.
   - **What changes for documents:** a decoder that counted exponent digits accepts slightly longer literals now, and a zero's text gains a suffix. Neither rejects a document an earlier reader accepted. PB → PXF → PB now preserves every BigFloat's value, sign and `prec`.
 
 ### CLI surface — evolves
