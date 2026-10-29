@@ -41,16 +41,9 @@ var duplicatesVerdicts = map[string]string{
 // duplicatesKnownGaps are fixtures the pinned protowire-go does not yet
 // meet. Each is asserted to still hold, so the go.mod bump that closes
 // one fails the test until its entry goes. Empty since protowire-go
-// v1.11.0, which rejects a singular field bound twice (protowire-go#184).
-// v1.11.0 keeps the last value of a map key bound twice, so it accepts
-// the #396 reject fixtures (old "").
-var duplicatesKnownGaps = map[string]datasetGap{
-	"err-map-key-twice-in-literal.pxf":      {by: "protowire-go#191"},
-	"err-map-key-twice-same-value.pxf":      {by: "protowire-go#191"},
-	"err-map-key-twice-across-bindings.pxf": {by: "protowire-go#191"},
-	"err-map-key-twice-int-spellings.pxf":   {by: "protowire-go#191"},
-	"err-map-key-twice-message-values.pxf":  {by: "protowire-go#191"},
-}
+// v1.12.0, which rejects a map key bound twice (protowire-go#191), as
+// v1.11.0 did a singular field (protowire-go#184).
+var duplicatesKnownGaps = map[string]datasetGap{}
 
 func TestDuplicates_Corpus(t *testing.T) {
 	runCorpus(t, duplicatesDir, []string{"duplicates.proto"}, duplicatesVerdicts, func(t *testing.T, f fixture[string]) {
