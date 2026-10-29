@@ -95,6 +95,8 @@ annotationDecl
 annotParam      ::= Ident ":" annotParamType ("=" defaultValue)?
 annotParamType  ::= "expression" | "string" | "int32" | "int64" | "float" | "double"
                   | "bool" | "bytes" | "any" | qualifiedIdent
+defaultValue    ::= literalValue                     (* every other parameter type *)
+                  | engineExpression                 (* an `expression`-typed parameter *)
 
 annotation
     ::= "@" qualifiedIdent ("(" annotArgList? ")")?
@@ -176,8 +178,8 @@ linker resolves the annotation declaration, argument parsing is
 3. **Classify.** At link time, an argument bound to an
    `expression`-typed parameter keeps the captured source **verbatim**
    (leading/trailing whitespace trimmed; quotes are NOT stripped — a
-   quoted string is a string-literal expression and evaluates as such
-   in the engine, which is almost certainly a type error there). Every
+   quoted string is a string-literal expression, which is not a
+   boolean and so is a compile error under §5.4). Every
    other argument MUST re-parse under `literal | qualifiedIdent`; any
    other shape is a compile error.
 
@@ -185,11 +187,29 @@ The fragment's syntax is the expression language of §5.4, the same
 for every engine. A compiler MUST parse the capture against that
 grammar and reject a fragment that does not conform — a syntax error,
 a call to a name that is neither a visible `function` declaration nor
-a §5.4 builtin, a builtin called with the wrong arity — in addition to
-the function-call extraction of §8.1. (Until 2026-09-07 the syntax was
+a §5.4 builtin, a builtin called with the wrong arity, a rule that is
+visibly not a boolean (§5.4) — in addition to the function-call
+extraction of §8.1. (Until 2026-09-07 the syntax was
 left to the engine and the compiler only tokenized the capture; a
 misspelled builtin then compiled clean and failed at descriptor load.
 Issue #282.)
+
+**Expression defaults.** A default on an `expression`-typed parameter
+is an expression, not a literal: it is captured as rule 1 captures an
+argument (to the first `,` or `)` at zero delimiter depth), and it is
+checked and lowered exactly as an argument bound to that parameter
+would be — the same grammar, the same name and arity checks, the same
+`calls` and `enum_values` in the carrier (§8.1). Its names resolve from
+the annotation declaration's scope, since a default belongs to the
+declaration and not to any use. `this` has no type at the declaration,
+so a check that needs `this`'s type — a default of `this` alone where
+`this` is not a bool — is made at each use site that leaves the
+parameter to its default. (Until protowire#437 the grammar never
+defined `defaultValue` and the reference compiler read every default as
+a literal: an unresolved name in an `expression` default compiled
+clean, a call could not be written there at all, and the lowered
+default carried no `calls` or `enum_values` for an engine to resolve it
+with.)
 
 v1.2 explicitly forbids `repeated`/`map<,>` in `typeRef` (collection refinement is deferred — see §13).
 
@@ -396,8 +416,9 @@ schema portable (§10).
 | `unique()` | list | none | bool — whether no two elements are equal under `==` |
 
 **Typing and evaluation.** The language is dynamically typed: a
-compiler checks syntax, name resolution and arity; an engine checks
-operand kinds when it evaluates.
+compiler checks syntax, name resolution, arity, and that a rule is not
+visibly something other than a boolean; an engine checks operand kinds
+when it evaluates.
 
 - `&&` and `||` short-circuit and require boolean operands; `!`
   requires a boolean operand.
@@ -429,7 +450,22 @@ operand kinds when it evaluates.
   rule result — is an **evaluation error**: the rule fails, and the
   violation's fallback message carries the engine's error text. The
   statically visible cases (wrong builtin arity; a builtin in function
-  form with no receiver argument) are compile errors as well.
+  form with no receiver argument; a visibly non-boolean rule, below)
+  are compile errors as well.
+- **A rule is a boolean.** Every expression is a rule: its result, and
+  each operand of `!`, `&&` and `||`, must be a boolean. A compiler MUST
+  reject one of these positions when its term is visibly something
+  else, looking through parentheses: a string, number or list literal,
+  an enum value reference, `size()`, or `now()`. It MUST also reject
+  `this` alone in one of these positions where it binds to something
+  that is not a bool: a whole collection (a field-level rule on a
+  `repeated` or `map` field, §6.4), an enum, or a scalar other than
+  `bool` (§6.2). Every other term passes: a comparison, `in`, `true`,
+  `false`, the other builtins, a declared `function` (a predicate,
+  §6.5), and `this` bound to a message — a `google.protobuf.BoolValue`
+  binds as a bool — or where the compiler does not know the binding (a
+  message-level rule). (Added by protowire#437: `@validate("this > 0")`
+  compiled and then failed every message it saw.)
 
 **What the language does not have, on purpose.** No field selection on
 `this`, no temporal or duration literals, no arithmetic, no ternary,

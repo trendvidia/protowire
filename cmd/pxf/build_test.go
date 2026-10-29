@@ -27,10 +27,11 @@ const fixtureDir = "../../testdata/schema-extensions"
 // asserted to still pass --check so a fork upgrade that closes the gap
 // flips the test and forces the entry's removal.
 var checkKnownGaps = map[string]string{
-	// Empty since protocompile v0.33.0 closed protocompile#211 (the
-	// §5.4 expression parser); the two fixtures it covered are rejected
-	// like every other. The map stays so the next spec-ahead-of-
-	// toolchain gap has somewhere to go.
+	// Spec ahead of the toolchain: #437 makes these compile errors, and
+	// the pinned protocompile does not check them until
+	// trendvidia/protocompile#276 is released.
+	"non_boolean_rule.proto":   "trendvidia/protocompile#276",
+	"expression_default.proto": "trendvidia/protocompile#276",
 }
 
 // runPxf drives a fresh command tree exactly like the shell would. The

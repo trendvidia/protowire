@@ -1462,7 +1462,17 @@ annot-param     = name ws ":" ws annot-param-type
 annot-param-type = "expression" / "string" / "int32" / "int64" /
                    "float" / "double" / "bool" / "bytes" / "any" /
                    qualified-ident
+default-value   = literal / qualified-ident / expression-body
 ~~~
+
+A `default-value` takes the form an argument bound to the parameter
+would: an `expression-body` for an `expression`-typed parameter, and a
+literal or qualified identifier for every other type. An expression
+default is captured, checked and lowered exactly as such an argument
+({{engine-expressions}}), except that its names resolve from the
+annotation declaration's scope. A check that needs the type `this`
+binds to is made at each use site that leaves the parameter to its
+default.
 
 The `annot-param-type` value `expression` indicates that the
 corresponding argument at use sites is a rule in the expression
@@ -1548,13 +1558,15 @@ resolution, argument parsing is capture-then-classify:
    parameter keeps the captured source verbatim, trimmed of leading
    and trailing whitespace. Quotation marks are NOT stripped: a quoted
    string bound to an `expression` parameter is a string-literal
-   expression and evaluates as such in the engine. Every other
+   expression, which is not a boolean and so is an error
+   ({{expression-language}}). Every other
    argument MUST re-parse as a literal or qualified identifier
    ({{literal-values}}); any other shape is an error.
 
 Once bound, the capture is parsed under {{expression-language}}: the
 compiler checks the grammar, that every call resolves to a declared
-function or a builtin, and arity ({{function-references}}); a capture
+function or a builtin, arity ({{function-references}}), and that the
+rule is not visibly something other than a boolean; a capture
 that fails is a compile-time error attributed to the offending token.
 
 ### Expression Language {#expression-language}
@@ -1625,8 +1637,9 @@ call to any other name.
 | `unique()` | list | none | bool: whether no two elements are equal under `==` |
 
 Typing and evaluation. The language is dynamically typed: a compiler
-checks syntax, name resolution and arity; an engine checks operand
-kinds when it evaluates. `&&` and `||` short-circuit and require
+checks syntax, name resolution, arity, and that a rule is not visibly
+something other than a boolean; an engine checks operand kinds when it
+evaluates. `&&` and `||` short-circuit and require
 boolean operands; `!` requires a boolean operand. `==` and `!=`
 compare numbers by value regardless of representation, strings,
 booleans, and temporal values of the same kind; `<`, `<=`, `>` and
@@ -1645,7 +1658,18 @@ pair of elements with `==`; a pair that cannot be compared is an
 evaluation error, and two NaNs are never duplicates. Any other combination is an evaluation error: the rule fails,
 and the violation's fallback message carries the engine's error text.
 The statically visible cases (wrong builtin arity; a builtin in
-function form with no receiver argument) are compile errors as well.
+function form with no receiver argument; a visibly non-boolean rule)
+are compile errors as well.
+
+A rule is a boolean: its result, and each operand of `!`, `&&` and
+`||`, MUST be one. A compiler MUST reject one of these positions when
+its term, looking through parentheses, is a string, number or list
+literal, an enum value reference, `size()` or `now()`, or is `this`
+alone where `this` binds to a whole collection (a field-level rule on a
+repeated or map field), an enum, or a scalar other than `bool`. Every
+other term passes, including a declared function (a predicate), `this`
+bound to a message (a `google.protobuf.BoolValue` binds as a bool), and
+`this` where the compiler does not know the binding.
 
 The language has no field selection on `this`, no temporal or
 duration literals, no arithmetic, no
