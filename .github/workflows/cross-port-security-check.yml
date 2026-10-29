@@ -9,10 +9,14 @@
 # which is how nine failing rows on the C++ port went unnoticed
 # (trendvidia/protowire-cpp#26).
 #
-# The same four ports the envelope gate builds run here; Rust, Swift, Dart,
-# C# and Python are exercised by the same script locally. A port with known
-# failing rows can be put in SKIP_PORTS until its fix lands, so that a
-# known-red port does not hide a new failure on another; none is skipped.
+# The four ports the envelope gate builds are checked out here; Rust, Swift,
+# Dart, C# and Python are exercised by the same script locally. Three of the
+# four run: TypeScript lost its check-decode harness when its repository was
+# re-created (trendvidia/protowire-typescript#55), and the script names it as
+# not run. REQUIRE_PORTS fails the job if any other one stops building, so a
+# missing harness can't pass for a clean run (#421); add ts once its harness
+# is back. A port with known failing rows can go in SKIP_PORTS until its fix
+# lands; none is skipped.
 
 name: Cross-port security check
 
@@ -88,4 +92,6 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             cmake ninja-build protobuf-compiler libprotobuf-dev libprotoc-dev
       - name: HARDENING conformance corpus
+        env:
+          REQUIRE_PORTS: 'go,cpp,java'
         run: ./protowire/scripts/cross_security_check.sh

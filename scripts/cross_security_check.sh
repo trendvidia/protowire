@@ -64,8 +64,11 @@
 # === Environment ===
 #
 #   Same WITH_<PORT>=0 / SKIP_PORTS opt-outs as the bench/envelope scripts.
-#   A port whose `check-decode` binary doesn't exist on disk auto-skips
-#   silently — same pattern as cross_pxf_bench.sh for dart / java-lite.
+#   A port whose `check-decode` harness doesn't exist on disk is not run,
+#   and the script says so on stderr (`· ts: no check-decode harness, not
+#   run`), so a lost harness can't pass for a clean run (#421).
+#   REQUIRE_PORTS (comma-separated) names ports that must run: if one of
+#   them has no harness or is in SKIP_PORTS, the script exits 2.
 
 set -euo pipefail
 
@@ -98,6 +101,7 @@ PYTHON_DIR="${PYTHON_DIR:-${SIBLING_DIR}/protowire-python}"
 
 WALLCLOCK_SECONDS="${WALLCLOCK_SECONDS:-5}"
 SKIP_PORTS="${SKIP_PORTS:-}"
+REQUIRE_PORTS="${REQUIRE_PORTS:-}"
 
 # Resolve the wall-clock enforcer. GNU `timeout` is the canonical tool; macOS
 # ships it as `gtimeout` via Homebrew's coreutils. Fall back to no enforcement
@@ -262,8 +266,21 @@ for p in go cpp ts java rust swift dart csharp python; do
   if [[ -n "$PORT_BIN" ]]; then
     PORT_BINS["$p"]="$PORT_BIN"
     PORT_COUNT=$((PORT_COUNT + 1))
+  elif skip "$p"; then
+    echo "· $p: in SKIP_PORTS, not run" >&2
+  else
+    echo "· $p: no check-decode harness, not run" >&2
   fi
 done
+
+missing_required=()
+for p in ${REQUIRE_PORTS//,/ }; do
+  [[ -n "${PORT_BINS[$p]:-}" ]] || missing_required+=("$p")
+done
+if (( ${#missing_required[@]} )); then
+  echo "required ports did not build: ${missing_required[*]} (REQUIRE_PORTS=$REQUIRE_PORTS)" >&2
+  exit 2
+fi
 
 if [[ "$PORT_COUNT" -eq 0 ]]; then
   echo "no port has a check-decode binary built — see ROADMAP.md M8" >&2
