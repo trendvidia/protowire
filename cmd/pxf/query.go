@@ -47,8 +47,8 @@ func queryCmd() *cobra.Command {
 		"override input format detection (pxf|json|yaml|csv); default is "+
 			"inferred from the file extension, with stdin (\"-\") defaulting to pxf")
 	f.BoolVar(&strictFlag, "strict", false,
-		"force strict mode (compile-time field-name validation); errors "+
-			"if no root type is bound. Default: implicit — strict when a "+
+		"force strict mode (compile-time field-name validation; a "+
+			"runtime error fails the run); errors if no root type is bound. Default: implicit — strict when a "+
 			"root type is in scope, loose otherwise")
 	f.BoolVar(&looseFlag, "loose", false,
 		"force loose mode (skip strict-mode validation) even when a "+
@@ -111,17 +111,15 @@ func runQueryCmd(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	results, err := runQuery(query, doc, sch, strictOpts{enabled: strict, root: rootType})
-	if err != nil {
-		return err
-	}
-
+	// A strict-mode runtime error still returns the results before it,
+	// which are written first, as jq writes them.
+	results, runErr := runQuery(query, doc, sch, strictOpts{enabled: strict, root: rootType})
 	for _, r := range results {
 		if err := emitPXF(os.Stdout, r, rootType, sch.anyType); err != nil {
 			return fmt.Errorf("emit: %w", err)
 		}
 	}
-	return nil
+	return runErr
 }
 
 func readInput(path string) ([]byte, error) {
