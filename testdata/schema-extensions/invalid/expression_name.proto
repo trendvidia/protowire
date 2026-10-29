@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Invalid fixture: expression_name — a rule names something that is not
+// an enum value. In a §5.4 expression a name not followed by `(` is an
+// enum value reference, and it must resolve to one, so this MUST NOT
+// compile (RFC-001 §5.4, issue #427): each error is reported at the
+// name's span. `MODE_NOPE` resolves to nothing; `Settings` resolves, but
+// to a message.
+
+syntax = "proto3";
+
+package fixtures.invalid.expression_name;
+
+import "protowire/schema/v1/annotations.proto";
+
+enum Mode {
+  MODE_UNSPECIFIED = 0;
+  MODE_MATCH = 1;
+}
+
+message Settings {
+  Mode mode = 1
+    @validate(this == MODE_NOPE);
+  Mode other = 2
+    @validate(this != Settings);
+}

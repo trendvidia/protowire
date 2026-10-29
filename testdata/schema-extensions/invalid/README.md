@@ -34,6 +34,7 @@ NOT include this directory when compiling the positive corpus.
 | `expression_syntax.proto` | `expression-syntax` | An expression argument must parse under the §5.4 grammar; a fragment that balances its delimiters (so it passes §5.1 capture) but is not an expression is a compile error at the fragment's span (RFC-001 §5.1, §5.4, issue #282). |
 | `non_boolean_rule.proto` | `non-boolean-rule` | A rule is a boolean: an expression argument whose result is visibly something else — here a quoted string, which is a §5.4 string literal — is a compile error at its span (RFC-001 §5.1 rule 3, §5.4, issue #437). Until then it compiled and failed every message it was evaluated against. |
 | `expression_default.proto` | `expression-default` | A default on an `expression`-typed parameter is checked as an argument bound to that parameter would be, with names resolved from the annotation declaration's scope; an unresolved name in it is a compile error at the name (RFC-001 §5.1 "Expression defaults", issue #437). Until then a default was read as a literal and compiled clean. |
+| `expression_name.proto` | `expression-name` | A name in an expression that is not followed by `(` is an enum value reference and must resolve to an enum value; an unresolved name, or one that resolves to something else (here a message), is a compile error at the name (RFC-001 §5.4, issue #427). |
 
 Runtime error states (missing implementation, unsatisfiable `@default`,
 locale-catalog miss) are **valid** schemas whose behavior is pinned by
