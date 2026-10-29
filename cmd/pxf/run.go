@@ -47,7 +47,7 @@ func docBody(doc *loadedDoc) any {
 // AST is validated against the descriptor before compile; unknown
 // field references error before the query runs. Loose mode skips
 // this step entirely. In both modes runtime errors degrade to nil
-// (jq's errors-as-null model).
+// (errors-as-null; jq itself exits 5 on one).
 func runQuery(query string, doc *loadedDoc, sch *schema, opts strictOpts) ([]any, error) {
 	q, err := gojq.Parse(query)
 	if err != nil {
@@ -73,7 +73,7 @@ func runQuery(query string, doc *loadedDoc, sch *schema, opts strictOpts) ([]any
 			break
 		}
 		// In both modes, runtime errors degrade to null per QUERY.md
-		// (errors-as-null, jq-compatible); strict mode only adds the
+		// (errors-as-null; jq itself exits 5); strict mode only adds the
 		// compile-time field check above. Surface the error string on
 		// stderr at most once per kind so a typo isn't completely silent
 		// — Stage A keeps that helper minimal; Stage C will swap it for

@@ -39,7 +39,7 @@ $ pxf query -p trades.proto -m trades.v1.Trade '.symbool' march.csv
 pxf query: strict-mode: unknown field "symbool" on trades.v1.Trade (did you mean "symbol"?)
 ```
 
-Strict mode checks field names only. A runtime error, such as a type mismatch or `pxf_proto` naming a type the schema doesn't hold, becomes `null` in both modes, as in jq, with a `pxf: … (runtime error → null)` line on stderr.
+Strict mode checks field names only. A runtime error, such as a type mismatch or `pxf_proto` naming a type the schema doesn't hold, becomes `null` in both modes, with a `pxf: … (runtime error → null)` line on stderr, and the command exits 0. jq differs here: it stops at a runtime error and exits 5.
 
 Dynamic access patterns (array indexing, `pxf_directive(...)`, function calls, object construction) keep gojq's runtime semantics — validation tracks message field chains only.
 
@@ -52,7 +52,7 @@ value = "any.v1.Leaf"
 
 ### Loose — no schema
 
-For one-off scripts and quick attribute fetches against PXF/JSON/YAML/CSV files sitting somewhere. Types are inferred per-value using cheap unambiguous rules; ambiguous cases stay as strings, and runtime type mismatches surface as `null` rather than aborting (**errors-as-null** — jq-compatible).
+For one-off scripts and quick attribute fetches against PXF/JSON/YAML/CSV files sitting somewhere. Types are inferred per-value using cheap unambiguous rules; ambiguous cases stay as strings, and runtime type mismatches surface as `null` rather than aborting (**errors-as-null**; jq instead stops and exits 5).
 
 ```bash
 pxf query '.symbol'                march.csv
@@ -161,7 +161,7 @@ When the document has a bound type (`-m`, or its `@type` resolved through the sc
 
 ## Query language
 
-The query expression is gojq-compatible — `pxf query` embeds [`itchyny/gojq`](https://github.com/itchyny/gojq) as its core engine, so anything that runs in jq runs here, with the same operators, the same standard library, and the same runtime semantics. PXF-specific capability is registered as ordinary gojq functions under a `pxf_` prefix (gojq's `@<name>` syntax is reserved for string formatters and isn't user-extensible, so a namespacing prefix on plain identifiers is the next-best convention).
+The query expression is gojq-compatible — `pxf query` embeds [`itchyny/gojq`](https://github.com/itchyny/gojq) as its core engine, so anything that runs in jq runs here, with the same operators and the same standard library. Runtime errors are the exception: jq stops and exits 5, while `pxf query` turns the error into `null` (see [Two modes](#two-modes)). PXF-specific capability is registered as ordinary gojq functions under a `pxf_` prefix (gojq's `@<name>` syntax is reserved for string formatters and isn't user-extensible, so a namespacing prefix on plain identifiers is the next-best convention).
 
 ### `pxf_*` extensions
 
