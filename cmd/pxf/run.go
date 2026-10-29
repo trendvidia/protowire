@@ -46,8 +46,9 @@ func docBody(doc *loadedDoc) any {
 // When opts.enabled is true and opts.root is non-nil, the parsed gojq
 // AST is validated against the descriptor before compile; unknown
 // field references error before the query runs. Loose mode skips
-// this step entirely. In both modes runtime errors degrade to nil
-// (errors-as-null; jq itself exits 5 on one).
+// this step entirely. A runtime error ends a strict run with an
+// error, returning the results produced before it, as jq does; in
+// loose mode it degrades to nil (errors-as-null).
 func runQuery(query string, doc *loadedDoc, sch *schema, opts strictOpts) ([]any, error) {
 	q, err := gojq.Parse(query)
 	if err != nil {
@@ -72,13 +73,16 @@ func runQuery(query string, doc *loadedDoc, sch *schema, opts strictOpts) ([]any
 		if !ok {
 			break
 		}
-		// In both modes, runtime errors degrade to null per QUERY.md
-		// (errors-as-null; jq itself exits 5); strict mode only adds the
-		// compile-time field check above. Surface the error string on
-		// stderr at most once per kind so a typo isn't completely silent
-		// — Stage A keeps that helper minimal; Stage C will swap it for
-		// the per-file hint the README describes.
+		// A strict run stops at a runtime error, as jq does (#403). In
+		// loose mode, runtime errors degrade to null per QUERY.md
+		// (errors-as-null; jq itself exits 5). Surface the error string
+		// on stderr at most once per kind so a typo isn't completely
+		// silent — Stage A keeps that helper minimal; Stage C will swap
+		// it for the per-file hint the README describes.
 		if e, isErr := v.(error); isErr {
+			if opts.enabled {
+				return out, fmt.Errorf("strict-mode: runtime error: %w", e)
+			}
 			fmt.Fprintf(stderr(), "pxf: %s (runtime error → null)\n", e)
 			out = append(out, nil)
 			continue
