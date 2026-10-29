@@ -52,9 +52,9 @@ message Address {
 }
 
 // Enum refinement. §6.2 rule 6: `this` binds to the value's number and
-// the rule compares integers — SHIPPED = 2, CANCELLED = 3. §5.4 has no
-// enum-value reference (`OrderStatus.SHIPPED` is not a term); a
-// name-resolved spelling is a later-minor candidate (issue #324).
+// the rule compares integers — SHIPPED = 2, CANCELLED = 3. Since issue
+// #427 the rule can name them instead (`this == SHIPPED`); this one
+// keeps the integer form, which stays valid.
 type SettledStatus = OrderStatus
   @validate(this == 2 || this == 3,
             code = "refine.status.unsettled",
