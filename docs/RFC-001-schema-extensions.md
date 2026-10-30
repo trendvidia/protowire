@@ -325,6 +325,16 @@ the `rule` of `@validate`, and any other `expression` parameter a
 schema declares — is written in **one fixed language**, defined here,
 the same in every engine and every port.
 
+**Who evaluates a rule.** A validation engine evaluates the `rule` of
+`@validate` (`protowire.schema.v1.validate`) and no other `expression`
+argument. An `expression` parameter of a user-declared annotation is
+data for whatever tool owns that annotation: the compiler checks it
+like any rule (it must parse, name declared functions and enum values,
+and be boolean) and lowers it to the §8.1 carrier, and an engine MUST
+NOT turn it into a violation. A schema that wants a rule enforced at
+validation time writes it in `@validate`, directly or through a `type`
+alias. (Resolved 2026-10-29, issue #440.)
+
 (Resolved 2026-09-07, issue #282. The ratified text left the body to
 "the engine" as opaque source, with §9.4 selecting among `cel`,
 `starlark` and `go`. Measured against what evaluates the carrier, one
@@ -475,7 +485,7 @@ registered, memoizable — or a future revision of this section.
 Extending the language is a spec change, never an engine extension.
 
 Conformance fixture: `testdata/schema-extensions/24_expression_language.proto`
-(every builtin in both forms, `now()`, every operator) and
+(every builtin in both forms, `now()`, `is_nan()`, every operator) and
 `invalid/unresolved_expression_call.proto`,
 `invalid/expression_syntax.proto` (the two compile-error classes this
 section adds).

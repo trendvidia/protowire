@@ -1577,6 +1577,14 @@ schema declares — is written in one fixed language, defined here, the
 same in every engine and every implementation. (RFC-001 Section 5.4,
 resolved 2026-09-07; the ratified text left the body to the engine.)
 
+A validation engine evaluates the `rule` of `@validate` and no other
+`expression` argument. An `expression` parameter of a user-declared
+annotation is data for the tool that owns that annotation: a compiler
+checks it as it checks any rule and lowers it to the annotation
+carrier, and an engine MUST NOT report a violation from it. A rule
+meant to be enforced at validation time is written in `@validate`.
+(RFC-001 Section 5.4, resolved 2026-10-29.)
+
 Grammar, over the Protocol Buffers lexical forms for identifiers and
 for integer, float and string literals:
 
