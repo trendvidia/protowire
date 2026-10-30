@@ -27,4 +27,4 @@ require (
 // The fork carries the RFC-001 §9.3 function-stub codegen in
 // cmd/protoc-gen-go (trendvidia/protobuf-go#4); the harness builds the
 // plugin binary out of this module's dependency graph.
-replace google.golang.org/protobuf => github.com/trendvidia/protobuf-go v1.36.15
+replace google.golang.org/protobuf => github.com/trendvidia/protobuf-go v1.36.16-0.20261030182108-ce1fb6c870fd

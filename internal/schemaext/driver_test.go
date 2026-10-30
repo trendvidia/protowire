@@ -14,8 +14,8 @@ import (
 )
 
 // driverMain implements the RFC-001 §9.3 user side of the generated stubs:
-// it embeds UnimplementedFunctions, overrides one function, registers the
-// implementation through RegisterFunctions against a capture Engine, and
+// it embeds UnimplementedX01BasicFunctions, overrides one function, registers the
+// implementation through RegisterX01BasicFunctions against a capture Engine, and
 // invokes each registered Function. Results go to stdout as JSON so the
 // test can assert the Violation shapes the spec pins.
 const driverMain = `package main
@@ -53,7 +53,7 @@ func (c *capture) Register(fqn string, impl v2.Function) error {
 func (c *capture) RegisterCatalog(string, v2.Catalog) error    { return nil }
 func (c *capture) Validate(proto.Message) (*v2.Report, error)  { return nil, fmt.Errorf("capture engine") }
 
-type impl struct{ basic.UnimplementedFunctions }
+type impl struct{ basic.UnimplementedX01BasicFunctions }
 
 func (impl) IsEmail(value string) (bool, *v2.Violation) {
 	if value == "ok@example.com" {
@@ -86,11 +86,11 @@ func run(fn v2.Function, args ...any) outcome {
 func main() {
 	out := map[string]any{}
 
-	out["stub_unimplemented"] = record(basic.UnimplementedFunctions{}.IsEmail("x@y"))
+	out["stub_unimplemented"] = record(basic.UnimplementedX01BasicFunctions{}.IsEmail("x@y"))
 
 	eng := &capture{fns: map[string]v2.Function{}}
-	if err := basic.RegisterFunctions(eng, impl{}); err != nil {
-		fmt.Fprintln(os.Stderr, "basic.RegisterFunctions:", err)
+	if err := basic.RegisterX01BasicFunctions(eng, impl{}); err != nil {
+		fmt.Fprintln(os.Stderr, "basic.RegisterX01BasicFunctions:", err)
 		os.Exit(1)
 	}
 	isEmail, ok := eng.fns["fixtures.basic.is_email"]
@@ -104,8 +104,8 @@ func main() {
 	out["arg_type"] = run(isEmail, 42)
 
 	leng := &capture{fns: map[string]v2.Function{}}
-	if err := lib.RegisterFunctions(leng, lib.UnimplementedFunctions{}); err != nil {
-		fmt.Fprintln(os.Stderr, "lib.RegisterFunctions:", err)
+	if err := lib.RegisterX06CrossFileLibFunctions(leng, lib.UnimplementedX06CrossFileLibFunctions{}); err != nil {
+		fmt.Fprintln(os.Stderr, "lib.RegisterX06CrossFileLibFunctions:", err)
 		os.Exit(1)
 	}
 	fqns := make([]string, 0, len(leng.fns))
@@ -132,7 +132,7 @@ type outcome struct {
 
 // TestRegisterFunctionsAndInvoke completes the round trip: the generated
 // stubs are compiled into a throwaway module against protocheck, then
-// RegisterFunctions and every registered function are invoked and the
+// Register<File>Functions and every registered function are invoked and the
 // returned Violations checked against the spec-pinned §7 shapes.
 func TestRegisterFunctionsAndInvoke(t *testing.T) {
 	if testing.Short() {

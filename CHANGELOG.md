@@ -10,6 +10,10 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+### Changed
+
+- **Function stubs are named per file** (RFC-001 §9.3; [trendvidia/protobuf-go#9](https://github.com/trendvidia/protobuf-go/issues/9), decided by the owner). `Functions`, `UnimplementedFunctions` and `RegisterFunctions` become `<File>Functions`, `Unimplemented<File>Functions` and `Register<File>Functions`, taken from the file's name. Two files in one package that each declared functions used to redeclare the three names, and generated Go did not compile. A generator upgrade renames existing stubs, so callers must update. Measured on daysong with functions in `common.proto` and `descriptor.proto`: both generate, compile and register.
+
 ## [1.14.0] — 2026-10-30
 
 The expression language gains enum value names, `defined()`, `unique()` and `is_nan()`, and NaN now follows IEEE 754. `pxf fmt` formats `.proto` sources with v1.2 syntax, and `pxf build` becomes a drop-in for a buf project: source info, import roots, and images `buf generate` handles like its own. The shared schemas move to [trendvidia/protos](https://github.com/trendvidia/protos) and gain `go_package`, so Go code can be generated for schemas that import them. No wire-format change. STABILITY.md § v1.14 lists what each change means for ports.
