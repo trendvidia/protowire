@@ -115,7 +115,7 @@ func TestLoweredCarriers(t *testing.T) {
 	})
 }
 
-// TestGeneratedStubs asserts on the source the forked protoc-gen-go emits
+// TestGeneratedStubs asserts on the source protoc-gen-pxf-go emits
 // for the real lowered descriptors: typed Functions interfaces, the
 // reserved RFC-001 §7 codes referenced through protocheck's typed
 // constants, and annotation-derived doc comments.
@@ -124,7 +124,7 @@ func TestGeneratedStubs(t *testing.T) {
 
 	assertContains := func(t *testing.T, protoPath string, wants ...string) {
 		t.Helper()
-		content := h.generated[protoPath]
+		content := h.generated[protoPath] + h.stubs[protoPath]
 		for _, want := range wants {
 			if !strings.Contains(content, want) {
 				t.Errorf("%s: generated output missing %q", protoPath, want)
@@ -180,7 +180,7 @@ func TestGeneratedStubs(t *testing.T) {
 
 	t.Run("no stubs without function decls", func(t *testing.T) {
 		for _, protoPath := range []string{"04_required_and_default.proto", "06_cross_file_main.proto"} {
-			content := h.generated[protoPath]
+			content := h.generated[protoPath] + h.stubs[protoPath]
 			if strings.Contains(content, "Functions interface") || strings.Contains(content, "protocheck") {
 				t.Errorf("%s declares no functions but generated stubs / a protocheck import", protoPath)
 			}

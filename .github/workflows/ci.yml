@@ -78,3 +78,25 @@ jobs:
 
       - name: go test
         run: go test -race ./...
+
+  protoc-gen-pxf-go:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cmd/protoc-gen-pxf-go
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: cmd/protoc-gen-pxf-go/go.mod
+          cache-dependency-path: cmd/protoc-gen-pxf-go/go.sum
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: go test
+        run: go test -race ./...
+
+      - name: requires protobuf alone
+        run: test "$(go mod edit -json | jq '.Require | length')" -eq 1

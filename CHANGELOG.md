@@ -12,6 +12,8 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ### Added
 
+- **`protoc-gen-pxf-go`** (RFC-001 §9.3, #458). Go function stubs and `@description`/`@deprecated` doc comments now come from a plugin on stock protobuf, in place of `protoc-gen-go`, so Go users no longer need the trendvidia/protobuf-go fork for them. Stubs move to `<name>_functions.pb.go`. Getters no longer carry either annotation.
+
 - **What a function receives** (RFC-001 §9.1; [trendvidia/protobuf-go#11](https://github.com/trendvidia/protobuf-go/issues/11), decided by the owner). The spec named `[]any` but never said what was in it, so protocheck passed an `int32` field as `int` and generated stubs asserting `int32` rejected valid data. §9.1 now says each argument arrives in its declared type, with a Go table, and that a value that does not fit fails with `protowire.function.invalid_argument`.
 
 ### Changed

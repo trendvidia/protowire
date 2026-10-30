@@ -23,8 +23,3 @@ require (
 	golang.org/x/sync v0.24.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260807164820-c8921c73eeea // indirect
 )
-
-// The fork carries the RFC-001 §9.3 function-stub codegen in
-// cmd/protoc-gen-go (trendvidia/protobuf-go#4); the harness builds the
-// plugin binary out of this module's dependency graph.
-replace google.golang.org/protobuf => github.com/trendvidia/protobuf-go v1.36.16-0.20261030183331-fe2d4ee3a9e9

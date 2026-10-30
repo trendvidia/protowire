@@ -10,8 +10,7 @@
 //	pxf build -o image.binpb ./schemas/...
 //	buf generate image.binpb
 //
-// Everything downstream (stock buf/protoc, the forked protoc-gen-go,
-// protoc-gen-pxf-*) consumes the image; stock tooling never sees v1.2
+// Everything downstream (stock buf/protoc, protoc-gen-pxf-*) consumes the image; stock tooling never sees v1.2
 // source. The compiler is the trendvidia/protocompile fork's library
 // pipeline (incremental.Run + queries.FDS). Subcommands that take -p
 // compile with the same fork through its Compiler, so they read v1.2
