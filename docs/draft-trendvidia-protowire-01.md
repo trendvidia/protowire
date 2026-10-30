@@ -1171,6 +1171,12 @@ Conformance:
 
 A field that satisfies the above but is a member of a oneof carries the additional constraints of {{oneof-annotation-placement}}.
 
+### Required and Default {#required-default-exclusive}
+
+pxf.required and pxf.default MUST NOT both be set on one field. pxf.default says an absent field takes a value, and pxf.required says an absent field is an error, so a document omitting the field has no single meaning: the result would depend on which check an implementation ran first. Tools that bind a descriptor for PXF use MUST reject such a schema, over the scope of {{bind-check-scope}}. "pxf.required = false" requires nothing and does not conflict with pxf.default.
+
+As with {{schema-constraints}}, rejecting such a schema on upgrade surfaces a pre-existing latent bug rather than introducing one.
+
 ### Oneof Members {#oneof-annotation-placement}
 
 Setting any member of a oneof clears the others, so the per-field reading of "absent" that pxf.required and pxf.default are otherwise defined against does not hold inside a oneof: a member is absent whenever a sibling was chosen. Both annotations therefore take additional constraints there.

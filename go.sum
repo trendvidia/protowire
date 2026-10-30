@@ -43,6 +43,8 @@ github.com/trendvidia/protocompile v0.36.2-0.20261030175651-1b897ad150c9 h1:b+up
 github.com/trendvidia/protocompile v0.36.2-0.20261030175651-1b897ad150c9/go.mod h1:r/77ZKQWq3b5IzDMIcHEsLWXy9/m/VqmVfBNXw4n63E=
 github.com/trendvidia/protocompile v0.36.2-0.20261030181247-6942e7421b52 h1:kGcWq8XLCHUvmC3S2q+Kt4ioS+nUlbNI5LnoXdrvH4A=
 github.com/trendvidia/protocompile v0.36.2-0.20261030181247-6942e7421b52/go.mod h1:r/77ZKQWq3b5IzDMIcHEsLWXy9/m/VqmVfBNXw4n63E=
+github.com/trendvidia/protocompile v0.36.2-0.20261030193814-366ba2d444b4 h1:GnOY4k0d6ITshzkPedi2K7Y+CEh2IG8MSLEc1inDTxo=
+github.com/trendvidia/protocompile v0.36.2-0.20261030193814-366ba2d444b4/go.mod h1:r/77ZKQWq3b5IzDMIcHEsLWXy9/m/VqmVfBNXw4n63E=
 github.com/trendvidia/protoregistry v0.72.0 h1:vvuVe9O/t6XL5uWVD/DIGJ40pRDY+XEQNOvD3nzZZEY=
 github.com/trendvidia/protoregistry v0.72.0/go.mod h1:7pFkNB/vToykc5b/TGXPx7AzS+jRGGUxwUsPRKL+yVc=
 github.com/trendvidia/protos v0.1.2 h1:ENvBEmNx1Ifzb8GIGAZ1yp6N/GG7TTFDNbo+ONrnMtM=

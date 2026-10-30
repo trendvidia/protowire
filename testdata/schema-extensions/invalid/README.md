@@ -48,6 +48,8 @@ NOT include this directory when compiling the positive corpus.
 | `validate_on_oneof.proto` | `validate-on-oneof` | `@validate` is not valid on a oneof (RFC-001 §5.2 placement table, issue #450). |
 | `required_on_message.proto` | `required-on-message` | `@required` is not valid on a message (RFC-001 §5.2 placement table, issue #450). |
 | `http_on_field.proto` | `http-on-field` | `@http` is valid only on an rpc (RFC-001 §5.2 placement table, issue #450). |
+| `default_and_required_bracket.proto` | `default-and-required-bracket` | `(pxf.required)` and `(pxf.default)` are exclusive on one field (draft `-01` "Required and Default", RFC-001 §5.2, issue #453). |
+| `default_and_required_mixed.proto` | `default-and-required-mixed` | A bracket option and an annotation count as the same rule: `(pxf.required)` with `@default` on one field is rejected (RFC-001 §5.2, issue #453). |
 
 Runtime error states (missing implementation, unsatisfiable `@default`,
 locale-catalog miss) are **valid** schemas whose behavior is pinned by
