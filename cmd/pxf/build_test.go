@@ -502,3 +502,53 @@ func TestBuildSourceInfo(t *testing.T) {
 		t.Errorf("--source-info=false still carries %d source locations", len(si.Location))
 	}
 }
+
+// TestBuildImportRoots: -I resolves an import from a directory without
+// compiling that directory, and marks what it supplied as an import, so
+// `buf generate` leaves it out (#436). Without -I the import does not
+// resolve; given as an argument instead, the dependency would be a target.
+func TestBuildImportRoots(t *testing.T) {
+	proj, deps := t.TempDir(), t.TempDir()
+	write := func(dir, name, body string) {
+		t.Helper()
+		path := filepath.Join(dir, name)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write(proj, "app/v1/app.proto", "syntax = \"proto3\";\npackage app.v1;\nimport \"dep/ext.proto\";\nmessage M { dep.Ext e = 1; }\n")
+	write(deps, "dep/ext.proto", "syntax = \"proto3\";\npackage dep;\nmessage Ext { int32 x = 1; }\n")
+	write(deps, "dep/unused.proto", "syntax = \"proto3\";\npackage dep;\nmessage Unused { int32 y = 1; }\n")
+
+	if err := runPxf(t, "build", "--check", proj); err == nil {
+		t.Fatal("dep/ext.proto resolved without -I")
+	}
+
+	fds := &descriptorpb.FileDescriptorSet{}
+	if err := proto.Unmarshal(buildImage(t, "-I", deps, proj), fds); err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]bool{"app/v1/app.proto": false, "dep/ext.proto": true}
+	for _, f := range fds.File {
+		if f.GetName() == "dep/unused.proto" {
+			t.Error("dep/unused.proto is in the image, but nothing imports it")
+		}
+		if w, ok := want[f.GetName()]; ok {
+			if _, imported := isImport(t, f); imported != w {
+				t.Errorf("%s: is_import = %v, want %v", f.GetName(), imported, w)
+			}
+			delete(want, f.GetName())
+		}
+	}
+	for name := range want {
+		t.Errorf("%s is not in the image", name)
+	}
+
+	missing := filepath.Join(deps, "nope")
+	if err := runPxf(t, "build", "--check", "-I", missing, proj); err == nil || !strings.Contains(err.Error(), "-I "+missing) {
+		t.Errorf("-I of a missing directory: err = %v, want one naming it", err)
+	}
+}

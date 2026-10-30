@@ -54,6 +54,7 @@ func buildCmd() *cobra.Command {
 		googleAPIHTTP bool
 		nullMask      bool
 		sourceInfo    bool
+		importRoots   []string
 	)
 	cmd := &cobra.Command{
 		Use:   "build [flags] <schema-root-or-file>...",
@@ -84,7 +85,13 @@ func buildCmd() *cobra.Command {
 			"project that does not carry PXF nulls over binary keeps protoc's\n" +
 			"messages. The image carries SourceCodeInfo, as `buf build`'s does,\n" +
 			"so generated code keeps its doc comments; --source-info=false\n" +
-			"leaves it out.",
+			"leaves it out.\n\n" +
+			"-I adds an import root: a directory imports resolve from, whose\n" +
+			"files are compiled only when imported and are marked as imports in\n" +
+			"the image, so `buf generate` skips them. It is how a buf.yaml\n" +
+			"dependency is supplied: `buf export buf.build/acme/dep -o .deps/dep`,\n" +
+			"then `pxf build -I .deps/dep ./proto`. A directory given as an\n" +
+			"argument instead is compiled whole, as the project's own files.",
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var flags engineconfig.Overrides
@@ -99,6 +106,7 @@ func buildCmd() *cobra.Command {
 				googleAPIHTTP: googleAPIHTTP,
 				nullMask:      nullMask,
 				sourceInfo:    sourceInfo,
+				importRoots:   importRoots,
 			})
 		},
 	}
@@ -110,6 +118,7 @@ func buildCmd() *cobra.Command {
 	f.BoolVar(&googleAPIHTTP, "google-api-http", true, "also lower @http's routing skeleton to the standard google.api.http option")
 	f.BoolVar(&nullMask, "null-mask", true, "add the generated _null FieldMask to messages with a field that can hold a null (RFC-001 §8.6)")
 	f.BoolVar(&sourceInfo, "source-info", true, "include SourceCodeInfo (comments and source positions) in the image")
+	f.StringSliceVarP(&importRoots, "import-root", "I", nil, "directory to resolve imports from without compiling its files as targets (repeatable)")
 	return cmd
 }
 
@@ -132,6 +141,9 @@ type buildOptions struct {
 	// SourceCodeInfo, without which every generated doc comment is lost
 	// (#424). Default true, as for `buf build`.
 	sourceInfo bool
+	// importRoots mirrors -I: directories imports resolve from, after the
+	// arguments' roots, whose files are never targets (#436).
+	importRoots []string
 }
 
 func runBuild(cmd *cobra.Command, args []string, opts buildOptions) error {
@@ -159,6 +171,20 @@ func runBuild(cmd *cobra.Command, args []string, opts buildOptions) error {
 
 	chain := source.Openers{&bundledOpener}
 	for _, root := range roots {
+		chain = append(chain, &source.FS{FS: os.DirFS(root)})
+	}
+	// After the arguments' roots, so a project's own file wins over a
+	// dependency's of the same path. Nothing beneath an import root joins
+	// paths, so markImports marks whatever is imported from one as an
+	// import.
+	for _, root := range opts.importRoots {
+		info, err := os.Stat(root)
+		if err != nil {
+			return fmt.Errorf("-I %s: %w", root, err)
+		}
+		if !info.IsDir() {
+			return fmt.Errorf("-I %s: not a directory", root)
+		}
 		chain = append(chain, &source.FS{FS: os.DirFS(root)})
 	}
 	chain = append(chain, source.WKTs())
