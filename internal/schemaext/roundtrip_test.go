@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/trendvidia/protocheck/v2"
-	pwsv1 "github.com/trendvidia/protocompile/gen/protowire/schema/v1"
+	pwsv1 "github.com/trendvidia/protos/protowire/schema/v1"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
