@@ -239,6 +239,21 @@ annotation http(
 );
 ```
 
+**Placement.** §5.1 says where an annotation sits in the grammar. This table says what each standard annotation may attach to. A compiler MUST reject a use outside its row, so a rule nothing would act on never reaches an image. Annotations a schema declares itself are not restricted.
+
+| Annotation | Valid on |
+|---|---|
+| `@validate` | field, message, `type` |
+| `@required` | field, oneof, `type` |
+| `@default` | field, `type` |
+| `@sensitive` | field, message, `type` |
+| `@example` | field, message, `type` |
+| `@error_code` | field, message, `type` |
+| `@http` | rpc |
+| `@description`, `@deprecated` | any declaration |
+
+The rows are limits, and the later paragraphs of this section narrow them further for particular fields. A rule on a `type` is checked on each field it expands onto (§6.3). `@sensitive` is not valid on a oneof: classify each member. A compiler MUST also reject a field that carries both `@required` and `@default(value)`, however each one arrives, because the default says the field is never absent and `@required` says that absence is an error.
+
 **`@http` and the operation surface.** `method` and `path` are the routing skeleton; the remaining parameters carry the operation metadata a REST-surface generator needs (issue #173). `path` may contain `{…}` template segments, each binding a field of the request message named **from its top level as a dotted path** (`{order_id}`, `{shelf.id}`); remaining request fields bind to the query string for bodyless methods and to the request body otherwise. `summary` falls back to the first sentence of `@description`; `operation_id` is derived as `<Service>_<Method>` when empty; `tags` and `security` take list literals of strings (§8.1 `Literal.list`), and the security-*scheme definitions* they name are generator configuration rather than schema content — the same §9.4 argument that keeps engine configuration out of file options and that rejected `@encrypted` (§6.7).
 
 **The routing skeleton lowers twice.** `method` and `path` MUST lower both to the §8.1 annotation carrier *and* to the standard `google.api.http` option on `MethodOptions` (field `72295728`, `google.api.HttpRule`). The two are complements, not alternatives: the carrier keeps the whole operation surface — `summary`, `operation_id`, `tags`, `security` — which `HttpRule` has no place for, while the standard extension carries the skeleton that every off-the-shelf REST binder reads (connect vanguard, grpc-gateway, Envoy's `grpc_json_transcoder`, buf's OpenAPI plugins). Emitting only the carrier is the failure this rule exists to prevent, and it is a silent one: the binder finds no rules, binds no routes, reports nothing, and every REST URL 404s as though the endpoint were unimplemented (issue #213).

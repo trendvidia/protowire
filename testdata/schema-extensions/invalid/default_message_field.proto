@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Invalid fixture: default-message-field
+// Violates: RFC-001 §5.2 — no literal denotes this message type.
+
+syntax = "proto3";
+
+package fixtures.baddefaultmessagefield;
+
+import "protowire/schema/v1/annotations.proto";
+
+message Address {
+  string city = 1;
+}
+
+message Order {
+  // ERROR: Address is not a type a literal can denote.
+  Address ship_to = 1 @default("x");
+}

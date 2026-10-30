@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Invalid fixture: default-map
+// Violates: RFC-001 §5.2 — one literal cannot denote a map field.
+
+syntax = "proto3";
+
+package fixtures.baddefaultmap;
+
+import "protowire/schema/v1/annotations.proto";
+
+message Order {
+  // ERROR: @default on a map field.
+  map<string, string> labels = 1 @default("x");
+}
