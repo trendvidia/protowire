@@ -9,7 +9,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/trendvidia/protocompile v0.36.0
 	github.com/trendvidia/protoregistry v0.72.0
-	github.com/trendvidia/protos v0.1.1
+	github.com/trendvidia/protos v0.1.2
 	github.com/trendvidia/protowire-go v1.12.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20260807164820-c8921c73eeea
 	google.golang.org/grpc v1.84.0
