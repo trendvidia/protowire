@@ -28,7 +28,9 @@ import (
 
 	v2 "github.com/trendvidia/protocheck/v2"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 
+	args "pxfdriver.test/gen/args"
 	basic "pxfdriver.test/gen/basic"
 	lib "pxfdriver.test/gen/lib"
 
@@ -60,6 +62,58 @@ func (impl) IsEmail(value string) (bool, *v2.Violation) {
 		return true, nil
 	}
 	return false, &v2.Violation{Code: "email.invalid", FallbackMessage: "not an email: " + value}
+}
+
+// argImpl records the dynamic type of each argument that reaches it. The stub
+// parameters are typed, so a call that lands here passed the generated guard.
+type argImpl map[string][]string
+
+func (a argImpl) rec(name string, v any) (bool, *v2.Violation) {
+	a[name] = append(a[name], fmt.Sprintf("%T", v))
+	return true, nil
+}
+func (a argImpl) FString(v string) (bool, *v2.Violation)  { return a.rec("f_string", v) }
+func (a argImpl) FBool(v bool) (bool, *v2.Violation)      { return a.rec("f_bool", v) }
+func (a argImpl) FBytes(v []byte) (bool, *v2.Violation)   { return a.rec("f_bytes", v) }
+func (a argImpl) FInt32(v int32) (bool, *v2.Violation)    { return a.rec("f_int32", v) }
+func (a argImpl) FInt64(v int64) (bool, *v2.Violation)    { return a.rec("f_int64", v) }
+func (a argImpl) FUint32(v uint32) (bool, *v2.Violation)  { return a.rec("f_uint32", v) }
+func (a argImpl) FUint64(v uint64) (bool, *v2.Violation)  { return a.rec("f_uint64", v) }
+func (a argImpl) FFloat(v float32) (bool, *v2.Violation)  { return a.rec("f_float", v) }
+func (a argImpl) FDouble(v float64) (bool, *v2.Violation) { return a.rec("f_double", v) }
+func (a argImpl) FAlias(v any) (bool, *v2.Violation)      { return a.rec("f_alias", v) }
+func (a argImpl) FWrapper(v any) (bool, *v2.Violation)    { return a.rec("f_wrapper", v) }
+
+// validateArgs runs the fixture through the stubs and a real engine, with
+// every field set so every rule fires.
+func validateArgs() (argImpl, string) {
+	eng := &capture{fns: map[string]v2.Function{}}
+	got := argImpl{}
+	if err := args.RegisterX26FunctionArgumentsFunctions(eng, got); err != nil {
+		fmt.Fprintln(os.Stderr, "args.RegisterX26FunctionArgumentsFunctions:", err)
+		os.Exit(1)
+	}
+	opts := []v2.Option{v2.WithDescriptors((&args.Fields{}).ProtoReflect().Descriptor().ParentFile()), v2.WithStrictValidation()}
+	for fqn, fn := range eng.fns {
+		opts = append(opts, v2.WithFunction(fqn, fn))
+	}
+	val, err := v2.New(opts...)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "protocheck.New:", err)
+		os.Exit(1)
+	}
+	var failures string
+	for _, m := range []proto.Message{
+		&args.Fields{AString: "s", ABool: true, ABytes: []byte("b"), AInt32: 7, AInt64: 7, AUint32: 7, AUint64: 7,
+			AFloat: 1.5, ADouble: 1.5, AAlias: 7, AWrapper: wrapperspb.Int32(7)},
+		&args.Literals{AString: "s", ABool: "s", AInt32: "s", AInt64: "s", AUint32: "s", AUint64: "s",
+			AFloat: "s", ADouble: "s", AAlias: "s", RefusedLiteral: "s", RefusedBytes: "s"},
+	} {
+		if err := val.Validate(m); err != nil {
+			failures += err.Error() + "\n"
+		}
+	}
+	return got, failures
 }
 
 type outcome struct {
@@ -115,6 +169,8 @@ func main() {
 	sort.Strings(fqns)
 	out["lib_fqns"] = fqns
 	out["lib_unimplemented"] = run(leng.fns["fixtures.lib.matches"], "a", "b")
+
+	out["args_received"], out["args_failures"] = validateArgs()
 
 	if err := json.NewEncoder(os.Stdout).Encode(out); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -229,6 +285,40 @@ func TestRegisterFunctionsAndInvoke(t *testing.T) {
 	}
 	if want := []string{"fixtures.lib.is_e164", "fixtures.lib.matches"}; !equalStrings(libFQNs, want) {
 		t.Errorf("lib registered FQNs = %v, want %v", libFQNs, want)
+	}
+
+	// RFC-001 §9.1: a field and a literal of one type arrive alike, in the
+	// declared Go type. f_bytes has no literal call that reaches it.
+	var received map[string][]string
+	if err := json.Unmarshal(results["args_received"], &received); err != nil {
+		t.Fatalf("decoding args_received: %v", err)
+	}
+	for fn, want := range map[string][]string{
+		"f_string":  {"string", "string"},
+		"f_bool":    {"bool", "bool"},
+		"f_bytes":   {"[]uint8"},
+		"f_int32":   {"int32", "int32"},
+		"f_int64":   {"int64", "int64"},
+		"f_uint32":  {"uint32", "uint32"},
+		"f_uint64":  {"uint64", "uint64"},
+		"f_float":   {"float32", "float32"},
+		"f_double":  {"float64", "float64"},
+		"f_alias":   {"int32", "int32"},
+		"f_wrapper": {"int32"},
+	} {
+		if !equalStrings(received[fn], want) {
+			t.Errorf("%s received %v, want %v", fn, received[fn], want)
+		}
+	}
+	var failures string
+	if err := json.Unmarshal(results["args_failures"], &failures); err != nil {
+		t.Fatalf("decoding args_failures: %v", err)
+	}
+	const refusal = "[protowire.function.invalid_argument]"
+	if strings.Count(failures, refusal) != 2 ||
+		!strings.Contains(failures, "refused_literal: fixtures.args.f_int32: argument 0 is not int32 "+refusal) ||
+		!strings.Contains(failures, "refused_bytes: fixtures.args.f_bytes: argument 0 is not bytes "+refusal) {
+		t.Errorf("failures = %q, want exactly the two refusals the fixture names", failures)
 	}
 }
 

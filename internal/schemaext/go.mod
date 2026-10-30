@@ -8,7 +8,7 @@ module github.com/trendvidia/protowire/internal/schemaext
 go 1.26.2
 
 require (
-	github.com/trendvidia/protocheck/v2 v2.8.0
+	github.com/trendvidia/protocheck/v2 v2.8.1-0.20261030184320-07d02c3bb437
 	github.com/trendvidia/protocompile v0.36.1
 	github.com/trendvidia/protos v0.1.2
 	google.golang.org/protobuf v1.36.12
