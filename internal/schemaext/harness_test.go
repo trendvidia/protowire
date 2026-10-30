@@ -4,7 +4,7 @@
 // Package schemaext holds the RFC-001 end-to-end round-trip test (issue
 // #144): the testdata/schema-extensions fixtures are parsed and lowered by
 // the reference protocompile toolchain, the resulting descriptors are fed
-// to the forked protoc-gen-go, and the generated §9.3 function stubs are
+// to protoc-gen-pxf-go, and the generated §9.3 function stubs are
 // compiled against protocheck and invoked. This is the only test that can
 // catch drift between the lowering pass's actual output and the
 // generator's assumptions — the FunctionDecl.options map keys, the FQNs
@@ -57,7 +57,7 @@ var fixtureFiles = []string{
 	"26_function_arguments.proto",
 }
 
-// goPackages maps every file protoc-gen-go generates for to its Go import
+// goPackages maps every file the plugin generates for to its Go import
 // path inside the driver module (the plugin's M parameter).
 // pxf/annotations.proto is not generated here: its go_package names
 // github.com/trendvidia/protos/pxf, which protocheck already links, and a
@@ -76,12 +76,11 @@ var goPackages = map[string]string{
 }
 
 // harness carries the shared round-trip state: the lowered descriptor set
-// and the output of the forked protoc-gen-go over it.
+// and the output of protoc-gen-pxf-go over it.
 type harness struct {
 	repoRoot string
-	// moduleDir is this nested test module's root — go commands (plugin
-	// build, module resolution for the driver) run here so they see this
-	// module's private-dep requires and protobuf replace, not the public
+	// moduleDir is this nested test module's root — module resolution for
+	// the driver runs here so it sees this module's requires, not the
 	// parent module's graph.
 	moduleDir string
 	// fds is the lowered FileDescriptorSet, marshal→unmarshal
@@ -90,9 +89,11 @@ type harness struct {
 	// emits user options as unknown-field bytes).
 	fds    *descriptorpb.FileDescriptorSet
 	byPath map[string]*descriptorpb.FileDescriptorProto
-	// generated maps a proto path from goPackages to the Go source
-	// protoc-gen-go produced for it.
+	// generated maps a proto path from goPackages to its .pb.go source.
 	generated map[string]string
+	// stubs maps the same paths to their _functions.pb.go source, "" for a
+	// file that declares no functions.
+	stubs map[string]string
 }
 
 var (
@@ -199,21 +200,20 @@ func (h *harness) compile() error {
 	return nil
 }
 
-// generate builds the forked protoc-gen-go from this module's dependency
-// graph (the google.golang.org/protobuf replace) and drives it over the
-// lowered descriptors via the standard plugin protocol.
+// generate builds protoc-gen-pxf-go from its own module in this repository
+// and drives it over the lowered descriptors via the standard plugin protocol.
 func (h *harness) generate() error {
 	binDir, err := os.MkdirTemp("", "schemaext-plugin-")
 	if err != nil {
 		return err
 	}
 	defer os.RemoveAll(binDir)
-	bin := filepath.Join(binDir, "protoc-gen-go")
+	bin := filepath.Join(binDir, "protoc-gen-pxf-go")
 
-	build := exec.Command("go", "build", "-o", bin, "google.golang.org/protobuf/cmd/protoc-gen-go")
-	build.Dir = h.moduleDir
+	build := exec.Command("go", "build", "-o", bin, ".")
+	build.Dir = filepath.Join(h.repoRoot, "cmd", "protoc-gen-pxf-go")
 	if out, err := build.CombinedOutput(); err != nil {
-		return fmt.Errorf("building protoc-gen-go: %v\n%s", err, out)
+		return fmt.Errorf("building protoc-gen-pxf-go: %v\n%s", err, out)
 	}
 
 	var mappings []string
@@ -243,24 +243,25 @@ func (h *harness) generate() error {
 	gen.Stdout = &stdout
 	gen.Stderr = &stderr
 	if err := gen.Run(); err != nil {
-		return fmt.Errorf("running protoc-gen-go: %v\n%s", err, stderr.String())
+		return fmt.Errorf("running protoc-gen-pxf-go: %v\n%s", err, stderr.String())
 	}
 	resp := &pluginpb.CodeGeneratorResponse{}
 	if err := proto.Unmarshal(stdout.Bytes(), resp); err != nil {
 		return fmt.Errorf("decoding CodeGeneratorResponse: %w", err)
 	}
 	if resp.GetError() != "" {
-		return fmt.Errorf("protoc-gen-go: %s", resp.GetError())
+		return fmt.Errorf("protoc-gen-pxf-go: %s", resp.GetError())
 	}
 
 	// Response file names are derived from the Go import path:
 	// pxfdriver.test/gen/basic/01_basic.pb.go. Key the content back to the
-	// proto path it was generated from.
+	// proto path it was generated from, with the file's stubs after it.
 	byGenName := make(map[string]string)
 	for _, f := range resp.GetFile() {
 		byGenName[f.GetName()] = f.GetContent()
 	}
 	h.generated = make(map[string]string)
+	h.stubs = make(map[string]string)
 	for protoPath, goPkg := range goPackages {
 		base := strings.TrimSuffix(path.Base(protoPath), ".proto") + ".pb.go"
 		name := goPkg + "/" + base
@@ -269,6 +270,7 @@ func (h *harness) generate() error {
 			return fmt.Errorf("generator produced no file %s (have %v)", name, keysOf(byGenName))
 		}
 		h.generated[protoPath] = content
+		h.stubs[protoPath] = byGenName[strings.TrimSuffix(name, ".pb.go")+"_functions.pb.go"]
 	}
 	return nil
 }

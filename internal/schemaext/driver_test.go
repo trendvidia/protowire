@@ -207,6 +207,12 @@ func TestRegisterFunctionsAndInvoke(t *testing.T) {
 		if err := os.WriteFile(filepath.Join(pkgDir, base), []byte(h.generated[protoPath]), 0o644); err != nil {
 			t.Fatal(err)
 		}
+		if stubs := h.stubs[protoPath]; stubs != "" {
+			name := strings.TrimSuffix(base, ".pb.go") + "_functions.pb.go"
+			if err := os.WriteFile(filepath.Join(pkgDir, name), []byte(stubs), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
 	}
 	if err := os.WriteFile(filepath.Join(dir, "main.go"), []byte(driverMain), 0o644); err != nil {
 		t.Fatal(err)

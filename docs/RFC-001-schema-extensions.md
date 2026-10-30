@@ -1333,6 +1333,8 @@ Users implement the interface (typically by embedding `Unimplemented<File>Functi
 
 `<File>` is the file's base name without `.proto`, in the port's form for an exported type name, so `common.proto` gives `CommonFunctions`. It comes from the file's name alone, never from which other files declare functions or are in the same generator run, because a plugin may be run on a subset of a package's files. Renaming a file, or moving a function to another file, is therefore an API change for implementers. In Go, `<File>` is the name camel-cased as protoc-gen-go camel-cases identifiers, with `X` in front when that would not start an exported identifier (`01_basic.proto` gives `X01BasicFunctions`). If two files in one package reduce to the same `<File>` (`foo_bar.proto` and `fooBar.proto`), the plugin reports an error naming both.
 
+The Go plugin is `protoc-gen-pxf-go` ([`cmd/protoc-gen-pxf-go`](../cmd/protoc-gen-pxf-go)). It runs on stock protobuf and takes the place of `protoc-gen-go`: it writes the normal `<name>.pb.go`, and the stubs to `<name>_functions.pb.go`. It also surfaces `@description` and `@deprecated` as doc comments, on in-memory declarations only, so `SourceCodeInfo` stays as §8.5 requires. Stock getters do not read a field's comments, so a getter carries neither annotation. A field with the classic `deprecated` option keeps that option's notice on its getter.
+
 This mirrors the gRPC server-stub pattern. The helper adapts each
 typed method to the untyped §9.1 `Function` signature: generated
 guards check arity and argument types before invoking the

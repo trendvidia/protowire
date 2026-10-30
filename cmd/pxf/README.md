@@ -237,7 +237,7 @@ Compiles Protowire v1.2 ([RFC-001](../../docs/RFC-001-schema-extensions.md)) sch
 
 ```bash
 pxf build -o image.binpb ./schemas/...   # the step that lowers v1.2 source to an image
-buf generate image.binpb                 # stock buf + plugin chain (forked protoc-gen-go, protoc-gen-pxf-*)
+buf generate image.binpb                 # stock buf + plugin chain (protoc-gen-pxf-go, protoc-gen-pxf-*)
 ```
 
 Stock buf/protoc never see v1.2 *source* — only images. There is no buf fork, and none is planned.
