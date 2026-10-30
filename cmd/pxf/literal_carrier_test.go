@@ -22,6 +22,21 @@ import (
 // to whether the test binary happens to have registered it.
 func carrierOf(t *testing.T, opts proto.Message) *schemav1.AnnotationList {
 	t.Helper()
+	payload := optionPayload(t, opts, 1327)
+	if payload == nil {
+		return nil
+	}
+	var al schemav1.AnnotationList
+	if err := proto.Unmarshal(payload, &al); err != nil {
+		t.Fatal(err)
+	}
+	return &al
+}
+
+// optionPayload returns the bytes an Options message carries at field
+// num, concatenated across occurrences, or nil; see carrierOf.
+func optionPayload(t *testing.T, opts proto.Message, want protowire.Number) []byte {
+	t.Helper()
 	if opts == nil || !opts.ProtoReflect().IsValid() {
 		return nil
 	}
@@ -40,20 +55,13 @@ func carrierOf(t *testing.T, opts proto.Message) *schemav1.AnnotationList {
 		if vn < 0 {
 			t.Fatal("corrupt options field")
 		}
-		if num == 1327 && typ == protowire.BytesType {
+		if num == want && typ == protowire.BytesType {
 			v, _ := protowire.ConsumeBytes(b)
 			payload = append(payload, v...)
 		}
 		b = b[vn:]
 	}
-	if payload == nil {
-		return nil
-	}
-	var al schemav1.AnnotationList
-	if err := proto.Unmarshal(payload, &al); err != nil {
-		t.Fatal(err)
-	}
-	return &al
+	return payload
 }
 
 // TestLiteralCarrierGolden compares what the reference lowers from
