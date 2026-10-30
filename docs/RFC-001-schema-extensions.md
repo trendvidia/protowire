@@ -282,7 +282,9 @@ The existing PXF annotations `(pxf.required)` and `(pxf.default)` keep their bra
 
 Both annotations also inherit the scope the draft states for bind-time checks (draft `-01` §schema-constraints, "Scope of Bind-Time Checks"): a compilation covers the imported schemas as well as the one being compiled, so a misplaced `@default(value)` on a type declared in an imported `.pxf` schema is a compile error at the importing use site, not only where it was written. Note the compiler is in the easier position of the two — it holds the whole import closure by construction, where a binding tool given a single descriptor has to walk to it.
 
-Both `@default(value)` and `@required` also inherit the oneof-member constraints (draft `-01` §annotation-extensions, "Oneof Members"): `@default(value)` on a oneof member applies only when no member of that oneof is present, at most one member of a oneof may carry it, and `@required` is not valid on a oneof member at all. The presence model of §6.1 is defined per field, and inside a oneof that reading does not hold — setting any member clears the rest, so a member is "absent" whenever a sibling was chosen. `@required`'s only coherent reading there is a property of the oneof, for which this revision defines no annotation scope.
+Both `@default(value)` and `@required` also inherit the oneof-member constraints (draft `-01` §annotation-extensions, "Oneof Members"): `@default(value)` on a oneof member applies only when no member of that oneof is present, at most one member of a oneof may carry it, and `@required` is not valid on a oneof member at all. The presence model of §6.1 is defined per field, and inside a oneof that reading does not hold — setting any member clears the rest, so a member is "absent" whenever a sibling was chosen. `@required`'s only coherent reading there is a property of the oneof.
+
+`@required` on a `oneofDecl` states that property: a member of the oneof MUST be present. It takes the leading placement of §5.1, on the oneof rather than on any member, and it is the only `@required` a oneof has. Presence is defined in §6.1, and the wire already allows at most one member, so the rule also means exactly one. The rule lowers to the oneof's own `1327` carrier and has no bracket form in the `pxf` family: draft `-01` still defines no `pxf.required` at oneof scope. A compiler MUST reject a schema in which a member of a `@required` oneof carries `@default(value)`, over the same scope as the other checks here. The two contradict each other: the default says the oneof is never absent, and `@required` says that absence is an error.
 
 ### 5.3 Worked example
 
@@ -504,6 +506,8 @@ This RFC inherits protowire's three-state presence model verbatim:
 
 This eliminates the proto3 zero-value ambiguity in the validation layer: validation runs only on values the producer meant to set. `@required` is the separate "must be present" lever, orthogonal from "if present, must match." Absence of a `@required` field reports `code: "protowire.required"` with the spec-pinned fallback message (§7).
 
+A `@required` oneof (§5.2) is present when one of its members is set or bound to null, the test draft `-01` already uses for a member's `pxf.default`. On protobuf binary, a member bound to null is the one the `_null` mask names (§8.6). A oneof with no member present reports the same `protowire.required`, with `rule_kind` `RULE_KIND_REQUIRED` and the path §7 gives a oneof.
+
 ### 6.2 Wrapper and well-known type handling
 
 Six normative rules define what `this` binds to inside a refinement rule,
@@ -581,7 +585,7 @@ Refinement scope in v1.2 is limited to **value-shaped** type kinds: primitives, 
 
 Per-field validation runs in source-order through the type chain (base → derived → field-level annotations). Default behavior is **collect-all**: the validator gathers every violation in a message instance and reports them together. An engine-level option enables **fail-fast** for callers preferring early termination.
 
-`oneof` validates only the active variant.
+`oneof` validates only the active variant. A `@required` oneof with no member present (§6.1) is reported after the message-level rules and before the field rules.
 
 `repeated` and `map<K,V>` validate per-element (using the element's type rules) plus any field-level `@validate` against the collection as a whole. For `map<K,V>`, per-element covers **both dimensions**: entry values validate against the value type's rules, and entry keys against the key type's rules (carried on the synthetic entry's `key` field by the §8 lowering). Key violations set `EnrichedViolation.for_key` (§7), with the path's map subscript addressing the entry as usual.
 
@@ -811,6 +815,8 @@ message SourceRef {
 elements; `string_key` / `int_key` / `uint_key` / `bool_key` for map keys)
 — never a dotted string. Dotted renderings are derived for display and
 never parsed back; map keys are typed, never coerced through strings.
+A violation on a oneof itself ends in a segment carrying the oneof's name and
+`field_number` 0, which no field can have, because a oneof is not a field.
 (`RuleKind` values carry the `RULE_KIND_` prefix because proto enum values
 share package scope and `EntryKind.TYPE_REFINEMENT` in `descriptor.proto`
 already claims the bare name.)
@@ -931,7 +937,7 @@ provenance pinned, `params` participates in cross-port report equality
 Violation codes beginning with **`protowire.`** are reserved for
 spec-defined violations; user rules and function implementations MUST NOT
 mint codes in that namespace. This revision defines four:
-`protowire.required` (a `@required` field is absent, §6.1),
+`protowire.required` (a `@required` field or oneof is absent, §6.1),
 `protowire.depth_exceeded` (recursion depth limit reached, §6.4),
 `protowire.function.invalid_argument` (a generated registration
 adapter's arity or argument-type guard failed before the user's
@@ -1501,6 +1507,7 @@ built):
 |---|---|---|
 | `(buf.validate.field).cel = {id, message, expression}` | `@validate(<expression rewritten per §5.4>, code = <id>, message = <message>)` | Same `this` binding: field value, wrapper unwrap, native temporals (§6.2). Comparisons, `in`, the boolean operators, the five string builtins and `isNan()` map one-to-one (`startsWith` → `starts_with`, `isNan()` → `is_nan()`), except that CEL makes ordering a NaN an error where §5.4 makes it false, so a negated ordering such as `!(this < 0.0)` refuses NaN in CEL and accepts it here; add `!this.is_nan()` when rewriting one; everything else CEL offers — protovalidate's `isEmail()` family, macros, ternaries, field selection — becomes a declared `function`. `id` must not use the reserved `protowire.` prefix (§7). |
 | `(buf.validate.message).cel` | leading `@validate` on the message | `this` binds to the message in both systems; §5.4 has no field selection, so the rule body is a declared `function` taking the message (`same_domain(this)`). |
+| `(buf.validate.oneof).required = true` | leading `@required` on the oneof | §5.2. Same rule; a member bound to null counts as present (§6.1). |
 | `(buf.validate.field).required = true` | `@required` | **Semantic delta:** protovalidate rejects zero values on implicit-presence scalars; protowire `@required` checks *presence* only (§6.1) and null counts as present. Fields relying on zero-rejection need an explicit rule (e.g. `@validate(this != "")`) or explicit presence. |
 | Standard rules (`string.min_len`, `int32.gt`, `enum.defined_only`, `repeated.unique`, …) | `@validate` with the equivalent §5.4 expression (`enum.defined_only` → `this.defined()`, `repeated.unique` → `this.unique()`, `enum.in` → `this in [A, B]` by value name); shared shapes become `type` aliases (`type NonEmptyString = string @validate(this.size() >= 1)`) | Type aliases (§6.3) are the idiomatic replacement for rule sets repeated across fields. |
 | `ignore` / zero-value knobs | none needed | protowire never evaluates rules on unset fields (§6.1); the knob's job disappears. |
