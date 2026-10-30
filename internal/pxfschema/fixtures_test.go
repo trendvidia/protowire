@@ -9,7 +9,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/bufbuild/protocompile"
+	"github.com/trendvidia/protocompile"
 
 	"github.com/trendvidia/protowire/internal/pxfschema"
 )
