@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Invalid fixture: sensitive-on-oneof
+// Violates: RFC-001 §5.2, §6.7 — @sensitive is not valid on a oneof. It
+// classifies values, a oneof holds none, and engines did not apply it to the
+// members, so a violation reported the value. Classify each member.
+
+syntax = "proto3";
+
+package fixtures.badsensitiveononeof;
+
+import "protowire/schema/v1/annotations.proto";
+
+message Credential {
+  // ERROR: put @sensitive on each member.
+  @sensitive
+  oneof secret {
+    string password = 1;
+    string token = 2;
+  }
+}

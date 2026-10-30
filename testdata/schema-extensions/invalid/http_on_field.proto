@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Invalid fixture: http-on-field
+// Violates: RFC-001 §5.2 placement table — @http is valid only on an rpc.
+
+syntax = "proto3";
+
+package fixtures.badhttponfield;
+
+import "protowire/schema/v1/annotations.proto";
+
+message Order {
+  // ERROR: a field is not a route.
+  string id = 1 @http("GET", "/orders");
+}

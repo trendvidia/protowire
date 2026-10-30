@@ -12,7 +12,9 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ### Changed
 
-- **`@required` and `@default` in the wrong place are compile errors** (RFC-001 §5.2, #450). The spec already called these placements invalid and the reference compiler accepted them, so an author believed a rule was in force when no engine could act on it. Rejected: `@required` on a oneof member, and `@default` on two members of a oneof, on a member of a `@required` oneof, on a repeated, map, group or non-literal message field, and on anything that is not a field. Fixtures in `testdata/schema-extensions/invalid/`.
+- **Standard annotations in the wrong place are compile errors** (RFC-001 §5.2, #450). §5.2 now has a placement table, and a use outside it no longer compiles. Before this, an author could believe a rule was in force when no engine would act on it: `@sensitive` on a oneof left the value in reports. Annotations a schema declares itself are not restricted.
+  - **`@required` and `@default` are exclusive:** one field carrying both is a compile error, including when one arrives through a `type`.
+  - **Also rejected:** `@required` on a oneof member, and `@default` on two members of a oneof, on a member of a `@required` oneof, or on a repeated, map, group or non-literal message field.
 
 ## [1.14.0] — 2026-10-30
 

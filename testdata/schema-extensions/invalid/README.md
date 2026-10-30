@@ -43,6 +43,11 @@ NOT include this directory when compiling the positive corpus.
 | `default_message_field.proto` | `default-message-field` | `@default` is valid only on message types a PXF literal can denote (RFC-001 §5.2, issue #450). |
 | `default_not_field.proto` | `default-not-field` | `@default` is valid only on fields; here it sits on a message (RFC-001 §5.2, issue #450). |
 | `default_on_oneof.proto` | `default-on-oneof` | `@default` is valid only on fields; a oneof is not one (RFC-001 §5.2, issue #450). |
+| `default_and_required.proto` | `default-and-required` | `@required` and `@default` are exclusive on one field (RFC-001 §5.2, issue #450). |
+| `sensitive_on_oneof.proto` | `sensitive-on-oneof` | `@sensitive` is not valid on a oneof; classify each member (RFC-001 §5.2, §6.7, issue #450). |
+| `validate_on_oneof.proto` | `validate-on-oneof` | `@validate` is not valid on a oneof (RFC-001 §5.2 placement table, issue #450). |
+| `required_on_message.proto` | `required-on-message` | `@required` is not valid on a message (RFC-001 §5.2 placement table, issue #450). |
+| `http_on_field.proto` | `http-on-field` | `@http` is valid only on an rpc (RFC-001 §5.2 placement table, issue #450). |
 
 Runtime error states (missing implementation, unsatisfiable `@default`,
 locale-catalog miss) are **valid** schemas whose behavior is pinned by

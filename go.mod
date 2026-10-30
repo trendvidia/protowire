@@ -7,7 +7,7 @@ require (
 	github.com/itchyny/gojq v0.12.19
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
 	github.com/spf13/cobra v1.10.2
-	github.com/trendvidia/protocompile v0.36.2-0.20261030175651-1b897ad150c9
+	github.com/trendvidia/protocompile v0.36.2-0.20261030181247-6942e7421b52
 	github.com/trendvidia/protoregistry v0.72.0
 	github.com/trendvidia/protos v0.1.2
 	github.com/trendvidia/protowire-go v1.12.1
