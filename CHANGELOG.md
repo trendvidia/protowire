@@ -10,6 +10,10 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+## [1.14.0] — 2026-10-30
+
+The expression language gains enum value names, `defined()`, `unique()` and `is_nan()`, and NaN now follows IEEE 754. `pxf fmt` formats `.proto` sources with v1.2 syntax, and `pxf build` becomes a drop-in for a buf project: source info, import roots, and images `buf generate` handles like its own. The shared schemas move to [trendvidia/protos](https://github.com/trendvidia/protos) and gain `go_package`, so Go code can be generated for schemas that import them. No wire-format change. STABILITY.md § v1.14 lists what each change means for ports.
+
 ### Added
 
 - **`pxf build -I <dir>`: import roots for dependencies** (issue [#436](https://github.com/trendvidia/protowire/issues/436); decided by the owner as option B). `pxf build` does not read `buf.yaml`, so a schema importing a buf dependency such as `buf.build/trendvidia/protocheck` needs that module's files from somewhere.
