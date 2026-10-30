@@ -10,6 +10,12 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+### Added
+
+- **`@required` on a oneof** (RFC-001 §5.2, §6.1, §6.4, §7; trendvidia/protocheck#22). A leading `@required` on a oneof means a member must be present, and a member bound to null counts. Failure reports `protowire.required`, with a path ending in the oneof's name and `field_number` 0.
+  - **Before this:** the same text already compiled and lowered, the spec gave it no meaning, and the reference engine ignored it, so an empty message passed. Engines that ignore it still fail open, so §8.5's "runtimes upgrade before schemas migrate" applies.
+  - **Compiler rule:** a member of a `@required` oneof MUST NOT carry `@default(value)`. The reference compiler does not reject this yet.
+
 ## [1.14.0] — 2026-10-30
 
 The expression language gains enum value names, `defined()`, `unique()` and `is_nan()`, and NaN now follows IEEE 754. `pxf fmt` formats `.proto` sources with v1.2 syntax, and `pxf build` becomes a drop-in for a buf project: source info, import roots, and images `buf generate` handles like its own. The shared schemas move to [trendvidia/protos](https://github.com/trendvidia/protos) and gain `go_package`, so Go code can be generated for schemas that import them. No wire-format change. STABILITY.md § v1.14 lists what each change means for ports.
