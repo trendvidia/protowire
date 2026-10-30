@@ -10,6 +10,10 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+### Added
+
+- **What a function receives** (RFC-001 §9.1; [trendvidia/protobuf-go#11](https://github.com/trendvidia/protobuf-go/issues/11), decided by the owner). The spec named `[]any` but never said what was in it, so protocheck passed an `int32` field as `int` and generated stubs asserting `int32` rejected valid data. §9.1 now says each argument arrives in its declared type, with a Go table, and that a value that does not fit fails with `protowire.function.invalid_argument`.
+
 ### Changed
 
 - **Function stubs are named per file** (RFC-001 §9.3; [trendvidia/protobuf-go#9](https://github.com/trendvidia/protobuf-go/issues/9), decided by the owner). `Functions`, `UnimplementedFunctions` and `RegisterFunctions` become `<File>Functions`, `Unimplemented<File>Functions` and `Register<File>Functions`, taken from the file's name. Two files in one package that each declared functions used to redeclare the three names, and generated Go did not compile. A generator upgrade renames existing stubs, so callers must update. Measured on daysong with functions in `common.proto` and `descriptor.proto`: both generate, compile and register.
