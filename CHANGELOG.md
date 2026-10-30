@@ -28,7 +28,7 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 - **A validation engine evaluates only `@validate` rules** (RFC-001 §5.4; issue [#440](https://github.com/trendvidia/protowire/issues/440), decided by the owner). The spec said a user-declared annotation can take `expression` parameters, but not whether an engine runs them; protocheck did not. Now it is stated: such an argument is checked and lowered like any rule, and is data for the tool that owns the annotation, never a violation. The IETF draft `-01` and fixture 24's header follow.
 
-- **`go.mod` pins protocompile v0.36.0, and the corpus gap list is empty again.** v0.36.0 checks #437's two fixtures (a non-boolean rule, an `expression` default), so they leave `checkKnownGaps`. It also writes buf's SourceCodeInfo extension without buf.build modules (protocompile#266), so `pxf` links no buf.build package and `go.sum` lists none. The module graph still names two, through protowire-go v1.12.0's `go.mod`, until protowire-go bumps protocompile. protos v0.1.1 comes with it.
+- **`go.mod` pins protocompile v0.36.0, and the corpus gap list is empty again.** v0.36.0 checks #437's two fixtures (a non-boolean rule, an `expression` default), so they leave `checkKnownGaps`. It also writes buf's SourceCodeInfo extension without buf.build modules (protocompile#266), so `pxf` links no buf.build package and `go.sum` lists none. The module graph still names two, through protowire-go v1.12.0's `go.mod`, until protowire-go bumps protocompile. protos v0.1.2 comes with it.
 
 - **The conformance corpus exercises every §5.4 addition since v1.13.0** (issue [#431](https://github.com/trendvidia/protowire/issues/431)). Fixture `24_expression_language.proto` now uses `is_nan()` in both forms (#429), enum value names in all three spellings with `defined()` and `unique()` in both forms (#432), and an `expression`-typed annotation default that calls a declared function (#438). New invalid fixture `invalid/expression_name.proto`: a rule naming something that is not an enum value (an unresolved name, and a message). `cmd/pxf`'s `TestExpressionLanguageCarrier` asserts fixture 24's lowered `Expression.enum_values` and the default's `calls`, which the fixture header had only described.
 
@@ -36,9 +36,9 @@ loosely; the project follows [SemVer](https://semver.org/) per
   - **What was broken:** a schema importing `pxf/annotations.proto`, `pxf/bignum.proto`, `pxf/secret.proto`, `sbe/annotations.proto` or `protowire/schema/v1/annotations.proto` could not generate Go. None had a `go_package`, so `protoc-gen-go` stopped with `unable to determine Go import path`. `envelope/v1/envelope.proto` had one, naming a package that was never published.
   - **What changed:** all eight files under `proto/` (those five, plus `envelope/v1/envelope.proto`, `schema/v1/descriptor.proto` and `report.proto`) now carry:
     - `go_package = "github.com/trendvidia/protos/<dir>"`, where their generated Go is published;
-    - `java_package = "org.protowire.protos.<dir>"`, with `java_multiple_files` and `java_outer_classname`;
-    - `csharp_namespace = "Protowire.Protos.<Dir>"`.
-  - **Effect on code generated from these files:** Java and C# names change from protoc's defaults (package `pxf`, namespace `Pxf`) to these. Nothing else in the files changed.
+    - `java_package = "org.protowire.proto.<dir>"` (`org.protowire.envelope.v1` for the envelope), with `java_multiple_files`;
+    - `csharp_namespace = "Protowire.<Dir>"` (`Protowire.Envelopes.V1` for the envelope).
+  - **Effect on code generated from these files:** Java and C# names change from protoc's defaults (package `pxf`, namespace `Pxf`) to the ones protowire-java and protowire-csharp already publish, so those ports keep their class names (trendvidia/protos#5). Nothing else in the files changed.
   - **Edits now go to protos first.** The files here are exact copies, and `TestBundledSchemasMirrorProtos` fails if one differs from the protos version `go.mod` pins.
   - **Server reflection:** a gRPC server that offers it imports `github.com/trendvidia/protos/protowire/schema/v1/annotationsreg`, so a client can resolve `annotations.proto`.
 
