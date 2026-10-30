@@ -15,6 +15,12 @@ loosely; the project follows [SemVer](https://semver.org/) per
 - **Standard annotations in the wrong place are compile errors** (RFC-001 §5.2, #450). §5.2 now has a placement table, and a use outside it no longer compiles. Before this, an author could believe a rule was in force when no engine would act on it: `@sensitive` on a oneof left the value in reports. Annotations a schema declares itself are not restricted.
   - **`@required` and `@default` are exclusive:** one field carrying both is a compile error, including when one arrives through a `type`.
   - **Also rejected:** `@required` on a oneof member, and `@default` on two members of a oneof, on a member of a `@required` oneof, or on a repeated, map, group or non-literal message field.
+  
+### Added
+
+- **`@required` on a oneof** (RFC-001 §5.2, §6.1, §6.4, §7; trendvidia/protocheck#22). A leading `@required` on a oneof means a member must be present, and a member bound to null counts. Failure reports `protowire.required`, with a path ending in the oneof's name and `field_number` 0.
+  - **Before this:** the same text already compiled and lowered, the spec gave it no meaning, and the reference engine ignored it, so an empty message passed. Engines that ignore it still fail open, so §8.5's "runtimes upgrade before schemas migrate" applies.
+  - **Compiler rule:** a member of a `@required` oneof MUST NOT carry `@default(value)`. The reference compiler does not reject this yet.
 
 ## [1.14.0] — 2026-10-30
 
