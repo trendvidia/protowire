@@ -35,6 +35,19 @@ NOT include this directory when compiling the positive corpus.
 | `non_boolean_rule.proto` | `non-boolean-rule` | A rule is a boolean: an expression argument whose result is visibly something else — here a quoted string, which is a §5.4 string literal — is a compile error at its span (RFC-001 §5.1 rule 3, §5.4, issue #437). Until then it compiled and failed every message it was evaluated against. |
 | `expression_default.proto` | `expression-default` | A default on an `expression`-typed parameter is checked as an argument bound to that parameter would be, with names resolved from the annotation declaration's scope; an unresolved name in it is a compile error at the name (RFC-001 §5.1 "Expression defaults", issue #437). Until then a default was read as a literal and compiled clean. |
 | `expression_name.proto` | `expression-name` | A name in an expression that is not followed by `(` is an enum value reference and must resolve to an enum value; an unresolved name, or one that resolves to something else (here a message), is a compile error at the name (RFC-001 §5.4, issue #427). |
+| `required_oneof_member.proto` | `required-oneof-member` | `@required` is not valid on a oneof member: setting one member clears the others, so it would refuse every other arm (RFC-001 §5.2, issue #450). |
+| `default_two_oneof_members.proto` | `default-two-oneof-members` | At most one member of a oneof may carry `@default` (RFC-001 §5.2, issue #450). |
+| `default_required_oneof.proto` | `default-required-oneof` | A member of a `@required` oneof MUST NOT carry `@default` (RFC-001 §5.2, trendvidia/protocheck#22). |
+| `default_repeated.proto` | `default-repeated` | One literal cannot denote a repeated field (RFC-001 §5.2, issue #450). |
+| `default_map.proto` | `default-map` | One literal cannot denote a map field (RFC-001 §5.2, issue #450). |
+| `default_message_field.proto` | `default-message-field` | `@default` is valid only on message types a PXF literal can denote (RFC-001 §5.2, issue #450). |
+| `default_not_field.proto` | `default-not-field` | `@default` is valid only on fields; here it sits on a message (RFC-001 §5.2, issue #450). |
+| `default_on_oneof.proto` | `default-on-oneof` | `@default` is valid only on fields; a oneof is not one (RFC-001 §5.2, issue #450). |
+| `default_and_required.proto` | `default-and-required` | `@required` and `@default` are exclusive on one field (RFC-001 §5.2, issue #450). |
+| `sensitive_on_oneof.proto` | `sensitive-on-oneof` | `@sensitive` is not valid on a oneof; classify each member (RFC-001 §5.2, §6.7, issue #450). |
+| `validate_on_oneof.proto` | `validate-on-oneof` | `@validate` is not valid on a oneof (RFC-001 §5.2 placement table, issue #450). |
+| `required_on_message.proto` | `required-on-message` | `@required` is not valid on a message (RFC-001 §5.2 placement table, issue #450). |
+| `http_on_field.proto` | `http-on-field` | `@http` is valid only on an rpc (RFC-001 §5.2 placement table, issue #450). |
 
 Runtime error states (missing implementation, unsatisfiable `@default`,
 locale-catalog miss) are **valid** schemas whose behavior is pinned by

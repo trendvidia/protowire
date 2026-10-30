@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Invalid fixture: validate-on-oneof
+// Violates: RFC-001 §5.2 placement table — @validate is not valid on a oneof;
+// no `this` is defined there, and it compiled and was ignored.
+
+syntax = "proto3";
+
+package fixtures.badvalidateononeof;
+
+import "protowire/schema/v1/annotations.proto";
+
+message Payment {
+  // ERROR: put @validate on the member, or on the message.
+  @validate(this != "")
+  oneof method {
+    string card = 1;
+  }
+}

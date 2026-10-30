@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Invalid fixture: default-on-oneof
+// Violates: RFC-001 §5.2 — @default is valid only on fields, and a oneof
+// is not a field. A default for a oneof goes on one member.
+
+syntax = "proto3";
+
+package fixtures.baddefaultononeof;
+
+import "protowire/schema/v1/annotations.proto";
+
+message Payment {
+  // ERROR: a oneof is not a field.
+  @default("x")
+  oneof method {
+    string card = 1;
+    string transfer = 2;
+  }
+}

@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Invalid fixture: default-required-oneof
+// Violates: RFC-001 §5.2 — a member of a @required oneof MUST NOT carry
+// @default: one says the oneof is never absent, the other that absence is an
+// error (trendvidia/protocheck#22).
+
+syntax = "proto3";
+
+package fixtures.baddefaultrequiredoneof;
+
+import "protowire/schema/v1/annotations.proto";
+
+message Payment {
+  @required
+  oneof method {
+    // ERROR: the oneof is @required.
+    string card = 1 @default("x");
+    string transfer = 2;
+  }
+}
