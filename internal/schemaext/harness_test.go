@@ -54,6 +54,7 @@ var fixtureFiles = []string{
 	"05_error_overrides.proto",
 	"06_cross_file_lib.proto",
 	"06_cross_file_main.proto",
+	"26_function_arguments.proto",
 }
 
 // goPackages maps every file protoc-gen-go generates for to its Go import
@@ -70,6 +71,7 @@ var goPackages = map[string]string{
 	"05_error_overrides.proto":               driverModule + "/gen/errorspb",
 	"06_cross_file_lib.proto":                driverModule + "/gen/lib",
 	"06_cross_file_main.proto":               driverModule + "/gen/app",
+	"26_function_arguments.proto":            driverModule + "/gen/args",
 	annotationsPath:                          driverModule + "/gen/schemav1",
 }
 

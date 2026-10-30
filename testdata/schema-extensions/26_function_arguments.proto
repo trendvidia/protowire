@@ -1,0 +1,61 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Fixture: 26_function_arguments
+// Exercises: what a function receives (§9.1). Each parameter type is called
+// from a field and from a literal, and arrives in its declared type.
+//
+// Expected behavior (internal/schemaext drives this through the generated
+// stubs and the reference engine):
+//   - Every call in Fields and Literals reaches the implementation, except
+//     two that fail with protowire.function.invalid_argument:
+//   - `refused_literal`: a literal too big for an int32 does not fit.
+//   - `refused_bytes`: §5.4 has no bytes literal, and a string is not bytes.
+syntax = "proto3";
+
+package fixtures.args;
+
+import "google/protobuf/wrappers.proto";
+import "protowire/schema/v1/annotations.proto";
+
+type Small = int32;
+
+function f_string(v: string);
+function f_bool(v: bool);
+function f_bytes(v: bytes);
+function f_int32(v: int32);
+function f_int64(v: int64);
+function f_uint32(v: uint32);
+function f_uint64(v: uint64);
+function f_float(v: float);
+function f_double(v: double);
+function f_alias(v: Small);
+function f_wrapper(v: google.protobuf.Int32Value);
+
+message Fields {
+  string a_string = 1 @validate(f_string(this));
+  bool a_bool = 2 @validate(f_bool(this));
+  bytes a_bytes = 3 @validate(f_bytes(this));
+  int32 a_int32 = 4 @validate(f_int32(this));
+  int64 a_int64 = 5 @validate(f_int64(this));
+  uint32 a_uint32 = 6 @validate(f_uint32(this));
+  uint64 a_uint64 = 7 @validate(f_uint64(this));
+  float a_float = 8 @validate(f_float(this));
+  double a_double = 9 @validate(f_double(this));
+  int32 a_alias = 10 @validate(f_alias(this));
+  google.protobuf.Int32Value a_wrapper = 11 @validate(f_wrapper(this));
+}
+
+message Literals {
+  string a_string = 1 @validate(f_string("x"));
+  string a_bool = 2 @validate(f_bool(true));
+  string a_int32 = 3 @validate(f_int32(5));
+  string a_int64 = 4 @validate(f_int64(5));
+  string a_uint32 = 5 @validate(f_uint32(5));
+  string a_uint64 = 6 @validate(f_uint64(5));
+  string a_float = 7 @validate(f_float(1.5));
+  string a_double = 8 @validate(f_double(1.5));
+  string a_alias = 9 @validate(f_alias(5));
+  string refused_literal = 10 @validate(f_int32(5000000000));
+  string refused_bytes = 11 @validate(f_bytes("x"));
+}
