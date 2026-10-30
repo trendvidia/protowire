@@ -137,11 +137,11 @@ func TestGeneratedStubs(t *testing.T) {
 
 	t.Run("01_basic", func(t *testing.T) {
 		assertContains(t, "01_basic.proto",
-			"type Functions interface {",
+			"type X01BasicFunctions interface {",
 			"IsEmail(value string) (bool, *v2.Violation)",
-			"type UnimplementedFunctions struct{}",
+			"type UnimplementedX01BasicFunctions struct{}",
 			`{Code: v2.CodeFunctionUnimplemented, FallbackMessage: v2.MsgFunctionUnimplemented("fixtures.basic.is_email")}`,
-			"func RegisterFunctions(eng v2.Engine, impl Functions) error {",
+			"func RegisterX01BasicFunctions(eng v2.Engine, impl X01BasicFunctions) error {",
 			`if err := eng.Register("fixtures.basic.is_email", func(args []any) (bool, *v2.Violation) {`,
 			`{Code: v2.CodeFunctionInvalidArgument, FallbackMessage: v2.MsgFunctionArity("fixtures.basic.is_email", 1)}`,
 			`{Code: v2.CodeFunctionInvalidArgument, FallbackMessage: v2.MsgFunctionArgType("fixtures.basic.is_email", 0, "string")}`,
@@ -181,7 +181,7 @@ func TestGeneratedStubs(t *testing.T) {
 	t.Run("no stubs without function decls", func(t *testing.T) {
 		for _, protoPath := range []string{"04_required_and_default.proto", "06_cross_file_main.proto"} {
 			content := h.generated[protoPath]
-			if strings.Contains(content, "type Functions interface") || strings.Contains(content, "protocheck") {
+			if strings.Contains(content, "Functions interface") || strings.Contains(content, "protocheck") {
 				t.Errorf("%s declares no functions but generated stubs / a protocheck import", protoPath)
 			}
 		}
@@ -192,7 +192,7 @@ func TestGeneratedStubs(t *testing.T) {
 // protocheck's init-time function verification (RFC-001 §9.2): the walk
 // must find fixtures.basic.is_email in the real carriers, fail strict
 // construction while it is unregistered, and accept registration through
-// the Engine SPI the generated RegisterFunctions helper drives.
+// the Engine SPI the generated Register<File>Functions helper drives.
 func TestProtocheckInitVerification(t *testing.T) {
 	h := getHarness(t)
 

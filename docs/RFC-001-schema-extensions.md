@@ -959,7 +959,7 @@ adapter's arity or argument-type guard failed before the user's
 function implementation was invoked, §9.3), and
 `protowire.function.unimplemented` (a declared function was invoked
 with no registered implementation: the §9.2 lenient placeholders and
-the §9.3 `UnimplementedFunctions` stubs). The `protowire.function.*`
+the §9.3 `Unimplemented<File>Functions` stubs). The `protowire.function.*`
 pair is minted by spec-mandated codegen and engine machinery, never
 by user code — a function implementation that wants to reject an
 argument returns its own code. Runtimes MUST
@@ -1323,34 +1323,36 @@ Functions referenced in the descriptor must be registered with the engine at sta
 
 ### 9.3 Codegen contract
 
-Per-language codegen plugins emit, for each function declaration:
+Per-language codegen plugins emit, for each file that declares functions:
 
-1. An interface (`Functions`) with one method per declared function;
-2. A default struct (`UnimplementedFunctions`) returning `(false, <the pinned protowire.function.unimplemented violation, §7>)` for every method;
-3. A registration helper (`RegisterFunctions(engine, impl)`) binding methods to FQNs.
+1. An interface (`<File>Functions`) with one method per function declared in the file;
+2. A default struct (`Unimplemented<File>Functions`) returning `(false, <the pinned protowire.function.unimplemented violation, §7>)` for every method;
+3. A registration helper (`Register<File>Functions(engine, impl)`) binding methods to FQNs.
 
-Users implement the interface (typically by embedding `UnimplementedFunctions` and overriding what they use) and call the helper at startup.
+Users implement the interface (typically by embedding `Unimplemented<File>Functions` and overriding what they use) and call the helper at startup. A package with functions in several files has one set of these per file, and a project calls each helper.
+
+`<File>` is the file's base name without `.proto`, in the port's form for an exported type name, so `common.proto` gives `CommonFunctions`. It comes from the file's name alone, never from which other files declare functions or are in the same generator run, because a plugin may be run on a subset of a package's files. Renaming a file, or moving a function to another file, is therefore an API change for implementers. In Go, `<File>` is the name camel-cased as protoc-gen-go camel-cases identifiers, with `X` in front when that would not start an exported identifier (`01_basic.proto` gives `X01BasicFunctions`). If two files in one package reduce to the same `<File>` (`foo_bar.proto` and `fooBar.proto`), the plugin reports an error naming both.
 
 This mirrors the gRPC server-stub pattern. The helper adapts each
 typed method to the untyped §9.1 `Function` signature: generated
 guards check arity and argument types before invoking the
 implementation, emitting `protowire.function.invalid_argument` (§7,
 via the runtime's typed constant) on mismatch, and `Register` errors
-are propagated. Reference Go shape:
+are propagated. Reference Go shape, for a `commons.proto`:
 
 ```go
-type Functions interface {
+type CommonsFunctions interface {
     IsE164(value string) (bool, *Violation)
     Matches(value, pattern string) (bool, *Violation)
 }
 
-type UnimplementedFunctions struct{}
-func (UnimplementedFunctions) IsE164(string) (bool, *Violation) {
+type UnimplementedCommonsFunctions struct{}
+func (UnimplementedCommonsFunctions) IsE164(string) (bool, *Violation) {
     return false, &Violation{Code: CodeFunctionUnimplemented,
         FallbackMessage: MsgFunctionUnimplemented("myco.commons.is_e164")} // "myco.commons.is_e164: not implemented"
 }
 
-func RegisterFunctions(eng Engine, impl Functions) error {
+func RegisterCommonsFunctions(eng Engine, impl CommonsFunctions) error {
     if err := eng.Register("myco.commons.is_e164", func(args []any) (bool, *Violation) {
         if len(args) != 1 {
             return false, &Violation{Code: CodeFunctionInvalidArgument,
@@ -1441,7 +1443,7 @@ Multi-runtime function implementations (a Java impl alongside the Go impl for `i
 | **M2** | Lowering + carrier | `@annot` → carrier extensions; descriptor round-trips through stock `protoc` |
 | **M3** | Source map | Embedded `SourceMap`; `protolsp` consumes |
 | **M4** | Engine SPI + Go runtime | Validator binary (`protocheck`) registers + executes; runtime-init verification |
-| **M5** | Go codegen plugin | `Functions` / `UnimplementedFunctions`; one real end-to-end project validates |
+| **M5** | Go codegen plugin | `<File>Functions` / `Unimplemented<File>Functions`; one real end-to-end project validates |
 | **M6** | i18n catalogs | Locale-driven message formatting |
 | **M7** | `protolsp` + `pxfed` integration | IDE diagnostics; descriptor consumption in `pxfed` |
 | **M8** | OpenAPI generator | Separate tool consuming descriptors; mappings from `@validate` shapes to OpenAPI keywords |
