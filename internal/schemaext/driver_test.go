@@ -37,8 +37,8 @@ import (
 	_ "pxfdriver.test/gen/errorspb"
 	_ "pxfdriver.test/gen/placement"
 	_ "pxfdriver.test/gen/presence"
-	_ "pxfdriver.test/gen/pxflegacy"
 	_ "pxfdriver.test/gen/schemav1"
+	_ "github.com/trendvidia/protos/pxf"
 )
 
 type capture struct{ fns map[string]v2.Function }
@@ -232,14 +232,14 @@ func TestRegisterFunctionsAndInvoke(t *testing.T) {
 	}
 }
 
-// driverGoMod pins the driver module to the same protobuf and protocheck
-// builds this test ran against, wherever the surrounding build resolved
+// driverGoMod pins the driver module to the same protobuf, protocheck and
+// protos builds this test ran against, wherever the surrounding build resolved
 // them (workspace checkout or module cache).
 func driverGoMod(t *testing.T, h *harness) string {
 	t.Helper()
 	var b strings.Builder
 	b.WriteString("module " + driverModule + "\n\ngo 1.26\n\n")
-	for _, mod := range []string{"google.golang.org/protobuf", "github.com/trendvidia/protocheck/v2"} {
+	for _, mod := range []string{"google.golang.org/protobuf", "github.com/trendvidia/protocheck/v2", "github.com/trendvidia/protos"} {
 		cmd := exec.Command("go", "list", "-m", "-f", "{{.Dir}}", mod)
 		cmd.Dir = h.moduleDir
 		out, err := cmd.Output()

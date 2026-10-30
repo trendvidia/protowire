@@ -58,6 +58,10 @@ var fixtureFiles = []string{
 
 // goPackages maps every file protoc-gen-go generates for to its Go import
 // path inside the driver module (the plugin's M parameter).
+// pxf/annotations.proto is not generated here: its go_package names
+// github.com/trendvidia/protos/pxf, which protocheck already links, and a
+// second copy in the driver would register the file twice and panic at
+// startup.
 var goPackages = map[string]string{
 	"01_basic.proto":                         driverModule + "/gen/basic",
 	"02_composition.proto":                   driverModule + "/gen/compose",
@@ -67,7 +71,6 @@ var goPackages = map[string]string{
 	"06_cross_file_lib.proto":                driverModule + "/gen/lib",
 	"06_cross_file_main.proto":               driverModule + "/gen/app",
 	annotationsPath:                          driverModule + "/gen/schemav1",
-	pxfLegacyPath:                            driverModule + "/gen/pxflegacy",
 }
 
 // harness carries the shared round-trip state: the lowered descriptor set
