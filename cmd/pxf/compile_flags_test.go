@@ -146,3 +146,19 @@ message Order {
 		}
 	})
 }
+
+// TestBuildInvalidFixturesReportDiagnostics pins that a directory of broken
+// schemas ends in diagnostics. A compiler panic surfaces here as an ordinary
+// error carrying a stack, so the exit status alone would not show it (#461).
+func TestBuildInvalidFixturesReportDiagnostics(t *testing.T) {
+	_, errOut, err := runPxfCaptured(t, "build", "-o", os.DevNull, "../../testdata/schema-extensions/invalid")
+	if err == nil {
+		t.Fatal("expected compile errors")
+	}
+	if !strings.HasSuffix(err.Error(), "compile error(s)") {
+		t.Fatalf("want a count of compile errors, got: %.300s", err)
+	}
+	if strings.Contains(errOut, "goroutine ") {
+		t.Fatalf("stack in output: %.300s", errOut)
+	}
+}
