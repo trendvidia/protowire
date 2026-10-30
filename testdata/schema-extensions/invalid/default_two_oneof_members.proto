@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Invalid fixture: default-two-oneof-members
+// Violates: RFC-001 §5.2 — at most one member of a oneof may carry
+// @default; otherwise declaration order would decide what a document means.
+
+syntax = "proto3";
+
+package fixtures.baddefaulttwooneofmembers;
+
+import "protowire/schema/v1/annotations.proto";
+
+message Payment {
+  oneof method {
+    string card = 1 @default("x");
+    // ERROR: a second default in the same oneof.
+    string transfer = 2 @default("y");
+  }
+}

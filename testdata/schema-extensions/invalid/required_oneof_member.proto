@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Invalid fixture: required-oneof-member
+// Violates: RFC-001 §5.2 — @required is not valid on a oneof member:
+// setting one member clears the others, so it would refuse every other arm.
+
+syntax = "proto3";
+
+package fixtures.badrequiredoneofmember;
+
+import "protowire/schema/v1/annotations.proto";
+
+message Payment {
+  oneof method {
+    // ERROR: the oneof carries @required, not a member.
+    string card = 1 @required;
+    string transfer = 2;
+  }
+}

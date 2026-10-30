@@ -10,6 +10,10 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+### Changed
+
+- **`@required` and `@default` in the wrong place are compile errors** (RFC-001 §5.2, #450). The spec already called these placements invalid and the reference compiler accepted them, so an author believed a rule was in force when no engine could act on it. Rejected: `@required` on a oneof member, and `@default` on two members of a oneof, on a member of a `@required` oneof, on a repeated, map, group or non-literal message field, and on anything that is not a field. Fixtures in `testdata/schema-extensions/invalid/`.
+
 ## [1.14.0] — 2026-10-30
 
 The expression language gains enum value names, `defined()`, `unique()` and `is_nan()`, and NaN now follows IEEE 754. `pxf fmt` formats `.proto` sources with v1.2 syntax, and `pxf build` becomes a drop-in for a buf project: source info, import roots, and images `buf generate` handles like its own. The shared schemas move to [trendvidia/protos](https://github.com/trendvidia/protos) and gain `go_package`, so Go code can be generated for schemas that import them. No wire-format change. STABILITY.md § v1.14 lists what each change means for ports.
