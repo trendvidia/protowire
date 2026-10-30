@@ -248,6 +248,15 @@ Stock buf/protoc never see v1.2 *source* — only images. There is no buf fork, 
 - The image carries `SourceCodeInfo`, as `buf build`'s does, so generated code keeps the schema's doc comments. `--source-info=false` leaves it out.
 - Every message with a field that can hold a `null` gets the generated `_null` FieldMask (RFC-001 §8.6). `--null-mask=false` adds none, for a project that does not carry PXF nulls over binary. With it, a file with no v1.2 syntax builds to the same descriptor as `buf build`, so `buf generate image.binpb` makes the same code as `buf generate` from source ([#424](https://github.com/trendvidia/protowire/issues/424)).
 - Each file carries buf's image marker, as `buf build`'s images do: a file the arguments did not name is marked as an import, so `buf generate image.binpb` generates only the named files ([#430](https://github.com/trendvidia/protowire/issues/430)). `--include-imports` generates the rest too.
+- `-I <dir>` adds an import root: imports resolve from it, but its files are compiled only when imported, and are marked as imports in the image, so `buf generate` skips them. This is how a `buf.yaml` dependency is supplied ([#436](https://github.com/trendvidia/protowire/issues/436)):
+
+  ```bash
+  buf export buf.build/trendvidia/protocheck -o .deps/protocheck
+  pxf build -o image.binpb -I .deps/protocheck ./proto
+  buf generate image.binpb      # generates ./proto's files; protocheck's Go comes from its own module
+  ```
+
+  Pass a dependency with `-I`, not as an argument: a directory argument is compiled whole as the project's own files, and `buf generate` would write a copy of the dependency's code.
 - `--check` compiles and reports diagnostics without writing an image — the CI entry point (`ok` on stderr, exit `0` when clean; exit `1` on any error diagnostic).
 - `@http` lowers **twice** (RFC-001 §5.2): the annotation carrier keeps the whole operation surface (`summary`, `operation_id`, `tags`, `security`), and the routing skeleton is written again as the standard `google.api.http` option, so connect vanguard, grpc-gateway, Envoy's `grpc_json_transcoder` and buf's OpenAPI plugins bind the routes off a stock image with no protowire awareness. No `google/api/annotations.proto` import is added — the option rides in unknown-field bytes like the carriers. `--google-api-http=false` emits the carrier alone. A `{name}` path segment that binds no field of the request message — or binds a repeated one — is a compile error: it would be a route that 404s while the OpenAPI document promises it. A segment name is a dotted path from the request message's top level (`{order.id}`), optionally constrained by the `HttpRule` sub-path form (`{name=shelves/*}`); `pxf openapi` renders both (issue [#217](https://github.com/trendvidia/protowire/issues/217)). Two edges still refuse at render time although they compile and bind: a segment whose *leaf* is message-typed, and two bindings whose paths differ only in a sub-path constraint (they normalise to one OpenAPI path key) — see RFC-001 §5.2, "What the grammar above still leaves unsettled".
 
