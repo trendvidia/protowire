@@ -8,13 +8,13 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/bufbuild/protocompile"
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
 
+	"github.com/trendvidia/protocompile"
 	"github.com/trendvidia/protowire-go/encoding/pxf"
 	"github.com/trendvidia/protowire-go/encoding/sbe"
 
@@ -485,15 +485,11 @@ func proto2sbeCmd() *cobra.Command {
 				return fmt.Errorf("compile: %w", err)
 			}
 
-			want := make(map[string]bool)
-			for _, p := range protoFiles {
-				want[p] = true
-			}
-			var files []protoreflect.FileDescriptor
+			// result holds the -p files and no imports, under the compiler's
+			// cleaned paths, which need not match the flag's spelling.
+			files := make([]protoreflect.FileDescriptor, 0, len(result))
 			for _, f := range result {
-				if want[f.Path()] {
-					files = append(files, f)
-				}
+				files = append(files, f)
 			}
 
 			out, err := sbe.ProtoToXML(files...)

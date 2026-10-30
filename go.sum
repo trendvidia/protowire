@@ -1,7 +1,5 @@
 github.com/bmatcuk/doublestar/v4 v4.10.4 h1:oTKkRmRuOsKMqFe1AQazd9gGBFNEpOmgKp/xzB97dnA=
 github.com/bmatcuk/doublestar/v4 v4.10.4/go.mod h1:xBQ8jztBU6kakFMg+8WGxn0c6z1fTSPVIjEY1Wr7jzc=
-github.com/bufbuild/protocompile v0.14.1 h1:iA73zAf/fyljNjQKwYzUHD6AD4R8KMasmwa/FBatYVw=
-github.com/bufbuild/protocompile v0.14.1/go.mod h1:ppVdAIhbr2H8asPk6k4pY7t9zB1OU5DoEw9xY/FUi1c=
 github.com/cpuguy83/go-md2man/v2 v2.0.6/go.mod h1:oOW0eioCTA6cOiMLiUPZOpcVxMig6NIQQ7OS05n1F4g=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/golang/protobuf v1.5.4 h1:i7eJL8qZTpSEXOPTxNKhASYpMn+8e5Q6AdndVa1dWek=
@@ -37,12 +35,6 @@ github.com/stretchr/testify v1.12.1 h1:EuwCh5fleGS7H32xRwO3wRGT7DxrDhLAT6FF8MpWD
 github.com/stretchr/testify v1.12.1/go.mod h1:MDEgiDPPsNp5cuIrHPPCyornHKgEVbtFUmoNlxoYthg=
 github.com/tidwall/btree v1.8.2 h1:mTY5iM4UTh2e80TG7RHDQQmnAY3xGNQA/DbU0olkhkA=
 github.com/tidwall/btree v1.8.2/go.mod h1:jBbTdUWhSZClZWoDg54VnvV7/54modSOzDN7VXftj1A=
-github.com/trendvidia/protocompile v0.36.1 h1:677fGfbggpGfjqcHuu8V8DOfhY9XafP2Ur9cMipWSwo=
-github.com/trendvidia/protocompile v0.36.1/go.mod h1:r/77ZKQWq3b5IzDMIcHEsLWXy9/m/VqmVfBNXw4n63E=
-github.com/trendvidia/protocompile v0.36.2-0.20261030175651-1b897ad150c9 h1:b+upwdIKf5N6tDPY8gJHE9TEgTuvwxbjJYUKAdHS7zA=
-github.com/trendvidia/protocompile v0.36.2-0.20261030175651-1b897ad150c9/go.mod h1:r/77ZKQWq3b5IzDMIcHEsLWXy9/m/VqmVfBNXw4n63E=
-github.com/trendvidia/protocompile v0.36.2-0.20261030181247-6942e7421b52 h1:kGcWq8XLCHUvmC3S2q+Kt4ioS+nUlbNI5LnoXdrvH4A=
-github.com/trendvidia/protocompile v0.36.2-0.20261030181247-6942e7421b52/go.mod h1:r/77ZKQWq3b5IzDMIcHEsLWXy9/m/VqmVfBNXw4n63E=
 github.com/trendvidia/protocompile v0.36.2-0.20261030193814-366ba2d444b4 h1:GnOY4k0d6ITshzkPedi2K7Y+CEh2IG8MSLEc1inDTxo=
 github.com/trendvidia/protocompile v0.36.2-0.20261030193814-366ba2d444b4/go.mod h1:r/77ZKQWq3b5IzDMIcHEsLWXy9/m/VqmVfBNXw4n63E=
 github.com/trendvidia/protoregistry v0.72.0 h1:vvuVe9O/t6XL5uWVD/DIGJ40pRDY+XEQNOvD3nzZZEY=

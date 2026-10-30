@@ -233,10 +233,10 @@ pxf proto2sbe -p trade.proto > trade-schema.xml
 
 ### `pxf build <schema-root-or-file>...`
 
-Compiles Protowire v1.2 ([RFC-001](../../docs/RFC-001-schema-extensions.md)) schema sources with the reference compiler — the [trendvidia/protocompile](https://github.com/trendvidia/protocompile) fork — and writes a lowered `FileDescriptorSet` whose schema-extension semantics ride in the 1327–1331 carrier options. This is the **only v1.2-aware step** in the toolchain; the image it produces is stock protobuf, so everything downstream runs on unmodified buf/protoc:
+Compiles Protowire v1.2 ([RFC-001](../../docs/RFC-001-schema-extensions.md)) schema sources with the reference compiler — the [trendvidia/protocompile](https://github.com/trendvidia/protocompile) fork — and writes a lowered `FileDescriptorSet` whose schema-extension semantics ride in the 1327–1331 carrier options. Subcommands that take `-p` read v1.2 source with the same compiler, but this is the **only step that writes an image**. The image is stock protobuf, so everything downstream runs on unmodified buf/protoc:
 
 ```bash
-pxf build -o image.binpb ./schemas/...   # the only step that parses v1.2 source
+pxf build -o image.binpb ./schemas/...   # the step that lowers v1.2 source to an image
 buf generate image.binpb                 # stock buf + plugin chain (forked protoc-gen-go, protoc-gen-pxf-*)
 ```
 

@@ -4,7 +4,8 @@
 // pxf build — compile v1.2 (RFC-001) schema sources to a lowered
 // FileDescriptorSet image (#164).
 //
-// This is the only v1.2-aware step of the two-stage workflow:
+// This is the step of the two-stage workflow that turns v1.2 source into
+// an image:
 //
 //	pxf build -o image.binpb ./schemas/...
 //	buf generate image.binpb
@@ -12,9 +13,9 @@
 // Everything downstream (stock buf/protoc, the forked protoc-gen-go,
 // protoc-gen-pxf-*) consumes the image; stock tooling never sees v1.2
 // source. The compiler is the trendvidia/protocompile fork's library
-// pipeline (incremental.Run + queries.FDS) — deliberately distinct from
-// the upstream bufbuild/protocompile the other subcommands use for
-// stock parsing.
+// pipeline (incremental.Run + queries.FDS). Subcommands that take -p
+// compile with the same fork through its Compiler, so they read v1.2
+// source too (#459), but none of them writes an image.
 
 package main
 

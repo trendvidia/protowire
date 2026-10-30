@@ -3,7 +3,6 @@ module github.com/trendvidia/protowire
 go 1.26.2
 
 require (
-	github.com/bufbuild/protocompile v0.14.1
 	github.com/itchyny/gojq v0.12.19
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
 	github.com/spf13/cobra v1.10.2
