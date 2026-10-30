@@ -10,6 +10,10 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+### Added
+
+- **What a function receives** (RFC-001 §9.1; [trendvidia/protobuf-go#11](https://github.com/trendvidia/protobuf-go/issues/11), decided by the owner). The spec named `[]any` but never said what was in it, so protocheck passed an `int32` field as `int` and generated stubs asserting `int32` rejected valid data. §9.1 now says each argument arrives in its declared type, with a Go table, and that a value that does not fit fails with `protowire.function.invalid_argument`.
+
 ### Changed
 
 - **Standard annotations in the wrong place are compile errors** (RFC-001 §5.2, #450). §5.2 now has a placement table, and a use outside it no longer compiles. Before this, an author could believe a rule was in force when no engine would act on it: `@sensitive` on a oneof left the value in reports. Annotations a schema declares itself are not restricted.

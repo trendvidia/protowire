@@ -1297,6 +1297,24 @@ type Engine interface {
 type Function func(args []any) (bool, *Violation)
 ```
 
+A function receives each argument as a value of its declared parameter type, however the expression produced it: a field and a literal of one type arrive alike. In Go:
+
+| Declared parameter | Value in `args` |
+|---|---|
+| `string`, `bool`, `bytes` | `string`, `bool`, `[]byte` |
+| `int32`, `sint32`, `sfixed32` | `int32` |
+| `int64`, `sint64`, `sfixed64` | `int64` |
+| `uint32`, `fixed32` | `uint32` |
+| `uint64`, `fixed64` | `uint64` |
+| `float`, `double` | `float32`, `float64` |
+| enum | `int`, the value's number |
+| message | the message: its generated Go type, or a dynamic message when the caller validated one |
+| `google.protobuf.Timestamp`, `Duration` | `time.Time`, `time.Duration` (§6.2 rule 2) |
+| wrapper | its base type, converted as above (§6.2) |
+| type alias | as its base type |
+
+An engine converts a numeric argument to the declared type. A value that does not fit, such as a literal too large for an `int32` parameter, fails with `protowire.function.invalid_argument` (§7) and the implementation is not called.
+
 An engine is a runtime that evaluates the §5.4 expression language and hosts the project's `function` implementations. A project links one at validator-binary build time. Engines differ in host language, in how a function implementation is provided (native code, a sandboxed VM, …) and in operational surface — never in the language a rule is written in, which is why mixing engines within a project is unnecessary rather than deferred (issue #282).
 
 ### 9.2 Function registration model
