@@ -12,6 +12,8 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ### Changed
 
+- **Function stubs are named per file** (RFC-001 §9.3; [trendvidia/protobuf-go#9](https://github.com/trendvidia/protobuf-go/issues/9), decided by the owner). `Functions`, `UnimplementedFunctions` and `RegisterFunctions` become `<File>Functions`, `Unimplemented<File>Functions` and `Register<File>Functions`, taken from the file's name. Two files in one package that each declared functions used to redeclare the three names, and generated Go did not compile. A generator upgrade renames existing stubs, so callers must update. Measured on daysong with functions in `common.proto` and `descriptor.proto`: both generate, compile and register.
+
 - **Standard annotations in the wrong place are compile errors** (RFC-001 §5.2, #450). §5.2 now has a placement table, and a use outside it no longer compiles. Before this, an author could believe a rule was in force when no engine would act on it: `@sensitive` on a oneof left the value in reports. Annotations a schema declares itself are not restricted.
   - **`@required` and `@default` are exclusive:** one field carrying both is a compile error, including when one arrives through a `type`.
   - **Also rejected:** `@required` on a oneof member, and `@default` on two members of a oneof, on a member of a `@required` oneof, or on a repeated, map, group or non-literal message field.
