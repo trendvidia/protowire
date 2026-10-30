@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 TrendVidia, LLC.
+//
+// Invalid fixture: default-and-required-mixed
+// Violates: draft -01 "Required and Default", RFC-001 §5.2 — one field MUST
+// NOT be both required and defaulted, in any spelling (issue #453).
+
+syntax = "proto3";
+
+package fixtures.baddefaultandrequiredmixed;
+
+import "protowire/schema/v1/annotations.proto";
+import "pxf/annotations.proto";
+
+message Order {
+  // ERROR: required and default are exclusive.
+  string currency = 1 [(pxf.required) = true] @default("USD");
+}
