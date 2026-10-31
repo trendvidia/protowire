@@ -12,10 +12,13 @@
 #
 # === Per-port `check-decode` contract ===
 #
-#   check-decode --format <pxf|pb|sbe|envelope> \
+#   check-decode --format <pxf|pb|pb-render|sbe|envelope> \
 #                --schema <fully.qualified.MessageType> \
 #                --proto  <path-to-adversarial.proto> \
 #                --input  <path>
+#
+#   pb-render tests a producer: read the bytes with the stock protobuf
+#   runtime, bypassing the port's hardened decoder, then write PXF.
 #
 #   Exit 0  → input was accepted (decode succeeded)
 #   Exit 1  → input was rejected (decode returned a clean error)
