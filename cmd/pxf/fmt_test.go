@@ -110,6 +110,19 @@ func TestFmtCheckAndWrite(t *testing.T) {
 	}
 }
 
+// TestFmtFixtureCompiles: pxf fmt does not link what it formats, so nothing
+// else notices when the compiler starts refusing annotated.proto (#469).
+func TestFmtFixtureCompiles(t *testing.T) {
+	src := filepath.Join(fmtFixtureDir, "annotated.proto")
+	image := filepath.Join(t.TempDir(), "annotated.binpb")
+	if _, err := runCLI(t, "build", src, "-o", image); err != nil {
+		t.Fatalf("pxf build %s: %v", src, err)
+	}
+	if info, err := os.Stat(image); err != nil || info.Size() == 0 {
+		t.Fatalf("pxf build wrote no image: %v", err)
+	}
+}
+
 // TestFmtDirectory: a directory argument covers every .proto and .pxf
 // beneath it, and printing more than one file to stdout is refused.
 func TestFmtDirectory(t *testing.T) {

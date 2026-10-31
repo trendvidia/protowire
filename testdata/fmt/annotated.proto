@@ -10,9 +10,10 @@ message Tempo {
   // min doc.
   int32 min = 1   @validate(this >= 40 && this <= 220);
   int32 max = 2 @validate(this >= 40);   // trailing on max
+  @required
   oneof   source {
     string label = 3   @deprecated("use tag");
-    string tag = 4 @required;
+    string tag = 4;
   }
 }
 
