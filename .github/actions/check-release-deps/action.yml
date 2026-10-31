@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 TrendVidia, LLC.
+
+name: Check release dependencies
+description: Fail when a go.mod being released has a replace or an untagged version of a stack module. See README.md.
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        ACTION_DIR: ${{ github.action_path }}
+      run: |
+        args=()
+        if [[ "$GITHUB_REF_TYPE" == tag ]]; then
+          # refs/tags/a/b/v1.2.3 releases module a/b; v1.2.3 the root.
+          dir="${GITHUB_REF_NAME%/*}"
+          [[ "$dir" == "$GITHUB_REF_NAME" ]] && dir=.
+          args=(--module "$dir")
+        elif [[ "$GITHUB_EVENT_NAME" == pull_request ]]; then
+          args=(--module .)
+        fi
+        python3 "$ACTION_DIR/check.py" "${args[@]}" .

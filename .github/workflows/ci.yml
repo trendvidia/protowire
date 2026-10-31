@@ -79,6 +79,12 @@ jobs:
       - name: go test
         run: go test -race ./...
 
+  release-deps:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: python3 .github/actions/check-release-deps/check_test.py
+
   protoc-gen-pxf-go:
     runs-on: ubuntu-latest
     defaults:
