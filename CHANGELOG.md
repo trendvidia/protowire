@@ -20,6 +20,8 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ### Changed
 
+- **`go.mod` pins tagged stack modules again:** protocompile v0.37.0, protoregistry v0.75.0, protos v0.1.4 and protowire-go v1.13.0. protocompile was an untagged pseudo-version, which the release dependency check refuses (#460).
+
 - **Strict validation finds functions only a stub implements** (RFC-001 §9.2, §6.5; [trendvidia/protocheck#29](https://github.com/trendvidia/protocheck/issues/29), decided by the owner). With §9.3's `Unimplemented<File>Functions` embedded, the helper registers the stub like any real method, so strict passed and the function failed at first call. A strict engine now calls each declared function once at startup, with zero values, and treats `protowire.function.unimplemented` as a missing impl. §6.5's purity makes the call safe. Generated code does not change.
 
 - **A map counts toward `MaxNestingDepth` in every engine** (`docs/HARDENING.md` § Recursion, #449). The text already said every `{` is a descent, but protowire-go's decoder skipped a map's own `{`, and it and C# did not check a scalar-valued PB map entry. So one document could parse in one tool and fail in another. New corpus rows pin both sides of the bound, and the adversarial `Tree` gains `branches` and `tags` for them. A document nesting maps past 50 levels now fails to decode.
