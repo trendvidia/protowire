@@ -18,6 +18,8 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ### Changed
 
+- **Strict validation finds functions only a stub implements** (RFC-001 §9.2, §6.5; [trendvidia/protocheck#29](https://github.com/trendvidia/protocheck/issues/29), decided by the owner). With §9.3's `Unimplemented<File>Functions` embedded, the helper registers the stub like any real method, so strict passed and the function failed at first call. A strict engine now calls each declared function once at startup, with zero values, and treats `protowire.function.unimplemented` as a missing impl. §6.5's purity makes the call safe. Generated code does not change.
+
 - **A map counts toward `MaxNestingDepth` in every engine** (`docs/HARDENING.md` § Recursion, #449). The text already said every `{` is a descent, but protowire-go's decoder skipped a map's own `{`, and it and C# did not check a scalar-valued PB map entry. So one document could parse in one tool and fail in another. New corpus rows pin both sides of the bound, and the adversarial `Tree` gains `branches` and `tags` for them. A document nesting maps past 50 levels now fails to decode.
 
 - **Function stubs are named per file** (RFC-001 §9.3; [trendvidia/protobuf-go#9](https://github.com/trendvidia/protobuf-go/issues/9), decided by the owner). `Functions`, `UnimplementedFunctions` and `RegisterFunctions` become `<File>Functions`, `Unimplemented<File>Functions` and `Register<File>Functions`, taken from the file's name. Two files in one package that each declared functions used to redeclare the three names, and generated Go did not compile. A generator upgrade renames existing stubs, so callers must update. Measured on daysong with functions in `common.proto` and `descriptor.proto`: both generate, compile and register.
