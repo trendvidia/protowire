@@ -272,6 +272,17 @@ The shared CLI in [`cmd/pxf`](cmd/pxf) follows looser rules. New subcommands and
 
 The shape of one JSON object per operation that each port's `bench-pxf` / `bench-sbe` emits is stable wire-of-the-bench-aggregator: [`scripts/cross_pxf_bench.sh`](scripts/cross_pxf_bench.sh) parses these. Field names (`port`, `op`, `ns_per_op`, `mib_per_sec`, `iterations`, `bytes`) and types are pinned. New fields may be added; existing ones may not be renamed or retyped.
 
+### v1.15 — function stubs on stock protobuf; schemas and depth limits tighten
+
+v1.15 changes no wire format: PXF text, PB, SBE and the envelope are written byte-for-byte as in v1.14, and no extension number moves (promise 3). Four things narrow what is accepted, and generated Go changes shape.
+
+- **A map counts toward `MaxNestingDepth` in every engine** ([#449](https://github.com/trendvidia/protowire/issues/449)). This narrows what decoders read: a document nesting maps past 50 levels used to decode in Go, C#, Dart and TypeScript, and now fails. Rust, Java and C++ already refused it, and so did Go's own `Parse`. The bytes of a valid document don't change. protowire-go made this change in v1.13.0.
+- **Standard annotations in the wrong place are compile errors** ([#450](https://github.com/trendvidia/protowire/issues/450)). This narrows which schemas compile. RFC-001 §5.2's placement table now governs, and annotations a schema declares itself are not restricted.
+- **`(pxf.required)` with `(pxf.default)` on one field is refused** ([#453](https://github.com/trendvidia/protowire/issues/453)), in every spelling and through a `type`. A compiler rejects it and a binding tool MUST. Each port's check is in that port's own release.
+- **`@required` on a oneof now means something** (trendvidia/protocheck#22). Text that used to compile and be ignored is now enforced, so a message that passed can fail. An engine that doesn't know the rule still fails open, so RFC-001 §8.5's "runtimes upgrade before schemas migrate" applies.
+- **Generated Go changes** (RFC-001 §9.3, not covered by a promise above). Stubs move to `<name>_functions.pb.go`, are named per file (`<File>Functions`), and take typed parameters instead of `any`. Implementations and callers must update when they upgrade the generator.
+- **What a function receives is specified** (RFC-001 §9.1). Each argument arrives in its declared type, and a strict engine now calls each declared function once at startup (§9.2).
+
 ## What this does *not* commit to
 
 - **Library-level API stability** for any port's library code (`protowire-go/encoding/pxf/...`, `protowire-java/pxf/...`, etc.). Library APIs may evolve at minor versions per each port's own conventions; the wire stability commitment is what crosses repo boundaries. Most ports follow SemVer for their library API independent of this document, but the cross-port commitment lives here.
