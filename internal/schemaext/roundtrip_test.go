@@ -162,10 +162,11 @@ func TestGeneratedStubs(t *testing.T) {
 	})
 
 	t.Run("03_message_typed_param", func(t *testing.T) {
-		// fixtures.placement.User is a message type: the signature degrades
-		// to any and the adapter passes the arg through without assertion.
+		// fixtures.placement.User is a message type: the signature names it,
+		// and the adapter accepts the generated or a dynamic form.
 		assertContains(t, "03_message_and_field_annotations.proto",
-			"SameDomain(msg any) (bool, *v2.Violation)",
+			"SameDomain(msg *User) (bool, *v2.Violation)",
+			"a0, ok := v2.MessageArg[*User](args[0])",
 			"Matches(value string, pattern string) (bool, *v2.Violation)",
 			"// free tier",
 		)

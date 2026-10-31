@@ -47,9 +47,10 @@ func main() {
 
 // generate writes the output for every file gen asks for.
 func generate(gen *protogen.Plugin) {
+	types := newSchemaTypes(gen)
 	for _, f := range gen.Files {
 		if f.Generate {
-			generateFile(gen, f)
+			generateFile(gen, f, types)
 		}
 	}
 	gen.SupportedFeatures = gengo.SupportedFeatures
@@ -57,7 +58,7 @@ func generate(gen *protogen.Plugin) {
 	gen.SupportedEditionsMaximum = gengo.SupportedEditionsMaximum
 }
 
-func generateFile(gen *protogen.Plugin, f *protogen.File) {
+func generateFile(gen *protogen.Plugin, f *protogen.File, types schemaTypes) {
 	checkFunctionStubConflict(gen, f)
 	annotateFile(f)
 	gengo.GenerateFile(gen, f)
@@ -68,7 +69,7 @@ func generateFile(gen *protogen.Plugin, f *protogen.File) {
 		g.P()
 		g.P("package ", f.GoPackageName)
 		g.P()
-		genFunctionStubs(g, f)
+		genFunctionStubs(g, f, types)
 	}
 }
 

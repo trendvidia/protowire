@@ -45,7 +45,7 @@ func generateOne(t *testing.T, fdp *descriptorpb.FileDescriptorProto) string {
 	if err != nil {
 		t.Fatalf("protogen.Options.New: %v", err)
 	}
-	generateFile(gen, gen.FilesByPath[fdp.GetName()])
+	generateFile(gen, gen.FilesByPath[fdp.GetName()], newSchemaTypes(gen))
 	return responseContent(t, gen)
 }
 
@@ -235,7 +235,7 @@ func TestOneofAnnotationDocComments(t *testing.T) {
 			if err != nil {
 				t.Fatalf("protogen.Options.New: %v", err)
 			}
-			generateFile(gen, gen.FilesByPath[fdp.GetName()])
+			generateFile(gen, gen.FilesByPath[fdp.GetName()], newSchemaTypes(gen))
 			content := gen.Response().GetFile()[0].GetContent()
 			for _, text := range []string{"// how to reach the user", "// Deprecated: use channels"} {
 				if got := strings.Count(content, text); got != tt.want {
@@ -309,9 +309,9 @@ func TestFunctionStubsPerFile(t *testing.T) {
 		if err != nil {
 			t.Fatalf("protogen.Options.New: %v", err)
 		}
-		generateFile(sub, sub.FilesByPath[tt.file])
+		generateFile(sub, sub.FilesByPath[tt.file], newSchemaTypes(sub))
 		content := responseContent(t, sub)
-		generateFile(gen, gen.FilesByPath[tt.file])
+		generateFile(gen, gen.FilesByPath[tt.file], newSchemaTypes(gen))
 		alone := generateOne(t, functionFile(tt.file, map[string]string{a.GetName(): "first", b.GetName(): "second"}[tt.file]))
 		if content != alone {
 			t.Errorf("%s: output depends on the sibling file being in the run", tt.file)
@@ -349,7 +349,7 @@ func TestFunctionStubPrefix(t *testing.T) {
 			t.Errorf("functionStubPrefix(%q) = %q, want %q", tt.path, got, tt.want)
 		}
 		// The stubs must be valid Go for every name, not just the camel-cased ones.
-		generateFile(gen, gen.FilesByPath[tt.path])
+		generateFile(gen, gen.FilesByPath[tt.path], newSchemaTypes(gen))
 		if got := gen.Response().GetError(); got != "" {
 			t.Errorf("%s: %s", tt.path, got)
 		}

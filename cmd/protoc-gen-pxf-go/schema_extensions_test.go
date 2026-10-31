@@ -220,7 +220,7 @@ func TestParseFileFunctions(t *testing.T) {
 	}
 }
 
-func TestSchemaGoType(t *testing.T) {
+func TestParamTypeGoType(t *testing.T) {
 	aliases := map[string]string{
 		"fixtures.basic.Email":       "string",
 		"fixtures.basic.CorpEmail":   "fixtures.basic.Email",
@@ -239,13 +239,17 @@ func TestSchemaGoType(t *testing.T) {
 		{"double", "float64"},
 		{"fixtures.basic.Email", "string"},
 		{"fixtures.basic.CorpEmail", "string"},
+		{"Email", "string"},
+		{"google.protobuf.StringValue", "string"},
+		{"google.protobuf.UInt64Value", "uint64"},
 		{"fixtures.basic.Cycle", "any"},
 		{"fixtures.basic.OrderStatus", "any"},
 		{"myco.SomeMessage", "any"},
 	}
 	for _, tt := range tests {
-		if got := schemaGoType(tt.in, aliases); got != tt.want {
-			t.Errorf("schemaGoType(%q) = %q, want %q", tt.in, got, tt.want)
+		got := schemaTypes{aliases: aliases}.paramType(tt.in, "fixtures.basic.f").goType(nil)
+		if got != tt.want {
+			t.Errorf("paramType(%q) = %q, want %q", tt.in, got, tt.want)
 		}
 	}
 }

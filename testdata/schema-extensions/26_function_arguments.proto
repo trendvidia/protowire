@@ -3,7 +3,9 @@
 //
 // Fixture: 26_function_arguments
 // Exercises: what a function receives (§9.1). Each parameter type is called
-// from a field and from a literal, and arrives in its declared type.
+// from a field and from a literal, and arrives in its declared type. Typed
+// covers the types a generated stub names: enums, messages, well-known types
+// and the aliases of each.
 //
 // Expected behavior (internal/schemaext drives this through the generated
 // stubs and the reference engine):
@@ -15,10 +17,24 @@ syntax = "proto3";
 
 package fixtures.args;
 
+import "google/protobuf/any.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
 import "google/protobuf/wrappers.proto";
 import "protowire/schema/v1/annotations.proto";
 
 type Small = int32;
+type Paint = Color;
+type Box = Inner;
+
+enum Color {
+  COLOR_UNSPECIFIED = 0;
+  COLOR_RED = 1;
+}
+
+message Inner {
+  string name = 1;
+}
 
 function f_string(v: string);
 function f_bool(v: bool);
@@ -31,6 +47,14 @@ function f_float(v: float);
 function f_double(v: double);
 function f_alias(v: Small);
 function f_wrapper(v: google.protobuf.Int32Value);
+function f_string_wrapper(v: google.protobuf.StringValue);
+function f_enum(v: Color);
+function f_enum_alias(v: Paint);
+function f_message(v: Inner);
+function f_message_alias(v: Box);
+function f_timestamp(v: google.protobuf.Timestamp);
+function f_duration(v: google.protobuf.Duration);
+function f_any(v: google.protobuf.Any);
 
 message Fields {
   string a_string = 1 @validate(f_string(this));
@@ -44,6 +68,17 @@ message Fields {
   double a_double = 9 @validate(f_double(this));
   int32 a_alias = 10 @validate(f_alias(this));
   google.protobuf.Int32Value a_wrapper = 11 @validate(f_wrapper(this));
+}
+
+message Typed {
+  google.protobuf.StringValue a_string_wrapper = 1 @validate(f_string_wrapper(this));
+  Color an_enum = 2 @validate(f_enum(this));
+  Color an_enum_alias = 3 @validate(f_enum_alias(this));
+  Inner a_message = 4 @validate(f_message(this));
+  Inner a_message_alias = 5 @validate(f_message_alias(this));
+  google.protobuf.Timestamp a_timestamp = 6 @validate(f_timestamp(this));
+  google.protobuf.Duration a_duration = 7 @validate(f_duration(this));
+  google.protobuf.Any an_any = 8 @validate(f_any(this));
 }
 
 message Literals {
