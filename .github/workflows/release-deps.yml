@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 TrendVidia, LLC.
+#
+# Refuse a replace or an untagged stack dependency at release (#460). See
+# .github/actions/check-release-deps/README.md. This repository uses the
+# action by path; the others use it at @main.
+
+name: Release dependencies
+
+on:
+  push:
+    tags: ['v*', '**/v*']
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    if: github.event_name != 'pull_request' || startsWith(github.event.pull_request.title, 'release:')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/check-release-deps

@@ -58,7 +58,7 @@ PXF parsers are recursive descent over `{ … }` blocks and `[ … ]` lists. PB 
 
 - track a depth counter, incremented on every recursive descent,
 - reject with an error when the counter exceeds `MaxNestingDepth`,
-  — the root message is depth 0; every `{` or `[` in PXF, and every submessage, group or map entry in PB, is one descent; a document whose deepest point is exactly `MaxNestingDepth` descents is accepted and one more is rejected, the same for a PXF text parser and a PXF decoder, and the corpus pins both sides (`pxf/deep-nesting-100` / `-101`, `pxf/deep-nesting-lists-100` / `-101`, `pb/deep-submessage-100` / `-101`; issue #301),
+  — the root message is depth 0; every `{` or `[` in PXF, and every submessage, group or map entry in PB, is one descent; a document whose deepest point is exactly `MaxNestingDepth` descents is accepted and one more is rejected, the same for a PXF text parser and a PXF decoder, and the corpus pins both sides (`pxf/deep-nesting-100` / `-101`, `pxf/deep-nesting-lists-100` / `-101`, `pxf/deep-nesting-maps-100` / `-101`, `pxf/deep-nesting-scalar-map-100` / `-101`, `pb/deep-submessage-100` / `-101`, `pb/deep-map-100` / `-101`, `pb/deep-scalar-map-100` / `-101`; issues #301, #449). A map's `{` counts like any other, and a PB map entry is a descent whatever its value's type,
 - thread the counter through inner decoders constructed mid-stream — in particular, when a nested protobuf submessage is decoded by handing its bytes to a fresh `CodedInputStream` / `Reader`, the depth counter must be passed in, not reset to zero.
 
 Iterative skip routines (e.g. `skipBraced` in the C++ and Java fast decoders) already use an explicit counter; the live decode path must use the same model.
@@ -113,7 +113,7 @@ The repository ships an adversarial test corpus under `testdata/adversarial/`, s
 
 | Category | What it tests |
 |---|---|
-| `pxf/deep-nesting-{N}.pxf` for N ∈ {100, 101, 200, 1000, 100000}, `pxf/deep-nesting-lists-{100,101}.pxf` | Nesting depth limit, both sides of the bound, blocks and lists alike |
+| `pxf/deep-nesting-{N}.pxf` for N ∈ {100, 101, 200, 1000, 100000}, `pxf/deep-nesting-{lists,maps,scalar-map}-{100,101}.pxf` | Nesting depth limit, both sides of the bound, blocks, lists and maps alike |
 | `pxf/long-numeric.pxf`, `pxf/long-numeric-4096.pxf` | Numeric literal digit cap — on a `pxf.BigInt` field, so only the cap can reject the long one; the 4096-digit one sits at the cap and is accepted |
 | `pb/decimal-{huge-scale,huge-negative-scale,scale-4096}.binpb` | `Decimal.scale` magnitude cap (± `MaxNumericLiteralDigits`), refused before `10^scale` is materialised; 4096 accepted |
 | `pb/bigfloat-{huge-exponent,huge-negative-exponent,exponent-past-bound,exponent-at-bound,negative-exponent-at-bound}.binpb`, `pxf/bigfloat-{huge-exponent,exponent-at-bound}.pxf` | `BigFloat` binary-exponent cap (± `MaxBigFloatExponent`, #281): the int32 extremes, 16385 and `1e646456992` refused; ±16384 and `1e4932` accepted |
@@ -122,7 +122,7 @@ The repository ships an adversarial test corpus under `testdata/adversarial/`, s
 | `pxf/giant-base64.pxf` | Bytes literal length cap (`MaxBytesLiteralLength`, via `limits`) |
 | `pxf/oversize-2kib.pxf`, `pb/oversize-2kib.binpb` | Total input size cap (`MaxMessageSize`, via `limits`) |
 | `pxf/many-elements-16.pxf`, `pb/many-elements-16.binpb`, `sbe/group-count-16.sbe` | Element count cap (`MaxRepeatedCount`, via `limits`; the SBE one before any entry is allocated) |
-| `pb/deep-submessage-{100,101,200}.binpb` | PB submessage depth limit, both sides of the bound |
+| `pb/deep-submessage-{100,101,200}.binpb`, `pb/deep-{map,scalar-map}-{100,101}.binpb` | PB submessage and map-entry depth limit, both sides of the bound |
 | `pb/length-prefix-overflow.binpb` | Length-prefix integer overflow |
 | `pb/recursion-via-fresh-stream.binpb` | Depth counter survives nested-stream construction |
 | `sbe/group-count-overflow.sbe` | `count × block_length` overflow |
