@@ -33,6 +33,11 @@ message Tree {
   // children alternates a list with a block, so a document can descend
   // through both kinds of PXF nesting (issue #301).
   repeated Tree children = 3;
+  // branches and tags descend through a map, with a message value and a
+  // scalar value: a map's `{` and every PB map entry are descents whatever
+  // the value's type (issue #449).
+  map<string, Tree> branches = 4;
+  map<string, string> tags = 5;
 }
 
 // StringHolder isolates a single proto3 `string` field for the UTF-8
