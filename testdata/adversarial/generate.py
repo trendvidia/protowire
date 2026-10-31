@@ -59,6 +59,31 @@ def pxf_nested_lists(pairs: int, extra_block: int = 0) -> str:
     )
 
 
+def pxf_nested_maps(pairs: int, extra_block: int = 0) -> str:
+    """PXF text: `pairs` levels of `branches = { k: { ... } }` — the map's own
+    `{` and the value's, so 2*pairs descents (issue #449) — plus `extra_block`
+    levels of `child{` at the deepest point to step over the boundary by one.
+    """
+    inner = "child{" * extra_block + "}" * extra_block
+    return (
+        "@type adversarial.v1.Tree\n\n"
+        + "branches = {k: {" * pairs
+        + inner
+        + "}}" * pairs
+        + "\n"
+    )
+
+def pxf_scalar_map(blocks: int) -> str:
+    """PXF text: `blocks` levels of `child{`, then a scalar-valued map, whose
+    `{` is one more descent though no message value sits under it."""
+    return (
+        "@type adversarial.v1.Tree\n\n"
+        + "child{" * blocks
+        + 'tags = {k: "v"}'
+        + "}" * blocks
+        + "\n"
+    )
+
 def pb_decimal(scale: int) -> bytes:
     """PB binary: BigNumHolder.decimal (field 2) carrying pxf.Decimal with
     unscaled = 25 and the given scale, a plain int32 varint sign-extended to
@@ -101,6 +126,25 @@ def pb_nested_tree(depth: int) -> bytes:
         payload = b"\x0a" + bytes(length) + payload
     return payload
 
+
+def pb_nested_maps(pairs: int, extra_child: int = 0) -> bytes:
+    """PB binary: `pairs` levels of Tree.branches=4, an entry and its message
+    value per level, so 2*pairs descents, plus `extra_child` levels of
+    Tree.child=1 at the deepest point."""
+    inner = pb_nested_tree(extra_child)
+    for _ in range(pairs):
+        entry = b"\x0a\x01k" + b"\x12" + varint(len(inner)) + inner
+        inner = b"\x22" + varint(len(entry)) + entry
+    return inner
+
+def pb_scalar_map(children: int) -> bytes:
+    """PB binary: `children` levels of Tree.child=1, then one Tree.tags=5
+    entry, a descent with a scalar value and so no message under it."""
+    entry = b"\x0a\x01k\x12\x01v"
+    inner = b"\x2a" + varint(len(entry)) + entry
+    for _ in range(children):
+        inner = b"\x0a" + varint(len(inner)) + inner
+    return inner
 
 def varint(n: int) -> bytes:
     """Standard protobuf varint encoding."""
@@ -166,6 +210,10 @@ def main() -> None:
     write_text(HERE / "pxf" / "deep-nesting-101.pxf", pxf_nested_tree(101))
     write_text(HERE / "pxf" / "deep-nesting-lists-100.pxf", pxf_nested_lists(50))
     write_text(HERE / "pxf" / "deep-nesting-lists-101.pxf", pxf_nested_lists(50, extra_block=1))
+    write_text(HERE / "pxf" / "deep-nesting-maps-100.pxf", pxf_nested_maps(50))
+    write_text(HERE / "pxf" / "deep-nesting-maps-101.pxf", pxf_nested_maps(50, extra_block=1))
+    write_text(HERE / "pxf" / "deep-nesting-scalar-map-100.pxf", pxf_scalar_map(99))
+    write_text(HERE / "pxf" / "deep-nesting-scalar-map-101.pxf", pxf_scalar_map(100))
 
     # --- PXF: numeric-literal digit cap ---
     # On a pxf.BigInt field, so only MaxNumericLiteralDigits can reject the
@@ -216,6 +264,10 @@ def main() -> None:
     write_bytes(HERE / "pb" / "deep-submessage-200.binpb", pb_nested_tree(200))
     write_bytes(HERE / "pb" / "deep-submessage-100.binpb", pb_nested_tree(100))
     write_bytes(HERE / "pb" / "deep-submessage-101.binpb", pb_nested_tree(101))
+    write_bytes(HERE / "pb" / "deep-map-100.binpb", pb_nested_maps(50))
+    write_bytes(HERE / "pb" / "deep-map-101.binpb", pb_nested_maps(50, extra_child=1))
+    write_bytes(HERE / "pb" / "deep-scalar-map-100.binpb", pb_scalar_map(99))
+    write_bytes(HERE / "pb" / "deep-scalar-map-101.binpb", pb_scalar_map(100))
 
     # --- PB: length-prefix truncation ---
     # Tag 0x0a (field 1, wire-type LEN) + varint length 100, then no payload.
