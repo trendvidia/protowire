@@ -102,6 +102,7 @@ func validateArgs() (argImpl, string) {
 		fmt.Fprintln(os.Stderr, "protocheck.New:", err)
 		os.Exit(1)
 	}
+	clear(got) // a strict New calls each function once to look for a stub (§9.2)
 	var failures string
 	for _, m := range []proto.Message{
 		&args.Fields{AString: "s", ABool: true, ABytes: []byte("b"), AInt32: 7, AInt64: 7, AUint32: 7, AUint64: 7,
