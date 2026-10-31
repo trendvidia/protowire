@@ -10,6 +10,10 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+## [1.15.0] — 2026-10-31
+
+Go function stubs no longer need the protobuf-go fork: `protoc-gen-pxf-go` generates them on stock protobuf, with typed parameters and per-file names. `@required` works on a oneof, and standard annotations in the wrong place stop compiling. Decoders agree on what a map costs against `MaxNestingDepth`. No wire-format change. STABILITY.md § v1.15 lists what each change means for ports.
+
 ### Added
 
 - **Typed function parameters in `protoc-gen-pxf-go`** (RFC-001 §9.3, [trendvidia/protobuf-go#5](https://github.com/trendvidia/protobuf-go/issues/5)). Enums, messages, `Timestamp`, `Duration`, wrappers and cross-file aliases now generate as their Go types instead of `any`. Existing implementations of a `Functions` interface with such a parameter must change their signature.
@@ -17,6 +21,10 @@ loosely; the project follows [SemVer](https://semver.org/) per
 - **`protoc-gen-pxf-go`** (RFC-001 §9.3, #458). Go function stubs and `@description`/`@deprecated` doc comments now come from a plugin on stock protobuf, in place of `protoc-gen-go`, so Go users no longer need the trendvidia/protobuf-go fork for them. Stubs move to `<name>_functions.pb.go`. Getters no longer carry either annotation.
 
 - **What a function receives** (RFC-001 §9.1; [trendvidia/protobuf-go#11](https://github.com/trendvidia/protobuf-go/issues/11), decided by the owner). The spec named `[]any` but never said what was in it, so protocheck passed an `int32` field as `int` and generated stubs asserting `int32` rejected valid data. §9.1 now says each argument arrives in its declared type, with a Go table, and that a value that does not fit fails with `protowire.function.invalid_argument`.
+
+- **`@required` on a oneof** (RFC-001 §5.2, §6.1, §6.4, §7; trendvidia/protocheck#22). A leading `@required` on a oneof means a member must be present, and a member bound to null counts. Failure reports `protowire.required`, with a path ending in the oneof's name and `field_number` 0.
+  - **Before this:** the same text already compiled and lowered, the spec gave it no meaning, and the reference engine ignored it, so an empty message passed. Engines that ignore it still fail open, so §8.5's "runtimes upgrade before schemas migrate" applies.
+  - **Compiler rule:** a member of a `@required` oneof MUST NOT carry `@default(value)`, and the reference compiler rejects it (#450).
 
 ### Changed
 
@@ -31,12 +39,12 @@ loosely; the project follows [SemVer](https://semver.org/) per
 - **Standard annotations in the wrong place are compile errors** (RFC-001 §5.2, #450). §5.2 now has a placement table, and a use outside it no longer compiles. Before this, an author could believe a rule was in force when no engine would act on it: `@sensitive` on a oneof left the value in reports. Annotations a schema declares itself are not restricted.
   - **Required and default are exclusive:** one field carrying both is a compile error, in every spelling (`@required`, `(pxf.required)`, `@default`, `(pxf.default)`) and through a `type` (#453). Draft -01 now forbids the pair, and binding tools MUST reject it. Engines disagreed on what the pair meant: protowire-go checked required first, while chameleon documents applying the default first.
   - **Also rejected:** `@required` on a oneof member, and `@default` on two members of a oneof, on a member of a `@required` oneof, or on a repeated, map, group or non-literal message field.
-  
-### Added
 
-- **`@required` on a oneof** (RFC-001 §5.2, §6.1, §6.4, §7; trendvidia/protocheck#22). A leading `@required` on a oneof means a member must be present, and a member bound to null counts. Failure reports `protowire.required`, with a path ending in the oneof's name and `field_number` 0.
-  - **Before this:** the same text already compiled and lowered, the spec gave it no meaning, and the reference engine ignored it, so an empty message passed. Engines that ignore it still fail open, so §8.5's "runtimes upgrade before schemas migrate" applies.
-  - **Compiler rule:** a member of a `@required` oneof MUST NOT carry `@default(value)`. The reference compiler does not reject this yet.
+### Fixed
+
+- **`pxf build` no longer panics on an invalid schema** (#461). The panic came from a protocompile error path and reached the caller as an ordinary error carrying a stack. The fix arrives with the protocompile pin.
+
+- **`pxf proto2sbe` accepts a path like `./order.proto`** (#459). It filtered results against the raw `-p` value and failed with `sbe: no files provided`. `cmd/pxf` now links one protocompile throughout, so `lint`, `proto2sbe` and `build` can't disagree about one schema, and Buf's module leaves `go.mod`.
 
 ## [1.14.0] — 2026-10-30
 
