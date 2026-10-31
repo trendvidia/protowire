@@ -21,7 +21,11 @@ permissions:
 
 jobs:
   check:
-    if: github.event_name != 'pull_request' || startsWith(github.event.pull_request.title, 'release:')
+    # A release PR is titled `release:` or `chore: release vX.Y.Z`.
+    if: >-
+      github.event_name != 'pull_request' ||
+      startsWith(github.event.pull_request.title, 'release:') ||
+      startsWith(github.event.pull_request.title, 'chore: release v')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -30,12 +34,12 @@ jobs:
 
 | Trigger | What it checks |
 |---|---|
-| A PR titled `release:` | The root module and modules under `internal/`, before the tag exists |
+| A PR titled `release:` or `chore: release vX.Y.Z` | The root module and modules under `internal/`, before the tag exists |
 | Tag `v1.2.3` | The same |
 | Tag `a/b/v1.2.3` | Module `a/b` only |
 | Run by hand (`workflow_dispatch`) | Every module, and allowlist entries that no longer match |
 
-**A tag run comes too late to stop the tag.** A pushed tag is already public through the Go proxy, so the run can only report it. The `release:` PR is the check that comes first, so cut a release through one. Run it by hand, or run `check.py` locally, in repositories that don't.
+**A tag run comes too late to stop the tag.** A pushed tag is already public through the Go proxy, so the run can only report it. The release PR is the check that comes first, so cut a release through one. Run it by hand, or run `check.py` locally, in repositories that don't.
 
 A root release doesn't check a module with its own tags. That module has to require the root's new tag, so it can only be fixed after the root is tagged.
 
