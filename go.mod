@@ -6,10 +6,10 @@ require (
 	github.com/itchyny/gojq v0.12.19
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
 	github.com/spf13/cobra v1.10.2
-	github.com/trendvidia/protocompile v0.36.2-0.20261030225431-6b62d46387c5
-	github.com/trendvidia/protoregistry v0.72.0
-	github.com/trendvidia/protos v0.1.2
-	github.com/trendvidia/protowire-go v1.12.1
+	github.com/trendvidia/protocompile v0.37.0
+	github.com/trendvidia/protoregistry v0.75.0
+	github.com/trendvidia/protos v0.1.4
+	github.com/trendvidia/protowire-go v1.13.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20260807164820-c8921c73eeea
 	google.golang.org/grpc v1.84.0
 	google.golang.org/protobuf v1.36.12
@@ -24,7 +24,7 @@ require (
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/spf13/pflag v1.0.9 // indirect
 	github.com/tidwall/btree v1.8.2 // indirect
-	golang.org/x/exp v0.0.0-20250911091902-df9299821621 // indirect
+	golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f // indirect
 	golang.org/x/net v0.58.0 // indirect
 	golang.org/x/sync v0.24.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
