@@ -33,11 +33,12 @@ Each line of `MANIFEST.jsonl` is one JSON object:
 ```
 
 - `file` — path under `testdata/adversarial/`.
-- `format` — one of `pxf`, `pb`, `sbe`, `envelope`. Selects the decoder.
+- `format` — one of `pxf`, `pb`, `sbe`, `envelope`, which selects the decoder, or `pb-render`, which tests a producer: `check-decode` reads the bytes with the stock protobuf runtime, bypassing the port's hardened decoder, then writes PXF. Without the bypass the decoder would refuse the row and the encoder would never run.
 - `schema` — fully-qualified message type from `adversarial.proto`.
 - `expect` — `accept` or `reject`. The verdict every non-skipped port must produce.
 - `reason` — human-readable; cited in test output on failure.
 - `skip` (optional) — list of port names that legitimately can't reach this code path (e.g. a port whose decoder is a thin wrapper around another port's). Skips are tracked here, not in port repos, so the exemption is visible across the project.
+- `skip_reason` (optional) — why those ports skip, when it is a permanent property of the port and not a gap in it.
 - `limits` (optional) — `{"NAME": VALUE, …}`: HARDENING limits lowered for this entry's run, passed to `check-decode` as `--limit NAME=VALUE`. This is how a 64 MiB cap is proved by a 2 KiB input; list the same file twice, rejected under the lowered limit and accepted under one above its size, so an over-eager port fails too (issue #299).
 
 ## Adding a corpus entry

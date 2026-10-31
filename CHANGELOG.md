@@ -10,6 +10,10 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+### Changed
+
+- **The corpus tests producers as well as decoders** (`docs/HARDENING.md` § Arbitrary-precision magnitudes, #448). A store-only decoder stays outside the `Decimal` scale bound, and `MANIFEST.jsonl` now records that as the skip's reason. New `pb-render` rows read the bytes with a stock protobuf runtime and write PXF, because the decoder rows could not see a producer with no bound: the C++, Rust and Dart encoders had none, and C++ hung. `check-decode` gains the format.
+
 ## [1.15.0] — 2026-10-31
 
 Go function stubs no longer need the protobuf-go fork: `protoc-gen-pxf-go` generates them on stock protobuf, with typed parameters and per-file names. `@required` works on a oneof, and standard annotations in the wrong place stop compiling. Decoders agree on what a map costs against `MaxNestingDepth`. No wire-format change. STABILITY.md § v1.15 lists what each change means for ports.
