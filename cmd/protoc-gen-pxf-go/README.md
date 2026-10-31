@@ -37,7 +37,7 @@ Stub parameters use the Go type of the schema type, across files:
 | wrapper | its base type |
 | `type` alias | as its base type |
 
-A stub with a message parameter needs protocheck v2.9.1 or later, which has `MessageArg`. A type no file of the run declares generates as `any`.
+A stub with a message parameter needs protocheck v2.10.0 or later, which has `MessageArg`. A type no file of the run declares generates as `any`.
 
 ## Limits
 
