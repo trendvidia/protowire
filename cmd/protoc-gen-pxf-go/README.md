@@ -24,8 +24,22 @@ buf generate image.binpb
 
 Install from a `cmd/protoc-gen-pxf-go/vX.Y.Z` tag. It is a module of its own, requiring only protobuf, so adding it as a `go tool` raises no other dependency in your project.
 
+## Function parameters
+
+Stub parameters use the Go type of the schema type, across files:
+
+| Schema type | Go parameter |
+|---|---|
+| scalar | its Go type |
+| enum | the generated enum type |
+| message, including `Any` | a pointer to the generated type |
+| `Timestamp`, `Duration` | `time.Time`, `time.Duration` |
+| wrapper | its base type |
+| `type` alias | as its base type |
+
+A stub with a message parameter needs protocheck v2.9.1 or later, which has `MessageArg`. A type no file of the run declares generates as `any`.
+
 ## Limits
 
 - **Getters.** Stock getters do not read a field's comments, so a getter carries neither `@description` nor `@deprecated`. On the hybrid and opaque APIs the text appears on the builder field. A field with the classic `deprecated` option keeps that option's notice on its getter.
 - **`internal_gengo`.** The plugin calls `google.golang.org/protobuf/cmd/protoc-gen-go/internal_gengo`, which protobuf marks internal. A protobuf upgrade can break the build, so CI builds it against the version pinned here.
-- **Cross-file aliases, enums and messages.** Function parameters of these types generate as `any`.

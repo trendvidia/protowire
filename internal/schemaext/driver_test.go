@@ -25,9 +25,14 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"time"
 
 	v2 "github.com/trendvidia/protocheck/v2"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/dynamicpb"
+	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	args "pxfdriver.test/gen/args"
@@ -72,6 +77,13 @@ func (a argImpl) rec(name string, v any) (bool, *v2.Violation) {
 	a[name] = append(a[name], fmt.Sprintf("%T", v))
 	return true, nil
 }
+
+// val records the value rather than its type, for parameters whose type the
+// signature already fixes.
+func (a argImpl) val(name string, v any) (bool, *v2.Violation) {
+	a[name] = append(a[name], fmt.Sprint(v))
+	return true, nil
+}
 func (a argImpl) FString(v string) (bool, *v2.Violation)  { return a.rec("f_string", v) }
 func (a argImpl) FBool(v bool) (bool, *v2.Violation)      { return a.rec("f_bool", v) }
 func (a argImpl) FBytes(v []byte) (bool, *v2.Violation)   { return a.rec("f_bytes", v) }
@@ -81,8 +93,30 @@ func (a argImpl) FUint32(v uint32) (bool, *v2.Violation)  { return a.rec("f_uint
 func (a argImpl) FUint64(v uint64) (bool, *v2.Violation)  { return a.rec("f_uint64", v) }
 func (a argImpl) FFloat(v float32) (bool, *v2.Violation)  { return a.rec("f_float", v) }
 func (a argImpl) FDouble(v float64) (bool, *v2.Violation) { return a.rec("f_double", v) }
-func (a argImpl) FAlias(v any) (bool, *v2.Violation)      { return a.rec("f_alias", v) }
-func (a argImpl) FWrapper(v any) (bool, *v2.Violation)    { return a.rec("f_wrapper", v) }
+func (a argImpl) FAlias(v int32) (bool, *v2.Violation)    { return a.rec("f_alias", v) }
+func (a argImpl) FWrapper(v int32) (bool, *v2.Violation)  { return a.rec("f_wrapper", v) }
+func (a argImpl) FStringWrapper(v string) (bool, *v2.Violation) {
+	return a.val("f_string_wrapper", v)
+}
+func (a argImpl) FEnum(v args.Color) (bool, *v2.Violation) {
+	return a.val("f_enum", v.String())
+}
+func (a argImpl) FEnumAlias(v args.Color) (bool, *v2.Violation) {
+	return a.val("f_enum_alias", v.String())
+}
+func (a argImpl) FMessage(v *args.Inner) (bool, *v2.Violation) {
+	return a.val("f_message", v.GetName())
+}
+func (a argImpl) FMessageAlias(v *args.Inner) (bool, *v2.Violation) {
+	return a.val("f_message_alias", v.GetName())
+}
+func (a argImpl) FTimestamp(v time.Time) (bool, *v2.Violation) {
+	return a.val("f_timestamp", v.Unix())
+}
+func (a argImpl) FDuration(v time.Duration) (bool, *v2.Violation) {
+	return a.val("f_duration", v.String())
+}
+func (a argImpl) FAny(v *anypb.Any) (bool, *v2.Violation) { return a.val("f_any", v.GetTypeUrl()) }
 
 // validateArgs runs the fixture through the stubs and a real engine, with
 // every field set so every rule fires.
@@ -103,8 +137,25 @@ func validateArgs() (argImpl, string) {
 		os.Exit(1)
 	}
 	clear(got) // a strict New calls each function once to look for a stub (§9.2)
+	typed := &args.Typed{
+		AStringWrapper: wrapperspb.String("w"), AnEnum: args.Color_COLOR_RED, AnEnumAlias: args.Color_COLOR_RED,
+		AMessage: &args.Inner{Name: "n"}, AMessageAlias: &args.Inner{Name: "n"},
+		ATimestamp: timestamppb.New(time.Unix(100, 0)), ADuration: durationpb.New(time.Minute),
+		AnAny: &anypb.Any{TypeUrl: "t/u"},
+	}
+	wire, err := proto.Marshal(typed)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "proto.Marshal:", err)
+		os.Exit(1)
+	}
+	dynamicTyped := dynamicpb.NewMessage(typed.ProtoReflect().Descriptor())
+	if err := proto.Unmarshal(wire, dynamicTyped); err != nil {
+		fmt.Fprintln(os.Stderr, "proto.Unmarshal:", err)
+		os.Exit(1)
+	}
 	var failures string
 	for _, m := range []proto.Message{
+		typed, dynamicTyped, &args.Typed{},
 		&args.Fields{AString: "s", ABool: true, ABytes: []byte("b"), AInt32: 7, AInt64: 7, AUint32: 7, AUint64: 7,
 			AFloat: 1.5, ADouble: 1.5, AAlias: 7, AWrapper: wrapperspb.Int32(7)},
 		&args.Literals{AString: "s", ABool: "s", AInt32: "s", AInt64: "s", AUint32: "s", AUint64: "s",
@@ -312,6 +363,16 @@ func TestRegisterFunctionsAndInvoke(t *testing.T) {
 		"f_double":  {"float64", "float64"},
 		"f_alias":   {"int32", "int32"},
 		"f_wrapper": {"int32"},
+		// Typed runs generated, dynamic, then empty: a rule on an unset field
+		// does not fire.
+		"f_string_wrapper": {"w", "w"},
+		"f_enum":           {"COLOR_RED", "COLOR_RED"},
+		"f_enum_alias":     {"COLOR_RED", "COLOR_RED"},
+		"f_message":        {"n", "n"},
+		"f_message_alias":  {"n", "n"},
+		"f_timestamp":      {"100", "100"},
+		"f_duration":       {"1m0s", "1m0s"},
+		"f_any":            {"t/u", "t/u"},
 	} {
 		if !equalStrings(received[fn], want) {
 			t.Errorf("%s received %v, want %v", fn, received[fn], want)
