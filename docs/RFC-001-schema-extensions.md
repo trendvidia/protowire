@@ -646,7 +646,7 @@ relevant for the public-API driving use case.
 function name(args) → (bool, *Violation)
 ```
 
-`(true, nil)` on success; `(false, &Violation{...})` on failure. The `Violation` is structured (§7) and carries a stable code + parameters + a fallback message. Functions are pure (no I/O, no global state) — engines may memoize calls.
+`(true, nil)` on success; `(false, &Violation{...})` on failure. The `Violation` is structured (§7) and carries a stable code + parameters + a fallback message. Functions are pure (no I/O, no global state) — engines may memoize calls, and a strict engine calls each one at startup (§9.2).
 
 Functions are declarations only; bodies are implemented in the engine runtime and registered by fully-qualified name at engine init. No engine tag on the declaration: the spec specifies the contract; runtime registration provides the implementation.
 
@@ -1320,6 +1320,8 @@ An engine is a runtime that evaluates the §5.4 expression language and hosts th
 ### 9.2 Function registration model
 
 Functions referenced in the descriptor must be registered with the engine at startup. The engine walks the descriptor on init and verifies each FQN is present in its registry. Missing-impl default behavior is **lenient**: the engine starts with `Unimplemented` placeholders that fail at first call with `protowire.function.unimplemented` (§7). A `strict_validation=true` engine option turns missing impls into startup failures.
+
+An implementation that only returns the §9.3 default is a missing impl too, and a strict engine MUST find it. After the walk, the engine calls each declared function once, with the zero value of each parameter's declared type as §9.1 delivers it. A result of `protowire.function.unimplemented` is a startup failure naming the FQN. Any other result, including a failure or a panic, is not, because a real implementation may refuse a zero value. The engine discards the result. An implementation that rewrites the code hides itself from this check and fails at first call instead. A lenient engine makes no such call.
 
 ### 9.3 Codegen contract
 
