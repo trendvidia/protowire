@@ -6,10 +6,10 @@ require (
 	github.com/itchyny/gojq v0.12.19
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
 	github.com/spf13/cobra v1.10.2
-	github.com/trendvidia/protocompile v0.37.0
+	github.com/trendvidia/protocompile v0.38.1
 	github.com/trendvidia/protoregistry v0.75.0
 	github.com/trendvidia/protos v0.1.4
-	github.com/trendvidia/protowire-go v1.13.0
+	github.com/trendvidia/protowire-go v1.13.3-0.20261101100706-06f4bffd91d2
 	google.golang.org/genproto/googleapis/api v0.0.0-20260807164820-c8921c73eeea
 	google.golang.org/grpc v1.84.0
 	google.golang.org/protobuf v1.36.12
