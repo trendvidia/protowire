@@ -80,7 +80,6 @@ NOT_IMPLEMENTED="$(cat <<'NI'
 chameleon            google.protobuf.FieldOptions|string|key|1316  keyed repeated fields (#116) not implemented
 protowire-csharp     google.protobuf.FieldOptions|string|key|1316  keyed repeated fields (#116) not implemented
 protowire-dart       google.protobuf.FieldOptions|string|key|1316  keyed repeated fields (#116) not implemented
-protowire-java       google.protobuf.FieldOptions|string|key|1316  keyed repeated fields (#116) not implemented
 protowire-rust       google.protobuf.FieldOptions|string|key|1316  keyed repeated fields (#116) not implemented
 protowire-swift      google.protobuf.FieldOptions|string|key|1316  keyed repeated fields (#116) not implemented
 protowire-typescript google.protobuf.FieldOptions|string|key|1316  keyed repeated fields (#116) not implemented

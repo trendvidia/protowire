@@ -10,6 +10,10 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+### Added
+
+- **`protoc-gen-pxf-java-meta` emits `(pxf.key)`** (#323). Each `PxfMeta` companion gains `KEY_FIELDS`, field number → key field name, and a message with a keyed field overrides `keyFields()`, which needs a protowire-java runtime that declares it. A misplaced `(pxf.key)` in a generated file now fails generation, naming the file and field. The rest of the bind-time checks at codegen time stay with #322.
+
 ### Changed
 
 - **An entry name binds the key field, so a keyed entry's body can't undo it** (draft -01 §3.13, [protowire-go#215](https://github.com/trendvidia/protowire-go/issues/215), decided by the owner). `ko { alpha { other = "x" } }` lost its key with no error when the key was in a oneof, and `kn { alpha { name = null } }` kept the key while reporting it null. Both are now decode errors, as is `null` on another member of the key's oneof. The anonymous form and an agreeing `name = "alpha"` stay legal. New fixtures under [`testdata/keyed/`](testdata/keyed/). This narrows what decoders read; see [`STABILITY.md`](STABILITY.md).
