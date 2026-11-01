@@ -283,6 +283,12 @@ v1.15 changes no wire format: PXF text, PB, SBE and the envelope are written byt
 - **Generated Go changes** (RFC-001 §9.3, not covered by a promise above). Stubs move to `<name>_functions.pb.go`, are named per file (`<File>Functions`), and take typed parameters instead of `any`. Implementations and callers must update when they upgrade the generator.
 - **What a function receives is specified** (RFC-001 §9.1). Each argument arrives in its declared type, and a strict engine now calls each declared function once at startup (§9.2).
 
+### v1.16 — a keyed entry's body can't undo its name
+
+v1.16 changes no wire format: PXF text, PB, SBE and the envelope are written byte-for-byte as in v1.15, and no extension number moves (promise 3). One thing narrows what is accepted.
+
+- **An entry name binds the key field** ([protowire-go#215](https://github.com/trendvidia/protowire-go/issues/215)). This narrows what decoders read: inside a named entry, `null` on the key field and any binding of another member of the key field's oneof used to decode, and now fail. A schema can only reach this with a key that is optional or in a oneof, and no schema is refused. Marshallers never wrote these documents: an element whose key is absent goes in the anonymous form, which is unchanged.
+
 ## What this does *not* commit to
 
 - **Library-level API stability** for any port's library code (`protowire-go/encoding/pxf/...`, `protowire-java/pxf/...`, etc.). Library APIs may evolve at minor versions per each port's own conventions; the wire stability commitment is what crosses repo boundaries. Most ports follow SemVer for their library API independent of this document, but the cross-port commitment lives here.

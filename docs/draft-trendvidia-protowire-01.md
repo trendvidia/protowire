@@ -971,6 +971,8 @@ When decoding a keyed block:
 
 * An explicit assignment to the key field inside a named entry's block that disagrees with the entry name is a decode error. An assignment that agrees is redundant but legal.
 
+* The entry name is a binding of the key field, so a named entry's block cannot undo it. An agreeing assignment is the one exception to the rule of {{entries-and-keys}} that a singular field is bound once. Binding the key field to "null" disagrees with the entry name and is a decode error. When the key field is a member of a oneof, binding any other member of that oneof in the block, to a value or to "null", writes two members and is a decode error ({{booleans-null-and-identifier-values}}). The anonymous list form has no entry name, so neither case arises there, and an element whose key is absent stays legal.
+
 A quoted entry name anywhere other than inside a keyed repeated field's block is grammatically well-formed but MUST be rejected by the schema layer: a string entry name never names a field, so it is only meaningful as a key.
 
 Schema-tolerant parsers (parsers that operate without a bound schema) carry entry names through unchanged, along with whether the name was quoted, so that formatting round-trips; the checks above that require schema knowledge are then diagnostics of whatever later stage binds the schema. In tolerant decode modes, the duplicate-key, empty-key, and key-conflict errors above SHOULD be surfaced as diagnostics rather than hard failures.

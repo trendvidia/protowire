@@ -59,6 +59,8 @@ func TestKeyed_ValidateAccepts(t *testing.T) {
 		{"anonymous-equivalence.pxf", "keyed.v1.Node"},
 		{"redundant-key-ok.pxf", "keyed.v1.Node"},
 		{"anonymous-duplicate-ok.pxf", "keyed.v1.Node"},
+		{"key-oneof-ok.pxf", "keyed.v1.Catalog"},
+		{"key-null-anonymous-ok.pxf", "keyed.v1.Catalog"},
 	}
 	for _, c := range cases {
 		t.Run(c.file, func(t *testing.T) {

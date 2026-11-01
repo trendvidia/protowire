@@ -16,6 +16,7 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ### Changed
 
+- **An entry name binds the key field, so a keyed entry's body can't undo it** (draft -01 §3.13, [protowire-go#215](https://github.com/trendvidia/protowire-go/issues/215), decided by the owner). `ko { alpha { other = "x" } }` lost its key with no error when the key was in a oneof, and `kn { alpha { name = null } }` kept the key while reporting it null. Both are now decode errors, as is `null` on another member of the key's oneof. The anonymous form and an agreeing `name = "alpha"` stay legal. New fixtures under [`testdata/keyed/`](testdata/keyed/). This narrows what decoders read; see [`STABILITY.md`](STABILITY.md).
 - **The HARDENING corpus manifest drops Rust's `bigfloat-*` skips** (protowire-rust#57). protowire-rust now enforces `MaxBigFloatExponent`, so those seven rows run against it.
 - **The corpus tests producers as well as decoders** (`docs/HARDENING.md` § Arbitrary-precision magnitudes, #448). A store-only decoder stays outside the `Decimal` scale bound, and `MANIFEST.jsonl` now records that as the skip's reason. New `pb-render` rows read the bytes with a stock protobuf runtime and write PXF, because the decoder rows could not see a producer with no bound: the C++, Rust and Dart encoders had none, and C++ hung. `check-decode` gains the format.
 
