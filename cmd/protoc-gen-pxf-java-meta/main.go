@@ -42,6 +42,10 @@
 //   - REQUIRED_FIELDS      — Set<Integer> of fields with (pxf.required).
 //   - DEFAULTS             — Map<Integer, String> of (pxf.default) literals
 //     (PXF text literals; the runtime parses them).
+//   - KEY_FIELDS           — Map<Integer, String> of field number → key field
+//     name, from (pxf.key). A misplaced (pxf.key) fails
+//     generation, so every entry names a singular
+//     string field of the element message.
 //   - SBE_TEMPLATE_ID      — int constant from (sbe.template_id), or -1 if
 //     the message is not an SBE template.
 //   - SBE_FIELD_LENGTHS    — Map<Integer, Integer> from (sbe.length).
@@ -100,6 +104,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -150,6 +155,7 @@ func parseParameters(raw string) pluginOptions {
 const (
 	extPxfRequired    int32 = 1314 // bool   on FieldOptions
 	extPxfDefault     int32 = 1315 // string on FieldOptions
+	extPxfKey         int32 = 1316 // string on FieldOptions
 	extSbeSchemaID    int32 = 1319 // uint32 on FileOptions
 	extSbeVersion     int32 = 1320 // uint32 on FileOptions
 	extSbeTemplateID  int32 = 1321 // uint32 on MessageOptions
@@ -224,6 +230,12 @@ func generateFile(
 	// them ships a silently broken binding.
 	if err := pxfschema.AsError(pxfschema.ValidateProto(file)); err != nil {
 		return err
+	}
+
+	// KEY_FIELDS promises the lite tier a usable key field, so a (pxf.key)
+	// that does not name one stops here rather than reaching the table.
+	if vs := keyViolations(file, byName); len(vs) > 0 {
+		return errors.New(strings.Join(vs, "\n"))
 	}
 
 	javaPkg := file.GetOptions().GetJavaPackage()
@@ -756,6 +768,8 @@ func emitMeta(
 	p()
 	emitDefaults(p, msg.desc.Field)
 	p()
+	emitKeyFields(p, msg.desc.Field)
+	p()
 	emitSbeMessageMeta(p, msg.desc)
 	p()
 	emitSbeFieldLengths(p, msg.desc.Field)
@@ -772,7 +786,7 @@ func emitMeta(
 	p()
 	emitEnumMetas(p, msg.desc.Field, byName)
 	p()
-	emitAccessors(p, qualifiedProtoName(file, msg))
+	emitAccessors(p, qualifiedProtoName(file, msg), len(keyFieldEntries(msg.desc.Field)) > 0)
 	p("}")
 	return b.String()
 }
@@ -912,7 +926,13 @@ func qualifiedProtoName(file *descriptorpb.FileDescriptorProto, msg *flatMsg) st
 // stay in lock-step with the PxfMeta interface defined in
 // :pxf-runtime/.../PxfMeta.java — adding a method there without updating
 // here is a compile error in downstream consumers.
-func emitAccessors(p func(args ...any), fullName string) {
+//
+// keyFields() is the exception: it is written only for a message with a keyed
+// field, because PxfMeta's default answers for the rest. A companion without
+// keyed fields therefore still compiles against a runtime older than the
+// method, and one with them fails to compile there rather than silently
+// binding keyed fields as plain ones.
+func emitAccessors(p func(args ...any), fullName string, hasKeyFields bool) {
 	p("    @Override public Map<String, Integer>  fieldNumbers()      { return FIELD_NUMBERS; }")
 	p("    @Override public Map<Integer, Integer> fieldKinds()        { return FIELD_KINDS; }")
 	p("    @Override public Map<Integer, Integer> wireTypes()         { return WIRE_TYPES; }")
@@ -922,6 +942,9 @@ func emitAccessors(p func(args ...any), fullName string) {
 	p("    @Override public Map<Integer, String>  enumTypes()         { return ENUM_TYPES; }")
 	p("    @Override public Set<Integer>          requiredFields()    { return REQUIRED_FIELDS; }")
 	p("    @Override public Map<Integer, String>  defaults()          { return DEFAULTS; }")
+	if hasKeyFields {
+		p("    @Override public Map<Integer, String>  keyFields()         { return KEY_FIELDS; }")
+	}
 	p("    @Override public int                   sbeTemplateId()     { return SBE_TEMPLATE_ID; }")
 	p("    @Override public Map<Integer, Integer> sbeFieldLengths()   { return SBE_FIELD_LENGTHS; }")
 	p("    @Override public Map<Integer, String>  sbeFieldEncodings() { return SBE_FIELD_ENCODINGS; }")
@@ -1052,6 +1075,101 @@ func emitDefaults(p func(args ...any), fields []*descriptorpb.FieldDescriptorPro
 			comma = ""
 		}
 		p("        Map.entry(", e.num, ", ", quoteJava(e.val), ")", comma)
+	}
+	p("    );")
+}
+
+// keyViolations reports every (pxf.key) in file that fails the placement rule
+// of draft -01 §3.13.1, in the wording of protowire-go's checkKeyOption: valid
+// only on a repeated message-typed field, naming a singular string field of
+// the element message. An element type declared in an import is resolved
+// through byName. Only the files being generated are walked, since those are
+// the ones whose tables this plugin writes.
+func keyViolations(
+	file *descriptorpb.FileDescriptorProto,
+	byName map[string]*descriptorpb.FileDescriptorProto,
+) []string {
+	var out []string
+	for _, msg := range allMessages(file.MessageType, nil) {
+		for _, f := range msg.desc.Field {
+			keyName, ok := extString(f.GetOptions(), extPxfKey)
+			if !ok {
+				continue
+			}
+			if detail := keyProblem(f, keyName, byName); detail != "" {
+				out = append(out, fmt.Sprintf("%s: field %q: invalid (pxf.key) = %q: %s (draft -01 §3.13)",
+					file.GetName(), qualifiedProtoName(file, msg)+"."+f.GetName(), keyName, detail))
+			}
+		}
+	}
+	return out
+}
+
+// keyProblem says why (pxf.key) = keyName cannot stand on f, or returns "".
+func keyProblem(
+	f *descriptorpb.FieldDescriptorProto,
+	keyName string,
+	byName map[string]*descriptorpb.FileDescriptorProto,
+) string {
+	const misplaced = "(pxf.key) is valid only on repeated message-typed fields"
+	if f.GetLabel() != descriptorpb.FieldDescriptorProto_LABEL_REPEATED ||
+		f.GetType() != descriptorpb.FieldDescriptorProto_TYPE_MESSAGE ||
+		isMapField(f, byName) {
+		return misplaced
+	}
+	elem := strings.TrimPrefix(f.GetTypeName(), ".")
+	target := findMessage(byName, elem)
+	if target == nil {
+		return fmt.Sprintf("element message %s is not in the request", elem)
+	}
+	for _, kf := range target.Field {
+		if kf.GetName() != keyName {
+			continue
+		}
+		if kf.GetLabel() == descriptorpb.FieldDescriptorProto_LABEL_REPEATED ||
+			kf.GetType() != descriptorpb.FieldDescriptorProto_TYPE_STRING {
+			return fmt.Sprintf("key field %s.%s must be a singular string field", elem, keyName)
+		}
+		return ""
+	}
+	return fmt.Sprintf("element message %s has no field %q", elem, keyName)
+}
+
+// keyField pairs a keyed field's number with its key field's name.
+type keyField struct {
+	num  int32
+	name string
+}
+
+// keyFieldEntries lists the fields carrying (pxf.key). generateFile has
+// already refused a misplaced one.
+func keyFieldEntries(fields []*descriptorpb.FieldDescriptorProto) []keyField {
+	var entries []keyField
+	for _, f := range fields {
+		if v, ok := extString(f.GetOptions(), extPxfKey); ok {
+			entries = append(entries, keyField{num: f.GetNumber(), name: v})
+		}
+	}
+	return entries
+}
+
+// emitKeyFields emits KEY_FIELDS — a Map<Integer, String> from a keyed
+// repeated field's number to the name of its key field. Without this table the
+// lite tier cannot tell a keyed field from a plain repeated message field.
+func emitKeyFields(p func(args ...any), fields []*descriptorpb.FieldDescriptorProto) {
+	entries := keyFieldEntries(fields)
+	p("    /** Field number → {@code (pxf.key)} key field name, for keyed repeated fields. */")
+	if len(entries) == 0 {
+		p("    public static final Map<Integer, String> KEY_FIELDS = Map.of();")
+		return
+	}
+	p("    public static final Map<Integer, String> KEY_FIELDS = Map.ofEntries(")
+	for i, e := range entries {
+		comma := ","
+		if i == len(entries)-1 {
+			comma = ""
+		}
+		p("        Map.entry(", e.num, ", ", quoteJava(e.name), ")", comma)
 	}
 	p("    );")
 }

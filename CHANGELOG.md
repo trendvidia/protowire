@@ -10,6 +10,10 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+### Added
+
+- **`protoc-gen-pxf-java-meta` emits `(pxf.key)`** (#323). Each `PxfMeta` companion gains `KEY_FIELDS`, field number → key field name, and a message with a keyed field overrides `keyFields()`, which needs a protowire-java runtime that declares it. A misplaced `(pxf.key)` in a generated file now fails generation, naming the file and field. The rest of the bind-time checks at codegen time stay with #322.
+
 ### Changed
 
 - **The HARDENING corpus manifest drops Rust's `bigfloat-*` skips** (protowire-rust#57). protowire-rust now enforces `MaxBigFloatExponent`, so those seven rows run against it.
