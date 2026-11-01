@@ -27,11 +27,12 @@ import (
 // notices next time. A descriptor set not listed here fails too, so a new
 // fixture is classified when it is added rather than when it goes stale.
 var descriptorFixtures = map[string][]protowire.Number{
-	"bench-test.binpb":              nil,
-	"sbe-bench.binpb":               {1319, 1320, 1321, 1322},
-	"annotations/settings.binpb":    {1314, 1315},
-	"adversarial/adversarial.binpb": {1319, 1320, 1321},
-	"stock-image/plain.buf.binpb":   nil,
+	"bench-test.binpb":                     nil,
+	"sbe-bench.binpb":                      {1319, 1320, 1321, 1322},
+	"annotations/settings.binpb":           {1314, 1315},
+	"annotations/settings_annotated.binpb": {1327},
+	"adversarial/adversarial.binpb":        {1319, 1320, 1321},
+	"stock-image/plain.buf.binpb":          nil,
 }
 
 // notDescriptorSets are the testdata directories whose .binpb files are
@@ -76,6 +77,35 @@ func TestDescriptorFixturesCarryRegisteredNumbers(t *testing.T) {
 		if !seen[rel] {
 			t.Errorf("%s: listed in descriptorFixtures but not on disk", rel)
 		}
+	}
+}
+
+// TestAnnotatedFixtureMatchesItsSource rebuilds settings_annotated.binpb, which
+// nothing else regenerates, with the command its .proto states.
+func TestAnnotatedFixtureMatchesItsSource(t *testing.T) {
+	dir := filepath.Join(testdataRoot, "annotations")
+	out := filepath.Join(t.TempDir(), "image.binpb")
+	if _, err := runCLI(t, "build", "--null-mask=false", "--source-info=false", "-o", out,
+		filepath.Join(dir, "settings_annotated.proto")); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := os.ReadFile(filepath.Join(dir, "settings_annotated.binpb"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var gotSet, wantSet descriptorpb.FileDescriptorSet
+	if err := proto.Unmarshal(got, &gotSet); err != nil {
+		t.Fatal(err)
+	}
+	if err := proto.Unmarshal(want, &wantSet); err != nil {
+		t.Fatal(err)
+	}
+	if !proto.Equal(&gotSet, &wantSet) {
+		t.Error("settings_annotated.binpb is stale; rebuild it with the command in settings_annotated.proto")
 	}
 }
 
