@@ -34,6 +34,16 @@ protoc -I testdata/annotations -I proto --include_imports \
 | `ok.pxf` | Only `name` is written; `retries`, `region` and `verbose` take their `(pxf.default)`. The pb bytes equal `ok.expected.hex`, which carries all four fields — a port that misses `1315` emits `name` alone. |
 | `missing-required.pxf` | `name` is absent and carries `(pxf.required) = true`. A port must reject the document (`dump-envelope` exits 1); a port that misses `1314` accepts it. |
 
+[`settings_annotated.proto`](settings_annotated.proto) is the same schema in
+the annotation form: `@required` and `@default(v)` lower only to the `1327`
+carrier, so it needs a v1.2 compiler, and
+[`settings_annotated.binpb`](settings_annotated.binpb) is that compiler's
+image. `ok.pxf` and `missing-required.pxf` get the same verdicts against it.
+The gate does not run it yet. It covers `protoc-gen-pxf-java-meta`, whose
+tables must not depend on the spelling: the plugin's test compares the two
+schemas' tables, and protowire-java's `lite-fixtures` runs both documents
+through the generated code.
+
 `ok.expected.hex` was produced by the reference implementation
 (protowire-go) and checked by decoding it back with
 `protoc --decode=settings.v1.Settings`.
