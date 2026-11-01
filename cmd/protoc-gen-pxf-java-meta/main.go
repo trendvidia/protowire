@@ -39,9 +39,17 @@
 // Annotation-derived tables (lifted from .proto field/message options at
 // codegen time):
 //
-//   - REQUIRED_FIELDS      — Set<Integer> of fields with (pxf.required).
-//   - DEFAULTS             — Map<Integer, String> of (pxf.default) literals
-//     (PXF text literals; the runtime parses them).
+//   - REQUIRED_FIELDS      — Set<Integer> of fields with (pxf.required) or
+//     @required.
+//   - DEFAULTS             — Map<Integer, String> of (pxf.default) or @default
+//     literals (PXF text literals; the runtime parses
+//     them). protowire-go reads both spellings, so an
+//     @default argument reduces to the literal the
+//     bracket form would carry.
+//   - NULLABLE_FIELDS      — Set<Integer> of the singular fields that may hold
+//     null: explicit presence, and not proto2 required.
+//     protobuf's own HasPresence decides, so an editions
+//     field_presence feature counts.
 //   - KEY_FIELDS           — Map<Integer, String> of field number → key field
 //     name, from (pxf.key). A misplaced (pxf.key) fails
 //     generation, so every entry names a singular
@@ -64,7 +72,9 @@
 //     decoder uses this to emit canonical bare
 //     literals (e.g. an RFC3339 timestamp string)
 //     instead of recursing into the WKT submessage
-//     as a generic block.
+//     as a generic block. pxf.Secret is the one kind
+//     that also keeps its NESTED_METAS entry, because a
+//     Secret with metadata stays a block.
 //
 // Per-file SBE companion: when a .proto declares (sbe.schema_id) or
 // (sbe.version) at file scope, an additional <Pascal>SbeFileMeta.java is
@@ -114,9 +124,13 @@ import (
 
 	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protodesc"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/pluginpb"
 
+	"github.com/trendvidia/protowire-go/encoding/pxf"
 	"github.com/trendvidia/protowire/internal/pxfschema"
 )
 
@@ -153,8 +167,6 @@ func parseParameters(raw string) pluginOptions {
 // proto/sbe/annotations.proto. Wire-format-stable per the project's
 // "load-bearing — do not change" comment in those files.
 const (
-	extPxfRequired    int32 = 1314 // bool   on FieldOptions
-	extPxfDefault     int32 = 1315 // string on FieldOptions
 	extPxfKey         int32 = 1316 // string on FieldOptions
 	extSbeSchemaID    int32 = 1319 // uint32 on FileOptions
 	extSbeVersion     int32 = 1320 // uint32 on FileOptions
@@ -181,8 +193,26 @@ func run(in io.Reader, out io.Writer) error {
 	}
 
 	resp := &pluginpb.CodeGeneratorResponse{}
-	resp.SupportedFeatures = proto.Uint64(uint64(pluginpb.CodeGeneratorResponse_FEATURE_PROTO3_OPTIONAL))
+	resp.SupportedFeatures = proto.Uint64(uint64(pluginpb.CodeGeneratorResponse_FEATURE_PROTO3_OPTIONAL |
+		pluginpb.CodeGeneratorResponse_FEATURE_SUPPORTS_EDITIONS))
+	resp.MinimumEdition = proto.Int32(int32(descriptorpb.Edition_EDITION_2023))
+	resp.MaximumEdition = proto.Int32(int32(descriptorpb.Edition_EDITION_2023))
 
+	if err := generateAll(req, resp); err != nil {
+		resp.Error = proto.String(err.Error())
+	}
+
+	outBytes, err := proto.Marshal(resp)
+	if err != nil {
+		return fmt.Errorf("marshal CodeGeneratorResponse: %w", err)
+	}
+	if _, err := out.Write(outBytes); err != nil {
+		return fmt.Errorf("write CodeGeneratorResponse: %w", err)
+	}
+	return nil
+}
+
+func generateAll(req *pluginpb.CodeGeneratorRequest, resp *pluginpb.CodeGeneratorResponse) error {
 	opts := parseParameters(req.GetParameter())
 
 	// Index every file in the request so cross-file references (e.g. a field
@@ -198,31 +228,53 @@ func run(in io.Reader, out io.Writer) error {
 		generate[name] = true
 	}
 
+	// The schema checks speak about the source, so they run before the files
+	// are resolved: a schema they refuse need not resolve.
+	for _, file := range req.ProtoFile {
+		if generate[file.GetName()] {
+			if err := checkFile(file, byName); err != nil {
+				return err
+			}
+		}
+	}
+
+	files, err := resolveFiles(req.ProtoFile)
+	if err != nil {
+		return err
+	}
 	for _, file := range req.ProtoFile {
 		if !generate[file.GetName()] {
 			continue
 		}
-		if err := generateFile(file, byName, opts, resp); err != nil {
-			resp.Error = proto.String(err.Error())
-			break
+		if err := generateFile(file, byName, files, opts, resp); err != nil {
+			return err
 		}
-	}
-
-	outBytes, err := proto.Marshal(resp)
-	if err != nil {
-		return fmt.Errorf("marshal CodeGeneratorResponse: %w", err)
-	}
-	if _, err := out.Write(outBytes); err != nil {
-		return fmt.Errorf("write CodeGeneratorResponse: %w", err)
 	}
 	return nil
 }
 
-func generateFile(
+// resolveFiles links the request's files, which list imports before their
+// importers. Presence, packing and the annotations are read from the linked
+// descriptors: they answer through protobuf's own feature resolution and
+// protowire-go's reader, which is what the reference decoder consults, so this
+// plugin cannot disagree with it about an editions file or an @default.
+func resolveFiles(protos []*descriptorpb.FileDescriptorProto) (*protoregistry.Files, error) {
+	files := new(protoregistry.Files)
+	for _, p := range protos {
+		fd, err := protodesc.FileOptions{AllowUnresolvable: true}.New(p, files)
+		if err != nil {
+			return nil, fmt.Errorf("resolve %s: %w", p.GetName(), err)
+		}
+		if err := files.RegisterFile(fd); err != nil {
+			return nil, fmt.Errorf("register %s: %w", p.GetName(), err)
+		}
+	}
+	return files, nil
+}
+
+func checkFile(
 	file *descriptorpb.FileDescriptorProto,
 	byName map[string]*descriptorpb.FileDescriptorProto,
-	opts pluginOptions,
-	resp *pluginpb.CodeGeneratorResponse,
 ) error {
 	// Reject schemas that declare names colliding with PXF value keywords
 	// (draft-trendvidia-protowire-00 §3.13). These elements would be
@@ -237,6 +289,77 @@ func generateFile(
 	if vs := keyViolations(file, byName); len(vs) > 0 {
 		return errors.New(strings.Join(vs, "\n"))
 	}
+	return nil
+}
+
+// checkResolved refuses what only the linked descriptor can show. An @default
+// that reduces to no literal has no entry in DEFAULTS, so letting it through
+// would be silent non-enforcement. A delimited field keeps TYPE_MESSAGE in its
+// source descriptor while its bytes are a group, which the lite tier does not
+// read.
+func checkResolved(fd protoreflect.FileDescriptor, messages []*flatMsg, files *protoregistry.Files) error {
+	var problems []string
+	for _, v := range pxf.ValidateFile(fd) {
+		if v.Kind == pxf.ViolationDefaultOption && v.File == fd.Path() {
+			problems = append(problems, v.String())
+		}
+	}
+	for _, msg := range messages {
+		md := messageOf(fd, msg, files)
+		for _, f := range msg.desc.Field {
+			if f.GetType() == descriptorpb.FieldDescriptorProto_TYPE_MESSAGE &&
+				fieldOf(md, f).Kind() == protoreflect.GroupKind {
+				problems = append(problems, fmt.Sprintf("%s: field %q: features.message_encoding = DELIMITED is not supported",
+					fd.Path(), fieldOf(md, f).FullName()))
+			}
+		}
+	}
+	if len(problems) > 0 {
+		return errors.New(strings.Join(problems, "\n"))
+	}
+	return nil
+}
+
+// messageOf finds msg's linked descriptor. allMessages and the linked file come
+// from the same source, so a miss is a bug in this plugin.
+func messageOf(fd protoreflect.FileDescriptor, msg *flatMsg, files *protoregistry.Files) protoreflect.MessageDescriptor {
+	name := protoreflect.FullName(msg.fullName)
+	if pkg := fd.Package(); pkg != "" {
+		name = protoreflect.FullName(string(pkg) + "." + msg.fullName)
+	}
+	d, err := files.FindDescriptorByName(name)
+	if err != nil {
+		panic(fmt.Sprintf("linked file %s has no message %s: %v", fd.Path(), name, err))
+	}
+	return d.(protoreflect.MessageDescriptor)
+}
+
+func fieldOf(md protoreflect.MessageDescriptor, f *descriptorpb.FieldDescriptorProto) protoreflect.FieldDescriptor {
+	return md.Fields().ByNumber(protoreflect.FieldNumber(f.GetNumber()))
+}
+
+// nullable mirrors protowire-go's rule of the same name (draft -01 § Booleans,
+// Null, and Identifier Values): a singular field with explicit presence, unless
+// it is required, since unset would make the message invalid in binary.
+func nullable(fd protoreflect.FieldDescriptor) bool {
+	return fd.HasPresence() && !fd.IsList() && !fd.IsMap() && fd.Cardinality() != protoreflect.Required
+}
+
+func generateFile(
+	file *descriptorpb.FileDescriptorProto,
+	byName map[string]*descriptorpb.FileDescriptorProto,
+	files *protoregistry.Files,
+	opts pluginOptions,
+	resp *pluginpb.CodeGeneratorResponse,
+) error {
+	fd, err := files.FindFileByPath(file.GetName())
+	if err != nil {
+		return err
+	}
+	messages := allMessages(file.MessageType, nil)
+	if err := checkResolved(fd, messages, files); err != nil {
+		return err
+	}
 
 	javaPkg := file.GetOptions().GetJavaPackage()
 	if javaPkg == "" {
@@ -244,9 +367,9 @@ func generateFile(
 	}
 	pkgDir := strings.ReplaceAll(javaPkg, ".", "/")
 
-	for _, msg := range allMessages(file.MessageType, nil) {
+	for _, msg := range messages {
 		filename := fmt.Sprintf("%s/%sPxfMeta.java", pkgDir, msg.classStem)
-		content := emitMeta(file, byName, msg)
+		content := emitMeta(file, byName, msg, messageOf(fd, msg, files))
 		resp.File = append(resp.File, &pluginpb.CodeGeneratorResponse_File{
 			Name:    proto.String(filename),
 			Content: proto.String(content),
@@ -600,27 +723,6 @@ func wireTypeFor(t descriptorpb.FieldDescriptorProto_Type) int {
 	}
 }
 
-// isPacked reflects whether a repeated field uses packed encoding.
-// Defaults: proto3 packs repeated scalars unless [packed=false]; proto2 does
-// not pack unless [packed=true]. String, bytes, and message-typed fields are
-// never packed.
-func isPacked(field *descriptorpb.FieldDescriptorProto, syntax string) bool {
-	if field.GetLabel() != descriptorpb.FieldDescriptorProto_LABEL_REPEATED {
-		return false
-	}
-	switch field.GetType() {
-	case descriptorpb.FieldDescriptorProto_TYPE_STRING,
-		descriptorpb.FieldDescriptorProto_TYPE_BYTES,
-		descriptorpb.FieldDescriptorProto_TYPE_MESSAGE,
-		descriptorpb.FieldDescriptorProto_TYPE_GROUP:
-		return false
-	}
-	if field.Options != nil && field.Options.Packed != nil {
-		return *field.Options.Packed
-	}
-	return syntax == "proto3"
-}
-
 // --- Extension scanning -----------------------------------------------------
 //
 // Custom options like (pxf.required) and (sbe.template_id) reach this plugin
@@ -655,18 +757,6 @@ func scanExt(opts proto.Message, fieldNumber int32) ([]byte, protowire.Type, boo
 		b = b[tagLen+valLen:]
 	}
 	return nil, 0, false
-}
-
-func extBool(opts proto.Message, fieldNumber int32) bool {
-	val, typ, ok := scanExt(opts, fieldNumber)
-	if !ok || typ != protowire.VarintType {
-		return false
-	}
-	v, n := protowire.ConsumeVarint(val)
-	if n < 0 {
-		return false
-	}
-	return v != 0
 }
 
 func extString(opts proto.Message, fieldNumber int32) (string, bool) {
@@ -708,13 +798,10 @@ func emitMeta(
 	file *descriptorpb.FileDescriptorProto,
 	byName map[string]*descriptorpb.FileDescriptorProto,
 	msg *flatMsg,
+	md protoreflect.MessageDescriptor,
 ) string {
 	cls := msg.classStem + "PxfMeta"
 	javaPkg := file.GetOptions().GetJavaPackage()
-	syntax := file.GetSyntax()
-	if syntax == "" {
-		syntax = "proto2"
-	}
 
 	var b strings.Builder
 	p := lineWriter(&b)
@@ -757,16 +844,20 @@ func emitMeta(
 	})
 	p()
 	emitFieldSet(p, "PACKED_FIELDS", msg.desc.Field, func(f *descriptorpb.FieldDescriptorProto) bool {
-		return isPacked(f, syntax)
+		return fieldOf(md, f).IsPacked()
 	})
 	p()
 	emitTypeNames(p, "MESSAGE_TYPES", msg.desc.Field, byName, descriptorpb.FieldDescriptorProto_TYPE_MESSAGE)
 	p()
 	emitTypeNames(p, "ENUM_TYPES", msg.desc.Field, byName, descriptorpb.FieldDescriptorProto_TYPE_ENUM)
 	p()
-	emitRequiredFields(p, msg.desc.Field)
+	emitRequiredFields(p, msg.desc.Field, md)
 	p()
-	emitDefaults(p, msg.desc.Field)
+	emitDefaults(p, msg.desc.Field, md)
+	p()
+	emitFieldSet(p, "NULLABLE_FIELDS", msg.desc.Field, func(f *descriptorpb.FieldDescriptorProto) bool {
+		return nullable(fieldOf(md, f))
+	})
 	p()
 	emitKeyFields(p, msg.desc.Field)
 	p()
@@ -846,8 +937,11 @@ func emitNestedMetas(
 		// (TimestampPxfMeta etc.) aren't part of the canonical codegen surface
 		// — the .proto files are imports, never in FileToGenerate, so emitting
 		// references to them yields a dangling pointer at javac time.
+		//
+		// pxf.Secret stays: its block form goes through the nested path, and
+		// the companion is the one a Secret field has always referenced.
 		fqn := strings.TrimPrefix(f.GetTypeName(), ".")
-		if _, isWkt := wellKnownKindByProtoFQN[fqn]; isWkt {
+		if _, isWkt := wellKnownKindByProtoFQN[fqn]; isWkt && fqn != "pxf.Secret" {
 			continue
 		}
 		entries = append(entries, entry{
@@ -932,6 +1026,12 @@ func qualifiedProtoName(file *descriptorpb.FileDescriptorProto, msg *flatMsg) st
 // keyed fields therefore still compiles against a runtime older than the
 // method, and one with them fails to compile there rather than silently
 // binding keyed fields as plain ones.
+//
+// nullableFields() has no @Override, so every companion still compiles against
+// a runtime older than the method. There it goes unused and null stays
+// unchecked, as it was. Unlike keyFields(), nearly every message has a field
+// outside the set, so overriding only when needed would not spare any consumer
+// the runtime bump.
 func emitAccessors(p func(args ...any), fullName string, hasKeyFields bool) {
 	p("    @Override public Map<String, Integer>  fieldNumbers()      { return FIELD_NUMBERS; }")
 	p("    @Override public Map<Integer, Integer> fieldKinds()        { return FIELD_KINDS; }")
@@ -945,6 +1045,7 @@ func emitAccessors(p func(args ...any), fullName string, hasKeyFields bool) {
 	if hasKeyFields {
 		p("    @Override public Map<Integer, String>  keyFields()         { return KEY_FIELDS; }")
 	}
+	p("    public Set<Integer>                    nullableFields()    { return NULLABLE_FIELDS; }")
 	p("    @Override public int                   sbeTemplateId()     { return SBE_TEMPLATE_ID; }")
 	p("    @Override public Map<Integer, Integer> sbeFieldLengths()   { return SBE_FIELD_LENGTHS; }")
 	p("    @Override public Map<Integer, String>  sbeFieldEncodings() { return SBE_FIELD_ENCODINGS; }")
@@ -981,6 +1082,7 @@ var wellKnownKindByProtoFQN = map[string]struct {
 	"pxf.BigInt":                  {12, "WKT_BIG_INT"},
 	"pxf.Decimal":                 {13, "WKT_DECIMAL"},
 	"pxf.BigFloat":                {14, "WKT_BIG_FLOAT"},
+	"pxf.Secret":                  {15, "WKT_SECRET"},
 }
 
 // emitWellKnownKinds emits WELL_KNOWN_KINDS — a Map<Integer, Integer> from
@@ -1024,15 +1126,19 @@ func emitWellKnownKinds(p func(args ...any), fields []*descriptorpb.FieldDescrip
 }
 
 // emitRequiredFields walks fields and emits a Set<Integer> of field numbers
-// where (pxf.required) = true.
-func emitRequiredFields(p func(args ...any), fields []*descriptorpb.FieldDescriptorProto) {
+// marked required, in either spelling.
+func emitRequiredFields(
+	p func(args ...any),
+	fields []*descriptorpb.FieldDescriptorProto,
+	md protoreflect.MessageDescriptor,
+) {
 	var nums []int32
 	for _, f := range fields {
-		if extBool(f.GetOptions(), extPxfRequired) {
+		if pxf.IsRequired(fieldOf(md, f)) {
 			nums = append(nums, f.GetNumber())
 		}
 	}
-	p("    /** Field numbers marked {@code [(pxf.required) = true]}. */")
+	p("    /** Field numbers marked {@code [(pxf.required) = true]} or {@code @required}. */")
 	if len(nums) == 0 {
 		p("    public static final Set<Integer> REQUIRED_FIELDS = Set.of();")
 		return
@@ -1048,19 +1154,23 @@ func emitRequiredFields(p func(args ...any), fields []*descriptorpb.FieldDescrip
 // to PXF default literal (the option value is a PXF text literal, not a
 // parsed scalar — the runtime is responsible for parsing it through the same
 // PXF lexer used for user input).
-func emitDefaults(p func(args ...any), fields []*descriptorpb.FieldDescriptorProto) {
+func emitDefaults(
+	p func(args ...any),
+	fields []*descriptorpb.FieldDescriptorProto,
+	md protoreflect.MessageDescriptor,
+) {
 	type kv struct {
 		num int32
 		val string
 	}
 	var entries []kv
 	for _, f := range fields {
-		if v, ok := extString(f.GetOptions(), extPxfDefault); ok && v != "" {
+		if v, ok := pxf.Default(fieldOf(md, f)); ok {
 			entries = append(entries, kv{num: f.GetNumber(), val: v})
 		}
 	}
 	p("    /**")
-	p("     * Field number → {@code (pxf.default)} literal. Values are PXF text")
+	p("     * Field number → {@code (pxf.default)} or {@code @default} literal. Values are PXF text")
 	p("     * literals (e.g. {@code \"42\"}, {@code \"true\"}, {@code \"\\\"hi\\\"\"}); the")
 	p("     * runtime feeds them through the PXF lexer to resolve to typed values.")
 	p("     */")

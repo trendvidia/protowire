@@ -13,6 +13,7 @@ loosely; the project follows [SemVer](https://semver.org/) per
 ### Added
 
 - **`protoc-gen-pxf-java-meta` emits `(pxf.key)`** (#323). Each `PxfMeta` companion gains `KEY_FIELDS`, field number → key field name, and a message with a keyed field overrides `keyFields()`, which needs a protowire-java runtime that declares it. A misplaced `(pxf.key)` in a generated file now fails generation, naming the file and field. The rest of the bind-time checks at codegen time stay with #322.
+- **`protoc-gen-pxf-java-meta` gives the Java lite tier what it lacked for three rules** (#477, #478, #482). `NULLABLE_FIELDS` lists the singular fields that may hold `null`, so a plain scalar and a proto2 `required` field can be told from an `optional` one. `REQUIRED_FIELDS` and `DEFAULTS` now read `@required` and `@default` as well as the bracket options, and an `@default` that reduces to no literal fails generation. `pxf.Secret` gets the well-known kind `WKT_SECRET`, which needs a protowire-java runtime that declares it; `nullableFields()` does not, since a companion compiles on an older runtime and null simply stays unchecked there. The plugin now declares editions support up to 2023, with presence and packing taken from each field's resolved features. A `DELIMITED` field fails generation. New fixture [`testdata/annotations/settings_annotated.proto`](testdata/annotations/settings_annotated.proto).
 
 ### Changed
 

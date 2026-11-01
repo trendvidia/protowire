@@ -5,6 +5,7 @@ package main
 
 import (
 	"bytes"
+	"os"
 	"strings"
 	"testing"
 
@@ -21,6 +22,7 @@ const (
 	int32Type     = descriptorpb.FieldDescriptorProto_TYPE_INT32
 	messageType   = descriptorpb.FieldDescriptorProto_TYPE_MESSAGE
 	groupType     = descriptorpb.FieldDescriptorProto_TYPE_GROUP
+	requiredLabel = descriptorpb.FieldDescriptorProto_LABEL_REQUIRED
 )
 
 func field(
@@ -218,5 +220,222 @@ func TestEveryMisplacedKeyIsReported(t *testing.T) {
 	}))
 	if n := strings.Count(resp.GetError(), "invalid (pxf.key)"); n != 2 {
 		t.Fatalf("reported %d violations, want 2: %q", n, resp.GetError())
+	}
+}
+
+// table returns the text of one generated constant, from its name to its ';'.
+func table(t *testing.T, meta, name string) string {
+	t.Helper()
+	_, rest, ok := strings.Cut(meta, " "+name+" = ")
+	if !ok {
+		t.Fatalf("no %s in:\n%s", name, meta)
+	}
+	rest, _, _ = strings.Cut(rest, ";")
+	return rest
+}
+
+func TestNullableFields(t *testing.T) {
+	optional := field("opt", 2, optionalLabel, int32Type, "")
+	optional.Proto3Optional = proto.Bool(true)
+	optional.OneofIndex = proto.Int32(1)
+	member := field("member", 3, optionalLabel, stringType, "")
+	member.OneofIndex = proto.Int32(0)
+	entry := &descriptorpb.DescriptorProto{
+		Name:    proto.String("MEntry"),
+		Options: &descriptorpb.MessageOptions{MapEntry: proto.Bool(true)},
+		Field: []*descriptorpb.FieldDescriptorProto{
+			field("key", 1, optionalLabel, stringType, ""),
+			field("value", 2, optionalLabel, int32Type, ""),
+		},
+	}
+	resp := generate(t, protoFile("p3.proto", nil,
+		&descriptorpb.DescriptorProto{Name: proto.String("Inner")},
+		&descriptorpb.DescriptorProto{
+			Name: proto.String("Holder"),
+			Field: []*descriptorpb.FieldDescriptorProto{
+				field("plain", 1, optionalLabel, int32Type, ""),
+				optional,
+				member,
+				field("msg", 4, optionalLabel, messageType, ".keyed.v1.Inner"),
+				field("list", 5, repeatedLabel, int32Type, ""),
+				field("m", 6, repeatedLabel, messageType, ".keyed.v1.Holder.MEntry"),
+			},
+			OneofDecl:  []*descriptorpb.OneofDescriptorProto{{Name: proto.String("k")}, {Name: proto.String("_opt")}},
+			NestedType: []*descriptorpb.DescriptorProto{entry},
+		}))
+	if got, want := table(t, generated(t, resp, "HolderPxfMeta.java"), "NULLABLE_FIELDS"), "Set.of(2, 3, 4)"; got != want {
+		t.Errorf("proto3: NULLABLE_FIELDS = %s, want %s", got, want)
+	}
+
+	proto2 := protoFile("p2.proto", nil, &descriptorpb.DescriptorProto{
+		Name: proto.String("Legacy"),
+		Field: []*descriptorpb.FieldDescriptorProto{
+			field("opt", 1, optionalLabel, int32Type, ""),
+			field("req", 2, requiredLabel, int32Type, ""),
+		},
+	})
+	proto2.Syntax = proto.String("proto2")
+	if got, want := table(t, generated(t, generate(t, proto2), "LegacyPxfMeta.java"), "NULLABLE_FIELDS"), "Set.of(1)"; got != want {
+		t.Errorf("proto2: NULLABLE_FIELDS = %s, want %s", got, want)
+	}
+}
+
+// editionsFile is a 2023 file, whose defaults are explicit presence and packed
+// repeated scalars.
+func editionsFile(msgs ...*descriptorpb.DescriptorProto) *descriptorpb.FileDescriptorProto {
+	f := protoFile("ed.proto", nil, msgs...)
+	f.Syntax = proto.String("editions")
+	f.Edition = descriptorpb.Edition_EDITION_2023.Enum()
+	return f
+}
+
+func TestEditionsFeaturesDecideTheTables(t *testing.T) {
+	implicit := field("implicit", 2, optionalLabel, int32Type, "")
+	implicit.Options = &descriptorpb.FieldOptions{Features: &descriptorpb.FeatureSet{
+		FieldPresence: descriptorpb.FeatureSet_IMPLICIT.Enum(),
+	}}
+	expanded := field("expanded", 4, repeatedLabel, int32Type, "")
+	expanded.Options = &descriptorpb.FieldOptions{Features: &descriptorpb.FeatureSet{
+		RepeatedFieldEncoding: descriptorpb.FeatureSet_EXPANDED.Enum(),
+	}}
+	legacyRequired := field("legacy", 5, optionalLabel, int32Type, "")
+	legacyRequired.Options = &descriptorpb.FieldOptions{Features: &descriptorpb.FeatureSet{
+		FieldPresence: descriptorpb.FeatureSet_LEGACY_REQUIRED.Enum(),
+	}}
+	meta := generated(t, generate(t, editionsFile(&descriptorpb.DescriptorProto{
+		Name: proto.String("Ed"),
+		Field: []*descriptorpb.FieldDescriptorProto{
+			field("explicit", 1, optionalLabel, int32Type, ""),
+			implicit,
+			field("packed", 3, repeatedLabel, int32Type, ""),
+			expanded,
+			legacyRequired,
+		},
+	})), "EdPxfMeta.java")
+	if got, want := table(t, meta, "NULLABLE_FIELDS"), "Set.of(1)"; got != want {
+		t.Errorf("NULLABLE_FIELDS = %s, want %s", got, want)
+	}
+	if got, want := table(t, meta, "PACKED_FIELDS"), "Set.of(3)"; got != want {
+		t.Errorf("PACKED_FIELDS = %s, want %s", got, want)
+	}
+}
+
+func TestPluginDeclaresEditions(t *testing.T) {
+	resp := generate(t, protoFile("plain.proto", nil, &descriptorpb.DescriptorProto{Name: proto.String("Plain")}))
+	if resp.GetSupportedFeatures()&uint64(pluginpb.CodeGeneratorResponse_FEATURE_SUPPORTS_EDITIONS) == 0 {
+		t.Error("protoc refuses an editions file unless the plugin declares the feature")
+	}
+	if got := descriptorpb.Edition(resp.GetMaximumEdition()); got != descriptorpb.Edition_EDITION_2023 {
+		t.Errorf("maximum edition = %v", got)
+	}
+}
+
+func TestDelimitedFieldFailsGeneration(t *testing.T) {
+	f := field("inner", 1, optionalLabel, messageType, ".keyed.v1.Inner")
+	f.Options = &descriptorpb.FieldOptions{Features: &descriptorpb.FeatureSet{
+		MessageEncoding: descriptorpb.FeatureSet_DELIMITED.Enum(),
+	}}
+	resp := generate(t, editionsFile(
+		&descriptorpb.DescriptorProto{Name: proto.String("Inner")},
+		&descriptorpb.DescriptorProto{Name: proto.String("Holder"), Field: []*descriptorpb.FieldDescriptorProto{f}},
+	))
+	if !strings.Contains(resp.GetError(), `"keyed.v1.Holder.inner"`) || !strings.Contains(resp.GetError(), "DELIMITED") {
+		t.Fatalf("error = %q", resp.GetError())
+	}
+}
+
+// fixtureFiles reads a testdata/annotations image and, for settings.binpb,
+// gives its last file the java_package this plugin requires.
+func fixtureFiles(t *testing.T, name string) []*descriptorpb.FileDescriptorProto {
+	t.Helper()
+	raw, err := os.ReadFile("../../testdata/annotations/" + name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var set descriptorpb.FileDescriptorSet
+	if err := proto.Unmarshal(raw, &set); err != nil {
+		t.Fatal(err)
+	}
+	last := set.File[len(set.File)-1]
+	if last.GetOptions().GetJavaPackage() == "" {
+		if last.Options == nil {
+			last.Options = &descriptorpb.FileOptions{}
+		}
+		last.Options.JavaPackage = proto.String("org.example.settings")
+	}
+	return set.File
+}
+
+// The annotation form must generate what the bracket form does: nothing tells
+// the runtime which spelling a schema used.
+func TestAnnotationFormFillsTheTables(t *testing.T) {
+	bracket := generated(t, generate(t, fixtureFiles(t, "settings.binpb")...), "SettingsPxfMeta.java")
+	annotated := generated(t, generate(t, fixtureFiles(t, "settings_annotated.binpb")...), "SettingsPxfMeta.java")
+	if got := table(t, annotated, "REQUIRED_FIELDS"); got != "Set.of(1)" {
+		t.Errorf("REQUIRED_FIELDS = %s", got)
+	}
+	if !strings.Contains(table(t, annotated, "DEFAULTS"), `Map.entry(3, "us-east-1")`) {
+		t.Errorf("DEFAULTS = %s", table(t, annotated, "DEFAULTS"))
+	}
+	for _, name := range []string{"REQUIRED_FIELDS", "DEFAULTS"} {
+		if got, want := table(t, annotated, name), table(t, bracket, name); got != want {
+			t.Errorf("%s differs between the spellings:\nannotated %s\nbracket   %s", name, got, want)
+		}
+	}
+}
+
+// carrierDefault is one AnnotationList holding @default with a message literal,
+// which no single PXF literal can denote.
+func carrierDefault() []byte {
+	var arg []byte
+	arg = protowire.AppendTag(arg, 15, protowire.BytesType) // AnnotationArg.literal
+	arg = protowire.AppendBytes(arg, nil)
+	var ann []byte
+	ann = protowire.AppendTag(ann, 1, protowire.BytesType)
+	ann = protowire.AppendString(ann, "protowire.schema.v1.default")
+	ann = protowire.AppendTag(ann, 2, protowire.BytesType)
+	ann = protowire.AppendBytes(ann, arg)
+	var list []byte
+	list = protowire.AppendTag(list, 1, protowire.BytesType)
+	list = protowire.AppendBytes(list, ann)
+	out := protowire.AppendTag(nil, 1327, protowire.BytesType)
+	return protowire.AppendBytes(out, list)
+}
+
+func TestUnreducibleDefaultFailsGeneration(t *testing.T) {
+	f := field("n", 1, optionalLabel, int32Type, "")
+	f.Options = &descriptorpb.FieldOptions{}
+	f.Options.ProtoReflect().SetUnknown(carrierDefault())
+	resp := generate(t, protoFile("bad.proto", nil, &descriptorpb.DescriptorProto{
+		Name:  proto.String("Holder"),
+		Field: []*descriptorpb.FieldDescriptorProto{f},
+	}))
+	if !strings.Contains(resp.GetError(), "@default") {
+		t.Fatalf("error = %q, want the @default named", resp.GetError())
+	}
+}
+
+func TestSecretKind(t *testing.T) {
+	secret := protoFile("pxf/secret.proto", nil, &descriptorpb.DescriptorProto{
+		Name:  proto.String("Secret"),
+		Field: []*descriptorpb.FieldDescriptorProto{field("value", 1, optionalLabel, stringType, "")},
+	})
+	secret.Package = proto.String("pxf")
+	secret.Options.JavaPackage = proto.String("org.example.pxf")
+	resp := generate(t, secret, protoFile("holder.proto", []string{"pxf/secret.proto"}, &descriptorpb.DescriptorProto{
+		Name: proto.String("Holder"),
+		Field: []*descriptorpb.FieldDescriptorProto{
+			field("pw", 1, optionalLabel, messageType, ".pxf.Secret"),
+			field("pws", 2, repeatedLabel, messageType, ".pxf.Secret"),
+		},
+	}))
+	meta := generated(t, resp, "HolderPxfMeta.java")
+	if got := table(t, meta, "WELL_KNOWN_KINDS"); !strings.Contains(got, "Map.entry(1, PxfMeta.WKT_SECRET)") ||
+		!strings.Contains(got, "Map.entry(2, PxfMeta.WKT_SECRET)") {
+		t.Errorf("WELL_KNOWN_KINDS = %s", got)
+	}
+	// A Secret with metadata is a block, which needs the nested table.
+	if got := table(t, meta, "NESTED_METAS"); !strings.Contains(got, "Map.entry(1, org.example.pxf.SecretPxfMeta.INSTANCE)") {
+		t.Errorf("NESTED_METAS = %s", got)
 	}
 }
