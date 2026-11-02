@@ -1041,7 +1041,7 @@ A protobuf schema bound for PXF use MUST NOT declare a message with one of these
 | pxf.Secret | string value |
 {: title="Well-Known Type Shapes"}
 
-A pxf.Secret MAY omit hint and fingerprint, and each that it declares MUST be a singular string. A message MAY declare further fields; the codec treats them as ordinary fields. Field numbers are not part of the shape, since PXF binds fields by name.
+A pxf.Secret MAY omit hint and fingerprint, and each that it declares MUST be a singular string. A message MAY declare further fields, and this section places no requirement on them. Field numbers are not part of the shape, since PXF binds fields by name.
 
 Conformance:
 
