@@ -859,6 +859,8 @@ A duration literal is a sequence of one or more segments, each consisting of a n
 
 google.protobuf.Duration is signed, and so is the literal: a negative duration is written with a single leading "-" before its first segment, applying to the whole literal ("-1h30m" is minus ninety minutes). Encoders MUST emit a negative Duration in that form and MUST NOT emit a sign per segment or a "+"; a decoder MUST bind "-1h30m" to seconds = -5400 and, when a fractional segment yields nanoseconds, to seconds and nanos of the same sign, as google.protobuf.Duration requires. "-0s" denotes zero. Whether a leading "+" is admitted is not settled by this revision; it is not part of the grammar, no encoder writes it, and decoders that accept it are lenient rather than conformant.
 
+A duration literal holds a signed 64-bit count of nanoseconds, about 292 years, while google.protobuf.Duration reaches about 10,000 years. An encoder MUST write a value that does not fit that count as a block ({{wkt-shapes}}) holding its exact seconds and nanos. It MUST NOT write a longer, wrapped or truncated literal.
+
 The defined units are "ns", "us", "µs", "ms", "s", "m", and "h", denoting nanoseconds, microseconds (twice; "us" and "µs" are semantic equivalents), milliseconds, seconds, minutes, and hours respectively. Day, week, month, and year units are NOT defined and MUST NOT be inferred.
 
 ## Lists
