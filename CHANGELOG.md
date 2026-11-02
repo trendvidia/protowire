@@ -10,6 +10,10 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+## [1.16.0] — 2026-11-02
+
+The Java lite tier gets what its plugin lacked: keyed fields, the null rule, the annotation carrier and `pxf.Secret`. A keyed entry's body can no longer undo its name, a redefined well-known type must keep its shape, and a Duration too long for a literal is written as a block. No wire-format change. STABILITY.md § v1.16 lists what each change means for ports.
+
 ### Added
 
 - **`protoc-gen-pxf-java-meta` emits `(pxf.key)`** (#323). Each `PxfMeta` companion gains `KEY_FIELDS`, field number → key field name, and a message with a keyed field overrides `keyFields()`, which needs a protowire-java runtime that declares it. A misplaced `(pxf.key)` in a generated file now fails generation, naming the file and field. The rest of the bind-time checks at codegen time stay with #322.
