@@ -1015,6 +1015,42 @@ Conformance:
 
 * Schemas that violate this constraint were never round-trippable through PXF. Rejecting them on upgrade surfaces a pre-existing latent bug rather than introducing one; this document therefore defines no migration accommodation.
 
+### Well-Known Type Shapes {#wkt-shapes}
+
+A PXF codec recognizes the well-known types below by their fully-qualified names, and reads and writes their fields directly to give them their literal forms and other special handling. A schema may declare a message with one of these names itself: the canonical schemas are copied into many repositories. Such a declaration has to have the shape the codec relies on.
+
+A protobuf schema bound for PXF use MUST NOT declare a message with one of these names unless it declares each listed field with that name and type, singular unless the table says repeated. Protocol Buffers presence ("optional") does not change a field's shape.
+
+| Message | Fields |
+| --- | --- |
+| google.protobuf.Timestamp, google.protobuf.Duration | int64 seconds, int32 nanos |
+| google.protobuf.BoolValue | bool value |
+| google.protobuf.BytesValue | bytes value |
+| google.protobuf.DoubleValue | double value |
+| google.protobuf.FloatValue | float value |
+| google.protobuf.Int32Value | int32 value |
+| google.protobuf.Int64Value | int64 value |
+| google.protobuf.StringValue | string value |
+| google.protobuf.UInt32Value | uint32 value |
+| google.protobuf.UInt64Value | uint64 value |
+| google.protobuf.Any | string type_url, bytes value |
+| google.protobuf.FieldMask | repeated string paths |
+| pxf.BigInt | bytes abs, bool negative |
+| pxf.Decimal | bytes unscaled, int32 scale, bool negative |
+| pxf.BigFloat | bytes mantissa, int32 exponent, uint32 prec, bool negative |
+| pxf.Secret | string value |
+{: title="Well-Known Type Shapes"}
+
+A pxf.Secret MAY omit hint and fingerprint, and each that it declares MUST be a singular string. A message MAY declare further fields; the codec treats them as ordinary fields. Field numbers are not part of the shape, since PXF binds fields by name.
+
+Conformance:
+
+* A tool that binds a protobuf descriptor for PXF use MUST reject a schema that violates this constraint at bind time, as for {{schema-constraints}}, and SHOULD report the message by its fully-qualified name.
+
+* An implementation MAY offer a way to bind without these checks, and an encoder need not run them. A message with one of these names that does not have the shape is then an ordinary message: the implementation MUST NOT give it a literal form or other well-known-type handling, and MUST report any failure as an ordinary decode or encode error.
+
+* A schema that violates this constraint could not be used reliably before this rule, because a codec would fail on the first value of that type. Rejecting it surfaces a pre-existing latent bug; this document therefore defines no migration accommodation.
+
 ## Scope of Bind-Time Checks {#bind-check-scope}
 
 The constraints above, and every other check this document requires at bind time — the pxf.key placement rules of {{keyed-schema-placement}}, the pxf.default placement rules of {{default-schema-placement}}, and the oneof rules of {{oneof-annotation-placement}} — are stated against "a schema". A protobuf descriptor spans more than one file, so this section fixes what that means.
