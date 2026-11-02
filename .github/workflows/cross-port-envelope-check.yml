@@ -7,8 +7,8 @@ name: Cross-port envelope check
 # `pb` output for the same canonical Envelope. ROADMAP.md M1 step 1.
 #
 # Scope is the four ports scripts/cross_envelope_check.sh marks `required`
-# — Go, C++, TypeScript, Java. The optional ports (Rust, Swift, Dart, C#,
-# Java/Android-lite) are opted out here and still run locally; Swift and
+# — Go, C++, TypeScript, Java — plus Dart. The other optional ports (Rust,
+# Swift, C#, Java/Android-lite) are opted out here and still run locally; Swift and
 # the Android modules in particular need a toolchain that is not a cheap
 # add on ubuntu-latest. STABILITY.md says which ports this gate covers, so
 # the promise is not overstated again.
@@ -86,6 +86,20 @@ jobs:
           repository: trendvidia/protowire-java
           path: protowire-java
 
+      - name: Checkout protowire-dart
+        uses: actions/checkout@v7
+        with:
+          repository: trendvidia/protowire-dart
+          path: protowire-dart
+
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - name: Install protowire-dart dependencies
+        run: dart pub get
+        working-directory: protowire-dart
+
       - uses: actions/setup-go@v7
         with:
           go-version-file: protowire-go/go.mod
@@ -110,7 +124,6 @@ jobs:
         env:
           WITH_RUST: '0'
           WITH_SWIFT: '0'
-          WITH_DART: '0'
           WITH_CSHARP: '0'
           WITH_JAVA_LITE: '0'
           WITH_JAVA_PXF_LITE: '0'
