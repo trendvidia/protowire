@@ -1041,6 +1041,8 @@ A protobuf schema bound for PXF use MUST NOT declare a message with one of these
 | pxf.Secret | string value |
 {: title="Well-Known Type Shapes"}
 
+A value of google.protobuf.Timestamp, google.protobuf.Duration, a google.protobuf wrapper type, pxf.BigInt, pxf.Decimal, or pxf.BigFloat is written either as its literal or as a block naming its fields. A singular field, each element of a list, and each value of a map may take either form, and the two forms denote the same value.
+
 A pxf.Secret MAY omit hint and fingerprint, and each that it declares MUST be a singular string. A message MAY declare further fields, and this section places no requirement on them. Field numbers are not part of the shape, since PXF binds fields by name.
 
 Conformance:

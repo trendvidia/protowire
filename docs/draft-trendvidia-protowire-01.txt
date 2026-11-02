@@ -2115,12 +2115,12 @@ Internet-Draft                  protowire                   October 2026
 
                       Table 1: Well-Known Type Shapes
 
-   A pxf.Secret MAY omit hint and fingerprint, and each that it declares
-   MUST be a singular string.  A message MAY declare further fields, and
-   this section places no requirement on them.  Field numbers are not
-   part of the shape, since PXF binds fields by name.
-
-   Conformance:
+   A value of google.protobuf.Timestamp, google.protobuf.Duration, a
+   google.protobuf wrapper type, pxf.BigInt, pxf.Decimal, or
+   pxf.BigFloat is written either as its literal or as a block naming
+   its fields.  A singular field, each element of a list, and each value
+   of a map may take either form, and the two forms denote the same
+   value.
 
 
 
@@ -2129,6 +2129,13 @@ Franco Jr.                 Expires 1 May 2027                  [Page 38]
 
 Internet-Draft                  protowire                   October 2026
 
+
+   A pxf.Secret MAY omit hint and fingerprint, and each that it declares
+   MUST be a singular string.  A message MAY declare further fields, and
+   this section places no requirement on them.  Field numbers are not
+   part of the shape, since PXF binds fields by name.
+
+   Conformance:
 
    *  A tool that binds a protobuf descriptor for PXF use MUST reject a
       schema that violates this constraint at bind time, as for
@@ -2171,13 +2178,6 @@ Internet-Draft                  protowire                   October 2026
    whose types are declared in imported files, and a misplaced
    annotation on such a type is as unhonorable there as it is in the
    bound file, but no document need ever make the diagnostic appear: the
-   annotated field is only consulted when its containing message is
-   present.  The result is precisely the outcome Section 6.1.1 forbids
-   in its first conformance bullet, reached by a different route.
-
-   A third reading was considered and rejected: covering only the
-   message types a decoder can reach from the bound descriptor by
-   following message-typed fields.  It cannot be evaluated at bind time.
 
 
 
@@ -2186,6 +2186,13 @@ Franco Jr.                 Expires 1 May 2027                  [Page 39]
 Internet-Draft                  protowire                   October 2026
 
 
+   annotated field is only consulted when its containing message is
+   present.  The result is precisely the outcome Section 6.1.1 forbids
+   in its first conformance bullet, reached by a different route.
+
+   A third reading was considered and rejected: covering only the
+   message types a decoder can reach from the bound descriptor by
+   following message-typed fields.  It cannot be evaluated at bind time.
    A field of type google.protobuf.Any names its payload type in the
    document, and the binding tool resolves it through a type resolver at
    decode time, so the reachable set is not a function of the
@@ -2228,19 +2235,18 @@ Internet-Draft                  protowire                   October 2026
    is a body of that type, and the Any's value field holds the body's
    Protocol Buffers binary encoding.
 
-   payload {
-     @type = "type.googleapis.com/acme.v1.ErrorDetail"
-     code = 42
-     reason = "not found"
-   }
-
-
 
 
 Franco Jr.                 Expires 1 May 2027                  [Page 40]
 
 Internet-Draft                  protowire                   October 2026
 
+
+   payload {
+     @type = "type.googleapis.com/acme.v1.ErrorDetail"
+     code = 42
+     reason = "not found"
+   }
 
    A block bound to google.protobuf.Any without a type entry is a body
    of google.protobuf.Any itself, whose entries are type_url and value:
@@ -2285,18 +2291,17 @@ payload = { type_url = "type.googleapis.com/acme.v1.ErrorDetail" value = b"CCo="
       MessageOptions, and FileOptions messages.  Their field numbers are
       reserved (Section 11.2).
 
-   *  Decoders MUST enforce the limits in Section 9.1 on PB inputs.  In
-      particular, the depth limit applies to nested submessages, groups,
-      and map entries; the length-prefix limit MUST be enforced before
-      allocation.
-
-
 
 
 Franco Jr.                 Expires 1 May 2027                  [Page 41]
 
 Internet-Draft                  protowire                   October 2026
 
+
+   *  Decoders MUST enforce the limits in Section 9.1 on PB inputs.  In
+      particular, the depth limit applies to nested submessages, groups,
+      and map entries; the length-prefix limit MUST be enforced before
+      allocation.
 
    *  A protowire emitter SHOULD produce fields in field-number order;
       decoders MUST accept any field order, per the existing PB rules.
@@ -2342,17 +2347,16 @@ Internet-Draft                  protowire                   October 2026
    3.  pos + GROUP_HEADER_SIZE + count * wire_block_length <=
        data.length
 
-   4.  If count > 0, then wire_block_length > 0.  A wire_block_length of
-       0 with a non-zero count MUST be rejected before any per-element
-       allocation.
-
-
 
 
 Franco Jr.                 Expires 1 May 2027                  [Page 42]
 
 Internet-Draft                  protowire                   October 2026
 
+
+   4.  If count > 0, then wire_block_length > 0.  A wire_block_length of
+       0 with a non-zero count MUST be rejected before any per-element
+       allocation.
 
 5.3.  Variable-Length Data
 
@@ -2398,10 +2402,6 @@ Internet-Draft                  protowire                   October 2026
    is checked against its own message type, and a field bound to "null"
    has no body to check.
 
-   Both rules depend on knowing which fields a document wrote, so they
-   bind a decoder's presence-tracking decode, the entry point that
-   reports field presence to its caller.  An implementation MAY also
-   offer a decode that tracks no presence, and that decode does not
 
 
 
@@ -2410,6 +2410,10 @@ Franco Jr.                 Expires 1 May 2027                  [Page 43]
 Internet-Draft                  protowire                   October 2026
 
 
+   Both rules depend on knowing which fields a document wrote, so they
+   bind a decoder's presence-tracking decode, the entry point that
+   reports field presence to its caller.  An implementation MAY also
+   offer a decode that tracks no presence, and that decode does not
    apply these rules: it accepts a document with an absent pxf.required
    field and leaves an absent pxf.default field unset.  An
    implementation MAY let a caller turn the rules off on a presence-
@@ -2454,10 +2458,6 @@ Internet-Draft                  protowire                   October 2026
    *  Writing.  A producer of PXF text writes N significant decimal
       digits, where N is the number of decimal digits of 2^prec plus
       one, rounded to nearest with ties to even, followed by "p" and
-      prec.  It writes the digits as C's "%g" conversion does with
-      precision N: trailing zeros removed, in exponent form
-      ("1.79769313486231590773e+308p64", at least two exponent digits)
-      when the decimal exponent is below -4 or at least N, and
 
 
 
@@ -2466,6 +2466,10 @@ Franco Jr.                 Expires 1 May 2027                  [Page 44]
 Internet-Draft                  protowire                   October 2026
 
 
+      prec.  It writes the digits as C's "%g" conversion does with
+      precision N: trailing zeros removed, in exponent form
+      ("1.79769313486231590773e+308p64", at least two exponent digits)
+      when the decimal exponent is below -4 or at least N, and
       positionally otherwise.  A zero is written "0p" and prec, or "-0p"
       and prec when negative is set, so that its precision and sign
       survive; only a zero whose prec is 0 is written without a suffix,
@@ -2509,11 +2513,7 @@ Internet-Draft                  protowire                   October 2026
    The fixtures under testdata/bigfloat/, generated with exact rational
    arithmetic, pin both directions (issue #393).
 
-   The well-known type pxf.Secret is defined in the proto/pxf/
-   secret.proto file in the canonical repository.  It holds a sensitive
-   string, value, and two optional strings that describe the secret
-   without revealing it: hint, what the secret is, and fingerprint, a
-   non-reversible identifier of it.  A pxf.Secret is written in either
+
 
 
 
@@ -2522,6 +2522,11 @@ Franco Jr.                 Expires 1 May 2027                  [Page 45]
 Internet-Draft                  protowire                   October 2026
 
 
+   The well-known type pxf.Secret is defined in the proto/pxf/
+   secret.proto file in the canonical repository.  It holds a sensitive
+   string, value, and two optional strings that describe the secret
+   without revealing it: hint, what the secret is, and fingerprint, a
+   non-reversible identifier of it.  A pxf.Secret is written in either
    of two forms.  A string literal sets value alone: 'pw = "x"'.  A
    block names the fields: 'pw { value = "x" hint = "database password"
    }'.  Each element of a list, and each value of a map, may take either
@@ -2560,14 +2565,9 @@ Internet-Draft                  protowire                   October 2026
    field, and on the message types enumerated above.  On an enum field
    the literal is either a value name or the decimal value number.
 
-   The constraint is on placement, not on the literal.  A literal that
-   does not parse as the annotated field's type — "abc" on an int32
-   field — is a decode-time error raised where the default is applied,
-   not a bind-time rejection.  Placement is determinable from the
-   descriptor alone, whereas rejecting the literal at bind time would
-   oblige every binding tool to implement the value parser.
 
-   Conformance:
+
+
 
 
 
@@ -2577,6 +2577,15 @@ Franco Jr.                 Expires 1 May 2027                  [Page 46]
 
 Internet-Draft                  protowire                   October 2026
 
+
+   The constraint is on placement, not on the literal.  A literal that
+   does not parse as the annotated field's type — "abc" on an int32
+   field — is a decode-time error raised where the default is applied,
+   not a bind-time rejection.  Placement is determinable from the
+   descriptor alone, whereas rejecting the literal at bind time would
+   oblige every binding tool to implement the value parser.
+
+   Conformance:
 
    *  Tools that bind a protobuf descriptor for PXF use MUST reject a
       non-conforming placement at bind time, independently of what any
@@ -2617,15 +2626,6 @@ Internet-Draft                  protowire                   October 2026
    implementation ran first.  Tools that bind a descriptor for PXF use
    MUST reject such a schema, over the scope of Section 3.15.
    "pxf.required = false" requires nothing and does not conflict with
-   pxf.default.
-
-   As with Section 3.14, rejecting such a schema on upgrade surfaces a
-   pre-existing latent bug rather than introducing one.
-
-
-
-
-
 
 
 
@@ -2633,6 +2633,11 @@ Franco Jr.                 Expires 1 May 2027                  [Page 47]
 
 Internet-Draft                  protowire                   October 2026
 
+
+   pxf.default.
+
+   As with Section 3.14, rejecting such a schema on upgrade surfaces a
+   pre-existing latent bug rather than introducing one.
 
 6.1.3.  Oneof Members
 
@@ -2678,17 +2683,17 @@ Internet-Draft                  protowire                   October 2026
 
    Conformance:
 
-   *  A decoder MUST NOT apply a oneof member's pxf.default over a
-      present sibling.  An implementation that tests presence per field
-      without regard to oneof membership does exactly that, and is non-
-      conforming.
-
 
 
 Franco Jr.                 Expires 1 May 2027                  [Page 48]
 
 Internet-Draft                  protowire                   October 2026
 
+
+   *  A decoder MUST NOT apply a oneof member's pxf.default over a
+      present sibling.  An implementation that tests presence per field
+      without regard to oneof membership does exactly that, and is non-
+      conforming.
 
    *  These placements bound cleanly before this revision and decoded
       destructively: a document choosing one arm decoded as though it
@@ -2730,11 +2735,6 @@ Internet-Draft                  protowire                   October 2026
    Emitters MUST reject values that fall outside the narrowed type's
    range; decoders MUST sign-extend or zero-extend per the SBE primitive
    when populating the wider Protocol Buffers field.
-
-
-
-
-
 
 
 
