@@ -430,7 +430,6 @@ VECTORS=(
 VECTOR_NOT_IMPLEMENTED="$(cat <<'NI'
 ts            zero-map-entry  omits a zero key; trendvidia/protowire-typescript#42
 swift         zero-map-entry  mode not built; trendvidia/protowire-swift#15
-dart          zero-map-entry  mode not built; trendvidia/protowire-dart#22
 csharp        zero-map-entry  mode not built; trendvidia/protowire-csharp#31
 NI
 )"
