@@ -51,13 +51,13 @@ These are cross-port concerns: each milestone's acceptance applies to every port
 **Problem.** Cross-port wire-equivalence is verified by `scripts/cross_envelope_check.sh` only when someone runs it locally. A wire-format regression in one port can merge and not be caught for days.
 
 **Plan.**
-1. ✅ GitHub Actions workflow in this repo that runs on PRs touching anything wire-format-relevant (`proto/**`, `scripts/cross_*`), plus a daily schedule and `workflow_dispatch`. See [`.github/workflows/cross-port-envelope-check.yml`](.github/workflows/cross-port-envelope-check.yml). **Covers the four ports the script marks required — Go, C++, TypeScript, Java.**
-2. ⬜ Extend the gate to the optional ports: Rust, Dart and C# are cheap setup actions; Swift needs a Linux toolchain container and the Java/Android lite paths need the Android SDK. Until then those five are covered only by a local run.
+1. ✅ GitHub Actions workflow in this repo that runs on PRs touching anything wire-format-relevant (`proto/**`, `scripts/cross_*`), plus a daily schedule and `workflow_dispatch`. See [`.github/workflows/cross-port-envelope-check.yml`](.github/workflows/cross-port-envelope-check.yml). **Covers the four ports the script marks required — Go, C++, TypeScript, Java — and Dart.**
+2. ⬜ Extend the gate to the optional ports: Dart is in. Rust and C# are cheap setup actions; Swift needs a Linux toolchain container and the Java/Android lite paths need the Android SDK. Until then those four are covered only by a local run.
 3. ⬜ Same workflow in each port repo — runs the local test suite and (where applicable) `dump_envelope` against the spec testdata. A port cannot currently detect that it has broken wire equality from its own CI; it finds out from this repo's daily run. Since v1.12 each descriptor-driven port's `dump-envelope` does take spec testdata directly (`--pb` / `--sbe` against a descriptor set and a PXF document, #244), so the harness half of this step exists; the per-port workflow does not.
 4. ⬜ Cross-port equivalence as a *required* check before merge. **`main` is not branch-protected today** (`gh api repos/trendvidia/protowire/branches/main/protection` → 404), so no check is required anywhere in this repo; a rule has to exist before one can be added to it.
 5. ⬜ Cache toolchains; total wall-clock target ≤ 8 min.
 
-**Acceptance.** A wire-format regression introduced in any port fails CI within a single PR cycle. **Met for Go, C++, TypeScript and Java; not met for Rust, Swift, Dart, C# or Java/Android** — a regression in those five is caught only by a pre-release local run, and step 4 means nothing is *blocking* until branch protection exists.
+**Acceptance.** A wire-format regression introduced in any port fails CI within a single PR cycle. **Met for Go, C++, TypeScript, Java and Dart; not met for Rust, Swift, C# or Java/Android** — a regression in those four is caught only by a pre-release local run, and step 4 means nothing is *blocking* until branch protection exists.
 
 ### M2 — Publishing pipelines (target: 0.72.0)
 
