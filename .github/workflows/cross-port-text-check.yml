@@ -1,0 +1,64 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 TrendVidia, LLC.
+#
+# The PXF text each port writes, against goldens protowire-go wrote (#503). Like
+# the other cross-port gates this reads the ports at their default branches, so
+# it runs daily as well as on the paths that change it. REQUIRE_PORTS fails the
+# job if a port stops building, so a lost harness can't pass for a clean run.
+
+name: Cross-port text check
+
+on:
+  pull_request:
+    paths:
+      - 'testdata/text/**'
+      - 'scripts/cross_text_check.sh'
+      - '.github/workflows/cross-port-text-check.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'testdata/text/**'
+      - 'scripts/cross_text_check.sh'
+      - '.github/workflows/cross-port-text-check.yml'
+  schedule:
+    - cron: '45 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cross-port-text-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  text:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout protowire
+        uses: actions/checkout@v7
+        with:
+          path: protowire
+      - name: Checkout protowire-go
+        uses: actions/checkout@v7
+        with:
+          repository: trendvidia/protowire-go
+          path: protowire-go
+      - name: Checkout protowire-java
+        uses: actions/checkout@v7
+        with:
+          repository: trendvidia/protowire-java
+          path: protowire-java
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: protowire-go/go.mod
+          cache-dependency-path: protowire-go/go.sum
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Text conformance
+        env:
+          REQUIRE_PORTS: 'go,java,java-lite'
+        run: ./protowire/scripts/cross_text_check.sh

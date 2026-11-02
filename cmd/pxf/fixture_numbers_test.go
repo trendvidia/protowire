@@ -33,13 +33,14 @@ var descriptorFixtures = map[string][]protowire.Number{
 	"annotations/settings_annotated.binpb": {1327},
 	"adversarial/adversarial.binpb":        {1319, 1320, 1321},
 	"stock-image/plain.buf.binpb":          nil,
+	"text/text.binpb":                      {1316},
 }
 
 // notDescriptorSets are the testdata directories whose .binpb files are
 // message payloads, not descriptor sets: the hand-crafted malformed
 // inputs the decoders are attacked with, and the pxf.BigFloat corpus
-// (#406).
-var notDescriptorSets = []string{"adversarial/pb/", "bigfloat/"}
+// (#406), and the text gate's messages (#503).
+var notDescriptorSets = []string{"adversarial/pb/", "bigfloat/", "text/cases/"}
 
 const (
 	retiredLo, retiredHi = 50000, 59999
