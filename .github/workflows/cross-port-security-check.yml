@@ -16,7 +16,8 @@
 # not run. REQUIRE_PORTS fails the job if any other one stops building, so a
 # missing harness can't pass for a clean run (#421); add ts once its harness
 # is back. A port with known failing rows can go in SKIP_PORTS until its fix
-# lands; none is skipped.
+# lands; none is skipped. java-lite is the Java lite tier, built from the same
+# checkout.
 
 name: Cross-port security check
 
@@ -93,5 +94,5 @@ jobs:
             cmake ninja-build protobuf-compiler libprotobuf-dev libprotoc-dev
       - name: HARDENING conformance corpus
         env:
-          REQUIRE_PORTS: 'go,cpp,java'
+          REQUIRE_PORTS: 'go,cpp,java,java-lite'
         run: ./protowire/scripts/cross_security_check.sh

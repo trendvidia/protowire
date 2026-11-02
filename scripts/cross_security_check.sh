@@ -190,6 +190,14 @@ build_port() {
       (cd "$JAVA_DIR" && run_build ./gradlew --quiet :check-decode:installDist)
       PORT_BIN="$JAVA_DIR/check-decode/build/install/check-decode/bin/check-decode"
       ;;
+    java-lite)
+      # The lite tier's harness: its codecs take generated companions rather
+      # than descriptors. A checkout predating it has no module.
+      [[ -d "$JAVA_DIR/check-decode-android" ]] || return 0
+      echo "→ Java lite build" >&2
+      (cd "$JAVA_DIR" && run_build ./gradlew --quiet :check-decode-android:installDist)
+      PORT_BIN="$JAVA_DIR/check-decode-android/build/install/check-decode-android/bin/check-decode-android"
+      ;;
     rust)
       [[ -d "$RUST_DIR/crates/check-decode" ]] || return 0
       echo "→ Rust build" >&2
@@ -264,7 +272,7 @@ run_one() {
 # Resolve binaries for every port up front; empty PORT_BIN means auto-skip.
 declare -A PORT_BINS=()
 PORT_COUNT=0
-for p in go cpp ts java rust swift dart csharp python; do
+for p in go cpp ts java java-lite rust swift dart csharp python; do
   build_port "$p"
   if [[ -n "$PORT_BIN" ]]; then
     PORT_BINS["$p"]="$PORT_BIN"
