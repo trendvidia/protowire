@@ -283,11 +283,12 @@ v1.15 changes no wire format: PXF text, PB, SBE and the envelope are written byt
 - **Generated Go changes** (RFC-001 §9.3, not covered by a promise above). Stubs move to `<name>_functions.pb.go`, are named per file (`<File>Functions`), and take typed parameters instead of `any`. Implementations and callers must update when they upgrade the generator.
 - **What a function receives is specified** (RFC-001 §9.1). Each argument arrives in its declared type, and a strict engine now calls each declared function once at startup (§9.2).
 
-### v1.16 — a keyed entry's body can't undo its name
+### v1.16 — a keyed entry's body can't undo its name; well-known types keep their shape
 
-v1.16 changes no wire format: PXF text, PB, SBE and the envelope are written byte-for-byte as in v1.15, and no extension number moves (promise 3). One thing narrows what is accepted.
+v1.16 changes no wire format: PXF text, PB, SBE and the envelope are written byte-for-byte as in v1.15, and no extension number moves (promise 3). Two things narrow what is accepted.
 
 - **An entry name binds the key field** ([protowire-go#215](https://github.com/trendvidia/protowire-go/issues/215)). This narrows what decoders read: inside a named entry, `null` on the key field and any binding of another member of the key field's oneof used to decode, and now fail. A schema can only reach this with a key that is optional or in a oneof, and no schema is refused. Marshallers never wrote these documents: an element whose key is absent goes in the anonymous form, which is unchanged.
+- **A schema that redefines a well-known type must keep its shape** (draft -01 § Well-Known Type Shapes, [protowire-go#218](https://github.com/trendvidia/protowire-go/issues/218), decided by the owner). A message named, say, `pxf.Secret` or `google.protobuf.Timestamp` without the fields a codec reads is now refused at bind time. This narrows schema input at a minor, on the v1.10 `@http` argument: the alternative is shipping the failure. Measured on protowire-go v1.14.0, 33 of 40 decode and encode runs over such schemas panicked. Every `package pxf` declaration in the project's checkouts has the full canonical shape (45 copies of `bignum.proto`, 40 of `secret.proto`), and a copy of a canonical schema is unaffected. A caller that skips bind-time checks gets an ordinary message and no literal form. Wire formats are unchanged.
 
 ## What this does *not* commit to
 
