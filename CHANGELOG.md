@@ -10,6 +10,14 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ## [Unreleased]
 
+### Added
+
+- **A gate compares the PXF text ports write** (#503). `scripts/cross_text_check.sh` holds each port's marshaller to goldens that protowire-go wrote, on 56 messages under [`testdata/text/`](testdata/text/). The envelope gate compares bytes and the security gate compares verdicts, so a port could write different text and pass both. Go, Java and the Java lite tier run it. `check-decode` gains `--format pb-text`, and other ports are named as not run until they add it. The goldens record what the reference writes; they don't make it the only valid spelling.
+
+### Changed
+
+- **The security gate runs on the Java lite tier** as port `java-lite`, through `check-decode-android` (#503). `adversarial.proto` gains `java_package` and `java_multiple_files`, which the lite plugin requires. No field changes.
+
 ## [1.16.0] — 2026-11-02
 
 The Java lite tier gets what its plugin lacked: keyed fields, the null rule, the annotation carrier and `pxf.Secret`. A keyed entry's body can no longer undo its name, a redefined well-known type must keep its shape, and a Duration too long for a literal is written as a block. No wire-format change. STABILITY.md § v1.16 lists what each change means for ports.
