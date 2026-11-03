@@ -28,6 +28,10 @@ loosely; the project follows [SemVer](https://semver.org/) per
 - **A `pxf.Decimal` written from a language value is written reduced** (protowire-cpp#97; draft `-01` § PXF Annotations). `pb` bytes for one number differed by port: protowire-go holds a `big.Rat` and writes the smallest non-negative scale, while C++, Java and C# wrote the scale they held. The rule follows the reference, so its bytes do not move. A producer writing a message's fields, generated or dynamic, still writes them as they are, so PXF `1.00` keeps scale 2 through `proto.Marshal`, and every reader still accepts every form.
 - **The security gate runs on the Java lite tier** as port `java-lite`, through `check-decode-android` (#503). `adversarial.proto` gains `java_package` and `java_multiple_files`, which the lite plugin requires. No field changes.
 
+### Fixed
+
+- **`protoc-gen-pxf-java-meta` compiles for an SBE template with no groups** (#525). The group dispatch methods were each a switch expression with only a throwing `default`, which javac refuses, so `adversarial.v1.SbeText` gave the Java lite tier no codec. With nothing to dispatch, a method now throws directly, as `getMessageField` already did; the same holds for `getField` on a block whose only field is a composite. Templates with groups generate the same Java as before.
+
 ## [1.16.0] — 2026-11-02
 
 The Java lite tier gets what its plugin lacked: keyed fields, the null rule, the annotation carrier and `pxf.Secret`. A keyed entry's body can no longer undo its name, a redefined well-known type must keep its shape, and a Duration too long for a literal is written as a block. No wire-format change. STABILITY.md § v1.16 lists what each change means for ports.
