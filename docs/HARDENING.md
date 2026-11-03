@@ -74,7 +74,7 @@ A proto3 `string` field is a sequence of valid UTF-8 bytes. A conforming decoder
 - **MUST** reject PXF `\xHH` byte escapes and octal `\NNN` escapes that produce invalid UTF-8 when the surrounding literal is being decoded into a `string` field. Invalid byte sequences inside PXF `b"…"` (`bytes` field) are permitted; invalid byte sequences anywhere else are not.
 - **MUST** reject `\u` / `\U` / `\xHH` escapes that encode Unicode surrogates (U+D800–U+DFFF) or values above U+10FFFF.
 
-`bytes` fields and SBE non-string varData impose no UTF-8 constraint.
+`bytes` fields and SBE non-string varData impose no UTF-8 constraint. An SBE char type whose `characterEncoding` is not US-ASCII or UTF-8 is imported as `bytes` for this reason (draft -01 § Character Encoding, #494).
 
 ## SBE validation
 
