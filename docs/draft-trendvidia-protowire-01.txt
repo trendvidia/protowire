@@ -135,10 +135,11 @@ Internet-Draft                  protowire                   October 2026
      3.16. Any Blocks  . . . . . . . . . . . . . . . . . . . . . . .  41
    4.  PB Binary Encoding  . . . . . . . . . . . . . . . . . . . . .  42
    5.  SBE Binary Encoding . . . . . . . . . . . . . . . . . . . . .  42
-     5.1.  Header and Block Length . . . . . . . . . . . . . . . . .  43
-     5.2.  Repeating Groups  . . . . . . . . . . . . . . . . . . . .  43
-     5.3.  Variable-Length Data  . . . . . . . . . . . . . . . . . .  43
-   6.  Annotation Extensions . . . . . . . . . . . . . . . . . . . .  43
+     5.1.  Character Encoding  . . . . . . . . . . . . . . . . . . .  43
+     5.2.  Header and Block Length . . . . . . . . . . . . . . . . .  43
+     5.3.  Repeating Groups  . . . . . . . . . . . . . . . . . . . .  43
+     5.4.  Variable-Length Data  . . . . . . . . . . . . . . . . . .  44
+   6.  Annotation Extensions . . . . . . . . . . . . . . . . . . . .  44
      6.1.  PXF Annotations . . . . . . . . . . . . . . . . . . . . .  44
        6.1.1.  Default Placement . . . . . . . . . . . . . . . . . .  47
        6.1.2.  Required and Default  . . . . . . . . . . . . . . . .  49
@@ -161,7 +162,6 @@ Internet-Draft                  protowire                   October 2026
        7.6.2.  Engine Expressions  . . . . . . . . . . . . . . . . .  58
        7.6.3.  Expression Language . . . . . . . . . . . . . . . . .  59
        7.6.4.  Placement . . . . . . . . . . . . . . . . . . . . . .  62
-       7.6.5.  Coexistence with Bracket Options  . . . . . . . . . .  63
 
 
 
@@ -170,6 +170,7 @@ Franco Jr.                 Expires 1 May 2027                   [Page 3]
 Internet-Draft                  protowire                   October 2026
 
 
+       7.6.5.  Coexistence with Bracket Options  . . . . . . . . . .  63
      7.7.  Presence Semantics  . . . . . . . . . . . . . . . . . . .  63
        7.7.1.  Well-Known Type Binding . . . . . . . . . . . . . . .  64
        7.7.2.  Evaluation Order and Result Aggregation . . . . . . .  65
@@ -210,7 +211,6 @@ Internet-Draft                  protowire                   October 2026
    Appendix C.  Implementation Status  . . . . . . . . . . . . . . .  89
    Appendix D.  Open Issues  . . . . . . . . . . . . . . . . . . . .  90
    Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  90
-
 
 
 
@@ -2354,7 +2354,20 @@ Franco Jr.                 Expires 1 May 2027                  [Page 42]
 Internet-Draft                  protowire                   October 2026
 
 
-5.1.  Header and Block Length
+5.1.  Character Encoding
+
+   An SBE string field holds UTF-8 text, and decoders reject one that is
+   not valid UTF-8, as for every other string field.  FIX SBE makes US-
+   ASCII the default encoding of a char array, and US-ASCII text is
+   valid UTF-8.  A FIX SBE schema can declare another encoding with the
+   characterEncoding attribute; this document defines no annotation that
+   carries one.  A tool that imports a FIX SBE schema MUST therefore map
+   a char type to a string field only when its characterEncoding is
+   absent or names US-ASCII or UTF-8, and MUST map any other char type
+   to a bytes field of the same length.  Mapping it to a string would
+   make every value with a byte outside UTF-8 fail to decode.
+
+5.2.  Header and Block Length
 
    Every SBE message on the wire is preceded by an 8-byte message-header
    carrying the schema's blockLength, templateId, schemaId, and version,
@@ -2370,7 +2383,7 @@ Internet-Draft                  protowire                   October 2026
        strictly larger MUST be accepted (forward compatibility for
        additive schema evolution).
 
-5.2.  Repeating Groups
+5.3.  Repeating Groups
 
    Each repeating group is preceded by a group-header carrying
    blockLength and numInGroup.  Before iterating any group, decoders
@@ -2388,7 +2401,16 @@ Internet-Draft                  protowire                   October 2026
        0 with a non-zero count MUST be rejected before any per-element
        allocation.
 
-5.3.  Variable-Length Data
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 43]
+
+Internet-Draft                  protowire                   October 2026
+
+
+5.4.  Variable-Length Data
 
    Variable-length data ("varData") fields follow the fixed block, each
    preceded by a length prefix per the schema's varDataEncoding.
@@ -2400,15 +2422,6 @@ Internet-Draft                  protowire                   October 2026
    protowire defines extensions on Protocol Buffers FileOptions,
    MessageOptions, and FieldOptions.  Field numbers are allocated from
    the reserved range described in Section 11.2.
-
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 43]
-
-Internet-Draft                  protowire                   October 2026
-
 
 6.1.  PXF Annotations
 
@@ -2445,19 +2458,6 @@ Internet-Draft                  protowire                   October 2026
    bind a decoder's presence-tracking decode, the entry point that
    reports field presence to its caller.  An implementation MAY also
    offer a decode that tracks no presence, and that decode does not
-   apply these rules: it accepts a document with an absent pxf.required
-   field and leaves an absent pxf.default field unset.  An
-   implementation MAY let a caller turn the rules off on a presence-
-   tracking decode, so that the caller can apply them itself, for
-   example to the result of merging several documents.  Documentation of
-   any entry point that does not apply these rules MUST say so.
-
-
-
-
-
-
-
 
 
 
@@ -2465,6 +2465,13 @@ Franco Jr.                 Expires 1 May 2027                  [Page 44]
 
 Internet-Draft                  protowire                   October 2026
 
+
+   apply these rules: it accepts a document with an absent pxf.required
+   field and leaves an absent pxf.default field unset.  An
+   implementation MAY let a caller turn the rules off on a presence-
+   tracking decode, so that the caller can apply them itself, for
+   example to the result of merging several documents.  Documentation of
+   any entry point that does not apply these rules MUST say so.
 
    pxf.key: names the key field of a keyed repeated field.  The value is
    the proto field name of a singular string-typed field of the element
@@ -2502,18 +2509,11 @@ Internet-Draft                  protowire                   October 2026
    (issue protowire-cpp#97).  A producer of the reduced form whose scale
    would exceed MaxNumericLiteralDigits MUST fail with an error.
 
-
-
-
-
-
-
-
-
-
-
-
-
+   A pxf.BigFloat's value is (-1)^negative × mantissa × 2^exponent,
+   mantissa an unsigned big-endian integer, rounded to prec bits of
+   precision with ties to even: a mantissa wider than prec bits denotes
+   that rounded value (issue #410). prec 0 or a zero mantissa (empty, or
+   only zero bytes) is zero.  A producer MUST encode a zero, at any
 
 
 
@@ -2522,11 +2522,6 @@ Franco Jr.                 Expires 1 May 2027                  [Page 45]
 Internet-Draft                  protowire                   October 2026
 
 
-   A pxf.BigFloat's value is (-1)^negative × mantissa × 2^exponent,
-   mantissa an unsigned big-endian integer, rounded to prec bits of
-   precision with ties to even: a mantissa wider than prec bits denotes
-   that rounded value (issue #410). prec 0 or a zero mantissa (empty, or
-   only zero bytes) is zero.  A producer MUST encode a zero, at any
    prec, with an empty mantissa and exponent 0, keeping its prec and
    negative, so that a zero has one PB encoding: the one a decoder
    stores when it reads a zero literal.  A decoder still reads any zero
@@ -2568,8 +2563,13 @@ Internet-Draft                  protowire                   October 2026
       suffix with that bound, rejecting one of more digits than the
       bound has without converting it, and never computes 2^prec.
 
+   *  A precision suffix on a literal bound to any field that is not a
+      pxf.BigFloat is grammatically well-formed but MUST be rejected by
+      the schema layer, naming the field.
 
-
+   PB to PXF to PB therefore preserves every BigFloat's value, its sign,
+   and its prec, zeros included (issue #410).  It does not preserve a
+   mantissa's bytes as written: the reading rule stores the significand
 
 
 
@@ -2578,13 +2578,6 @@ Franco Jr.                 Expires 1 May 2027                  [Page 46]
 Internet-Draft                  protowire                   October 2026
 
 
-   *  A precision suffix on a literal bound to any field that is not a
-      pxf.BigFloat is grammatically well-formed but MUST be rejected by
-      the schema layer, naming the field.
-
-   PB to PXF to PB therefore preserves every BigFloat's value, its sign,
-   and its prec, zeros included (issue #410).  It does not preserve a
-   mantissa's bytes as written: the reading rule stores the significand
    as a prec-bit integer, so a mantissa that was not normalized, or was
    wider than prec bits, comes back normalized to the same value.  A
    value at MaxBigFloatExponent may print as a literal whose exact value
@@ -2624,6 +2617,13 @@ Internet-Draft                  protowire                   October 2026
       has no grammar for keys;
 
    *  a group field; or
+
+
+
+
+
+
+
 
 
 
@@ -4407,13 +4407,13 @@ Internet-Draft                  protowire                   October 2026
    requirements, restated here for emphasis.  Specifically:
 
    *  Wire block length less than template block length MUST be rejected
-      (Section 5.1).
+      (Section 5.2).
 
    *  Group count multiplied by group block length MUST be 64-bit
-      checked against the buffer length before iteration (Section 5.2).
+      checked against the buffer length before iteration (Section 5.3).
 
    *  A group with count > 0 and wire_block_length == 0 MUST be rejected
-      before any per-element allocation (Section 5.2).
+      before any per-element allocation (Section 5.3).
 
 
 

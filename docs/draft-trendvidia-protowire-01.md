@@ -1125,6 +1125,10 @@ The protowire SBE encoding is a subset of FIX Simple Binary Encoding {{FIX-SBE}}
 
 Field-level annotations sbe.length and sbe.encoding control fixed-byte-length string and bytes fields and primitive-type narrowing respectively ({{sbe-annotations}}).
 
+## Character Encoding
+
+An SBE string field holds UTF-8 text, and decoders reject one that is not valid UTF-8, as for every other string field. FIX SBE makes US-ASCII the default encoding of a char array, and US-ASCII text is valid UTF-8. A FIX SBE schema can declare another encoding with the characterEncoding attribute; this document defines no annotation that carries one. A tool that imports a FIX SBE schema MUST therefore map a char type to a string field only when its characterEncoding is absent or names US-ASCII or UTF-8, and MUST map any other char type to a bytes field of the same length. Mapping it to a string would make every value with a byte outside UTF-8 fail to decode.
+
 ## Header and Block Length
 
 Every SBE message on the wire is preceded by an 8-byte message-header carrying the schema's blockLength, templateId, schemaId, and version, in little-endian byte order. Decoders MUST validate, before reading any field of the body:
