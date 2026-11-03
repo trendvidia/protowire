@@ -16,6 +16,7 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ### Changed
 
+- **An overlong `sbe.length` string is cut on a character boundary** (draft -01 § SBE Annotations, #495, decided by the owner). Emitters cut at the byte limit, which can split a multi-byte character; every strict decoder then rejects the whole message, and the sender sees no error. protowire-go wrote `41 42 43 44 45 46 47 C3` for `ABCDEFGé` at length 8. A string is now cut at the last whole character and NUL-padded; a `bytes` field is still cut at the limit. Only bytes that strict decoders already refuse change, so no working exchange moves. FIX SBE has no truncation rule of its own. The comment in `proto/sbe/annotations.proto` still reads "truncated"; it is a copy of trendvidia/protos and changes there.
 - **A `pxf.Decimal` written from a language value is written reduced** (protowire-cpp#97; draft `-01` § PXF Annotations). `pb` bytes for one number differed by port: protowire-go holds a `big.Rat` and writes the smallest non-negative scale, while C++, Java and C# wrote the scale they held. The rule follows the reference, so its bytes do not move. A producer writing a message's fields, generated or dynamic, still writes them as they are, so PXF `1.00` keeps scale 2 through `proto.Marshal`, and every reader still accepts every form.
 - **The security gate runs on the Java lite tier** as port `java-lite`, through `check-decode-android` (#503). `adversarial.proto` gains `java_package` and `java_multiple_files`, which the lite plugin requires. No field changes.
 
