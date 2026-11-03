@@ -1129,6 +1129,10 @@ Field-level annotations sbe.length and sbe.encoding control fixed-byte-length st
 
 An SBE string field holds UTF-8 text, and decoders reject one that is not valid UTF-8, as for every other string field. FIX SBE makes US-ASCII the default encoding of a char array, and US-ASCII text is valid UTF-8. A FIX SBE schema can declare another encoding with the characterEncoding attribute; this document defines no annotation that carries one. A tool that imports a FIX SBE schema MUST therefore map a char type to a string field only when its characterEncoding is absent or names US-ASCII or UTF-8, and MUST map any other char type to a bytes field of the same length. Mapping it to a string would make every value with a byte outside UTF-8 fail to decode.
 
+## Fixed-Length Arrays
+
+A FIX SBE type whose length attribute is greater than 1 is a fixed-length array of its primitive type; a length of 1, or none, is a single value. A tool that imports a FIX SBE schema MUST map a uint8 or int8 array of length N to a bytes field with sbe.length N, which occupies the same N bytes of the block, and MUST map a char array as described in the previous section. It MUST reject an array of any other primitive type, since no field this document defines holds one; importing it as a single value would misplace every later field in the block. A tool that exports a FIX SBE schema MUST write a bytes field with sbe.length N as a uint8 array of length N, and a string field with sbe.length N as a char array of length N. A bytes field written as a char array would be imported again as a string field. A bytes field with sbe.length 1 is exported as a single uint8 and imported again as a narrowed integer field: its byte in the block is unchanged, and its field type is not.
+
 ## Header and Block Length
 
 Every SBE message on the wire is preceded by an 8-byte message-header carrying the schema's blockLength, templateId, schemaId, and version, in little-endian byte order. Decoders MUST validate, before reading any field of the body:
