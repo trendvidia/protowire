@@ -191,10 +191,10 @@ Internet-Draft                  protowire                   October 2026
    9.  Decoder Conformance . . . . . . . . . . . . . . . . . . . . .  74
      9.1.  Mandatory Limits  . . . . . . . . . . . . . . . . . . . .  74
      9.2.  Recursion . . . . . . . . . . . . . . . . . . . . . . . .  77
-     9.3.  UTF-8 Enforcement . . . . . . . . . . . . . . . . . . . .  77
+     9.3.  UTF-8 Enforcement . . . . . . . . . . . . . . . . . . . .  78
      9.4.  SBE Bounds Checking . . . . . . . . . . . . . . . . . . .  78
      9.5.  Map Keys  . . . . . . . . . . . . . . . . . . . . . . . .  78
-     9.6.  Validation Engine Conformance . . . . . . . . . . . . . .  78
+     9.6.  Validation Engine Conformance . . . . . . . . . . . . . .  79
    10. Media Types . . . . . . . . . . . . . . . . . . . . . . . . .  79
    11. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  79
      11.1.  Media Type Registrations . . . . . . . . . . . . . . . .  80
@@ -4169,7 +4169,10 @@ Internet-Draft                  protowire                   October 2026
    |                         |                | digit count N a        |
    |                         |                | pxf.BigFloat           |
    |                         |                | precision suffix       |
-   |                         |                | implies                |
+   |                         |                | implies, and the       |
+   |                         |                | same N for a           |
+   |                         |                | pxf.BigFloat's prec    |
+   |                         |                | on the PB wire         |
    +-------------------------+----------------+------------------------+
    | MaxBigFloatExponent     | 16384          | Magnitude of a         |
    |                         |                | pxf.BigFloat value's   |
@@ -4191,9 +4194,6 @@ Internet-Draft                  protowire                   October 2026
    +-------------------------+----------------+------------------------+
 
                                   Table 8
-
-
-
 
 
 
@@ -4233,9 +4233,16 @@ Internet-Draft                  protowire                   October 2026
    thirteen-byte literal ("1e646456992") sets it.  A decoder MUST reject
    a BigFloat whose binary exponent exceeds MaxBigFloatExponent in
    magnitude before materialising it, whether it arrives on the PB wire
-   or as the value of a PXF literal.  A producer of PXF text that meets
-   such a value MUST fail with an error.  Both bounds, on a Decimal's
-   scale and on a BigFloat's exponent, apply where a value is
+   or as the value of a PXF literal.  It MUST likewise reject a BigFloat
+   whose prec implies more digits than MaxNumericLiteralDigits, the
+   bound a precision suffix has (prec above 13603 at the default,
+   Section 6.1), before allocating anything for it.  A producer writes
+   the mantissa widened to prec bits, so without this bound an eleven-
+   byte message stating prec 2^31-1 re-encodes to 256 MiB, past
+   MaxMessageSize.  With it, every BigFloat a decoder accepts can also
+   be written as a literal (issue #499).  A producer of PXF text that
+   meets such a value MUST fail with an error.  Both bounds, on a
+   Decimal's scale and on a BigFloat's exponent, apply where a value is
    materialised, not where its fields are read.  A decoder that stores a
    Decimal or BigFloat message's fields without computing its value,
    such as a PXF decoder reading the block form ("f { mantissa = ...
@@ -4243,13 +4250,6 @@ Internet-Draft                  protowire                   October 2026
    plain fields, is not subject to them, because storing the fields
    costs only what the input's length already bounds.  A decoder that
    does compute the value, in whatever form it arrived, MUST apply the
-   bound first.  A value past a bound can therefore be decoded field by
-   field, but a producer of PXF text still fails on it, so it is never
-   written back out as a literal (issue #281; protowire-go#188).  The
-   default, 16384, is the exponent range of IEEE 754 binary128, and
-   admits every literal up to about 1e±4932.  Rendering a BigFloat
-   inside the bound is the consumer's operation, and where the result is
-   a PXF literal it is bounded by MaxNumericLiteralDigits like any other
 
 
 
@@ -4258,6 +4258,13 @@ Franco Jr.                 Expires 1 May 2027                  [Page 76]
 Internet-Draft                  protowire                   October 2026
 
 
+   bound first.  A value past a bound can therefore be decoded field by
+   field, but a producer of PXF text still fails on it, so it is never
+   written back out as a literal (issue #281; protowire-go#188).  The
+   default, 16384, is the exponent range of IEEE 754 binary128, and
+   admits every literal up to about 1e±4932.  Rendering a BigFloat
+   inside the bound is the consumer's operation, and where the result is
+   a PXF literal it is bounded by MaxNumericLiteralDigits like any other
    literal.  The bound applies to a literal's value after rounding to
    the precision it is read at, not to its exact decimal value: a finite
    decimal literal cannot hold a power of two exactly, so the literal of
@@ -4300,19 +4307,17 @@ Internet-Draft                  protowire                   October 2026
        stream object, the depth counter MUST be passed in rather than
        reset to zero.
 
-9.3.  UTF-8 Enforcement
-
-   Proto3 string fields are sequences of valid UTF-8 [RFC3629].
-   Conforming decoders:
-
-
-
 
 
 Franco Jr.                 Expires 1 May 2027                  [Page 77]
 
 Internet-Draft                  protowire                   October 2026
 
+
+9.3.  UTF-8 Enforcement
+
+   Proto3 string fields are sequences of valid UTF-8 [RFC3629].
+   Conforming decoders:
 
    *  MUST validate UTF-8 strictly when populating any string-typed
       field, regardless of the source encoding (PB length-delimited
@@ -4355,12 +4360,7 @@ Internet-Draft                  protowire                   October 2026
    applies in any other implementation language that exhibits prototype-
    mutation semantics for reserved string keys.
 
-9.6.  Validation Engine Conformance
 
-   A protowire implementation that ships a validation engine for the
-   schema language extensions MUST:
-
-   *  implement the presence semantics specified in Section 7.7;
 
 
 
@@ -4369,6 +4369,13 @@ Franco Jr.                 Expires 1 May 2027                  [Page 78]
 
 Internet-Draft                  protowire                   October 2026
 
+
+9.6.  Validation Engine Conformance
+
+   A protowire implementation that ships a validation engine for the
+   schema language extensions MUST:
+
+   *  implement the presence semantics specified in Section 7.7;
 
    *  emit Violations whose shape conforms to the structure defined in
       Section 7.10;
@@ -4410,13 +4417,6 @@ Internet-Draft                  protowire                   October 2026
       transport-level header.
 
 11.  IANA Considerations
-
-
-
-
-
-
-
 
 
 

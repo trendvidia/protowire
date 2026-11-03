@@ -16,6 +16,7 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ### Changed
 
+- **A decoder that computes a `pxf.BigFloat` bounds its `prec`** (`docs/HARDENING.md` § Arbitrary-precision magnitudes, draft -01 § Mandatory Limits, #499, decided by the owner). An 11-byte PB message could state `prec` 2^31−1, and protowire-go, C++ and Rust widen the mantissa to `prec` bits when they write it again: 256 MiB, past their own `MaxMessageSize`. The bound is the one a `p<prec>` suffix already has (13603 bits at the default), which every PXF producer already enforced, so every BigFloat a decoder accepts now has a literal. No new limit. Store-only decoders stay exempt, as for the exponent. The Java lite tier already rejects. New rows `pb/bigfloat-prec-{huge,past-bound,at-bound}`, as `pb` and `pb-render`.
 - **A `pxf.Decimal` written from a language value is written reduced** (protowire-cpp#97; draft `-01` § PXF Annotations). `pb` bytes for one number differed by port: protowire-go holds a `big.Rat` and writes the smallest non-negative scale, while C++, Java and C# wrote the scale they held. The rule follows the reference, so its bytes do not move. A producer writing a message's fields, generated or dynamic, still writes them as they are, so PXF `1.00` keeps scale 2 through `proto.Marshal`, and every reader still accepts every form.
 - **The security gate runs on the Java lite tier** as port `java-lite`, through `check-decode-android` (#503). `adversarial.proto` gains `java_package` and `java_multiple_files`, which the lite plugin requires. No field changes.
 

@@ -251,6 +251,13 @@ def main() -> None:
     write_bytes(HERE / "pb" / "bigfloat-exponent-past-bound.binpb", pb_bigfloat(1, 16384))
     write_bytes(HERE / "pb" / "bigfloat-exponent-at-bound.binpb", pb_bigfloat(1, 16383))
     write_bytes(HERE / "pb" / "bigfloat-negative-exponent-at-bound.binpb", pb_bigfloat(1, -16385))
+    # The precision bound (#499): a mantissa of 0x19 at prec 2^31-1 is 11
+    # bytes that a producer widening to prec bits re-encodes to 256 MiB.
+    # 13603 is the largest prec whose N (digits of 2^prec, plus one) is
+    # within MaxNumericLiteralDigits, the bound a p<prec> suffix has.
+    write_bytes(HERE / "pb" / "bigfloat-prec-huge.binpb", pb_bigfloat(0x19, 0, 2**31 - 1))
+    write_bytes(HERE / "pb" / "bigfloat-prec-past-bound.binpb", pb_bigfloat(0x19, 0, 13604))
+    write_bytes(HERE / "pb" / "bigfloat-prec-at-bound.binpb", pb_bigfloat(0x19, 0, 13603))
     write_text(
         HERE / "pxf" / "bigfloat-huge-exponent.pxf",
         "@type adversarial.v1.BigNumHolder\n\nbig_float = 1e646456992\n",
