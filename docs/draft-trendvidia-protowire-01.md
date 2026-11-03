@@ -2236,6 +2236,8 @@ PXF parsers descend recursively into "{...}" blocks and "\[...\]" lists; PB pars
 
 3. thread the depth counter through inner decoder instances constructed mid-stream. In particular, when a nested submessage is decoded by handing its bytes to a freshly constructed input-stream object, the depth counter MUST be passed in rather than reset to zero.
 
+A producer of PXF text or of PB MUST fail with an error on a message nested more deeply than MaxNestingDepth, counted as a decoder reading its output would count it, rather than write a document that a decoder at the same limit rejects (issue #502). The limit is configurable per call, as a decoder's is. Such a message can only come from somewhere other than a conforming decoder at that limit, such as a language value built in memory or a protobuf runtime with a higher limit, and a producer that follows a reference cycle meets the limit instead of exhausting its stack.
+
 ## UTF-8 Enforcement {#utf-8-enforcement}
 
 Proto3 string fields are sequences of valid UTF-8 {{RFC3629}}. Conforming decoders:
