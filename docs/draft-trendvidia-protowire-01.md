@@ -814,6 +814,8 @@ The target field type determines the numeric domain:
 
 * For float and double fields, decoders MUST accept literals in the IEEE 754 {{IEEE754}} representable range; values that round to +Inf or -Inf are rejected unless explicitly written as the identifiers "inf", "+inf", "-inf", "nan".
 
+* A NaN has many IEEE 754 encodings, so which one is written is fixed here. A decoder reading the identifier "nan" into a float or double field MUST store the canonical quiet NaN: 0x7FF8000000000000 for a double, 0x7FC00000 for a float. A PB or SBE producer that writes from a language value, such as a floating-point type bound to a struct field, MUST write any NaN in that canonical form. A producer that writes a message's fields, such as a generated or dynamic message, MUST write them as they are, so that a NaN read from PB keeps its encoding (issue protowire-java#161).
+
 * For fields of the well-known types pxf.BigInt and pxf.Decimal ({{pxf-annotations}}), decoders MUST preserve the literal's exact value, including, for Decimal, the exact scale: the literal "1.00" decodes to a Decimal with unscaled value 100 and scale 2, distinct from "1.0" or "1". A pxf.BigFloat is binary, and most decimal literals have no exact binary value, so a decoder reads one as the nearest value at the precision its suffix states, or at 256 bits without one ({{pxf-annotations}}).
 
 The number of digits in any single numeric literal is bounded; see {{mandatory-limits}}.
@@ -1101,7 +1103,7 @@ Conformance:
 * A decoder MUST reject a block whose type URL it cannot resolve to a message type, including when it has no type resolver. It MUST NOT read the remaining entries as fields of google.protobuf.Any instead.
 * The body after the type entry is decoded as any body of its type is: the limits of {{mandatory-limits}} apply to it, and so do the annotation rules of {{pxf-annotations}}.
 * A parser that does not bind a schema cannot tell which blocks are bound to Any. It accepts a type entry as the first entry of any block, and the rules above apply when the document is bound. It MUST reject a type entry anywhere else in a block.
-* An encoder MAY write an Any in either form. It writes the type entry only when its resolver maps the stored type URL to a message type, and it writes the type URL verbatim.
+* An encoder MAY write an Any in either form, and writes the type URL verbatim. It MUST write the type entry and body only when its resolver maps the stored type URL to a message type and decoding the body it writes gives exactly the stored value bytes. Otherwise it MUST write type_url and value. A reader compares an Any by its bytes, so a body that decodes to other bytes changes the message with no error. Unknown fields, field and map order, explicitly written zeros, and values the PXF form does not spell are where the two differ (issue #501). How an encoder makes the comparison is its own choice, and one that writes every Any as type_url and value conforms.
 
 # PB Binary Encoding {#pb-binary-encoding}
 
@@ -1267,7 +1269,7 @@ extend google.protobuf.FieldOptions {
 
 sbe.schema_id and sbe.version identify the schema as a whole. sbe.template_id MUST be unique among messages within a schema.
 
-sbe.length specifies a fixed byte length for string- or bytes-typed fields. Values longer than the limit MUST be truncated by emitters; values shorter MUST be padded with U+0000 bytes; decoders MUST trim trailing U+0000 bytes when populating string fields and MUST NOT trim them when populating bytes fields.
+sbe.length specifies a fixed byte length for string- or bytes-typed fields. Values longer than the limit MUST be truncated by emitters, a bytes field at the limit and a string field at the last character boundary at or before it, so that a truncated string is still valid UTF-8 ({{utf-8-enforcement}}). A byte-exact cut can split a multi-byte character, and every strict decoder then rejects the whole message (issue #495). A limit shorter than a string's first character leaves the field empty. Values shorter than the limit, and the bytes a character-boundary cut leaves over, MUST be padded with U+0000 bytes; decoders MUST trim trailing U+0000 bytes when populating string fields and MUST NOT trim them when populating bytes fields.
 
 sbe.encoding narrows a Protocol Buffers numeric type to a smaller SBE primitive. The defined values are: "int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64", "float", "double". Emitters MUST reject values that fall outside the narrowed type's range; decoders MUST sign-extend or zero-extend per the SBE primitive when populating the wider Protocol Buffers field.
 
@@ -2233,6 +2235,8 @@ PXF parsers descend recursively into "{...}" blocks and "\[...\]" lists; PB pars
 2. reject input that would cause the counter to exceed MaxNestingDepth;
 
 3. thread the depth counter through inner decoder instances constructed mid-stream. In particular, when a nested submessage is decoded by handing its bytes to a freshly constructed input-stream object, the depth counter MUST be passed in rather than reset to zero.
+
+A producer of PXF text or of PB MUST fail with an error on a message nested more deeply than MaxNestingDepth, counted as a decoder reading its output would count it, rather than write a document that a decoder at the same limit rejects (issue #502). The limit is configurable per call, as a decoder's is. Such a message can only come from somewhere other than a conforming decoder at that limit, such as a language value built in memory or a protobuf runtime with a higher limit, and a producer that follows a reference cycle meets the limit instead of exhausting its stack.
 
 ## UTF-8 Enforcement {#utf-8-enforcement}
 

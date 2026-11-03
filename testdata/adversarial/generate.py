@@ -190,6 +190,29 @@ def sbe_group_header(block_length: int, count: int) -> bytes:
     return struct.pack("<HH", block_length, count)
 
 
+# adversarial.v1.SbeText (template_id=9002): two 8-byte fields, `text` a
+# string and `raw` bytes, each NUL-padded to its sbe.length.
+SBE_TEXT_TEMPLATE_ID = 9002
+SBE_TEXT_LENGTH = 8
+
+
+def sbe_text(text: bytes, raw: bytes = b"") -> bytes:
+    """An SbeText message: header, then `text` and `raw` NUL-padded to 8."""
+    assert len(text) <= SBE_TEXT_LENGTH and len(raw) <= SBE_TEXT_LENGTH
+    return (
+        struct.pack(
+            "<HHHH", 2 * SBE_TEXT_LENGTH, SBE_TEXT_TEMPLATE_ID, SBE_SCHEMA_ID, SBE_VERSION
+        )
+        + text.ljust(SBE_TEXT_LENGTH, b"\x00")
+        + raw.ljust(SBE_TEXT_LENGTH, b"\x00")
+    )
+
+
+def pb_len_field(payload: bytes) -> bytes:
+    """Field 1, wire type LEN: the one field of StringHolder and BytesHolder."""
+    return b"\x0a" + varint(len(payload)) + payload
+
+
 def main() -> None:
     print(f"writing corpus under {HERE}")
 
@@ -327,6 +350,27 @@ def main() -> None:
         + b"\x00\x00\x00\x00"  # root_value = 0
         + sbe_group_header(block_length=0, count=10000),
     )
+
+    # --- UTF-8 in pb and SBE string fields (HARDENING.md § UTF-8, #496) ---
+    # The pxf rows test the text decoder; these test the binary ones, which
+    # the corpus did not cover (protowire-go accepted such bytes until
+    # protowire-go#227). Each reject has an accept beside it: valid
+    # multi-byte text in the same string field, and the same invalid bytes
+    # in a bytes field, so a port that over-rejects fails too.
+    #   FF FE     bytes that never occur in UTF-8
+    #   ED A0 80  U+D800 encoded as if it were a character (a lone surrogate)
+    #   café€     valid two- and three-byte characters; 8 bytes, so in SBE it
+    #             fills the field with no NUL padding
+    #   C3        the lead byte of é with its continuation cut off, which is
+    #             what a byte-exact sbe.length cut of "ABCDEFGé" writes (#495)
+    write_bytes(HERE / "pb" / "utf8-invalid-string.binpb", pb_len_field(b"AB\xff\xfe"))
+    write_bytes(HERE / "pb" / "utf8-surrogate-string.binpb", pb_len_field(b"\xed\xa0\x80"))
+    write_bytes(HERE / "pb" / "utf8-valid-string.binpb", pb_len_field("café€".encode()))
+    write_bytes(HERE / "pb" / "utf8-invalid-bytes.binpb", pb_len_field(b"AB\xff\xfe"))
+    write_bytes(HERE / "sbe" / "utf8-invalid-string.sbe", sbe_text(b"AB\xff\xfe"))
+    write_bytes(HERE / "sbe" / "utf8-split-char-string.sbe", sbe_text(b"ABCDEFG\xc3"))
+    write_bytes(HERE / "sbe" / "utf8-valid-string.sbe", sbe_text("café€".encode()))
+    write_bytes(HERE / "sbe" / "utf8-invalid-bytes.sbe", sbe_text(b"AB", raw=b"AB\xff\xfe"))
 
     # --- Size limits, proved with small fixtures under per-call overrides ---
     # HARDENING.md § Mandatory limits makes MaxMessageSize (64 MiB),
