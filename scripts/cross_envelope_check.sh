@@ -429,7 +429,6 @@ VECTORS=(
 # (protowire-cpp#24).
 VECTOR_NOT_IMPLEMENTED="$(cat <<'NI'
 swift         zero-map-entry  mode not built; trendvidia/protowire-swift#15
-csharp        zero-map-entry  mode not built; trendvidia/protowire-csharp#31
 NI
 )"
 
