@@ -36,3 +36,7 @@ editors/jetbrains/plugin/dist/*.zip
 .refcache/
 **/.refcache/
 docs/draft-trendvidia-protowire.xml
+
+# Python bytecode, written when a generate.py runs.
+__pycache__/
+*.pyc
