@@ -333,7 +333,9 @@ print(",".join(f"{k}={v}" for k, v in d.get("limits", {}).items()))
     total_pairs=$((total_pairs + 1))
     verdict=$(run_one "$port" "${PORT_BINS[$port]}" "$format" "$schema" "$input" "$expect" "$limits")
     if [[ "$verdict" != "PASS" ]]; then
-      FAILS["$port|$file"]="$verdict"
+      # One file can be several rows: a pb and a pb-render row, or the same
+      # format under two limits with opposite verdicts.
+      FAILS["$port|$format $file, expect $expect"]="$verdict"
       fail_count=$((fail_count + 1))
     fi
   done
@@ -350,8 +352,8 @@ fi
 echo "✗ HARDENING conformance regressions:" >&2
 for k in "${!FAILS[@]}"; do
   port="${k%%|*}"
-  file="${k#*|}"
-  printf '  %-8s %-50s %s\n' "$port" "$file" "${FAILS[$k]}" >&2
+  row="${k#*|}"
+  printf '  %-8s %-72s %s\n' "$port" "$row" "${FAILS[$k]}" >&2
 done
 echo >&2
 echo "Verdict legend:" >&2
