@@ -19,7 +19,8 @@
 #
 #   Same SKIP_PORTS and REQUIRE_PORTS as cross_security_check.sh. A port with
 #   no pb-text harness is not run and the script says so, so an absent port
-#   can't pass for a clean run. Today go, cpp, java, java-lite and csharp have one.
+#   can't pass for a clean run. Today go, cpp, java, java-lite, csharp and dart
+#   have one.
 
 set -euo pipefail
 
@@ -30,9 +31,10 @@ GO_DIR="${GO_DIR:-${SIBLING_DIR}/protowire-go}"
 CPP_DIR="${CPP_DIR:-${SIBLING_DIR}/protowire-cpp}"
 JAVA_DIR="${JAVA_DIR:-${SIBLING_DIR}/protowire-java}"
 CSHARP_DIR="${CSHARP_DIR:-${SIBLING_DIR}/protowire-csharp}"
+DART_DIR="${DART_DIR:-${SIBLING_DIR}/protowire-dart}"
 SKIP_PORTS="${SKIP_PORTS:-}"
 REQUIRE_PORTS="${REQUIRE_PORTS:-}"
-NOT_YET=(ts rust swift dart python)
+NOT_YET=(ts rust swift python)
 
 skip() {
   case ",$SKIP_PORTS," in
@@ -75,7 +77,14 @@ if ! skip csharp && [[ -d "$CSHARP_DIR/cmd/Protowire.CheckDecode" ]]; then
   PORT_BINS[csharp]="$CSHARP_DIR/cmd/Protowire.CheckDecode/bin/Release/net10.0/check-decode"
 fi
 
-for p in go cpp java java-lite csharp; do
+if ! skip dart && [[ -f "$DART_DIR/bin/check_decode.dart" ]]; then
+  echo "→ Dart build" >&2
+  PORT_BINS[dart]="$(mktemp -t check-decode-dart.XXXXXX)"
+  (cd "$DART_DIR" && dart pub get >/dev/null &&
+    dart compile exe bin/check_decode.dart -o "${PORT_BINS[dart]}" >/dev/null)
+fi
+
+for p in go cpp java java-lite csharp dart; do
   [[ -n "${PORT_BINS[$p]:-}" ]] || echo "· $p: not run" >&2
 done
 for p in "${NOT_YET[@]}"; do
