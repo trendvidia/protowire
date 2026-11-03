@@ -11,7 +11,12 @@ import (
 
 	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/types/descriptorpb"
+	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
+	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/pluginpb"
 )
 
@@ -519,5 +524,57 @@ func TestSbeDispatchWithNoCases(t *testing.T) {
 	// The cases that do exist are still dispatched.
 	if meta := generated(t, resp, "TickSbeMeta.java"); !strings.Contains(meta, "case 1 -> msg.getPrice();") {
 		t.Errorf("TickSbeMeta.java lost its getField case:\n%s", meta)
+	}
+}
+
+// TestRuntimeCompanionsForGoogleTypes covers the google/protobuf types that are
+// ordinary messages to PXF. No build runs the plugin over their files, so a
+// reference into com.google.protobuf names a class that does not exist and the
+// generated Java does not compile (protowire#539). Their companions ship in
+// the runtime, and the tables point there.
+func TestRuntimeCompanionsForGoogleTypes(t *testing.T) {
+	google := []*descriptorpb.FileDescriptorProto{
+		protodesc.ToFileDescriptorProto(anypb.File_google_protobuf_any_proto),
+		protodesc.ToFileDescriptorProto(emptypb.File_google_protobuf_empty_proto),
+		protodesc.ToFileDescriptorProto(fieldmaskpb.File_google_protobuf_field_mask_proto),
+		protodesc.ToFileDescriptorProto(structpb.File_google_protobuf_struct_proto),
+	}
+	enumType := descriptorpb.FieldDescriptorProto_TYPE_ENUM
+	holder := protoFile("holder.proto", []string{
+		"google/protobuf/any.proto", "google/protobuf/empty.proto",
+		"google/protobuf/field_mask.proto", "google/protobuf/struct.proto",
+	}, &descriptorpb.DescriptorProto{
+		Name: proto.String("Holder"),
+		Field: []*descriptorpb.FieldDescriptorProto{
+			field("any", 1, optionalLabel, messageType, ".google.protobuf.Any"),
+			field("anys", 2, repeatedLabel, messageType, ".google.protobuf.Any"),
+			field("empty", 3, optionalLabel, messageType, ".google.protobuf.Empty"),
+			field("mask", 4, optionalLabel, messageType, ".google.protobuf.FieldMask"),
+			field("struct", 5, optionalLabel, messageType, ".google.protobuf.Struct"),
+			field("value", 6, optionalLabel, messageType, ".google.protobuf.Value"),
+			field("list", 7, optionalLabel, messageType, ".google.protobuf.ListValue"),
+			field("nothing", 8, optionalLabel, enumType, ".google.protobuf.NullValue"),
+		},
+	})
+	meta := generated(t, generate(t, append(google, holder)...), "HolderPxfMeta.java")
+	nested := table(t, meta, "NESTED_METAS")
+	for _, want := range []string{
+		"Map.entry(1, org.protowire.pxf.wkt.AnyPxfMeta.INSTANCE)",
+		"Map.entry(2, org.protowire.pxf.wkt.AnyPxfMeta.INSTANCE)",
+		"Map.entry(3, org.protowire.pxf.wkt.EmptyPxfMeta.INSTANCE)",
+		"Map.entry(4, org.protowire.pxf.wkt.FieldMaskPxfMeta.INSTANCE)",
+		"Map.entry(5, org.protowire.pxf.wkt.StructPxfMeta.INSTANCE)",
+		"Map.entry(6, org.protowire.pxf.wkt.ValuePxfMeta.INSTANCE)",
+		"Map.entry(7, org.protowire.pxf.wkt.ListValuePxfMeta.INSTANCE)",
+	} {
+		if !strings.Contains(nested, want) {
+			t.Errorf("NESTED_METAS lacks %s:\n%s", want, nested)
+		}
+	}
+	if got := table(t, meta, "ENUM_METAS"); !strings.Contains(got, "Map.entry(8, org.protowire.pxf.wkt.NullValuePxfEnum.INSTANCE)") {
+		t.Errorf("ENUM_METAS = %s", got)
+	}
+	if strings.Contains(meta, "com.google.protobuf.AnyPxfMeta") {
+		t.Errorf("a reference into com.google.protobuf is left:\n%s", meta)
 	}
 }
