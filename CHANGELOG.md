@@ -12,6 +12,7 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ### Added
 
+- **The gates hold protowire-csharp to the whole corpus.** It runs the 25 hardening rows it skipped, joins the PXF text gate, and leaves the `zero-map-entry` exception list (trendvidia/protowire-csharp#31, #32).
 - **A gate compares the PXF text ports write** (#503). `scripts/cross_text_check.sh` holds each port's marshaller to goldens that protowire-go wrote, on 56 messages under [`testdata/text/`](testdata/text/). The envelope gate compares bytes and the security gate compares verdicts, so a port could write different text and pass both. Go, Java and the Java lite tier run it. `check-decode` gains `--format pb-text`, and other ports are named as not run until they add it. The goldens record what the reference writes; they don't make it the only valid spelling.
 
 ### Changed

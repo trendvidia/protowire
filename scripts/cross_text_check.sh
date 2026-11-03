@@ -19,7 +19,7 @@
 #
 #   Same SKIP_PORTS and REQUIRE_PORTS as cross_security_check.sh. A port with
 #   no pb-text harness is not run and the script says so, so an absent port
-#   can't pass for a clean run. Today go, java and java-lite have one.
+#   can't pass for a clean run. Today go, java, java-lite and csharp have one.
 
 set -euo pipefail
 
@@ -28,9 +28,10 @@ SIBLING_DIR="$(dirname "$REPO_DIR")"
 TEXT_DIR="$REPO_DIR/testdata/text"
 GO_DIR="${GO_DIR:-${SIBLING_DIR}/protowire-go}"
 JAVA_DIR="${JAVA_DIR:-${SIBLING_DIR}/protowire-java}"
+CSHARP_DIR="${CSHARP_DIR:-${SIBLING_DIR}/protowire-csharp}"
 SKIP_PORTS="${SKIP_PORTS:-}"
 REQUIRE_PORTS="${REQUIRE_PORTS:-}"
-NOT_YET=(cpp ts rust swift dart csharp python)
+NOT_YET=(cpp ts rust swift dart python)
 
 skip() {
   case ",$SKIP_PORTS," in
@@ -57,7 +58,13 @@ if ! skip java-lite && [[ -d "$JAVA_DIR/check-decode-android" ]]; then
   PORT_BINS[java-lite]="$JAVA_DIR/check-decode-android/build/install/check-decode-android/bin/check-decode-android"
 fi
 
-for p in go java java-lite; do
+if ! skip csharp && [[ -d "$CSHARP_DIR/cmd/Protowire.CheckDecode" ]]; then
+  echo "→ C# build" >&2
+  (cd "$CSHARP_DIR" && dotnet build -c Release --nologo -v quiet cmd/Protowire.CheckDecode >/dev/null)
+  PORT_BINS[csharp]="$CSHARP_DIR/cmd/Protowire.CheckDecode/bin/Release/net10.0/check-decode"
+fi
+
+for p in go java java-lite csharp; do
   [[ -n "${PORT_BINS[$p]:-}" ]] || echo "· $p: not run" >&2
 done
 for p in "${NOT_YET[@]}"; do
