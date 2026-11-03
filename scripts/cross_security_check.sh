@@ -212,7 +212,12 @@ build_port() {
       ;;
     dart)
       [[ -f "$DART_DIR/bin/check_decode.dart" ]] || return 0
-      PORT_BIN="dart"
+      # Compiled once: `dart run` compiles on every row, about 1s of the 5s
+      # budget, and a row on a loaded machine has timed out on it.
+      echo "→ Dart build" >&2
+      PORT_BIN="$(mktemp -t check-decode-dart.XXXXXX)"
+      (cd "$DART_DIR" && run_build dart pub get &&
+        run_build dart compile exe bin/check_decode.dart -o "$PORT_BIN")
       ;;
     csharp)
       [[ -d "$CSHARP_DIR/cmd/Protowire.CheckDecode" ]] || return 0
@@ -252,7 +257,6 @@ run_one() {
   local cmd
   case "$port" in
     ts)     cmd=(npx --yes tsx "$TS_DIR/scripts/check-decode.ts" "${args[@]}") ;;
-    dart)   cmd=(dart run "$DART_DIR/bin/check_decode.dart" "${args[@]}") ;;
     python) cmd=("$bin" "$PYTHON_DIR/scripts/check_decode.py" "${args[@]}") ;;
     *)      cmd=("$bin" "${args[@]}") ;;
   esac
