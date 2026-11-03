@@ -8,7 +8,8 @@
 # pass for a clean run.
 #
 # Java and its lite tier write Go's bytes since trendvidia/protowire-java#172,
-# so they are required too.
+# so they are required too. C# runs with the cases trendvidia/protowire-csharp#91
+# waits on excluded in the script.
 
 name: Cross-port write check
 
@@ -56,6 +57,11 @@ jobs:
         with:
           repository: trendvidia/protowire-java
           path: protowire-java
+      - name: Checkout protowire-csharp
+        uses: actions/checkout@v7
+        with:
+          repository: trendvidia/protowire-csharp
+          path: protowire-csharp
       - uses: actions/setup-go@v7
         with:
           go-version-file: protowire-go/go.mod
@@ -64,7 +70,10 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
       - name: Write conformance
         env:
-          REQUIRE_PORTS: 'go,java,java-lite'
+          REQUIRE_PORTS: 'go,java,java-lite,csharp'
         run: ./protowire/scripts/cross_write_check.sh
