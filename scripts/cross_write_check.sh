@@ -39,11 +39,7 @@ REQUIRE_PORTS="${REQUIRE_PORTS:-}"
 NOT_YET=(cpp ts rust swift dart csharp python)
 
 # Cases no port is held to yet, each with the question it waits on.
-declare -A EXCLUDED=(
-  # Go writes a double NaN as 0x7FF8000000000001, every other port as
-  # 0x7FF8000000000000; whether the spec pins one is open.
-  [Scalars.float-nan]="trendvidia/protowire-java#161"
-)
+declare -A EXCLUDED=()
 
 skip() {
   case ",$SKIP_PORTS," in
