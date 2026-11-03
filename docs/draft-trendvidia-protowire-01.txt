@@ -136,15 +136,16 @@ Internet-Draft                  protowire                   October 2026
    4.  PB Binary Encoding  . . . . . . . . . . . . . . . . . . . . .  42
    5.  SBE Binary Encoding . . . . . . . . . . . . . . . . . . . . .  42
      5.1.  Character Encoding  . . . . . . . . . . . . . . . . . . .  43
-     5.2.  Header and Block Length . . . . . . . . . . . . . . . . .  43
-     5.3.  Repeating Groups  . . . . . . . . . . . . . . . . . . . .  43
-     5.4.  Variable-Length Data  . . . . . . . . . . . . . . . . . .  44
+     5.2.  Fixed-Length Arrays . . . . . . . . . . . . . . . . . . .  43
+     5.3.  Header and Block Length . . . . . . . . . . . . . . . . .  43
+     5.4.  Repeating Groups  . . . . . . . . . . . . . . . . . . . .  44
+     5.5.  Variable-Length Data  . . . . . . . . . . . . . . . . . .  44
    6.  Annotation Extensions . . . . . . . . . . . . . . . . . . . .  44
      6.1.  PXF Annotations . . . . . . . . . . . . . . . . . . . . .  44
-       6.1.1.  Default Placement . . . . . . . . . . . . . . . . . .  47
+       6.1.1.  Default Placement . . . . . . . . . . . . . . . . . .  48
        6.1.2.  Required and Default  . . . . . . . . . . . . . . . .  49
        6.1.3.  Oneof Members . . . . . . . . . . . . . . . . . . . .  49
-     6.2.  SBE Annotations . . . . . . . . . . . . . . . . . . . . .  50
+     6.2.  SBE Annotations . . . . . . . . . . . . . . . . . . . . .  51
      6.3.  Schema Extension Annotations  . . . . . . . . . . . . . .  51
    7.  Schema Language Extensions  . . . . . . . . . . . . . . . . .  52
      7.1.  Overview  . . . . . . . . . . . . . . . . . . . . . . . .  52
@@ -161,7 +162,6 @@ Internet-Draft                  protowire                   October 2026
        7.6.1.  Literal Values  . . . . . . . . . . . . . . . . . . .  58
        7.6.2.  Engine Expressions  . . . . . . . . . . . . . . . . .  58
        7.6.3.  Expression Language . . . . . . . . . . . . . . . . .  59
-       7.6.4.  Placement . . . . . . . . . . . . . . . . . . . . . .  62
 
 
 
@@ -170,6 +170,7 @@ Franco Jr.                 Expires 1 May 2027                   [Page 3]
 Internet-Draft                  protowire                   October 2026
 
 
+       7.6.4.  Placement . . . . . . . . . . . . . . . . . . . . . .  62
        7.6.5.  Coexistence with Bracket Options  . . . . . . . . . .  63
      7.7.  Presence Semantics  . . . . . . . . . . . . . . . . . . .  63
        7.7.1.  Well-Known Type Binding . . . . . . . . . . . . . . .  64
@@ -211,7 +212,6 @@ Internet-Draft                  protowire                   October 2026
    Appendix C.  Implementation Status  . . . . . . . . . . . . . . .  89
    Appendix D.  Open Issues  . . . . . . . . . . . . . . . . . . . .  90
    Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  90
-
 
 
 
@@ -2367,7 +2367,25 @@ Internet-Draft                  protowire                   October 2026
    to a bytes field of the same length.  Mapping it to a string would
    make every value with a byte outside UTF-8 fail to decode.
 
-5.2.  Header and Block Length
+5.2.  Fixed-Length Arrays
+
+   A FIX SBE type whose length attribute is greater than 1 is a fixed-
+   length array of its primitive type; a length of 1, or none, is a
+   single value.  A tool that imports a FIX SBE schema MUST map a uint8
+   or int8 array of length N to a bytes field with sbe.length N, which
+   occupies the same N bytes of the block, and MUST map a char array as
+   described in the previous section.  It MUST reject an array of any
+   other primitive type, since no field this document defines holds one;
+   importing it as a single value would misplace every later field in
+   the block.  A tool that exports a FIX SBE schema MUST write a bytes
+   field with sbe.length N as a uint8 array of length N, and a string
+   field with sbe.length N as a char array of length N.  A bytes field
+   written as a char array would be imported again as a string field.  A
+   bytes field with sbe.length 1 is exported as a single uint8 and
+   imported again as a narrowed integer field: its byte in the block is
+   unchanged, and its field type is not.
+
+5.3.  Header and Block Length
 
    Every SBE message on the wire is preceded by an 8-byte message-header
    carrying the schema's blockLength, templateId, schemaId, and version,
@@ -2383,7 +2401,16 @@ Internet-Draft                  protowire                   October 2026
        strictly larger MUST be accepted (forward compatibility for
        additive schema evolution).
 
-5.3.  Repeating Groups
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 43]
+
+Internet-Draft                  protowire                   October 2026
+
+
+5.4.  Repeating Groups
 
    Each repeating group is preceded by a group-header carrying
    blockLength and numInGroup.  Before iterating any group, decoders
@@ -2401,16 +2428,7 @@ Internet-Draft                  protowire                   October 2026
        0 with a non-zero count MUST be rejected before any per-element
        allocation.
 
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 43]
-
-Internet-Draft                  protowire                   October 2026
-
-
-5.4.  Variable-Length Data
+5.5.  Variable-Length Data
 
    Variable-length data ("varData") fields follow the fixed block, each
    preceded by a length prefix per the schema's varDataEncoding.
@@ -2439,6 +2457,15 @@ Internet-Draft                  protowire                   October 2026
    nullable types is governed by Section 3.9.  The annotation is not
    valid on a member of a oneof; see Section 6.1.3.
 
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 44]
+
+Internet-Draft                  protowire                   October 2026
+
+
    pxf.default: when set, the value is a PXF literal (parsed by the same
    rules as a value in any entry).  Decoders MUST treat an absent
    annotated field as if the document had supplied the default literal.
@@ -2458,14 +2485,6 @@ Internet-Draft                  protowire                   October 2026
    bind a decoder's presence-tracking decode, the entry point that
    reports field presence to its caller.  An implementation MAY also
    offer a decode that tracks no presence, and that decode does not
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 44]
-
-Internet-Draft                  protowire                   October 2026
-
-
    apply these rules: it accepts a document with an absent pxf.required
    field and leaves an absent pxf.default field unset.  An
    implementation MAY let a caller turn the rules off on a presence-
@@ -2493,6 +2512,16 @@ Internet-Draft                  protowire                   October 2026
    representations respectively, encoded over PB as length-delimited
    unsigned big-endian magnitudes plus sign and scale fields.
 
+
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 45]
+
+Internet-Draft                  protowire                   October 2026
+
+
    A pxf.Decimal's value is (-1)^negative × unscaled × 10^(-scale).  The
    scale is part of a PXF literal but not of the value, so what a PB
    producer writes depends on what it holds.  A producer that writes a
@@ -2514,14 +2543,6 @@ Internet-Draft                  protowire                   October 2026
    precision with ties to even: a mantissa wider than prec bits denotes
    that rounded value (issue #410). prec 0 or a zero mantissa (empty, or
    only zero bytes) is zero.  A producer MUST encode a zero, at any
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 45]
-
-Internet-Draft                  protowire                   October 2026
-
-
    prec, with an empty mantissa and exponent 0, keeping its prec and
    negative, so that a zero has one PB encoding: the one a decoder
    stores when it reads a zero literal.  A decoder still reads any zero
@@ -2548,6 +2569,15 @@ Internet-Draft                  protowire                   October 2026
       unchanged after three round trips for every one of 35,600 random
       values from 24 to 13,000 bits).
 
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 46]
+
+Internet-Draft                  protowire                   October 2026
+
+
    *  Reading.  A decoder reads a literal with a precision suffix at
       exactly that many bits, rounding to nearest with ties to even, and
       one without a suffix, which a person may write, at 256 bits.  It
@@ -2570,14 +2600,6 @@ Internet-Draft                  protowire                   October 2026
    PB to PXF to PB therefore preserves every BigFloat's value, its sign,
    and its prec, zeros included (issue #410).  It does not preserve a
    mantissa's bytes as written: the reading rule stores the significand
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 46]
-
-Internet-Draft                  protowire                   October 2026
-
-
    as a prec-bit integer, so a mantissa that was not normalized, or was
    wider than prec bits, comes back normalized to the same value.  A
    value at MaxBigFloatExponent may print as a literal whose exact value
@@ -2600,6 +2622,18 @@ Internet-Draft                  protowire                   October 2026
    form.  Protecting the value in memory is left to the consumer, not
    the codec.
 
+
+
+
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 47]
+
+Internet-Draft                  protowire                   October 2026
+
+
 6.1.1.  Default Placement
 
    pxf.default carries exactly one PXF literal, so the fields it can
@@ -2617,22 +2651,6 @@ Internet-Draft                  protowire                   October 2026
       has no grammar for keys;
 
    *  a group field; or
-
-
-
-
-
-
-
-
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 47]
-
-Internet-Draft                  protowire                   October 2026
-
 
    *  a message-typed field whose type is not one of
       google.protobuf.Timestamp, google.protobuf.Duration, the nine
@@ -2664,6 +2682,14 @@ Internet-Draft                  protowire                   October 2026
       leaves the annotated field absent: a schema whose annotated field
       happens to be present in every document it decodes would then
       carry a meaningless annotation indefinitely without one.
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 48]
+
+Internet-Draft                  protowire                   October 2026
+
+
       Restricting the check to the file that declares the bound message
       reaches that same outcome for an annotated field of an imported
       type, and is equally non-conforming.
@@ -2677,18 +2703,6 @@ Internet-Draft                  protowire                   October 2026
       MUST NOT be applied as a one-element list: the resulting PB output
       would differ from that of an implementation that rejects the
       schema, for the same schema and the same document.
-
-
-
-
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 48]
-
-Internet-Draft                  protowire                   October 2026
-
 
    *  A pxf.default in one of these placements never had honorable
       semantics — there was no literal the decoder could have applied.
@@ -2723,6 +2737,15 @@ Internet-Draft                  protowire                   October 2026
 
    pxf.default MAY be set on a member of a oneof, subject to:
 
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 49]
+
+Internet-Draft                  protowire                   October 2026
+
+
    *  the default applies only when NO member of the oneof is present in
       the document.  When any member is present the default MUST NOT be
       applied — applying it would clear the member the document
@@ -2736,15 +2759,6 @@ Internet-Draft                  protowire                   October 2026
       that bind a descriptor for PXF use MUST reject a schema in which
       two or more members of the same oneof carry it, over the scope of
       Section 3.15.
-
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 49]
-
-Internet-Draft                  protowire                   October 2026
-
 
    The last constraint exists because the alternative is an ordering
    rule.  With two annotated members and an empty document, some
@@ -2778,20 +2792,6 @@ Internet-Draft                  protowire                   October 2026
       Section 3.14, rejecting such a schema on upgrade surfaces a pre-
       existing latent bug rather than introducing one.
 
-6.2.  SBE Annotations
-
-   SBE annotations apply at three scopes:
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -2801,6 +2801,10 @@ Franco Jr.                 Expires 1 May 2027                  [Page 50]
 
 Internet-Draft                  protowire                   October 2026
 
+
+6.2.  SBE Annotations
+
+   SBE annotations apply at three scopes:
 
    extend google.protobuf.FileOptions {
      uint32 schema_id = 1319;
@@ -2847,16 +2851,14 @@ Internet-Draft                  protowire                   October 2026
    defined in Section 7.5 and Section 7.6, and they lower to the carrier
    extension described in Section 7.11.
 
-   The framework-defined annotations are:
-
-
-
 
 
 Franco Jr.                 Expires 1 May 2027                  [Page 51]
 
 Internet-Draft                  protowire                   October 2026
 
+
+   The framework-defined annotations are:
 
    +=============+================================+===================+
    | Name        | Parameters                     | Attaches to       |
@@ -2905,8 +2907,6 @@ Internet-Draft                  protowire                   October 2026
    further top-level declarations to the surface a protowire-conformant
    schema MAY contain:
 
-   type  A named refinement alias bundling a base type with zero or more
-
 
 
 Franco Jr.                 Expires 1 May 2027                  [Page 52]
@@ -2914,6 +2914,7 @@ Franco Jr.                 Expires 1 May 2027                  [Page 52]
 Internet-Draft                  protowire                   October 2026
 
 
+   type  A named refinement alias bundling a base type with zero or more
       validation rules.  See Section 7.3.
 
    function  A signature for a named validation predicate whose body is
@@ -2959,9 +2960,8 @@ Internet-Draft                  protowire                   October 2026
    occurrence of @ MUST be followed by an identifier and MAY introduce
    an annotation use site as defined in Section 7.6.
 
-   The word expression is a parameter-type designator usable only inside
-   annotation X(arg: expression) declarations (Section 7.5); elsewhere
-   it MUST be treated as a regular identifier.
+
+
 
 
 
@@ -2969,6 +2969,10 @@ Franco Jr.                 Expires 1 May 2027                  [Page 53]
 
 Internet-Draft                  protowire                   October 2026
 
+
+   The word expression is a parameter-type designator usable only inside
+   annotation X(arg: expression) declarations (Section 7.5); elsewhere
+   it MUST be treated as a regular identifier.
 
    The word this is bound only inside engine-language bodies of
    @validate(...) and similar annotations.  Protobuf parsers capture
@@ -3012,10 +3016,6 @@ Internet-Draft                  protowire                   October 2026
    chain A → B → C accumulates constraints from A, then B, then C in
    that order at any field declared as type C.
 
-   Composition MUST NOT change the underlying data type.  A derived
-   type's base MUST resolve to the same primitive, enum, wrapper, or
-   message kind as its ancestor's; deriving an int32 type from a string-
-   based type declaration is a parse error.
 
 
 
@@ -3025,6 +3025,11 @@ Franco Jr.                 Expires 1 May 2027                  [Page 54]
 
 Internet-Draft                  protowire                   October 2026
 
+
+   Composition MUST NOT change the underlying data type.  A derived
+   type's base MUST resolve to the same primitive, enum, wrapper, or
+   message kind as its ancestor's; deriving an int32 type from a string-
+   based type declaration is a parse error.
 
 7.3.2.  Use at Field Sites
 
@@ -3070,17 +3075,16 @@ Internet-Draft                  protowire                   October 2026
    *  On failure, the function returns (false, V) where V is a Violation
       as defined in Section 7.10.
 
-   The specific syntax for expressing this pair in any given runtime
-   language is per-runtime; the contract is what crosses the schema/
-   runtime boundary.
-
-
 
 
 Franco Jr.                 Expires 1 May 2027                  [Page 55]
 
 Internet-Draft                  protowire                   October 2026
 
+
+   The specific syntax for expressing this pair in any given runtime
+   language is per-runtime; the contract is what crosses the schema/
+   runtime boundary.
 
 7.4.2.  Parameter Types
 
@@ -3123,10 +3127,6 @@ Internet-Draft                  protowire                   October 2026
 7.5.  Annotation Declarations
 
    An annotation declaration specifies a named use site for metadata:
-
-
-
-
 
 
 
@@ -4407,13 +4407,13 @@ Internet-Draft                  protowire                   October 2026
    requirements, restated here for emphasis.  Specifically:
 
    *  Wire block length less than template block length MUST be rejected
-      (Section 5.2).
+      (Section 5.3).
 
    *  Group count multiplied by group block length MUST be 64-bit
-      checked against the buffer length before iteration (Section 5.3).
+      checked against the buffer length before iteration (Section 5.4).
 
    *  A group with count > 0 and wire_block_length == 0 MUST be rejected
-      before any per-element allocation (Section 5.3).
+      before any per-element allocation (Section 5.4).
 
 
 
