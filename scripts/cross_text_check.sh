@@ -19,7 +19,7 @@
 #
 #   Same SKIP_PORTS and REQUIRE_PORTS as cross_security_check.sh. A port with
 #   no pb-text harness is not run and the script says so, so an absent port
-#   can't pass for a clean run. Today go, java, java-lite and csharp have one.
+#   can't pass for a clean run. Today go, cpp, java, java-lite and csharp have one.
 
 set -euo pipefail
 
@@ -27,11 +27,12 @@ REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 SIBLING_DIR="$(dirname "$REPO_DIR")"
 TEXT_DIR="$REPO_DIR/testdata/text"
 GO_DIR="${GO_DIR:-${SIBLING_DIR}/protowire-go}"
+CPP_DIR="${CPP_DIR:-${SIBLING_DIR}/protowire-cpp}"
 JAVA_DIR="${JAVA_DIR:-${SIBLING_DIR}/protowire-java}"
 CSHARP_DIR="${CSHARP_DIR:-${SIBLING_DIR}/protowire-csharp}"
 SKIP_PORTS="${SKIP_PORTS:-}"
 REQUIRE_PORTS="${REQUIRE_PORTS:-}"
-NOT_YET=(cpp ts rust swift dart python)
+NOT_YET=(ts rust swift dart python)
 
 skip() {
   case ",$SKIP_PORTS," in
@@ -46,6 +47,16 @@ if ! skip go && [[ -d "$GO_DIR/scripts/check_decode" ]]; then
   echo "→ Go build" >&2
   PORT_BINS[go]="$(mktemp -t check-decode-go.XXXXXX)"
   (cd "$GO_DIR" && go build -o "${PORT_BINS[go]}" ./scripts/check_decode)
+fi
+if ! skip cpp && [[ -f "$CPP_DIR/cmd/check_decode/main.cc" ]]; then
+  echo "→ C++ build" >&2
+  # check_decode only: the test suite needs libprotoc pieces Ubuntu's
+  # libprotobuf-dev lacks, as in cross_security_check.sh.
+  if [[ ! -d "$CPP_DIR/build" ]]; then
+    cmake -S "$CPP_DIR" -B "$CPP_DIR/build" -DPROTOWIRE_BUILD_TESTS=OFF >&2
+  fi
+  cmake --build "$CPP_DIR/build" --target check_decode -j >&2
+  PORT_BINS[cpp]="$CPP_DIR/build/bin/check_decode"
 fi
 if ! skip java && [[ -d "$JAVA_DIR/check-decode" ]]; then
   echo "→ Java build" >&2
@@ -64,7 +75,7 @@ if ! skip csharp && [[ -d "$CSHARP_DIR/cmd/Protowire.CheckDecode" ]]; then
   PORT_BINS[csharp]="$CSHARP_DIR/cmd/Protowire.CheckDecode/bin/Release/net10.0/check-decode"
 fi
 
-for p in go java java-lite csharp; do
+for p in go cpp java java-lite csharp; do
   [[ -n "${PORT_BINS[$p]:-}" ]] || echo "· $p: not run" >&2
 done
 for p in "${NOT_YET[@]}"; do
