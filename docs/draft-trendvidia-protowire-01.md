@@ -1101,7 +1101,7 @@ Conformance:
 * A decoder MUST reject a block whose type URL it cannot resolve to a message type, including when it has no type resolver. It MUST NOT read the remaining entries as fields of google.protobuf.Any instead.
 * The body after the type entry is decoded as any body of its type is: the limits of {{mandatory-limits}} apply to it, and so do the annotation rules of {{pxf-annotations}}.
 * A parser that does not bind a schema cannot tell which blocks are bound to Any. It accepts a type entry as the first entry of any block, and the rules above apply when the document is bound. It MUST reject a type entry anywhere else in a block.
-* An encoder MAY write an Any in either form. It writes the type entry only when its resolver maps the stored type URL to a message type, and it writes the type URL verbatim.
+* An encoder MAY write an Any in either form, and writes the type URL verbatim. It MUST write the type entry and body only when its resolver maps the stored type URL to a message type and decoding the body it writes gives exactly the stored value bytes. Otherwise it MUST write type_url and value. A reader compares an Any by its bytes, so a body that decodes to other bytes changes the message with no error. Unknown fields, field and map order, explicitly written zeros, and values the PXF form does not spell are where the two differ (issue #501). How an encoder makes the comparison is its own choice, and one that writes every Any as type_url and value conforms.
 
 # PB Binary Encoding {#pb-binary-encoding}
 

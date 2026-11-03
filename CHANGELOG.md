@@ -16,6 +16,7 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ### Changed
 
+- **An Any is written as a type entry and body only when the body gives back the same bytes** (draft -01 § Any Blocks, #501, decided by the owner). The draft let an encoder write either form whenever it could resolve the type, which permitted a body that decodes to a different message. A reader compares an Any by its bytes, so the document changed the message with no error. protowire-go's encoder changed 159,728 of 300,000 fuzzed Any values before protowire-go#232. An encoder now falls back to `type_url` and `value` unless decoding its body gives exactly the stored value bytes. How it checks is its own choice, and writing every Any raw conforms.
 - **A `pxf.Decimal` written from a language value is written reduced** (protowire-cpp#97; draft `-01` § PXF Annotations). `pb` bytes for one number differed by port: protowire-go holds a `big.Rat` and writes the smallest non-negative scale, while C++, Java and C# wrote the scale they held. The rule follows the reference, so its bytes do not move. A producer writing a message's fields, generated or dynamic, still writes them as they are, so PXF `1.00` keeps scale 2 through `proto.Marshal`, and every reader still accepts every form.
 - **The security gate runs on the Java lite tier** as port `java-lite`, through `check-decode-android` (#503). `adversarial.proto` gains `java_package` and `java_multiple_files`, which the lite plugin requires. No field changes.
 
