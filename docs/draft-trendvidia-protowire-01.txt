@@ -191,12 +191,12 @@ Internet-Draft                  protowire                   October 2026
    9.  Decoder Conformance . . . . . . . . . . . . . . . . . . . . .  74
      9.1.  Mandatory Limits  . . . . . . . . . . . . . . . . . . . .  74
      9.2.  Recursion . . . . . . . . . . . . . . . . . . . . . . . .  77
-     9.3.  UTF-8 Enforcement . . . . . . . . . . . . . . . . . . . .  77
+     9.3.  UTF-8 Enforcement . . . . . . . . . . . . . . . . . . . .  78
      9.4.  SBE Bounds Checking . . . . . . . . . . . . . . . . . . .  78
      9.5.  Map Keys  . . . . . . . . . . . . . . . . . . . . . . . .  78
-     9.6.  Validation Engine Conformance . . . . . . . . . . . . . .  78
+     9.6.  Validation Engine Conformance . . . . . . . . . . . . . .  79
    10. Media Types . . . . . . . . . . . . . . . . . . . . . . . . .  79
-   11. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  79
+   11. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  80
      11.1.  Media Type Registrations . . . . . . . . . . . . . . . .  80
      11.2.  Annotation Field Number Range  . . . . . . . . . . . . .  81
    12. Security Considerations . . . . . . . . . . . . . . . . . . .  82
@@ -4300,12 +4300,12 @@ Internet-Draft                  protowire                   October 2026
        stream object, the depth counter MUST be passed in rather than
        reset to zero.
 
-9.3.  UTF-8 Enforcement
-
-   Proto3 string fields are sequences of valid UTF-8 [RFC3629].
-   Conforming decoders:
-
-
+   A producer of PXF text or of PB MUST fail with an error on a message
+   nested more deeply than MaxNestingDepth, counted as a decoder reading
+   its output would count it, rather than write a document that a
+   decoder at the same limit rejects (issue #502).  The limit is
+   configurable per call, as a decoder's is.  Such a message can only
+   come from somewhere other than a conforming decoder at that limit,
 
 
 
@@ -4313,6 +4313,15 @@ Franco Jr.                 Expires 1 May 2027                  [Page 77]
 
 Internet-Draft                  protowire                   October 2026
 
+
+   such as a language value built in memory or a protobuf runtime with a
+   higher limit, and a producer that follows a reference cycle meets the
+   limit instead of exhausting its stack.
+
+9.3.  UTF-8 Enforcement
+
+   Proto3 string fields are sequences of valid UTF-8 [RFC3629].
+   Conforming decoders:
 
    *  MUST validate UTF-8 strictly when populating any string-typed
       field, regardless of the source encoding (PB length-delimited
@@ -4353,6 +4362,14 @@ Internet-Draft                  protowire                   October 2026
    (Object.create(null)) or a Map, or MUST explicitly reject the keys
    "__proto__", "constructor", and "prototype".  The same obligation
    applies in any other implementation language that exhibits prototype-
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 78]
+
+Internet-Draft                  protowire                   October 2026
+
+
    mutation semantics for reserved string keys.
 
 9.6.  Validation Engine Conformance
@@ -4361,14 +4378,6 @@ Internet-Draft                  protowire                   October 2026
    schema language extensions MUST:
 
    *  implement the presence semantics specified in Section 7.7;
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 78]
-
-Internet-Draft                  protowire                   October 2026
-
 
    *  emit Violations whose shape conforms to the structure defined in
       Section 7.10;
@@ -4409,15 +4418,6 @@ Internet-Draft                  protowire                   October 2026
       or, for transports that lack media-type parameters, in a
       transport-level header.
 
-11.  IANA Considerations
-
-
-
-
-
-
-
-
 
 
 
@@ -4425,6 +4425,8 @@ Franco Jr.                 Expires 1 May 2027                  [Page 79]
 
 Internet-Draft                  protowire                   October 2026
 
+
+11.  IANA Considerations
 
 11.1.  Media Type Registrations
 
@@ -4472,8 +4474,6 @@ Internet-Draft                  protowire                   October 2026
    Security considerations: See Section 11.
    Interoperability considerations: See Section 8.
    Published specification: This document.
-   Applications that use this media type: API integration.
-   Fragment identifier considerations: none defined.
 
 
 
@@ -4482,6 +4482,8 @@ Franco Jr.                 Expires 1 May 2027                  [Page 80]
 Internet-Draft                  protowire                   October 2026
 
 
+   Applications that use this media type: API integration.
+   Fragment identifier considerations: none defined.
    Author/Change controller: IETF.
    Provisional registration: yes.
 
@@ -4524,8 +4526,6 @@ Internet-Draft                  protowire                   October 2026
    defined in Section 6 and for future extensions of this document; they
    MUST NOT be reused for unrelated extensions.  The currently assigned
    numbers are:
-
-
 
 
 
