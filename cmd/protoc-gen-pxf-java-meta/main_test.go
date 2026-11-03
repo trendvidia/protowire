@@ -275,6 +275,9 @@ func TestNullableFields(t *testing.T) {
 	if got, want := table(t, generated(t, resp, "HolderPxfMeta.java"), "NULLABLE_FIELDS"), "Set.of(2, 3, 4)"; got != want {
 		t.Errorf("proto3: NULLABLE_FIELDS = %s, want %s", got, want)
 	}
+	if got, want := table(t, generated(t, resp, "HolderPxfMeta.java"), "IMPLICIT_PRESENCE_FIELDS"), "Set.of(1)"; got != want {
+		t.Errorf("proto3: IMPLICIT_PRESENCE_FIELDS = %s, want %s", got, want)
+	}
 
 	proto2 := protoFile("p2.proto", nil, &descriptorpb.DescriptorProto{
 		Name: proto.String("Legacy"),
@@ -286,6 +289,10 @@ func TestNullableFields(t *testing.T) {
 	proto2.Syntax = proto.String("proto2")
 	if got, want := table(t, generated(t, generate(t, proto2), "LegacyPxfMeta.java"), "NULLABLE_FIELDS"), "Set.of(1)"; got != want {
 		t.Errorf("proto2: NULLABLE_FIELDS = %s, want %s", got, want)
+	}
+	// A required field is in neither table: it has presence, and it is written at zero.
+	if got, want := table(t, generated(t, generate(t, proto2), "LegacyPxfMeta.java"), "IMPLICIT_PRESENCE_FIELDS"), "Set.of()"; got != want {
+		t.Errorf("proto2: IMPLICIT_PRESENCE_FIELDS = %s, want %s", got, want)
 	}
 }
 
@@ -323,6 +330,9 @@ func TestEditionsFeaturesDecideTheTables(t *testing.T) {
 	})), "EdPxfMeta.java")
 	if got, want := table(t, meta, "NULLABLE_FIELDS"), "Set.of(1)"; got != want {
 		t.Errorf("NULLABLE_FIELDS = %s, want %s", got, want)
+	}
+	if got, want := table(t, meta, "IMPLICIT_PRESENCE_FIELDS"), "Set.of(2)"; got != want {
+		t.Errorf("IMPLICIT_PRESENCE_FIELDS = %s, want %s", got, want)
 	}
 	if got, want := table(t, meta, "PACKED_FIELDS"), "Set.of(3)"; got != want {
 		t.Errorf("PACKED_FIELDS = %s, want %s", got, want)
