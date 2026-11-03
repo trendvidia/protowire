@@ -1,0 +1,6 @@
+by_int = {
+  10: "ten"
+  9: "nine"
+  -1: "neg"
+  0: "zero"
+}

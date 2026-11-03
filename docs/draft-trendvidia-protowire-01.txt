@@ -1606,6 +1606,26 @@ Internet-Draft                  protowire                   October 2026
       or -Inf are rejected unless explicitly written as the identifiers
       "inf", "+inf", "-inf", "nan".
 
+   *  A NaN has many IEEE 754 encodings, so which one is written is
+      fixed here.  A decoder reading the identifier "nan" into a float
+      or double field MUST store the canonical quiet NaN:
+      0x7FF8000000000000 for a double, 0x7FC00000 for a float.  A PB or
+      SBE producer that writes from a language value, such as a
+      floating-point type bound to a struct field, MUST write any NaN in
+      that canonical form.  A producer that writes a message's fields,
+      such as a generated or dynamic message, MUST write them as they
+      are, so that a NaN read from PB keeps its encoding (issue
+      protowire-java#161).
+
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 29]
+
+Internet-Draft                  protowire                   October 2026
+
+
    *  For fields of the well-known types pxf.BigInt and pxf.Decimal
       (Section 6.1), decoders MUST preserve the literal's exact value,
       including, for Decimal, the exact scale: the literal "1.00"
@@ -1617,14 +1637,6 @@ Internet-Draft                  protowire                   October 2026
 
    The number of digits in any single numeric literal is bounded; see
    Section 9.1.
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 29]
-
-Internet-Draft                  protowire                   October 2026
-
 
 3.9.  Booleans, Null, and Identifier Values
 
@@ -1663,6 +1675,13 @@ Internet-Draft                  protowire                   October 2026
       a value reads back as the value type's zero value, so the null
       could not be kept.
 
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 30]
+
+Internet-Draft                  protowire                   October 2026
+
+
    *  When bound to a member of a oneof, message or scalar, makes that
       member the one the body chose.  A body that also writes another
       member of the same oneof writes two members, and MUST be rejected
@@ -1673,14 +1692,6 @@ Internet-Draft                  protowire                   October 2026
    names unless the schema declares the field with open enum semantics,
    in which case the unknown name is preserved in the message's unknown-
    fields set.
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 30]
-
-Internet-Draft                  protowire                   October 2026
-
 
    Because "true", "false", and "null" are reserved value keywords, a
    protobuf schema MUST NOT declare an enum value, message field, or
@@ -1719,17 +1730,6 @@ Internet-Draft                  protowire                   October 2026
    1.5h         ; 1.5 hours
    2µs          ; 2 microseconds (alternative form: 2us)
    -1.5s        ; minus 1.5 seconds
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -2791,9 +2791,9 @@ Internet-Draft                  protowire                   October 2026
    sbe.schema_id and sbe.version identify the schema as a whole.
    sbe.template_id MUST be unique among messages within a schema.
 
-
-
-
+   sbe.length specifies a fixed byte length for string- or bytes-typed
+   fields.  Values longer than the limit MUST be truncated by emitters,
+   a bytes field at the limit and a string field at the last character
 
 
 
@@ -2802,11 +2802,14 @@ Franco Jr.                 Expires 1 May 2027                  [Page 50]
 Internet-Draft                  protowire                   October 2026
 
 
-   sbe.length specifies a fixed byte length for string- or bytes-typed
-   fields.  Values longer than the limit MUST be truncated by emitters;
-   values shorter MUST be padded with U+0000 bytes; decoders MUST trim
-   trailing U+0000 bytes when populating string fields and MUST NOT trim
-   them when populating bytes fields.
+   boundary at or before it, so that a truncated string is still valid
+   UTF-8 (Section 9.3).  A byte-exact cut can split a multi-byte
+   character, and every strict decoder then rejects the whole message
+   (issue #495).  A limit shorter than a string's first character leaves
+   the field empty.  Values shorter than the limit, and the bytes a
+   character-boundary cut leaves over, MUST be padded with U+0000 bytes;
+   decoders MUST trim trailing U+0000 bytes when populating string
+   fields and MUST NOT trim them when populating bytes fields.
 
    sbe.encoding narrows a Protocol Buffers numeric type to a smaller SBE
    primitive.  The defined values are: "int8", "int16", "int32",
@@ -2825,9 +2828,6 @@ Internet-Draft                  protowire                   October 2026
    extension described in Section 7.11.
 
    The framework-defined annotations are:
-
-
-
 
 
 

@@ -118,6 +118,7 @@ The repository ships an adversarial test corpus under `testdata/adversarial/`, s
 | `pb/decimal-{huge-scale,huge-negative-scale,scale-4096}.binpb` | `Decimal.scale` magnitude cap (± `MaxNumericLiteralDigits`), refused before `10^scale` is materialised; 4096 accepted |
 | `pb/bigfloat-{huge-exponent,huge-negative-exponent,exponent-past-bound,exponent-at-bound,negative-exponent-at-bound}.binpb`, `pxf/bigfloat-{huge-exponent,exponent-at-bound}.pxf` | `BigFloat` binary-exponent cap (± `MaxBigFloatExponent`, #281): the int32 extremes, 16385 and `1e646456992` refused; ±16384 and `1e4932` accepted |
 | `pxf/invalid-utf8-string.pxf` | UTF-8 enforcement on `string` |
+| `pb/utf8-{invalid,surrogate,valid}-string.binpb`, `pb/utf8-invalid-bytes.binpb`, `sbe/utf8-{invalid,split-char,valid}-string.sbe`, `sbe/utf8-invalid-bytes.sbe` | UTF-8 enforcement on the binary wires (#496): invalid bytes, a lone surrogate and a character cut in two are refused in a `string`; valid multi-byte text, and the same invalid bytes in a `bytes` field, are accepted |
 | `pxf/lone-surrogate.pxf` | Surrogate rejection in `\u` |
 | `pxf/giant-base64.pxf` | Bytes literal length cap (`MaxBytesLiteralLength`, via `limits`) |
 | `pxf/oversize-2kib.pxf`, `pb/oversize-2kib.binpb` | Total input size cap (`MaxMessageSize`, via `limits`) |

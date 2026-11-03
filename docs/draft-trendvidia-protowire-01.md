@@ -814,6 +814,8 @@ The target field type determines the numeric domain:
 
 * For float and double fields, decoders MUST accept literals in the IEEE 754 {{IEEE754}} representable range; values that round to +Inf or -Inf are rejected unless explicitly written as the identifiers "inf", "+inf", "-inf", "nan".
 
+* A NaN has many IEEE 754 encodings, so which one is written is fixed here. A decoder reading the identifier "nan" into a float or double field MUST store the canonical quiet NaN: 0x7FF8000000000000 for a double, 0x7FC00000 for a float. A PB or SBE producer that writes from a language value, such as a floating-point type bound to a struct field, MUST write any NaN in that canonical form. A producer that writes a message's fields, such as a generated or dynamic message, MUST write them as they are, so that a NaN read from PB keeps its encoding (issue protowire-java#161).
+
 * For fields of the well-known types pxf.BigInt and pxf.Decimal ({{pxf-annotations}}), decoders MUST preserve the literal's exact value, including, for Decimal, the exact scale: the literal "1.00" decodes to a Decimal with unscaled value 100 and scale 2, distinct from "1.0" or "1". A pxf.BigFloat is binary, and most decimal literals have no exact binary value, so a decoder reads one as the nearest value at the precision its suffix states, or at 256 bits without one ({{pxf-annotations}}).
 
 The number of digits in any single numeric literal is bounded; see {{mandatory-limits}}.
@@ -1267,7 +1269,7 @@ extend google.protobuf.FieldOptions {
 
 sbe.schema_id and sbe.version identify the schema as a whole. sbe.template_id MUST be unique among messages within a schema.
 
-sbe.length specifies a fixed byte length for string- or bytes-typed fields. Values longer than the limit MUST be truncated by emitters; values shorter MUST be padded with U+0000 bytes; decoders MUST trim trailing U+0000 bytes when populating string fields and MUST NOT trim them when populating bytes fields.
+sbe.length specifies a fixed byte length for string- or bytes-typed fields. Values longer than the limit MUST be truncated by emitters, a bytes field at the limit and a string field at the last character boundary at or before it, so that a truncated string is still valid UTF-8 ({{utf-8-enforcement}}). A byte-exact cut can split a multi-byte character, and every strict decoder then rejects the whole message (issue #495). A limit shorter than a string's first character leaves the field empty. Values shorter than the limit, and the bytes a character-boundary cut leaves over, MUST be padded with U+0000 bytes; decoders MUST trim trailing U+0000 bytes when populating string fields and MUST NOT trim them when populating bytes fields.
 
 sbe.encoding narrows a Protocol Buffers numeric type to a smaller SBE primitive. The defined values are: "int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64", "float", "double". Emitters MUST reject values that fall outside the narrowed type's range; decoders MUST sign-extend or zero-extend per the SBE primitive when populating the wider Protocol Buffers field.
 
