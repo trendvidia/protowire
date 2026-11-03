@@ -24,7 +24,8 @@
 #
 #   Same SKIP_PORTS and REQUIRE_PORTS as cross_security_check.sh. A port with
 #   no pxf-pb harness is not run and the script says so, so an absent port
-#   can't pass for a clean run. Today go, java, java-lite and csharp have one.
+#   can't pass for a clean run. Today go, java, java-lite, csharp and rust have
+#   one.
 
 set -euo pipefail
 
@@ -35,9 +36,10 @@ WRITE_DIR="$REPO_DIR/testdata/write"
 GO_DIR="${GO_DIR:-${SIBLING_DIR}/protowire-go}"
 JAVA_DIR="${JAVA_DIR:-${SIBLING_DIR}/protowire-java}"
 CSHARP_DIR="${CSHARP_DIR:-${SIBLING_DIR}/protowire-csharp}"
+RUST_DIR="${RUST_DIR:-${SIBLING_DIR}/protowire-rust}"
 SKIP_PORTS="${SKIP_PORTS:-}"
 REQUIRE_PORTS="${REQUIRE_PORTS:-}"
-NOT_YET=(cpp ts rust swift dart python)
+NOT_YET=(cpp ts swift dart python)
 
 # Cases no port is held to yet, each with the question it waits on.
 declare -A EXCLUDED=()
@@ -45,7 +47,8 @@ declare -A EXCLUDED=()
 # Cases one port is not held to yet, keyed "<port> <case>", each with the
 # issue that tracks it. C# writes a generated message through Google.Protobuf,
 # which drops -0.0 and a map entry's zero key or value
-# (trendvidia/protowire-csharp#91).
+# (trendvidia/protowire-csharp#91). Rust writes a DynamicMessage through
+# prost-reflect, which drops -0.0 (trendvidia/protowire-rust#98).
 declare -A PORT_EXCLUDED=(
   ["csharp Scalars.float-negzero"]="trendvidia/protowire-csharp#91"
   ["csharp Shapes.map-bool-keys"]="trendvidia/protowire-csharp#91"
@@ -55,6 +58,7 @@ declare -A PORT_EXCLUDED=(
   ["csharp Shapes.map-int-keys-unsorted"]="trendvidia/protowire-csharp#91"
   ["csharp Shapes.map-string-keys-unsorted"]="trendvidia/protowire-csharp#91"
   ["csharp Shapes.map-zero-key-and-value"]="trendvidia/protowire-csharp#91"
+  ["rust Scalars.float-negzero"]="trendvidia/protowire-rust#98"
 )
 
 skip() {
@@ -86,8 +90,13 @@ if ! skip csharp && [[ -d "$CSHARP_DIR/cmd/Protowire.CheckDecode" ]]; then
   (cd "$CSHARP_DIR" && dotnet build -c Release --nologo -v quiet cmd/Protowire.CheckDecode >&2)
   PORT_BINS[csharp]="$CSHARP_DIR/cmd/Protowire.CheckDecode/bin/Release/net10.0/check-decode"
 fi
+if ! skip rust && [[ -d "$RUST_DIR/crates/check-decode" ]]; then
+  echo "→ Rust build" >&2
+  (cd "$RUST_DIR" && cargo build --release --quiet -p check-decode)
+  PORT_BINS[rust]="$RUST_DIR/target/release/check-decode"
+fi
 
-for p in go java java-lite csharp; do
+for p in go java java-lite csharp rust; do
   [[ -n "${PORT_BINS[$p]:-}" ]] || echo "· $p: not run" >&2
 done
 for p in "${NOT_YET[@]}"; do
