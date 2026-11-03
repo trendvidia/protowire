@@ -7,10 +7,8 @@
 # REQUIRE_PORTS fails the job if a port stops building, so a lost harness can't
 # pass for a clean run.
 #
-# Java and its lite tier are skipped here until they write Go's bytes: on the
-# first run they differed on 20 pairs, filed as trendvidia/protowire-java#156,
-# #157 and #158. Drop the SKIP_PORTS line and add them to REQUIRE_PORTS when
-# those close.
+# Java and its lite tier write Go's bytes since trendvidia/protowire-java#172,
+# so they are required too.
 
 name: Cross-port write check
 
@@ -68,6 +66,5 @@ jobs:
           java-version: '21'
       - name: Write conformance
         env:
-          REQUIRE_PORTS: 'go'
-          SKIP_PORTS: 'java,java-lite'
+          REQUIRE_PORTS: 'go,java,java-lite'
         run: ./protowire/scripts/cross_write_check.sh
