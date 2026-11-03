@@ -428,7 +428,6 @@ VECTORS=(
 # went with protowire-go#114 (#297); C++'s with protowire-cpp#30
 # (protowire-cpp#24).
 VECTOR_NOT_IMPLEMENTED="$(cat <<'NI'
-ts            zero-map-entry  omits a zero key; trendvidia/protowire-typescript#42
 swift         zero-map-entry  mode not built; trendvidia/protowire-swift#15
 csharp        zero-map-entry  mode not built; trendvidia/protowire-csharp#31
 NI
