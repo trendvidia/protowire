@@ -16,6 +16,7 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ### Changed
 
+- **A `pxf.Decimal` written from a language value is written reduced** (protowire-cpp#97; draft `-01` § PXF Annotations). `pb` bytes for one number differed by port: protowire-go holds a `big.Rat` and writes the smallest non-negative scale, while C++, Java and C# wrote the scale they held. The rule follows the reference, so its bytes do not move. A producer writing a message's fields, generated or dynamic, still writes them as they are, so PXF `1.00` keeps scale 2 through `proto.Marshal`, and every reader still accepts every form.
 - **The security gate runs on the Java lite tier** as port `java-lite`, through `check-decode-android` (#503). `adversarial.proto` gains `java_package` and `java_multiple_files`, which the lite plugin requires. No field changes.
 
 ## [1.16.0] — 2026-11-02
