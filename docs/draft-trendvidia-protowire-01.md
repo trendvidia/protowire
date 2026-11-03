@@ -1117,6 +1117,8 @@ Constraints applied by protowire:
 
 * A protowire emitter SHOULD produce fields in field-number order; decoders MUST accept any field order, per the existing PB rules.
 
+* An emitter MAY write the entries of a map field in any order, and decoders MUST accept any order. Where PB bytes from two implementations are compared, as the conformance suite does, map entries are compared in key order: false before true, integer keys by value, and string keys by their UTF-8 bytes. A deterministic emitter that writes entries in that order produces bytes that compare equal with no reordering.
+
 # SBE Binary Encoding {#sbe-binary-encoding}
 
 The protowire SBE encoding is a subset of FIX Simple Binary Encoding {{FIX-SBE}}. An SBE message is generated for any Protocol Buffers message annotated with sbe.template_id; the schema-level identifiers come from sbe.schema_id and sbe.version on the file ({{sbe-annotations}}).
