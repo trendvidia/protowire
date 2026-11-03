@@ -12,6 +12,7 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ### Added
 
+- **The security gate tests UTF-8 on the pb and SBE wires** (`docs/HARDENING.md` § UTF-8, #496). Eight rows: invalid bytes, a lone surrogate and a character cut in two are refused in a `string`, while valid multi-byte text and the same bad bytes in a `bytes` field are accepted. `adversarial.proto` gains `SbeText`, an 8-byte string beside an 8-byte bytes field. TypeScript, Dart and Java accept invalid UTF-8 on some of these wires. Their rows skip them, and so do those of the C#, Swift and Java lite harnesses, which cannot decode `SbeText` yet. Each has a port issue.
 - **A gate compares the PXF text ports write** (#503). `scripts/cross_text_check.sh` holds each port's marshaller to goldens that protowire-go wrote, on 56 messages under [`testdata/text/`](testdata/text/). The envelope gate compares bytes and the security gate compares verdicts, so a port could write different text and pass both. Go, Java and the Java lite tier run it. `check-decode` gains `--format pb-text`, and other ports are named as not run until they add it. The goldens record what the reference writes; they don't make it the only valid spelling.
 
 ### Changed
