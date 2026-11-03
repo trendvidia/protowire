@@ -12,6 +12,7 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ### Added
 
+- **A shared table pins the bytes struct-binding APIs write** (#509, decided by the owner). No gate can drive Go's `encoding/pb` structs or Java's `Pb` across ports, and that is where protowire-java#154 and #159 hid. [`testdata/values/values.tsv`](testdata/values/) lists 23 values in words, with the bytes protowire-go writes for each. Each port's golden test holds twins of the structs and compares. `TestValuesTable` keeps the table current, and `-update` rewrites it. The byte gate for PXF input is #511.
 - **A gate compares the PXF text ports write** (#503). `scripts/cross_text_check.sh` holds each port's marshaller to goldens that protowire-go wrote, on 56 messages under [`testdata/text/`](testdata/text/). The envelope gate compares bytes and the security gate compares verdicts, so a port could write different text and pass both. Go, Java and the Java lite tier run it. `check-decode` gains `--format pb-text`, and other ports are named as not run until they add it. The goldens record what the reference writes; they don't make it the only valid spelling.
 
 ### Changed
