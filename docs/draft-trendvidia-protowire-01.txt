@@ -135,11 +135,12 @@ Internet-Draft                  protowire                   October 2026
      3.16. Any Blocks  . . . . . . . . . . . . . . . . . . . . . . .  41
    4.  PB Binary Encoding  . . . . . . . . . . . . . . . . . . . . .  42
    5.  SBE Binary Encoding . . . . . . . . . . . . . . . . . . . . .  42
-     5.1.  Header and Block Length . . . . . . . . . . . . . . . . .  42
-     5.2.  Repeating Groups  . . . . . . . . . . . . . . . . . . . .  43
-     5.3.  Variable-Length Data  . . . . . . . . . . . . . . . . . .  43
-   6.  Annotation Extensions . . . . . . . . . . . . . . . . . . . .  43
-     6.1.  PXF Annotations . . . . . . . . . . . . . . . . . . . . .  43
+     5.1.  Character Encoding  . . . . . . . . . . . . . . . . . . .  43
+     5.2.  Header and Block Length . . . . . . . . . . . . . . . . .  43
+     5.3.  Repeating Groups  . . . . . . . . . . . . . . . . . . . .  43
+     5.4.  Variable-Length Data  . . . . . . . . . . . . . . . . . .  44
+   6.  Annotation Extensions . . . . . . . . . . . . . . . . . . . .  44
+     6.1.  PXF Annotations . . . . . . . . . . . . . . . . . . . . .  44
        6.1.1.  Default Placement . . . . . . . . . . . . . . . . . .  47
        6.1.2.  Required and Default  . . . . . . . . . . . . . . . .  49
        6.1.3.  Oneof Members . . . . . . . . . . . . . . . . . . . .  49
@@ -161,7 +162,6 @@ Internet-Draft                  protowire                   October 2026
        7.6.2.  Engine Expressions  . . . . . . . . . . . . . . . . .  58
        7.6.3.  Expression Language . . . . . . . . . . . . . . . . .  59
        7.6.4.  Placement . . . . . . . . . . . . . . . . . . . . . .  62
-       7.6.5.  Coexistence with Bracket Options  . . . . . . . . . .  63
 
 
 
@@ -170,6 +170,7 @@ Franco Jr.                 Expires 1 May 2027                   [Page 3]
 Internet-Draft                  protowire                   October 2026
 
 
+       7.6.5.  Coexistence with Bracket Options  . . . . . . . . . .  63
      7.7.  Presence Semantics  . . . . . . . . . . . . . . . . . . .  63
        7.7.1.  Well-Known Type Binding . . . . . . . . . . . . . . .  64
        7.7.2.  Evaluation Order and Result Aggregation . . . . . . .  65
@@ -210,7 +211,6 @@ Internet-Draft                  protowire                   October 2026
    Appendix C.  Implementation Status  . . . . . . . . . . . . . . .  89
    Appendix D.  Open Issues  . . . . . . . . . . . . . . . . . . . .  90
    Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  90
-
 
 
 
@@ -2326,6 +2326,14 @@ Internet-Draft                  protowire                   October 2026
    *  A protowire emitter SHOULD produce fields in field-number order;
       decoders MUST accept any field order, per the existing PB rules.
 
+   *  An emitter MAY write the entries of a map field in any order, and
+      decoders MUST accept any order.  Where PB bytes from two
+      implementations are compared, as the conformance suite does, map
+      entries are compared in key order: false before true, integer keys
+      by value, and string keys by their UTF-8 bytes.  A deterministic
+      emitter that writes entries in that order produces bytes that
+      compare equal with no reordering.
+
 5.  SBE Binary Encoding
 
    The protowire SBE encoding is a subset of FIX Simple Binary Encoding
@@ -2337,14 +2345,6 @@ Internet-Draft                  protowire                   October 2026
    byte-length string and bytes fields and primitive-type narrowing
    respectively (Section 6.2).
 
-5.1.  Header and Block Length
-
-   Every SBE message on the wire is preceded by an 8-byte message-header
-   carrying the schema's blockLength, templateId, schemaId, and version,
-   in little-endian byte order.  Decoders MUST validate, before reading
-   any field of the body:
-
-   1.  data.length >= HEADER_SIZE + wire_block_length
 
 
 
@@ -2354,6 +2354,28 @@ Franco Jr.                 Expires 1 May 2027                  [Page 42]
 Internet-Draft                  protowire                   October 2026
 
 
+5.1.  Character Encoding
+
+   An SBE string field holds UTF-8 text, and decoders reject one that is
+   not valid UTF-8, as for every other string field.  FIX SBE makes US-
+   ASCII the default encoding of a char array, and US-ASCII text is
+   valid UTF-8.  A FIX SBE schema can declare another encoding with the
+   characterEncoding attribute; this document defines no annotation that
+   carries one.  A tool that imports a FIX SBE schema MUST therefore map
+   a char type to a string field only when its characterEncoding is
+   absent or names US-ASCII or UTF-8, and MUST map any other char type
+   to a bytes field of the same length.  Mapping it to a string would
+   make every value with a byte outside UTF-8 fail to decode.
+
+5.2.  Header and Block Length
+
+   Every SBE message on the wire is preceded by an 8-byte message-header
+   carrying the schema's blockLength, templateId, schemaId, and version,
+   in little-endian byte order.  Decoders MUST validate, before reading
+   any field of the body:
+
+   1.  data.length >= HEADER_SIZE + wire_block_length
+
    2.  wire_block_length >= template_block_length, where
        template_block_length is the value the decoder's compiled schema
        specifies for this template.  A wire block strictly smaller than
@@ -2361,7 +2383,7 @@ Internet-Draft                  protowire                   October 2026
        strictly larger MUST be accepted (forward compatibility for
        additive schema evolution).
 
-5.2.  Repeating Groups
+5.3.  Repeating Groups
 
    Each repeating group is preceded by a group-header carrying
    blockLength and numInGroup.  Before iterating any group, decoders
@@ -2379,7 +2401,16 @@ Internet-Draft                  protowire                   October 2026
        0 with a non-zero count MUST be rejected before any per-element
        allocation.
 
-5.3.  Variable-Length Data
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 43]
+
+Internet-Draft                  protowire                   October 2026
+
+
+5.4.  Variable-Length Data
 
    Variable-length data ("varData") fields follow the fixed block, each
    preceded by a length prefix per the schema's varDataEncoding.
@@ -2401,14 +2432,6 @@ Internet-Draft                  protowire                   October 2026
      string default  = 1315;
      string key      = 1316;
    }
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 43]
-
-Internet-Draft                  protowire                   October 2026
-
 
    pxf.required: when true, decoders MUST reject a PXF document in which
    the annotated field is absent.  A field bound to "null" is considered
@@ -2435,6 +2458,14 @@ Internet-Draft                  protowire                   October 2026
    bind a decoder's presence-tracking decode, the entry point that
    reports field presence to its caller.  An implementation MAY also
    offer a decode that tracks no presence, and that decode does not
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 44]
+
+Internet-Draft                  protowire                   October 2026
+
+
    apply these rules: it accepts a document with an absent pxf.required
    field and leaves an absent pxf.default field unset.  An
    implementation MAY let a caller turn the rules off on a presence-
@@ -2458,14 +2489,6 @@ Internet-Draft                  protowire                   October 2026
    The well-known types pxf.BigInt, pxf.Decimal, and pxf.BigFloat are
    defined in [PROTOWIRE-BIGNUM] (this is the proto/pxf/bignum.proto
    file in the canonical repository).  They provide arbitrary-precision
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 44]
-
-Internet-Draft                  protowire                   October 2026
-
-
    signed integer, exact decimal, and binary floating-point
    representations respectively, encoded over PB as length-delimited
    unsigned big-endian magnitudes plus sign and scale fields.
@@ -2491,6 +2514,14 @@ Internet-Draft                  protowire                   October 2026
    precision with ties to even: a mantissa wider than prec bits denotes
    that rounded value (issue #410). prec 0 or a zero mantissa (empty, or
    only zero bytes) is zero.  A producer MUST encode a zero, at any
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 45]
+
+Internet-Draft                  protowire                   October 2026
+
+
    prec, with an empty mantissa and exponent 0, keeping its prec and
    negative, so that a zero has one PB encoding: the one a decoder
    stores when it reads a zero literal.  A decoder still reads any zero
@@ -2499,28 +2530,6 @@ Internet-Draft                  protowire                   October 2026
    "p" and a bit count after the number ("0.10000000000000001p53"; the
    _precision_ production of Section 3.3), so that both its value and
    its precision survive the text (issue #406):
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 45]
-
-Internet-Draft                  protowire                   October 2026
-
 
    *  Writing.  A producer of PXF text writes N significant decimal
       digits, where N is the number of decimal digits of 2^prec plus
@@ -2558,18 +2567,9 @@ Internet-Draft                  protowire                   October 2026
       pxf.BigFloat is grammatically well-formed but MUST be rejected by
       the schema layer, naming the field.
 
-
-
-
-
-
-
-
-
-
-
-
-
+   PB to PXF to PB therefore preserves every BigFloat's value, its sign,
+   and its prec, zeros included (issue #410).  It does not preserve a
+   mantissa's bytes as written: the reading rule stores the significand
 
 
 
@@ -2578,9 +2578,6 @@ Franco Jr.                 Expires 1 May 2027                  [Page 46]
 Internet-Draft                  protowire                   October 2026
 
 
-   PB to PXF to PB therefore preserves every BigFloat's value, its sign,
-   and its prec, zeros included (issue #410).  It does not preserve a
-   mantissa's bytes as written: the reading rule stores the significand
    as a prec-bit integer, so a mantissa that was not normalized, or was
    wider than prec bits, comes back normalized to the same value.  A
    value at MaxBigFloatExponent may print as a literal whose exact value
@@ -2621,11 +2618,14 @@ Internet-Draft                  protowire                   October 2026
 
    *  a group field; or
 
-   *  a message-typed field whose type is not one of
-      google.protobuf.Timestamp, google.protobuf.Duration, the nine
-      google.protobuf wrapper types (BoolValue, BytesValue, DoubleValue,
-      FloatValue, Int32Value, Int64Value, StringValue, UInt32Value,
-      UInt64Value), pxf.BigInt, pxf.Decimal, or pxf.BigFloat.  These are
+
+
+
+
+
+
+
+
 
 
 
@@ -2634,6 +2634,11 @@ Franco Jr.                 Expires 1 May 2027                  [Page 47]
 Internet-Draft                  protowire                   October 2026
 
 
+   *  a message-typed field whose type is not one of
+      google.protobuf.Timestamp, google.protobuf.Duration, the nine
+      google.protobuf wrapper types (BoolValue, BytesValue, DoubleValue,
+      FloatValue, Int32Value, Int64Value, StringValue, UInt32Value,
+      UInt64Value), pxf.BigInt, pxf.Decimal, or pxf.BigFloat.  These are
       the message types a PXF literal can denote (Section 3.10; the
       wrapper types take the literal of the type they wrap, and the
       arbitrary-precision types take a numeric literal).  For any other
@@ -2673,14 +2678,9 @@ Internet-Draft                  protowire                   October 2026
       would differ from that of an implementation that rejects the
       schema, for the same schema and the same document.
 
-   *  A pxf.default in one of these placements never had honorable
-      semantics — there was no literal the decoder could have applied.
-      Rejecting it on upgrade surfaces a pre-existing latent bug rather
-      than introducing one; as with Section 3.14, this document defines
-      no migration accommodation.
 
-   A field that satisfies the above but is a member of a oneof carries
-   the additional constraints of Section 6.1.3.
+
+
 
 
 
@@ -2689,6 +2689,15 @@ Franco Jr.                 Expires 1 May 2027                  [Page 48]
 
 Internet-Draft                  protowire                   October 2026
 
+
+   *  A pxf.default in one of these placements never had honorable
+      semantics — there was no literal the decoder could have applied.
+      Rejecting it on upgrade surfaces a pre-existing latent bug rather
+      than introducing one; as with Section 3.14, this document defines
+      no migration accommodation.
+
+   A field that satisfies the above but is a member of a oneof carries
+   the additional constraints of Section 6.1.3.
 
 6.1.2.  Required and Default
 
@@ -2728,15 +2737,6 @@ Internet-Draft                  protowire                   October 2026
       two or more members of the same oneof carry it, over the scope of
       Section 3.15.
 
-   The last constraint exists because the alternative is an ordering
-   rule.  With two annotated members and an empty document, some
-   member's default must win; deciding by declaration order would make
-   reordering two field declarations silently change what a document
-   decodes to, and deciding by field number would do the same on
-   renumbering.  Rejecting the schema is the only outcome that does not
-   attach meaning to a detail authors are free to change.
-
-
 
 
 
@@ -2745,6 +2745,14 @@ Franco Jr.                 Expires 1 May 2027                  [Page 49]
 
 Internet-Draft                  protowire                   October 2026
 
+
+   The last constraint exists because the alternative is an ordering
+   rule.  With two annotated members and an empty document, some
+   member's default must win; deciding by declaration order would make
+   reordering two field declarations silently change what a document
+   decodes to, and deciding by field number would do the same on
+   renumbering.  Rejecting the schema is the only outcome that does not
+   attach meaning to a detail authors are free to change.
 
    pxf.required MUST NOT be set on a member of a oneof; tools that bind
    a descriptor for PXF use MUST reject such a schema.  Read per-field,
@@ -2774,6 +2782,26 @@ Internet-Draft                  protowire                   October 2026
 
    SBE annotations apply at three scopes:
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 50]
+
+Internet-Draft                  protowire                   October 2026
+
+
    extend google.protobuf.FileOptions {
      uint32 schema_id = 1319;
      uint32 version   = 1320;
@@ -2794,14 +2822,6 @@ Internet-Draft                  protowire                   October 2026
    sbe.length specifies a fixed byte length for string- or bytes-typed
    fields.  Values longer than the limit MUST be truncated by emitters,
    a bytes field at the limit and a string field at the last character
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 50]
-
-Internet-Draft                  protowire                   October 2026
-
-
    boundary at or before it, so that a truncated string is still valid
    UTF-8 (Section 9.3).  A byte-exact cut can split a multi-byte
    character, and every strict decoder then rejects the whole message
@@ -2828,26 +2848,6 @@ Internet-Draft                  protowire                   October 2026
    extension described in Section 7.11.
 
    The framework-defined annotations are:
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -4407,13 +4407,13 @@ Internet-Draft                  protowire                   October 2026
    requirements, restated here for emphasis.  Specifically:
 
    *  Wire block length less than template block length MUST be rejected
-      (Section 5.1).
+      (Section 5.2).
 
    *  Group count multiplied by group block length MUST be 64-bit
-      checked against the buffer length before iteration (Section 5.2).
+      checked against the buffer length before iteration (Section 5.3).
 
    *  A group with count > 0 and wire_block_length == 0 MUST be rejected
-      before any per-element allocation (Section 5.2).
+      before any per-element allocation (Section 5.3).
 
 
 

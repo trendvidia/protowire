@@ -176,10 +176,26 @@ func emitSbeCodec(
 	p("        SbeWireCodec.unmarshal(data, ", metaCls, ".writer(b), ", metaCls, ".TEMPLATE);")
 	p("    }")
 	p()
+	p("    /**")
+	p("     * As {@link #unmarshal(byte[], ", typedFqn, ".Builder)} under per-call limits")
+	p("     * (HARDENING.md § Mandatory limits): {@code maxMessageSize} on the input,")
+	p("     * {@code maxRepeatedCount} on each group's declared count.")
+	p("     */")
+	p("    public static void unmarshal(byte[] data, ", typedFqn, ".Builder b, int maxMessageSize, int maxRepeatedCount) {")
+	p("        SbeWireCodec.unmarshal(data, ", metaCls, ".writer(b), ", metaCls, ".TEMPLATE, maxMessageSize, maxRepeatedCount);")
+	p("    }")
+	p()
 	p("    /** Convenience: parse into a fresh builder, return the built message. */")
 	p("    public static ", typedFqn, " unmarshal(byte[] data) {")
 	p("        ", typedFqn, ".Builder b = ", typedFqn, ".newBuilder();")
 	p("        unmarshal(data, b);")
+	p("        return b.build();")
+	p("    }")
+	p()
+	p("    /** As {@link #unmarshal(byte[])} under per-call limits. */")
+	p("    public static ", typedFqn, " unmarshal(byte[] data, int maxMessageSize, int maxRepeatedCount) {")
+	p("        ", typedFqn, ".Builder b = ", typedFqn, ".newBuilder();")
+	p("        unmarshal(data, b, maxMessageSize, maxRepeatedCount);")
 	p("        return b.build();")
 	p("    }")
 	p("}")
@@ -573,16 +589,14 @@ func emitSbeReaderClass(
 	// getField — non-message scalars + composites (composites read as a sub-reader,
 	// but routed via getMessageField, so getField only handles scalars/string/bytes/enum).
 	p("        @Override public Object getField(int fieldNumber) {")
-	p("            return switch (fieldNumber) {")
+	var cases []string
 	for _, f := range layout.fields {
 		if f.composite != nil {
 			continue
 		}
-		p("                case ", f.fieldNumber, " -> msg.", javaScalarGetter(f), ";")
+		cases = append(cases, fmt.Sprint("case ", f.fieldNumber, " -> msg.", javaScalarGetter(f), ";"))
 	}
-	p("                default -> throw new IllegalArgumentException(",
-		quoteJava("sbe: unknown field number "), " + fieldNumber);")
-	p("            };")
+	emitReturnSwitch(p, "            ", cases, "sbe: unknown field number ")
 	p("        }")
 	p()
 	// getMessageField — composite (non-repeated MESSAGE) fields. The wire
@@ -592,29 +606,43 @@ func emitSbeReaderClass(
 	p()
 	// getRepeatedCount + getRepeatedMessage — groups.
 	p("        @Override public int getRepeatedCount(int fieldNumber) {")
-	p("            return switch (fieldNumber) {")
+	var counts []string
 	for _, g := range layout.groups {
-		p("                case ", g.fieldNumber, " -> msg.get", javaPascalName(g.name), "Count();")
+		counts = append(counts, fmt.Sprint("case ", g.fieldNumber, " -> msg.get", javaPascalName(g.name), "Count();"))
 	}
-	p("                default -> throw new IllegalArgumentException(",
-		quoteJava("sbe: no repeated field at "), " + fieldNumber);")
-	p("            };")
+	emitReturnSwitch(p, "            ", counts, "sbe: no repeated field at ")
 	p("        }")
 	p()
 	p("        @Override public SbeFieldReader getRepeatedMessage(int fieldNumber, int index) {")
-	p("            return switch (fieldNumber) {")
+	var entries []string
 	for _, g := range layout.groups {
 		readerCls := "GroupReader_" + javaPascalName(g.name)
-		p("                case ", g.fieldNumber, " -> new ", readerCls,
-			"(msg.get", javaPascalName(g.name), "(index));")
+		entries = append(entries, fmt.Sprint("case ", g.fieldNumber, " -> new ", readerCls,
+			"(msg.get", javaPascalName(g.name), "(index));"))
 	}
-	p("                default -> throw new IllegalArgumentException(",
-		quoteJava("sbe: no repeated field at "), " + fieldNumber);")
-	p("            };")
+	emitReturnSwitch(p, "            ", entries, "sbe: no repeated field at ")
 	p("        }")
 	p("    }")
 	_ = msg
 	_ = byName
+}
+
+// emitReturnSwitch writes the body of a dispatch method that returns a value
+// per field number and throws for any other. With no cases it writes the
+// throw alone: a switch expression whose only arm is a throwing default has
+// no result expression, and javac refuses it. A template with no groups, or
+// a block whose fields are all composites, has no cases.
+func emitReturnSwitch(p func(args ...any), indent string, cases []string, msg string) {
+	if len(cases) == 0 {
+		p(indent, "throw new IllegalArgumentException(", quoteJava(msg), " + fieldNumber);")
+		return
+	}
+	p(indent, "return switch (fieldNumber) {")
+	for _, c := range cases {
+		p(indent, "    ", c)
+	}
+	p(indent, "    default -> throw new IllegalArgumentException(", quoteJava(msg), " + fieldNumber);")
+	p(indent, "};")
 }
 
 // emitSbeWriterClass writes the top-level Writer for a templated message.
@@ -650,16 +678,14 @@ func emitSbeWriterClass(
 	emitCompositeBuilderDispatch(p, layout.fields, byName, "b", "        ")
 	p()
 	p("        @Override public SbeFieldWriter newGroupEntry(int fieldNumber) {")
-	p("            return switch (fieldNumber) {")
+	var builders []string
 	for _, g := range layout.groups {
 		entryFqn := sbeGroupEntryTypedFqn(typedFqn, g)
 		writerCls := "GroupWriter_" + javaPascalName(g.name)
-		p("                case ", g.fieldNumber, " -> new ", writerCls,
-			"(b, ", entryFqn, ".newBuilder());")
+		builders = append(builders, fmt.Sprint("case ", g.fieldNumber, " -> new ", writerCls,
+			"(b, ", entryFqn, ".newBuilder());"))
 	}
-	p("                default -> throw new IllegalArgumentException(",
-		quoteJava("sbe: no repeated field at "), " + fieldNumber);")
-	p("            };")
+	emitReturnSwitch(p, "            ", builders, "sbe: no repeated field at ")
 	p("        }")
 	p()
 	p("        @Override public void commit() { /* top-level: no-op */ }")
@@ -688,16 +714,14 @@ func emitSbeGroupHelpers(
 		p("        private final ", entryFqn, " msg;")
 		p("        ", readerCls, "(", entryFqn, " msg) { this.msg = msg; }")
 		p("        @Override public Object getField(int fieldNumber) {")
-		p("            return switch (fieldNumber) {")
+		var cases []string
 		for _, f := range g.fields {
 			if f.composite != nil {
 				continue
 			}
-			p("                case ", f.fieldNumber, " -> msg.", javaScalarGetter(f), ";")
+			cases = append(cases, fmt.Sprint("case ", f.fieldNumber, " -> msg.", javaScalarGetter(f), ";"))
 		}
-		p("                default -> throw new IllegalArgumentException(",
-			quoteJava("sbe: unknown field number "), " + fieldNumber);")
-		p("            };")
+		emitReturnSwitch(p, "            ", cases, "sbe: unknown field number ")
 		p("        }")
 		emitCompositeFieldGetterDispatch(p, g.fields, byName, "        ")
 		p("        @Override public int getRepeatedCount(int fieldNumber) {")
@@ -845,16 +869,14 @@ func emitSbeCompositeHelpers(
 		p("        private final ", c.javaFqn, " msg;")
 		p("        ", readerCls, "(", c.javaFqn, " msg) { this.msg = msg; }")
 		p("        @Override public Object getField(int fieldNumber) {")
-		p("            return switch (fieldNumber) {")
+		var cases []string
 		for _, f := range c.layout.fields {
 			if f.composite != nil {
 				continue
 			}
-			p("                case ", f.fieldNumber, " -> msg.", javaScalarGetter(f), ";")
+			cases = append(cases, fmt.Sprint("case ", f.fieldNumber, " -> msg.", javaScalarGetter(f), ";"))
 		}
-		p("                default -> throw new IllegalArgumentException(",
-			quoteJava("sbe: unknown field number "), " + fieldNumber);")
-		p("            };")
+		emitReturnSwitch(p, "            ", cases, "sbe: unknown field number ")
 		p("        }")
 		emitCompositeFieldGetterDispatch(p, c.layout.fields, byName, "        ")
 		p("        @Override public int getRepeatedCount(int fieldNumber) {")

@@ -1117,11 +1117,17 @@ Constraints applied by protowire:
 
 * A protowire emitter SHOULD produce fields in field-number order; decoders MUST accept any field order, per the existing PB rules.
 
+* An emitter MAY write the entries of a map field in any order, and decoders MUST accept any order. Where PB bytes from two implementations are compared, as the conformance suite does, map entries are compared in key order: false before true, integer keys by value, and string keys by their UTF-8 bytes. A deterministic emitter that writes entries in that order produces bytes that compare equal with no reordering.
+
 # SBE Binary Encoding {#sbe-binary-encoding}
 
 The protowire SBE encoding is a subset of FIX Simple Binary Encoding {{FIX-SBE}}. An SBE message is generated for any Protocol Buffers message annotated with sbe.template_id; the schema-level identifiers come from sbe.schema_id and sbe.version on the file ({{sbe-annotations}}).
 
 Field-level annotations sbe.length and sbe.encoding control fixed-byte-length string and bytes fields and primitive-type narrowing respectively ({{sbe-annotations}}).
+
+## Character Encoding
+
+An SBE string field holds UTF-8 text, and decoders reject one that is not valid UTF-8, as for every other string field. FIX SBE makes US-ASCII the default encoding of a char array, and US-ASCII text is valid UTF-8. A FIX SBE schema can declare another encoding with the characterEncoding attribute; this document defines no annotation that carries one. A tool that imports a FIX SBE schema MUST therefore map a char type to a string field only when its characterEncoding is absent or names US-ASCII or UTF-8, and MUST map any other char type to a bytes field of the same length. Mapping it to a string would make every value with a byte outside UTF-8 fail to decode.
 
 ## Header and Block Length
 

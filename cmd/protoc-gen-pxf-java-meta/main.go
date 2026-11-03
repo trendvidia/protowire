@@ -50,6 +50,12 @@
 //     null: explicit presence, and not proto2 required.
 //     protobuf's own HasPresence decides, so an editions
 //     field_presence feature counts.
+//   - IMPLICIT_PRESENCE_FIELDS — Set<Integer> of the singular fields with no
+//     presence: a proto3 plain scalar or enum, or an
+//     editions IMPLICIT one. Such a field holding its zero
+//     value is not written, as protobuf writes it; the
+//     runtime cannot tell one from a proto2 required field
+//     by NULLABLE_FIELDS alone, and that one is written.
 //   - KEY_FIELDS           — Map<Integer, String> of field number → key field
 //     name, from (pxf.key). A misplaced (pxf.key) fails
 //     generation, so every entry names a singular
@@ -336,6 +342,13 @@ func messageOf(fd protoreflect.FileDescriptor, msg *flatMsg, files *protoregistr
 
 func fieldOf(md protoreflect.MessageDescriptor, f *descriptorpb.FieldDescriptorProto) protoreflect.FieldDescriptor {
 	return md.Fields().ByNumber(protoreflect.FieldNumber(f.GetNumber()))
+}
+
+// implicitPresence is a singular field protobuf writes only when it is not its
+// zero value: one with no presence. Messages always have presence, and lists
+// and maps are not singular.
+func implicitPresence(fd protoreflect.FieldDescriptor) bool {
+	return !fd.HasPresence() && !fd.IsList() && !fd.IsMap()
 }
 
 // nullable mirrors protowire-go's rule of the same name (draft -01 § Booleans,
@@ -859,6 +872,10 @@ func emitMeta(
 		return nullable(fieldOf(md, f))
 	})
 	p()
+	emitFieldSet(p, "IMPLICIT_PRESENCE_FIELDS", msg.desc.Field, func(f *descriptorpb.FieldDescriptorProto) bool {
+		return implicitPresence(fieldOf(md, f))
+	})
+	p()
 	emitKeyFields(p, msg.desc.Field)
 	p()
 	emitSbeMessageMeta(p, msg.desc)
@@ -1031,7 +1048,8 @@ func qualifiedProtoName(file *descriptorpb.FileDescriptorProto, msg *flatMsg) st
 // a runtime older than the method. There it goes unused and null stays
 // unchecked, as it was. Unlike keyFields(), nearly every message has a field
 // outside the set, so overriding only when needed would not spare any consumer
-// the runtime bump.
+// the runtime bump. implicitPresenceFields() has no @Override for the same
+// reason: on an older runtime it goes unused and every zero is written.
 func emitAccessors(p func(args ...any), fullName string, hasKeyFields bool) {
 	p("    @Override public Map<String, Integer>  fieldNumbers()      { return FIELD_NUMBERS; }")
 	p("    @Override public Map<Integer, Integer> fieldKinds()        { return FIELD_KINDS; }")
@@ -1046,6 +1064,7 @@ func emitAccessors(p func(args ...any), fullName string, hasKeyFields bool) {
 		p("    @Override public Map<Integer, String>  keyFields()         { return KEY_FIELDS; }")
 	}
 	p("    public Set<Integer>                    nullableFields()    { return NULLABLE_FIELDS; }")
+	p("    public Set<Integer>                    implicitPresenceFields() { return IMPLICIT_PRESENCE_FIELDS; }")
 	p("    @Override public int                   sbeTemplateId()     { return SBE_TEMPLATE_ID; }")
 	p("    @Override public Map<Integer, Integer> sbeFieldLengths()   { return SBE_FIELD_LENGTHS; }")
 	p("    @Override public Map<Integer, String>  sbeFieldEncodings() { return SBE_FIELD_ENCODINGS; }")
