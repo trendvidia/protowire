@@ -1,0 +1,4 @@
+by_bool = {
+  true: "t"
+  false: "f"
+}

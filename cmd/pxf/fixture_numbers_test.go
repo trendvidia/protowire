@@ -39,8 +39,8 @@ var descriptorFixtures = map[string][]protowire.Number{
 // notDescriptorSets are the testdata directories whose .binpb files are
 // message payloads, not descriptor sets: the hand-crafted malformed
 // inputs the decoders are attacked with, and the pxf.BigFloat corpus
-// (#406), and the text gate's messages (#503).
-var notDescriptorSets = []string{"adversarial/pb/", "bigfloat/", "text/cases/"}
+// (#406), the text gate's messages (#503), and the write gate's goldens (#509).
+var notDescriptorSets = []string{"adversarial/pb/", "bigfloat/", "text/cases/", "write/golden/"}
 
 const (
 	retiredLo, retiredHi = 50000, 59999

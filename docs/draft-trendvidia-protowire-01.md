@@ -814,6 +814,8 @@ The target field type determines the numeric domain:
 
 * For float and double fields, decoders MUST accept literals in the IEEE 754 {{IEEE754}} representable range; values that round to +Inf or -Inf are rejected unless explicitly written as the identifiers "inf", "+inf", "-inf", "nan".
 
+* A NaN has many IEEE 754 encodings, so which one is written is fixed here. A decoder reading the identifier "nan" into a float or double field MUST store the canonical quiet NaN: 0x7FF8000000000000 for a double, 0x7FC00000 for a float. A PB or SBE producer that writes from a language value, such as a floating-point type bound to a struct field, MUST write any NaN in that canonical form. A producer that writes a message's fields, such as a generated or dynamic message, MUST write them as they are, so that a NaN read from PB keeps its encoding (issue protowire-java#161).
+
 * For fields of the well-known types pxf.BigInt and pxf.Decimal ({{pxf-annotations}}), decoders MUST preserve the literal's exact value, including, for Decimal, the exact scale: the literal "1.00" decodes to a Decimal with unscaled value 100 and scale 2, distinct from "1.0" or "1". A pxf.BigFloat is binary, and most decimal literals have no exact binary value, so a decoder reads one as the nearest value at the precision its suffix states, or at 256 bits without one ({{pxf-annotations}}).
 
 The number of digits in any single numeric literal is bounded; see {{mandatory-limits}}.
