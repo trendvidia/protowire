@@ -68,9 +68,18 @@ func protoFile(name string, deps []string, msgs ...*descriptorpb.DescriptorProto
 // the last file: requests list a file's imports before it.
 func generate(t *testing.T, files ...*descriptorpb.FileDescriptorProto) *pluginpb.CodeGeneratorResponse {
 	t.Helper()
+	return generateWith(t, "", files...)
+}
+
+// generateWith is generate with a plugin parameter, such as "lite".
+func generateWith(t *testing.T, param string, files ...*descriptorpb.FileDescriptorProto) *pluginpb.CodeGeneratorResponse {
+	t.Helper()
 	req := &pluginpb.CodeGeneratorRequest{
 		ProtoFile:      files,
 		FileToGenerate: []string{files[len(files)-1].GetName()},
+	}
+	if param != "" {
+		req.Parameter = proto.String(param)
 	}
 	raw, err := proto.Marshal(req)
 	if err != nil {
@@ -437,5 +446,68 @@ func TestSecretKind(t *testing.T) {
 	// A Secret with metadata is a block, which needs the nested table.
 	if got := table(t, meta, "NESTED_METAS"); !strings.Contains(got, "Map.entry(1, org.example.pxf.SecretPxfMeta.INSTANCE)") {
 		t.Errorf("NESTED_METAS = %s", got)
+	}
+}
+
+// TestSbeDispatchWithNoCases covers SBE templates whose dispatch methods have
+// nothing to dispatch: one with no groups, and one whose block holds only a
+// composite. A switch expression with a throwing default as its only arm has
+// no result expression, which javac refuses, so the method must throw
+// directly. adversarial.v1.SbeText, which has no groups, did not compile.
+func TestSbeDispatchWithNoCases(t *testing.T) {
+	templated := func(id uint64) *descriptorpb.MessageOptions {
+		o := &descriptorpb.MessageOptions{}
+		b := protowire.AppendTag(nil, protowire.Number(extSbeTemplateID), protowire.VarintType)
+		o.ProtoReflect().SetUnknown(protowire.AppendVarint(b, id))
+		return o
+	}
+	uint32Type := descriptorpb.FieldDescriptorProto_TYPE_UINT32
+	f := protoFile("sbe.proto", nil,
+		&descriptorpb.DescriptorProto{
+			Name:    proto.String("Tick"),
+			Options: templated(7),
+			Field:   []*descriptorpb.FieldDescriptorProto{field("price", 1, optionalLabel, uint32Type, "")},
+		},
+		&descriptorpb.DescriptorProto{
+			Name:  proto.String("Inner"),
+			Field: []*descriptorpb.FieldDescriptorProto{field("v", 1, optionalLabel, uint32Type, "")},
+		},
+		&descriptorpb.DescriptorProto{
+			Name:    proto.String("Wrapped"),
+			Options: templated(8),
+			Field:   []*descriptorpb.FieldDescriptorProto{field("inner", 1, optionalLabel, messageType, ".keyed.v1.Inner")},
+		},
+	)
+	resp := generateWith(t, "lite", f)
+	for name, wantThrows := range map[string][]string{
+		// No groups: getRepeatedCount, getRepeatedMessage and newGroupEntry.
+		"TickSbeMeta.java": {"sbe: no repeated field at "},
+		// Only a composite: the top-level getField, and the group methods.
+		"WrappedSbeMeta.java": {"sbe: unknown field number ", "sbe: no repeated field at "},
+	} {
+		meta := generated(t, resp, name)
+		lines := strings.Split(meta, "\n")
+		for i, l := range lines {
+			if strings.HasSuffix(l, "return switch (fieldNumber) {") && i+1 < len(lines) &&
+				strings.Contains(lines[i+1], "default ->") {
+				t.Errorf("%s:%d: a switch expression with no case:\n%s\n%s", name, i+1, l, lines[i+1])
+			}
+		}
+		for _, w := range wantThrows {
+			want := "throw new IllegalArgumentException(\"" + w + "\" + fieldNumber);"
+			found := false
+			for _, l := range lines {
+				if strings.TrimSpace(l) == want {
+					found = true
+				}
+			}
+			if !found {
+				t.Errorf("%s lacks a direct %q:\n%s", name, want, meta)
+			}
+		}
+	}
+	// The cases that do exist are still dispatched.
+	if meta := generated(t, resp, "TickSbeMeta.java"); !strings.Contains(meta, "case 1 -> msg.getPrice();") {
+		t.Errorf("TickSbeMeta.java lost its getField case:\n%s", meta)
 	}
 }
