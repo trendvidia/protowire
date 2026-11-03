@@ -24,8 +24,8 @@
 #
 #   Same SKIP_PORTS and REQUIRE_PORTS as cross_security_check.sh. A port with
 #   no pxf-pb harness is not run and the script says so, so an absent port
-#   can't pass for a clean run. Today go, java, java-lite, csharp and rust have
-#   one.
+#   can't pass for a clean run. Today go, java, java-lite, csharp, rust and dart
+#   have one.
 
 set -euo pipefail
 
@@ -37,9 +37,10 @@ GO_DIR="${GO_DIR:-${SIBLING_DIR}/protowire-go}"
 JAVA_DIR="${JAVA_DIR:-${SIBLING_DIR}/protowire-java}"
 CSHARP_DIR="${CSHARP_DIR:-${SIBLING_DIR}/protowire-csharp}"
 RUST_DIR="${RUST_DIR:-${SIBLING_DIR}/protowire-rust}"
+DART_DIR="${DART_DIR:-${SIBLING_DIR}/protowire-dart}"
 SKIP_PORTS="${SKIP_PORTS:-}"
 REQUIRE_PORTS="${REQUIRE_PORTS:-}"
-NOT_YET=(cpp ts swift dart python)
+NOT_YET=(cpp ts swift python)
 
 # Cases no port is held to yet, each with the question it waits on.
 declare -A EXCLUDED=()
@@ -48,7 +49,9 @@ declare -A EXCLUDED=()
 # issue that tracks it. C# writes a generated message through Google.Protobuf,
 # which drops -0.0 and a map entry's zero key or value
 # (trendvidia/protowire-csharp#91). Rust writes a DynamicMessage through
-# prost-reflect, which drops -0.0 (trendvidia/protowire-rust#98).
+# prost-reflect, which drops -0.0 (trendvidia/protowire-rust#98). A generated
+# Dart enum cannot hold a number it does not declare, and the draft says
+# nothing about unknown enum numbers (trendvidia/protowire-dart#82).
 declare -A PORT_EXCLUDED=(
   ["csharp Scalars.float-negzero"]="trendvidia/protowire-csharp#91"
   ["csharp Shapes.map-bool-keys"]="trendvidia/protowire-csharp#91"
@@ -59,6 +62,7 @@ declare -A PORT_EXCLUDED=(
   ["csharp Shapes.map-string-keys-unsorted"]="trendvidia/protowire-csharp#91"
   ["csharp Shapes.map-zero-key-and-value"]="trendvidia/protowire-csharp#91"
   ["rust Scalars.float-negzero"]="trendvidia/protowire-rust#98"
+  ["dart Scalars.enum-unknown"]="trendvidia/protowire-dart#82"
 )
 
 skip() {
@@ -95,8 +99,14 @@ if ! skip rust && [[ -d "$RUST_DIR/crates/check-decode" ]]; then
   (cd "$RUST_DIR" && cargo build --release --quiet -p check-decode)
   PORT_BINS[rust]="$RUST_DIR/target/release/check-decode"
 fi
+if ! skip dart && [[ -f "$DART_DIR/bin/check_decode.dart" ]]; then
+  echo "→ Dart build" >&2
+  PORT_BINS[dart]="$(mktemp -t check-decode-dart.XXXXXX)"
+  (cd "$DART_DIR" && dart pub get >/dev/null &&
+    dart compile exe bin/check_decode.dart -o "${PORT_BINS[dart]}" >/dev/null)
+fi
 
-for p in go java java-lite csharp rust; do
+for p in go java java-lite csharp rust dart; do
   [[ -n "${PORT_BINS[$p]:-}" ]] || echo "· $p: not run" >&2
 done
 for p in "${NOT_YET[@]}"; do
