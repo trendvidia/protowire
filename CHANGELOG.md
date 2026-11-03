@@ -17,6 +17,7 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ### Changed
 
+- **A NaN is written in one encoding** (protowire-java#161; draft `-01` § Numeric Literals). A double NaN read from PXF `nan` went out of protowire-go as `0x7FF8000000000001`, the bits of Go's `math.NaN()`, while Java, and Node.js and Python as measured, use the canonical quiet NaN `0x7FF8000000000000`. A decoder reading `nan` now stores the canonical NaN (`0x7FC00000` for a float), and a producer writing from a language value writes any NaN that way. A producer writing a message's fields, generated or dynamic, still writes them as they are, so a NaN read from PB keeps its payload. protowire-go's double bytes for `nan` change; float bytes already matched.
 - **A `pxf.Decimal` written from a language value is written reduced** (protowire-cpp#97; draft `-01` § PXF Annotations). `pb` bytes for one number differed by port: protowire-go holds a `big.Rat` and writes the smallest non-negative scale, while C++, Java and C# wrote the scale they held. The rule follows the reference, so its bytes do not move. A producer writing a message's fields, generated or dynamic, still writes them as they are, so PXF `1.00` keeps scale 2 through `proto.Marshal`, and every reader still accepts every form.
 - **The security gate runs on the Java lite tier** as port `java-lite`, through `check-decode-android` (#503). `adversarial.proto` gains `java_package` and `java_multiple_files`, which the lite plugin requires. No field changes.
 
