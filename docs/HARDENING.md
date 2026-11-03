@@ -63,6 +63,8 @@ PXF parsers are recursive descent over `{ … }` blocks and `[ … ]` lists. PB 
 
 Iterative skip routines (e.g. `skipBraced` in the C++ and Java fast decoders) already use an explicit counter; the live decode path must use the same model.
 
+**Producers.** A producer of PXF text or of PB **must** fail with an error on a message nested more deeply than `MaxNestingDepth`, counted as a decoder reading its output would count it, rather than write a document a decoder at the same limit refuses (#502). The limit is configurable per call. Such a message comes from outside a conforming decoder at that limit: a language value built in memory, or a protobuf runtime with a higher limit. A producer that follows a reference cycle meets the limit instead of exhausting its stack. The corpus pins the PXF producer with `pb-render` rows (`pb/deep-submessage-100` / `-101`, `pb/deep-map-100` / `-101`). For those rows the harness's stock protobuf reader must allow deeper input than the producer's limit, or it refuses the message before the producer runs, and the reject row passes without testing anything. Most stock runtimes stop at 100 by default.
+
 ## UTF-8
 
 A proto3 `string` field is a sequence of valid UTF-8 bytes. A conforming decoder:
