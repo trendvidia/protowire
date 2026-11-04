@@ -45,11 +45,21 @@ jobs:
         with:
           repository: trendvidia/protowire-go
           path: protowire-go
+      - name: Checkout protowire-cpp
+        uses: actions/checkout@v7
+        with:
+          repository: trendvidia/protowire-cpp
+          path: protowire-cpp
       - name: Checkout protowire-java
         uses: actions/checkout@v7
         with:
           repository: trendvidia/protowire-java
           path: protowire-java
+      - name: Install the C++ toolchain and protobuf
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake ninja-build protobuf-compiler libprotobuf-dev libprotoc-dev
       - uses: actions/setup-go@v7
         with:
           go-version-file: protowire-go/go.mod
@@ -60,5 +70,5 @@ jobs:
           java-version: '21'
       - name: Text conformance
         env:
-          REQUIRE_PORTS: 'go,java,java-lite'
+          REQUIRE_PORTS: 'go,cpp,java,java-lite'
         run: ./protowire/scripts/cross_text_check.sh
