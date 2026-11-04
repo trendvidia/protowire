@@ -1145,6 +1145,8 @@ Every SBE message on the wire is preceded by an 8-byte message-header carrying t
 
 2. wire_block_length \>= template_block_length, where template_block_length is the value the decoder's compiled schema specifies for this template. A wire block strictly smaller than the template block length MUST be rejected. A wire block strictly larger MUST be accepted (forward compatibility for additive schema evolution).
 
+3. the header's templateId and schemaId name the message being decoded. sbe.template_id is unique only within a schema, so the templateId alone does not identify a message. A decoder given the message to decode MUST reject a header whose templateId differs from that message's sbe.template_id, or whose schemaId differs from the sbe.schema_id of the message's file. A decoder that finds the message from the header MUST look it up by schemaId and templateId together, and MUST reject a pair its compiled schemas do not hold. Without this check, bytes written for one schema's message decode as another schema's message with the same templateId, and when that message's block is no longer, its fields are misread without error.
+
 ## Repeating Groups
 
 Each repeating group is preceded by a group-header carrying blockLength and numInGroup. Before iterating any group, decoders MUST validate:
