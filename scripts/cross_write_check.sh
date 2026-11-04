@@ -25,7 +25,7 @@
 #   Same SKIP_PORTS and REQUIRE_PORTS as cross_security_check.sh. A port with
 #   no pxf-pb harness is not run and the script says so, so an absent port
 #   can't pass for a clean run. Today go, cpp, java, java-lite, csharp, rust,
-#   dart and ts have one.
+#   dart, ts and swift have one.
 
 set -euo pipefail
 
@@ -40,9 +40,10 @@ CSHARP_DIR="${CSHARP_DIR:-${SIBLING_DIR}/protowire-csharp}"
 RUST_DIR="${RUST_DIR:-${SIBLING_DIR}/protowire-rust}"
 DART_DIR="${DART_DIR:-${SIBLING_DIR}/protowire-dart}"
 TS_DIR="${TS_DIR:-${SIBLING_DIR}/protowire-typescript}"
+SWIFT_DIR="${SWIFT_DIR:-${SIBLING_DIR}/protowire-swift}"
 SKIP_PORTS="${SKIP_PORTS:-}"
 REQUIRE_PORTS="${REQUIRE_PORTS:-}"
-NOT_YET=(swift python)
+NOT_YET=(python)
 
 # Cases no port is held to yet, each with the question it waits on.
 declare -A EXCLUDED=()
@@ -117,6 +118,11 @@ if ! skip dart && [[ -f "$DART_DIR/bin/check_decode.dart" ]]; then
   (cd "$DART_DIR" && dart pub get >/dev/null &&
     dart compile exe bin/check_decode.dart -o "${PORT_BINS[dart]}" >/dev/null)
 fi
+if ! skip swift && [[ -f "$SWIFT_DIR/cmd/check-decode/main.swift" ]]; then
+  echo "→ Swift build" >&2
+  (cd "$SWIFT_DIR" && swift build -c release --product check-decode >&2)
+  PORT_BINS[swift]="$SWIFT_DIR/.build/release/check-decode"
+fi
 
 if ! skip ts && [[ -f "$TS_DIR/scripts/check-decode.ts" ]]; then
   # A script, not a build: it runs the harness from the port's directory, so
@@ -129,7 +135,7 @@ if ! skip ts && [[ -f "$TS_DIR/scripts/check-decode.ts" ]]; then
   chmod +x "${PORT_BINS[ts]}"
 fi
 
-for p in go cpp java java-lite csharp rust dart ts; do
+for p in go cpp java java-lite csharp rust dart ts swift; do
   [[ -n "${PORT_BINS[$p]:-}" ]] || echo "· $p: not run" >&2
 done
 for p in "${NOT_YET[@]}"; do
