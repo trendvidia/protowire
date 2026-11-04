@@ -100,6 +100,15 @@ jobs:
         run: dart pub get
         working-directory: protowire-dart
 
+      - name: Checkout protowire-swift
+        uses: actions/checkout@v7
+        with:
+          repository: trendvidia/protowire-swift
+          path: protowire-swift
+
+      - name: Swift toolchain
+        run: swift --version
+
       - uses: actions/setup-go@v7
         with:
           go-version-file: protowire-go/go.mod
@@ -123,7 +132,6 @@ jobs:
       - name: Cross-port envelope byte equality
         env:
           WITH_RUST: '0'
-          WITH_SWIFT: '0'
           WITH_CSHARP: '0'
           WITH_JAVA_LITE: '0'
           WITH_JAVA_PXF_LITE: '0'

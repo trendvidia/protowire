@@ -97,6 +97,13 @@ jobs:
         with:
           repository: trendvidia/protowire-rust
           path: protowire-rust
+      - name: Checkout protowire-swift
+        uses: actions/checkout@v7
+        with:
+          repository: trendvidia/protowire-swift
+          path: protowire-swift
+      - name: Swift toolchain
+        run: swift --version
       - uses: actions/setup-go@v7
         with:
           go-version-file: protowire-go/go.mod
@@ -117,5 +124,5 @@ jobs:
           workspaces: protowire-rust
       - name: Write conformance
         env:
-          REQUIRE_PORTS: 'go,cpp,java,java-lite,csharp,rust,dart,ts'
+          REQUIRE_PORTS: 'go,cpp,java,java-lite,csharp,rust,dart,ts,swift'
         run: ./protowire/scripts/cross_write_check.sh

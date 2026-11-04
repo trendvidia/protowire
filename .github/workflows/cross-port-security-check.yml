@@ -75,6 +75,13 @@ jobs:
         with:
           repository: trendvidia/protowire-java
           path: protowire-java
+      - name: Checkout protowire-swift
+        uses: actions/checkout@v7
+        with:
+          repository: trendvidia/protowire-swift
+          path: protowire-swift
+      - name: Swift toolchain
+        run: swift --version
       - uses: actions/setup-go@v7
         with:
           go-version-file: protowire-go/go.mod
@@ -93,5 +100,5 @@ jobs:
             cmake ninja-build protobuf-compiler libprotobuf-dev libprotoc-dev
       - name: HARDENING conformance corpus
         env:
-          REQUIRE_PORTS: 'go,cpp,java,java-lite,ts'
+          REQUIRE_PORTS: 'go,cpp,java,java-lite,ts,swift'
         run: ./protowire/scripts/cross_security_check.sh
