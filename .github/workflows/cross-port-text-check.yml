@@ -68,6 +68,14 @@ jobs:
       - uses: dart-lang/setup-dart@v1
         with:
           sdk: stable
+      - name: Checkout protowire-csharp
+        uses: actions/checkout@v7
+        with:
+          repository: trendvidia/protowire-csharp
+          path: protowire-csharp
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
       - uses: actions/setup-go@v7
         with:
           go-version-file: protowire-go/go.mod
@@ -78,5 +86,5 @@ jobs:
           java-version: '21'
       - name: Text conformance
         env:
-          REQUIRE_PORTS: 'go,cpp,java,java-lite,dart'
+          REQUIRE_PORTS: 'go,cpp,java,java-lite,csharp,dart'
         run: ./protowire/scripts/cross_text_check.sh
