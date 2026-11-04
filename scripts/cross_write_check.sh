@@ -52,9 +52,7 @@ declare -A EXCLUDED=()
 # issue that tracks it. C# writes a generated message through Google.Protobuf,
 # which drops -0.0 and a map entry's zero key or value
 # (trendvidia/protowire-csharp#91). Rust writes a DynamicMessage through
-# prost-reflect, which drops -0.0 (trendvidia/protowire-rust#98). A generated
-# Dart enum cannot hold a number it does not declare, and the draft says
-# nothing about unknown enum numbers (trendvidia/protowire-dart#82).
+# prost-reflect, which drops -0.0 (trendvidia/protowire-rust#98).
 declare -A PORT_EXCLUDED=(
   ["csharp Scalars.float-negzero"]="trendvidia/protowire-csharp#91"
   ["csharp Shapes.map-bool-keys"]="trendvidia/protowire-csharp#91"
@@ -65,7 +63,6 @@ declare -A PORT_EXCLUDED=(
   ["csharp Shapes.map-string-keys-unsorted"]="trendvidia/protowire-csharp#91"
   ["csharp Shapes.map-zero-key-and-value"]="trendvidia/protowire-csharp#91"
   ["rust Scalars.float-negzero"]="trendvidia/protowire-rust#98"
-  ["dart Scalars.enum-unknown"]="trendvidia/protowire-dart#82"
 )
 
 skip() {
