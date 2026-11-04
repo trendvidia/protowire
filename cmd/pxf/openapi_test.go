@@ -265,7 +265,8 @@ func TestOpenAPIDanglingScheme(t *testing.T) {
 
 // A field is nullable in the generated document exactly where PXF
 // accepts null: a singular field with explicit presence (decided by the
-// owner on #380). Each case is the property's schema in a body type,
+// owner on #380), unless it is required (2026-11-04). Each case is the
+// property's schema in a body type,
 // across proto3, proto2 and editions.
 func TestOpenAPINullable(t *testing.T) {
 	dir := t.TempDir()
@@ -281,6 +282,8 @@ message M3 {
   Inner msg = 4;
   repeated int32 list = 5;
   map<string, int32> dict = 6;
+  optional int32 req_opt = 7 @required;
+  Inner req_msg = 8 @required;
 }
 service S {
   @http("POST", "/m3")
@@ -357,6 +360,10 @@ service SE {
 		{"nn.v1.M3", "msg", true},
 		{"nn.v1.M3", "list", false},
 		{"nn.v1.M3", "dict", false},
+		// A required field holds a value, so it is not nullable, whatever its
+		// presence (decided 2026-11-04).
+		{"nn.v1.M3", "req_opt", false},
+		{"nn.v1.M3", "req_msg", false},
 		{"nn.v2.M2", "opt", true},
 		{"nn.v2.M2", "req", false},
 		{"nn.ed.ME", "explicit_scalar", true},

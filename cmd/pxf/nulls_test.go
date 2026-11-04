@@ -38,7 +38,10 @@ var nullsVerdicts = map[string]struct{ msg, reject, unset string }{
 	"oneof-scalar.pxf":          {unset: "ks"},
 	"oneof-message.pxf":         {unset: "km"},
 	"proto2-scalar.pxf":         {msg: "nulls.v1.Legacy", unset: "p"},
-	"required-optional.pxf":     {msg: "nulls.v1.Required", unset: "r"},
+	// A required field holds a value: null on it is rejected whatever its
+	// presence (decided 2026-11-04, reversing #339 on this point).
+	"err-required-optional.pxf": {msg: "nulls.v1.Required", reject: `null is not allowed on required field "r"`},
+	"err-required-wrapper.pxf":  {msg: "nulls.v1.RequiredWrapper", reject: `null is not allowed on required field "w"`},
 	"default-optional.pxf":      {msg: "nulls.v1.Defaulted", unset: "d"},
 	// Editions (#380): a scalar's presence is its field_presence feature.
 	"editions-explicit.pxf":     {msg: "nulls.ed.v1.Ed", unset: "explicit_scalar"},
@@ -48,10 +51,12 @@ var nullsVerdicts = map[string]struct{ msg, reject, unset string }{
 // nullsKnownGaps maps fixtures the pinned protowire-go does not yet meet
 // to the change that closes the gap and what the pinned release does
 // instead. Each is asserted to still hold, so the go.mod bump that closes
-// it fails the test until it is removed. Empty since protowire-go
-// v1.11.0, which accepts null on a scalar with explicit presence
-// (protowire-go#182, #339 option 3).
-var nullsKnownGaps = map[string]datasetGap{}
+// it fails the test until it is removed. v1.15.0 still lets null satisfy
+// (pxf.required), as #339 option 3 had it.
+var nullsKnownGaps = map[string]datasetGap{
+	"err-required-optional.pxf": {by: "protowire-go#268", old: ""},
+	"err-required-wrapper.pxf":  {by: "protowire-go#268", old: ""},
+}
 
 func TestNulls_Corpus(t *testing.T) {
 	schemas := []string{"nulls.proto", "nulls_proto2.proto", "nulls_editions.proto"}
