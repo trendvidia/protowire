@@ -92,9 +92,7 @@ var datasetVerdicts = map[string]string{
 // entry's removal. Empty since protowire-go v1.11.0, which accepts null
 // on an optional scalar as #339's option 3 does (protowire-go#182), until
 // null on a required field was made an error: v1.15.0 still accepts it.
-var datasetKnownGaps = map[string]datasetGap{
-	"null-on-required-cell.pxf": {by: "protowire-go#268", old: ""},
-}
+var datasetKnownGaps = map[string]datasetGap{}
 
 // datasetGap is a known gap: by is the change that closes it, and old is
 // a substring of the pinned release's rejection, or "" if it accepts. An
@@ -354,10 +352,11 @@ func TestDataset_ValidateRejectsEmptyRequiredCell(t *testing.T) {
 	// A null cell does not satisfy (pxf.required): a required field holds
 	// a value (null-on-required-cell). "name" is also a plain string,
 	// which cannot hold null at all (draft § Booleans, Null, and
-	// Identifier Values; #339), and the pinned release reports that.
+	// Identifier Values; #339). The pinned release reports the required
+	// rule, which it checks first (protowire-go#268).
 	doc = "@dataset settings.v1.Settings (name, retries)\n(null, 1)\n"
 	err = validateDoc(t, doc, args...)
-	if want := `2:1: column name: null is not allowed on scalar field "name"`; err == nil || !strings.Contains(err.Error(), want) {
+	if want := `2:1: column name: null is not allowed on required field "name": a required field holds a value`; err == nil || !strings.Contains(err.Error(), want) {
 		t.Fatalf("want %q, got %v", want, err)
 	}
 }

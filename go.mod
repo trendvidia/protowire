@@ -9,7 +9,7 @@ require (
 	github.com/trendvidia/protocompile v0.38.1
 	github.com/trendvidia/protoregistry v0.75.0
 	github.com/trendvidia/protos v0.1.4
-	github.com/trendvidia/protowire-go v1.15.0
+	github.com/trendvidia/protowire-go v1.16.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20260817212433-ac3dfec99bb1
 	google.golang.org/grpc v1.85.0
 	google.golang.org/protobuf v1.36.12

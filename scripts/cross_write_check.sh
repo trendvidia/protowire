@@ -18,7 +18,8 @@
 # The inputs are every testdata/text/cases/*.expected.pxf, plus the edge cases
 # in testdata/write/cases/. Map entries are compared in key order, as Go's
 # deterministic writer puts them: a port's harness writes them that way, even
-# where the port's own writer does not.
+# where the port's own writer does not. Fields are compared in field-number
+# order: the script reorders both sides' field records before comparing (#568).
 #
 # === Environment ===
 #
@@ -52,9 +53,11 @@ declare -A EXCLUDED=()
 # issue that tracks it. C# writes a generated message through Google.Protobuf,
 # which drops -0.0 and a map entry's zero key or value
 # (trendvidia/protowire-csharp#91). Rust writes a DynamicMessage through
-# prost-reflect, which drops -0.0 (trendvidia/protowire-rust#98).
+# prost-reflect, which drops -0.0 (trendvidia/protowire-rust#98), and rounds a
+# BigFloat literal near a tie twice (trendvidia/protowire-rust#108).
 # java-lite, dart and csharp compile a copy of text.proto that has no
-# Annotated message yet (#561), each tracked by its port's issue.
+# Annotated (#561) or Ordered (#568) message yet, each tracked by its port's
+# issue.
 declare -A PORT_EXCLUDED=(
   ["csharp Scalars.float-negzero"]="trendvidia/protowire-csharp#91"
   ["csharp Shapes.map-bool-keys"]="trendvidia/protowire-csharp#91"
@@ -77,6 +80,10 @@ declare -A PORT_EXCLUDED=(
   ["csharp Annotated.oneof-sibling-set"]="trendvidia/protowire-csharp#104"
   ["csharp Annotated.set"]="trendvidia/protowire-csharp#104"
   ["csharp Annotated.unset"]="trendvidia/protowire-csharp#104"
+  ["rust WellKnown.bigfloat-near-tie"]="trendvidia/protowire-rust#108"
+  ["java-lite Ordered.oneof-below-field"]="trendvidia/protowire-java#187"
+  ["dart Ordered.oneof-below-field"]="trendvidia/protowire-dart#93"
+  ["csharp Ordered.oneof-below-field"]="trendvidia/protowire-csharp#104"
 )
 
 skip() {
@@ -164,9 +171,20 @@ if (( ${#PORT_BINS[@]} == 0 )); then
   exit 2
 fi
 
+# Fields are compared in field-number order, as draft -01 § PB Binary Encoding
+# compares them (#568): an emitter SHOULD write that order, and protowire-go
+# writes a oneof after the other fields. pb_field_order moves whole field
+# records and nothing else, so varints, packing and map entries still compare
+# as written.
+order_bin="$(mktemp -t pb-field-order.XXXXXX)"
+(cd "$REPO_DIR" && go build -o "$order_bin" ./scripts/pb_field_order)
+descriptor="$TEXT_DIR/text.binpb"
+
 out="$(mktemp -t cross-write.XXXXXX)"
 err="$(mktemp -t cross-write-err.XXXXXX)"
-trap 'rm -f "$out" "$err"' EXIT
+want="$(mktemp -t cross-write-want.XXXXXX)"
+got="$(mktemp -t cross-write-got.XXXXXX)"
+trap 'rm -f "$out" "$err" "$want" "$got" "$order_bin"' EXIT
 pairs=0
 fails=0
 excluded=0
@@ -203,7 +221,10 @@ for input in "$TEXT_DIR"/cases/*.expected.pxf "$WRITE_DIR"/cases/*.pxf; do
         echo "✗ $port $name: Go rejects ($(cat "$reject")), port exit $rc" >&2
         [[ $rc -eq 0 ]] && echo "    port wrote $(xxd -p "$out" | tr -d '\n' | cut -c1-120)" >&2
       fi
-    elif [[ $rc -ne 0 ]] || ! cmp -s "$out" "$golden"; then
+    elif [[ $rc -ne 0 ]] ||
+      ! "$order_bin" --descriptor "$descriptor" --schema "$schema" < "$golden" > "$want" ||
+      ! "$order_bin" --descriptor "$descriptor" --schema "$schema" < "$out" > "$got" 2>> "$err" ||
+      ! cmp -s "$got" "$want"; then
       fails=$((fails + 1))
       echo "✗ $port $name (exit $rc)" >&2
       echo "    go:   $(xxd -p "$golden" | tr -d '\n' | cut -c1-120)" >&2
