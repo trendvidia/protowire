@@ -1,0 +1,12 @@
+n: 9
+s: "x"
+b: true
+req: 3
+rl: [1, 2]
+rm { key: "k" value: 1 }
+w { value: 0 }
+ts { seconds: 1 }
+a: 0
+plain: 1
+sub { k: 4 plain: 2 }
+opt: 0
