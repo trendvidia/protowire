@@ -121,3 +121,14 @@ message AnnotatedSub {
   int32 k = 1 [(pxf.default) = "3"];
   int32 plain = 2;
 }
+
+// A oneof numbered below another field (#568). protowire-go writes a oneof
+// after the other fields, and other ports write field-number order; the
+// write gate compares both in field-number order.
+message Ordered {
+  oneof o {
+    int32 a = 1;
+    string b = 2;
+  }
+  int32 after = 3;
+}

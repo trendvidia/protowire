@@ -1129,6 +1129,7 @@ Constraints applied by protowire:
 * A protowire emitter SHOULD produce fields in field-number order; decoders MUST accept any field order, per the existing PB rules.
 
 * An emitter MAY write the entries of a map field in any order, and decoders MUST accept any order. Where PB bytes from two implementations are compared, as the conformance suite does, map entries are compared in key order: false before true, integer keys by value, and string keys by their UTF-8 bytes. A deterministic emitter that writes entries in that order produces bytes that compare equal with no reordering.
+* Where PB bytes are compared, fields are compared in field-number order too, at every level of nesting. The records of one field keep their relative order, so a repeated field's elements do not move, and nothing else is normalized. An emitter that writes some fields out of field-number order, as one that writes a oneof after the other fields does, still compares equal to one that follows the SHOULD above.
 
 # SBE Binary Encoding {#sbe-binary-encoding}
 
