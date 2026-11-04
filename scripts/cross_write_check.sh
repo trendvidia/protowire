@@ -24,8 +24,8 @@
 #
 #   Same SKIP_PORTS and REQUIRE_PORTS as cross_security_check.sh. A port with
 #   no pxf-pb harness is not run and the script says so, so an absent port
-#   can't pass for a clean run. Today go, java, java-lite, csharp, rust and dart
-#   have one.
+#   can't pass for a clean run. Today go, cpp, java, java-lite, csharp, rust
+#   and dart have one.
 
 set -euo pipefail
 
@@ -34,13 +34,14 @@ SIBLING_DIR="$(dirname "$REPO_DIR")"
 TEXT_DIR="$REPO_DIR/testdata/text"
 WRITE_DIR="$REPO_DIR/testdata/write"
 GO_DIR="${GO_DIR:-${SIBLING_DIR}/protowire-go}"
+CPP_DIR="${CPP_DIR:-${SIBLING_DIR}/protowire-cpp}"
 JAVA_DIR="${JAVA_DIR:-${SIBLING_DIR}/protowire-java}"
 CSHARP_DIR="${CSHARP_DIR:-${SIBLING_DIR}/protowire-csharp}"
 RUST_DIR="${RUST_DIR:-${SIBLING_DIR}/protowire-rust}"
 DART_DIR="${DART_DIR:-${SIBLING_DIR}/protowire-dart}"
 SKIP_PORTS="${SKIP_PORTS:-}"
 REQUIRE_PORTS="${REQUIRE_PORTS:-}"
-NOT_YET=(cpp ts swift python)
+NOT_YET=(ts swift python)
 
 # Cases no port is held to yet, each with the question it waits on.
 declare -A EXCLUDED=()
@@ -79,6 +80,16 @@ if ! skip go && [[ -d "$GO_DIR/scripts/check_decode" ]]; then
   PORT_BINS[go]="$(mktemp -t check-decode-go.XXXXXX)"
   (cd "$GO_DIR" && go build -o "${PORT_BINS[go]}" ./scripts/check_decode)
 fi
+if ! skip cpp && [[ -f "$CPP_DIR/cmd/check_decode/main.cc" ]]; then
+  echo "→ C++ build" >&2
+  # check_decode only: the test suite needs libprotoc pieces Ubuntu's
+  # libprotobuf-dev lacks, as in cross_security_check.sh.
+  if [[ ! -d "$CPP_DIR/build" ]]; then
+    cmake -S "$CPP_DIR" -B "$CPP_DIR/build" -DPROTOWIRE_BUILD_TESTS=OFF >&2
+  fi
+  cmake --build "$CPP_DIR/build" --target check_decode -j >&2
+  PORT_BINS[cpp]="$CPP_DIR/build/bin/check_decode"
+fi
 if ! skip java && [[ -d "$JAVA_DIR/check-decode" ]]; then
   echo "→ Java build" >&2
   (cd "$JAVA_DIR" && ./gradlew --quiet :check-decode:installDist)
@@ -106,7 +117,7 @@ if ! skip dart && [[ -f "$DART_DIR/bin/check_decode.dart" ]]; then
     dart compile exe bin/check_decode.dart -o "${PORT_BINS[dart]}" >/dev/null)
 fi
 
-for p in go java java-lite csharp rust dart; do
+for p in go cpp java java-lite csharp rust dart; do
   [[ -n "${PORT_BINS[$p]:-}" ]] || echo "· $p: not run" >&2
 done
 for p in "${NOT_YET[@]}"; do
