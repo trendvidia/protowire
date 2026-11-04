@@ -164,6 +164,23 @@ func TestFmtKeepsCommentAfterBody(t *testing.T) {
 	}
 }
 
+// TestFmtKeepsDataset: pxf fmt keeps a @dataset directive and every row
+// (#558, #577). protowire-go before v1.16.0 formatted this document to
+// nothing, so pxf fmt -w would have emptied the file.
+func TestFmtKeepsDataset(t *testing.T) {
+	src := "@dataset trades.v1.Trade (id, px)\n(1, 2.5)\n(2, 3.5)\n"
+	path := filepath.Join(t.TempDir(), "trades.pxf")
+	if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runCLI(t, "fmt", "-w", path); err != nil {
+		t.Fatal(err)
+	}
+	if got := readFile(t, path); got != src {
+		t.Errorf("pxf fmt -w changed the dataset document:\n got %q\nwant %q", got, src)
+	}
+}
+
 // TestLostTokens: the check pxf fmt runs on the printer's output names
 // what the output lacks, so a printer that drops source again (as
 // protocompile#258 and #273 did) is refused instead of written.

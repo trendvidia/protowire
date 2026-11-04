@@ -299,12 +299,12 @@ func (b *schemaBuilder) propertySchema(mi *messageInfo, fi *fieldInfo, msgSensit
 	if _, isRef := core.get("$ref"); isRef && extra.len() > 0 {
 		merged := newOmap()
 		merged.set("allOf", []any{core, extra})
-		return b.nullable(merged, mi, f), nil
+		return b.nullable(merged, mi, fi), nil
 	}
 	for _, k := range extra.keys {
 		core.set(k, extra.vals[k])
 	}
-	return b.nullable(core, mi, f), nil
+	return b.nullable(core, mi, fi), nil
 }
 
 // fieldKeywords collects what a field contributes on its own — its
@@ -446,13 +446,14 @@ func (b *schemaBuilder) fieldSizeKind(f *descriptorpb.FieldDescriptorProto, chai
 // Identifier Values; decided by the owner on #380). That is a message
 // field, wrappers included, a proto3 optional scalar, a oneof member, a
 // proto2 optional scalar, or an editions scalar whose field_presence is
-// EXPLICIT. Not a plain proto3 scalar, a repeated or map field, or a
-// proto2 required one. ProtoJSON accepts null on every field (measured
+// EXPLICIT. Not a plain proto3 scalar, a repeated or map field, a
+// proto2 required one, or one with @required, which holds a value (decided
+// 2026-11-04). ProtoJSON accepts null on every field (measured
 // on #380), so each field marked here is one the JSON boundary accepts
 // null on; the others are left unmarked because there a null would mean
 // zero, not unset.
-func (b *schemaBuilder) nullable(s *omap, mi *messageInfo, f *descriptorpb.FieldDescriptorProto) *omap {
-	if !b.m.explicitPresence(mi, f) {
+func (b *schemaBuilder) nullable(s *omap, mi *messageInfo, fi *fieldInfo) *omap {
+	if !b.m.explicitPresence(mi, fi.desc) || findAnn(fi.anns, annRequired).valid() {
 		return s
 	}
 	if t, ok := s.get("type"); ok {

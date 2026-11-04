@@ -52,6 +52,9 @@ var datasetVerdicts = map[string]string{
 	"null-on-scalar-cell.pxf": `null is not allowed on scalar field "int32_field"`,
 	// null on an optional scalar (#339), here in a cell: accepted.
 	"null-on-optional-cell.pxf": "",
+	// null on a required field, here in a cell: rejected, as an empty
+	// cell is (decided 2026-11-04).
+	"null-on-required-cell.pxf": `null is not allowed on required field "o"`,
 	// Column paths (#342). Row type dataset.v1.Event in paths.proto
 	// unless the fixture says otherwise.
 	"dotted-column.pxf":               "",
@@ -87,7 +90,8 @@ var datasetVerdicts = map[string]string{
 // with the fixture instead. Each entry is asserted to still behave that
 // way, so the go.mod bump that closes it flips the test and forces the
 // entry's removal. Empty since protowire-go v1.11.0, which accepts null
-// on an optional scalar as #339's option 3 does (protowire-go#182).
+// on an optional scalar as #339's option 3 does (protowire-go#182), until
+// null on a required field was made an error: v1.15.0 still accepts it.
 var datasetKnownGaps = map[string]datasetGap{}
 
 // datasetGap is a known gap: by is the change that closes it, and old is
@@ -345,14 +349,14 @@ func TestDataset_ValidateRejectsEmptyRequiredCell(t *testing.T) {
 	if want := `3:1: required field "name" is absent`; !strings.Contains(err.Error(), want) {
 		t.Fatalf("want %q in %v", want, err)
 	}
-	// A null cell is present-but-null, which satisfies (pxf.required) on a
-	// field that can hold null; protowire-go's TestBindRow_Required pins
-	// that on a StringValue. "name" is a plain string, which cannot hold
-	// null (draft § Booleans, Null, and Identifier Values; #339), so the
-	// row is rejected for the null, not for the missing value.
+	// A null cell does not satisfy (pxf.required): a required field holds
+	// a value (null-on-required-cell). "name" is also a plain string,
+	// which cannot hold null at all (draft § Booleans, Null, and
+	// Identifier Values; #339). The pinned release reports the required
+	// rule, which it checks first (protowire-go#268).
 	doc = "@dataset settings.v1.Settings (name, retries)\n(null, 1)\n"
 	err = validateDoc(t, doc, args...)
-	if want := `2:1: column name: null is not allowed on scalar field "name"`; err == nil || !strings.Contains(err.Error(), want) {
+	if want := `2:1: column name: null is not allowed on required field "name": a required field holds a value`; err == nil || !strings.Contains(err.Error(), want) {
 		t.Fatalf("want %q, got %v", want, err)
 	}
 }

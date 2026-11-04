@@ -47,7 +47,8 @@
 //     @default argument reduces to the literal the
 //     bracket form would carry.
 //   - NULLABLE_FIELDS      — Set<Integer> of the singular fields that may hold
-//     null: explicit presence, and not proto2 required.
+//     null: explicit presence, not proto2 required, and
+//     not (pxf.required) or @required.
 //     protobuf's own HasPresence decides, so an editions
 //     field_presence feature counts.
 //   - IMPLICIT_PRESENCE_FIELDS — Set<Integer> of the singular fields with no
@@ -353,9 +354,12 @@ func implicitPresence(fd protoreflect.FieldDescriptor) bool {
 
 // nullable mirrors protowire-go's rule of the same name (draft -01 § Booleans,
 // Null, and Identifier Values): a singular field with explicit presence, unless
-// it is required, since unset would make the message invalid in binary.
+// it is required. A proto2 required field cannot be left unset in binary, and a
+// field with (pxf.required) or @required holds a value, so null on it is an
+// error (decided 2026-11-04).
 func nullable(fd protoreflect.FieldDescriptor) bool {
-	return fd.HasPresence() && !fd.IsList() && !fd.IsMap() && fd.Cardinality() != protoreflect.Required
+	return fd.HasPresence() && !fd.IsList() && !fd.IsMap() &&
+		fd.Cardinality() != protoreflect.Required && !pxf.IsRequired(fd)
 }
 
 func generateFile(

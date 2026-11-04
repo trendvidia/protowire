@@ -268,6 +268,13 @@ For any schema S, the four encodings represent the same logical value space. Imp
 
 Equality is defined per {{PROTOBUF}} Section "Message equality" (field-by-field, with proto3 default semantics applied).
 
+A decode that applies pxf.default ({{pxf-annotations}}) has two exceptions to decode_PXF(encode_PXF(v)) == v. Both come from what an absent or null field means, and no text avoids them:
+
+* An unset scalar field with explicit presence and pxf.default (a proto3 "optional" scalar, or a scalar member of a oneof with no member set) reads back holding its default. An absent field with a default means the default, and an encoder leaves such a field out. "null" would keep the field unset ({{booleans-null-and-identifier-values}}), but writing it is not required.
+* In a message that declares a "_null" field mask, an unset field with pxf.default reads back either holding its default, if it is left out, or listed in the mask, if it is written "null".
+
+A decode that applies no annotations has neither exception.
+
 ## Wire Equivalence
 
 Two ports are wire-equivalent for schema S if, for every value v of every message type in S, both ports produce byte-identical PB and Envelope output and parse each other's PXF and SBE output to equal values. Wire equivalence is the contract this document specifies; it is not an API-stability or performance contract.
@@ -568,7 +575,7 @@ Three-state cells. Each row cell denotes one of three states, carried into the b
 
 * An empty cell (no value between two commas, or leading / trailing inside a row, e.g. "(1, , 3)") denotes an absent field. When the bound field carries (pxf.default), the default literal is applied; when it carries (pxf.required), the document MUST be rejected. For a field inside a sub-message, named by a column path, both hold only when the row makes that sub-message present (see Column paths).
 
-* A bare "null" literal denotes a present-but-null field. This satisfies (pxf.required) and suppresses (pxf.default), with the singular-field nullability rules of {{booleans-null-and-identifier-values}} applied against the field the column names: a field declared on \<type\>, or for a column path the field its last segment names.
+* A bare "null" literal denotes a present-but-null field. This suppresses (pxf.default). In a column whose field carries (pxf.required) the document MUST be rejected, as for an empty cell: a required field holds a value. The singular-field nullability rules of {{booleans-null-and-identifier-values}} applied against the field the column names: a field declared on \<type\>, or for a column path the field its last segment names.
 
 * Any other value literal denotes a present field with that value.
 
@@ -828,11 +835,13 @@ The literals "true" and "false" denote the boolean values; "null" denotes the nu
 
 * When bound to a singular message-typed field, MUST clear the field.
 
-* When bound to a singular scalar field with explicit presence, as protobuf defines it (a proto3 "optional" scalar, a scalar member of a oneof, a proto2 "optional" scalar, or in an editions file a scalar whose field_presence feature is EXPLICIT), MUST leave the field unset. The field is present-but-null: it counts as present for pxf.required, and pxf.default is not applied to it.
+* When bound to a singular scalar field with explicit presence, as protobuf defines it (a proto3 "optional" scalar, a scalar member of a oneof, a proto2 "optional" scalar, or in an editions file a scalar whose field_presence feature is EXPLICIT), MUST leave the field unset. The field is present-but-null: pxf.default is not applied to it.
 
 * When bound to a singular scalar field without explicit presence (a proto3 scalar declared without "optional", or in an editions file a scalar whose field_presence feature is IMPLICIT), MUST be rejected. Such a field has no unset state, so a null would read back as the field's zero value. A field that must be nullable is declared "optional", or as its wrapper type (e.g. google.protobuf.StringValue).
 
 * When bound to a proto2 "required" field, or an editions field whose field_presence feature is LEGACY_REQUIRED, MUST be rejected. The field has explicit presence, but leaving it unset would make the message invalid in protobuf binary, which requires the field to be set.
+
+* When bound to a field that carries pxf.required, or the @required annotation, MUST be rejected, whatever the field's type and presence. A required field holds a value: neither absent nor null satisfies it ({{pxf-annotations}}).
 
 * When bound to a list-typed (repeated) field, a map field included, MUST be rejected; so MUST a null list element and a null map value, whatever the map's value type: list elements and map entries are not nullable. In protobuf binary a map entry without a value reads back as the value type's zero value, so the null could not be kept.
 
@@ -1120,6 +1129,7 @@ Constraints applied by protowire:
 * A protowire emitter SHOULD produce fields in field-number order; decoders MUST accept any field order, per the existing PB rules.
 
 * An emitter MAY write the entries of a map field in any order, and decoders MUST accept any order. Where PB bytes from two implementations are compared, as the conformance suite does, map entries are compared in key order: false before true, integer keys by value, and string keys by their UTF-8 bytes. A deterministic emitter that writes entries in that order produces bytes that compare equal with no reordering.
+* Where PB bytes are compared, fields are compared in field-number order too, at every level of nesting. The records of one field keep their relative order, so a repeated field's elements do not move, and nothing else is normalized. An emitter that writes some fields out of field-number order, as one that writes a oneof after the other fields does, still compares equal to one that follows the SHOULD above.
 
 # SBE Binary Encoding {#sbe-binary-encoding}
 
@@ -1142,6 +1152,8 @@ Every SBE message on the wire is preceded by an 8-byte message-header carrying t
 1. data.length \>= HEADER_SIZE + wire_block_length
 
 2. wire_block_length \>= template_block_length, where template_block_length is the value the decoder's compiled schema specifies for this template. A wire block strictly smaller than the template block length MUST be rejected. A wire block strictly larger MUST be accepted (forward compatibility for additive schema evolution).
+
+3. the header's templateId and schemaId name the message being decoded. sbe.template_id is unique only within a schema, so the templateId alone does not identify a message. A decoder given the message to decode MUST reject a header whose templateId differs from that message's sbe.template_id, or whose schemaId differs from the sbe.schema_id of the message's file. A decoder that finds the message from the header MUST look it up by schemaId and templateId together, and MUST reject a pair its compiled schemas do not hold. Without this check, bytes written for one schema's message decode as another schema's message with the same templateId, and when that message's block is no longer, its fields are misread without error.
 
 ## Repeating Groups
 
@@ -1175,7 +1187,7 @@ extend google.protobuf.FieldOptions {
 }
 ~~~
 
-pxf.required: when true, decoders MUST reject a PXF document in which the annotated field is absent. A field bound to "null" is considered present for the purpose of this check; null-rejection for non-nullable types is governed by {{booleans-null-and-identifier-values}}. The annotation is not valid on a member of a oneof; see {{oneof-annotation-placement}}.
+pxf.required: when true, decoders MUST reject a PXF document in which the annotated field is absent, and one in which it is bound to "null". A required field holds a value; a field that may be left without one is not required ({{booleans-null-and-identifier-values}}). The annotation is not valid on a member of a oneof; see {{oneof-annotation-placement}}.
 
 pxf.default: when set, the value is a PXF literal (parsed by the same rules as a value in any entry). Decoders MUST treat an absent annotated field as if the document had supplied the default literal. The default applies only to absent fields, not to fields explicitly set to "null" or to the proto3 zero value. The annotation carries exactly one literal, so it is valid only on fields a single literal can denote; placement constraints are specified in {{default-schema-placement}}.
 
@@ -1796,7 +1808,7 @@ layer's perspective:
 | State of the field | Action by validator |
 |---|---|
 | Set | Each rule in the field's rule list is evaluated against the value. |
-| Null | The field's rule list is NOT evaluated. |
+| Null | The field's rule list is NOT evaluated. A field with `@required` is never null: a decoder rejects the null ({{booleans-null-and-identifier-values}}). |
 | Absent, no `@required`, no `@default` | The field's rule list is NOT evaluated. |
 | Absent, `@required` present | A Violation with code `required` is emitted in a layer prior to rule evaluation. |
 | Absent, `@default(v)` present | The value `v` is substituted; rules are evaluated against `v`. |

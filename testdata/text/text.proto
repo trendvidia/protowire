@@ -92,3 +92,43 @@ message WellKnown {
   map<string, google.protobuf.Timestamp> stamps = 17;
   map<string, pxf.Decimal> decs = 18;
 }
+
+// Fields with (pxf.default) or (pxf.required) (#561). A reader applies the
+// default to an absent field and refuses an absent required one, so a writer
+// that leaves out an unset annotated field breaks the round trip. The cases
+// hold each shape unset, set, and with the oneof sibling set.
+message Annotated {
+  int32 n = 1 [(pxf.default) = "5"];
+  string s = 2 [(pxf.default) = "\"dflt\""];
+  bool b = 3 [(pxf.default) = "true"];
+  int32 req = 4 [(pxf.required) = true];
+  repeated int32 rl = 5 [(pxf.required) = true];
+  map<string, int32> rm = 6 [(pxf.required) = true];
+  google.protobuf.Int32Value w = 7 [(pxf.default) = "7"];
+  google.protobuf.Timestamp ts = 8 [(pxf.default) = "2024-01-01T00:00:00Z"];
+  // The oneof has the highest numbers, as in Shapes: protowire-go writes a
+  // oneof after the other fields, not in field-number order (#568).
+  oneof o {
+    int32 a = 13 [(pxf.default) = "8"];
+    string other = 14;
+  }
+  int32 plain = 9;
+  AnnotatedSub sub = 10;
+  optional int32 opt = 11 [(pxf.default) = "6"];
+}
+
+message AnnotatedSub {
+  int32 k = 1 [(pxf.default) = "3"];
+  int32 plain = 2;
+}
+
+// A oneof numbered below another field (#568). protowire-go writes a oneof
+// after the other fields, and other ports write field-number order; the
+// write gate compares both in field-number order.
+message Ordered {
+  oneof o {
+    int32 a = 1;
+    string b = 2;
+  }
+  int32 after = 3;
+}

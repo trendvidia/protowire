@@ -88,6 +88,7 @@ The SBE wire format is fixed-layout. Every conforming decoder must, at view cons
    - `pos + GROUP_HEADER_SIZE + count × wire_block_length ≤ data.length`.
 4. Reject `wire_block_length == 0` when `count > 0`. (Otherwise an attacker can ask the decoder to allocate `count` writer entries for arbitrary `count` while consuming zero further bytes.)
 5. For composite (sub-block) field reads, validate `composite_offset + composite_size ≤ enclosing_block.length`.
+6. Validate that the header's `templateId` and `schemaId` are the target message's `sbe.template_id` and its file's `sbe.schema_id`, or, for a decoder that picks the message from the header, look it up by the two together and reject a pair it does not hold. A template id is unique only within a schema, so a match on `templateId` alone lets one schema's bytes be read as another schema's message (draft -01 § Header and Block Length).
 
 Group walk in `view()` (skipping past unrequested groups) is subject to the same arithmetic — `pos += GROUP_HEADER_SIZE + count × block_length` must be 64-bit-checked against `data.length` before the next iteration.
 
