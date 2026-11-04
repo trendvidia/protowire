@@ -268,6 +268,13 @@ For any schema S, the four encodings represent the same logical value space. Imp
 
 Equality is defined per {{PROTOBUF}} Section "Message equality" (field-by-field, with proto3 default semantics applied).
 
+A decode that applies pxf.default ({{pxf-annotations}}) has two exceptions to decode_PXF(encode_PXF(v)) == v. Both come from what an absent or null field means, and no text avoids them:
+
+* An unset scalar field with explicit presence and pxf.default (a proto3 "optional" scalar, or a scalar member of a oneof with no member set) reads back holding its default. An absent field with a default means the default, and an encoder leaves such a field out. "null" would keep the field unset ({{booleans-null-and-identifier-values}}), but writing it is not required.
+* In a message that declares a "_null" field mask, an unset field with pxf.default reads back either holding its default, if it is left out, or listed in the mask, if it is written "null".
+
+A decode that applies no annotations has neither exception.
+
 ## Wire Equivalence
 
 Two ports are wire-equivalent for schema S if, for every value v of every message type in S, both ports produce byte-identical PB and Envelope output and parse each other's PXF and SBE output to equal values. Wire equivalence is the contract this document specifies; it is not an API-stability or performance contract.
