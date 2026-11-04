@@ -106,13 +106,15 @@ message Annotated {
   map<string, int32> rm = 6 [(pxf.required) = true];
   google.protobuf.Int32Value w = 7 [(pxf.default) = "7"];
   google.protobuf.Timestamp ts = 8 [(pxf.default) = "2024-01-01T00:00:00Z"];
+  // The oneof has the highest numbers, as in Shapes: protowire-go writes a
+  // oneof after the other fields, not in field-number order (#568).
   oneof o {
-    int32 a = 9 [(pxf.default) = "8"];
-    string other = 10;
+    int32 a = 13 [(pxf.default) = "8"];
+    string other = 14;
   }
-  int32 plain = 11;
-  AnnotatedSub sub = 12;
-  optional int32 opt = 13 [(pxf.default) = "6"];
+  int32 plain = 9;
+  AnnotatedSub sub = 10;
+  optional int32 opt = 11 [(pxf.default) = "6"];
 }
 
 message AnnotatedSub {
