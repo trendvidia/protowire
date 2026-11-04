@@ -587,7 +587,8 @@ message NewOrderSingle {
 | Proto concept | SBE mapping |
 |---|---|
 | Scalar fields | Fixed-width at computed offsets |
-| `string` / `bytes` with `(sbe.length)` | Fixed-size char array (truncated if longer) |
+| `string` with `(sbe.length)` | Fixed-size char array (truncated if longer) |
+| `bytes` with `(sbe.length)` | Fixed-size uint8 array (truncated if longer) |
 | `(sbe.encoding)` override | Narrowed type (e.g. uint32 → uint8) |
 | Nested message (non-repeated) | SBE composite (inlined at fixed offset) |
 | `repeated` message | SBE repeating group |
@@ -603,6 +604,7 @@ Implementations are expected to provide tools that round-trip between FIX SBE XM
 | `<messageSchema id="1">` | `option (sbe.schema_id) = 1;` |
 | `<message name="Order" id="1">` | `option (sbe.template_id) = 1;` |
 | `<type primitiveType="char" length="8"/>` | `string [(sbe.length) = 8]` |
+| `<type primitiveType="uint8" length="16"/>` | `bytes [(sbe.length) = 16]` |
 | `<field type="uint8"/>` | `uint32 [(sbe.encoding) = "uint8"]` |
 | `<composite name="Inner">` | `message Inner { }` (no template_id) |
 | `<group name="fills">` | `repeated Fill fills = N;` |
