@@ -52,7 +52,8 @@ declare -A EXCLUDED=()
 # issue that tracks it. C# writes a generated message through Google.Protobuf,
 # which drops -0.0 and a map entry's zero key or value
 # (trendvidia/protowire-csharp#91). Rust writes a DynamicMessage through
-# prost-reflect, which drops -0.0 (trendvidia/protowire-rust#98).
+# prost-reflect, which drops -0.0 (trendvidia/protowire-rust#98), and rounds a
+# BigFloat literal near a tie twice (trendvidia/protowire-rust#108).
 # java-lite, dart and csharp compile a copy of text.proto that has no
 # Annotated message yet (#561), each tracked by its port's issue.
 declare -A PORT_EXCLUDED=(
@@ -77,6 +78,7 @@ declare -A PORT_EXCLUDED=(
   ["csharp Annotated.oneof-sibling-set"]="trendvidia/protowire-csharp#104"
   ["csharp Annotated.set"]="trendvidia/protowire-csharp#104"
   ["csharp Annotated.unset"]="trendvidia/protowire-csharp#104"
+  ["rust WellKnown.bigfloat-near-tie"]="trendvidia/protowire-rust#108"
 )
 
 skip() {
