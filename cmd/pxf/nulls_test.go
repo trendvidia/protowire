@@ -53,10 +53,7 @@ var nullsVerdicts = map[string]struct{ msg, reject, unset string }{
 // instead. Each is asserted to still hold, so the go.mod bump that closes
 // it fails the test until it is removed. v1.15.0 still lets null satisfy
 // (pxf.required), as #339 option 3 had it.
-var nullsKnownGaps = map[string]datasetGap{
-	"err-required-optional.pxf": {by: "protowire-go#268", old: ""},
-	"err-required-wrapper.pxf":  {by: "protowire-go#268", old: ""},
-}
+var nullsKnownGaps = map[string]datasetGap{}
 
 func TestNulls_Corpus(t *testing.T) {
 	schemas := []string{"nulls.proto", "nulls_proto2.proto", "nulls_editions.proto"}
