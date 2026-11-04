@@ -60,6 +60,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             cmake ninja-build protobuf-compiler libprotobuf-dev libprotoc-dev
+      - name: Checkout protowire-dart
+        uses: actions/checkout@v7
+        with:
+          repository: trendvidia/protowire-dart
+          path: protowire-dart
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
       - uses: actions/setup-go@v7
         with:
           go-version-file: protowire-go/go.mod
@@ -70,5 +78,5 @@ jobs:
           java-version: '21'
       - name: Text conformance
         env:
-          REQUIRE_PORTS: 'go,cpp,java,java-lite'
+          REQUIRE_PORTS: 'go,cpp,java,java-lite,dart'
         run: ./protowire/scripts/cross_text_check.sh

@@ -24,8 +24,8 @@
 #
 #   Same SKIP_PORTS and REQUIRE_PORTS as cross_security_check.sh. A port with
 #   no pxf-pb harness is not run and the script says so, so an absent port
-#   can't pass for a clean run. Today go, cpp, java, java-lite, csharp, rust
-#   and dart have one.
+#   can't pass for a clean run. Today go, cpp, java, java-lite, csharp, rust,
+#   dart, ts and swift have one.
 
 set -euo pipefail
 
@@ -39,9 +39,11 @@ JAVA_DIR="${JAVA_DIR:-${SIBLING_DIR}/protowire-java}"
 CSHARP_DIR="${CSHARP_DIR:-${SIBLING_DIR}/protowire-csharp}"
 RUST_DIR="${RUST_DIR:-${SIBLING_DIR}/protowire-rust}"
 DART_DIR="${DART_DIR:-${SIBLING_DIR}/protowire-dart}"
+TS_DIR="${TS_DIR:-${SIBLING_DIR}/protowire-typescript}"
+SWIFT_DIR="${SWIFT_DIR:-${SIBLING_DIR}/protowire-swift}"
 SKIP_PORTS="${SKIP_PORTS:-}"
 REQUIRE_PORTS="${REQUIRE_PORTS:-}"
-NOT_YET=(ts swift python)
+NOT_YET=(python)
 
 # Cases no port is held to yet, each with the question it waits on.
 declare -A EXCLUDED=()
@@ -50,9 +52,7 @@ declare -A EXCLUDED=()
 # issue that tracks it. C# writes a generated message through Google.Protobuf,
 # which drops -0.0 and a map entry's zero key or value
 # (trendvidia/protowire-csharp#91). Rust writes a DynamicMessage through
-# prost-reflect, which drops -0.0 (trendvidia/protowire-rust#98). A generated
-# Dart enum cannot hold a number it does not declare, and the draft says
-# nothing about unknown enum numbers (trendvidia/protowire-dart#82).
+# prost-reflect, which drops -0.0 (trendvidia/protowire-rust#98).
 declare -A PORT_EXCLUDED=(
   ["csharp Scalars.float-negzero"]="trendvidia/protowire-csharp#91"
   ["csharp Shapes.map-bool-keys"]="trendvidia/protowire-csharp#91"
@@ -63,7 +63,6 @@ declare -A PORT_EXCLUDED=(
   ["csharp Shapes.map-string-keys-unsorted"]="trendvidia/protowire-csharp#91"
   ["csharp Shapes.map-zero-key-and-value"]="trendvidia/protowire-csharp#91"
   ["rust Scalars.float-negzero"]="trendvidia/protowire-rust#98"
-  ["dart Scalars.enum-unknown"]="trendvidia/protowire-dart#82"
 )
 
 skip() {
@@ -116,8 +115,24 @@ if ! skip dart && [[ -f "$DART_DIR/bin/check_decode.dart" ]]; then
   (cd "$DART_DIR" && dart pub get >/dev/null &&
     dart compile exe bin/check_decode.dart -o "${PORT_BINS[dart]}" >/dev/null)
 fi
+if ! skip swift && [[ -f "$SWIFT_DIR/cmd/check-decode/main.swift" ]]; then
+  echo "→ Swift build" >&2
+  (cd "$SWIFT_DIR" && swift build -c release --product check-decode >&2)
+  PORT_BINS[swift]="$SWIFT_DIR/.build/release/check-decode"
+fi
 
-for p in go cpp java java-lite csharp rust dart; do
+if ! skip ts && [[ -f "$TS_DIR/scripts/check-decode.ts" ]]; then
+  # A script, not a build: it runs the harness from the port's directory, so
+  # npx runs the tsx the port's lockfile pins without asking the registry.
+  # The port's dependencies must be installed (npm ci).
+  echo "→ TypeScript harness" >&2
+  PORT_BINS[ts]="$(mktemp -t check-decode-ts.XXXXXX)"
+  printf '#!/usr/bin/env bash\ncd %q && exec npx --yes tsx scripts/check-decode.ts "$@"\n' \
+    "$TS_DIR" > "${PORT_BINS[ts]}"
+  chmod +x "${PORT_BINS[ts]}"
+fi
+
+for p in go cpp java java-lite csharp rust dart ts swift; do
   [[ -n "${PORT_BINS[$p]:-}" ]] || echo "· $p: not run" >&2
 done
 for p in "${NOT_YET[@]}"; do
