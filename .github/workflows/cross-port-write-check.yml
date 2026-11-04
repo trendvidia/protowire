@@ -11,8 +11,9 @@
 # so they are required too. C# runs with the cases trendvidia/protowire-csharp#91
 # waits on excluded in the script. Dart runs every case but Scalars.enum-unknown,
 # excluded in the script until trendvidia/protowire-dart#82 is decided.
-# TypeScript is required too, since its harness has the mode
-# (trendvidia/protowire-typescript#98).
+# Rust runs every case but Scalars.float-negzero, excluded in the script until
+# trendvidia/protowire-rust#98 is fixed. TypeScript is required too, since its
+# harness has the mode (trendvidia/protowire-typescript#98).
 
 name: Cross-port write check
 
@@ -91,6 +92,11 @@ jobs:
       - name: Install protowire-typescript dependencies
         run: npm ci
         working-directory: protowire-typescript
+      - name: Checkout protowire-rust
+        uses: actions/checkout@v7
+        with:
+          repository: trendvidia/protowire-rust
+          path: protowire-rust
       - uses: actions/setup-go@v7
         with:
           go-version-file: protowire-go/go.mod
@@ -105,7 +111,11 @@ jobs:
       - uses: dart-lang/setup-dart@v1
         with:
           sdk: stable
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: protowire-rust
       - name: Write conformance
         env:
-          REQUIRE_PORTS: 'go,cpp,java,java-lite,csharp,dart,ts'
+          REQUIRE_PORTS: 'go,cpp,java,java-lite,csharp,rust,dart,ts'
         run: ./protowire/scripts/cross_write_check.sh
