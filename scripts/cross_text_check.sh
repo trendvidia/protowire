@@ -36,6 +36,32 @@ SKIP_PORTS="${SKIP_PORTS:-}"
 REQUIRE_PORTS="${REQUIRE_PORTS:-}"
 NOT_YET=(ts rust swift python)
 
+# Cases one port is not held to yet, keyed "<port> <case>", each with the
+# issue that tracks it. The Annotated cases (#561) hold fields with
+# (pxf.default) or (pxf.required): cpp and java leave the unset ones out,
+# and java-lite, dart and csharp compile a copy of text.proto that has no
+# Annotated message yet.
+declare -A PORT_EXCLUDED=(
+  ["cpp Annotated.empty"]="trendvidia/protowire-cpp#129"
+  ["cpp Annotated.oneof-sibling-set"]="trendvidia/protowire-cpp#129"
+  ["cpp Annotated.unset"]="trendvidia/protowire-cpp#129"
+  ["java Annotated.empty"]="trendvidia/protowire-java#187"
+  ["java Annotated.oneof-sibling-set"]="trendvidia/protowire-java#187"
+  ["java Annotated.unset"]="trendvidia/protowire-java#187"
+  ["java-lite Annotated.empty"]="trendvidia/protowire-java#187"
+  ["java-lite Annotated.oneof-sibling-set"]="trendvidia/protowire-java#187"
+  ["java-lite Annotated.unset"]="trendvidia/protowire-java#187"
+  ["java-lite Annotated.set"]="trendvidia/protowire-java#187"
+  ["dart Annotated.empty"]="trendvidia/protowire-dart#93"
+  ["dart Annotated.oneof-sibling-set"]="trendvidia/protowire-dart#93"
+  ["dart Annotated.unset"]="trendvidia/protowire-dart#93"
+  ["dart Annotated.set"]="trendvidia/protowire-dart#93"
+  ["csharp Annotated.empty"]="trendvidia/protowire-csharp#104"
+  ["csharp Annotated.oneof-sibling-set"]="trendvidia/protowire-csharp#104"
+  ["csharp Annotated.unset"]="trendvidia/protowire-csharp#104"
+  ["csharp Annotated.set"]="trendvidia/protowire-csharp#104"
+)
+
 skip() {
   case ",$SKIP_PORTS," in
     *",$1,"*) return 0 ;;
@@ -107,6 +133,7 @@ out="$(mktemp -t cross-text.XXXXXX)"
 trap 'rm -f "$out"' EXIT
 pairs=0
 fails=0
+excluded=0
 
 for input in cases/*.binpb; do
   name="$(basename "$input" .binpb)"
@@ -117,6 +144,11 @@ for input in cases/*.binpb; do
     exit 2
   fi
   for port in "${!PORT_BINS[@]}"; do
+    if [[ -n "${PORT_EXCLUDED[$port $name]:-}" ]]; then
+      excluded=$((excluded + 1))
+      echo "· $port $name: excluded, waits on ${PORT_EXCLUDED[$port $name]}" >&2
+      continue
+    fi
     pairs=$((pairs + 1))
     rc=0
     "${PORT_BINS[$port]}" --format pb-text --schema "$schema" \
@@ -130,7 +162,7 @@ for input in cases/*.binpb; do
 done
 
 echo
-echo "Ran $pairs (port, case) pairs across ${#PORT_BINS[@]} ports."
+echo "Ran $pairs (port, case) pairs across ${#PORT_BINS[@]} ports; $excluded (port, case) pairs excluded."
 if [[ $fails -ne 0 ]]; then
   echo "✗ $fails pairs differ from the golden." >&2
   exit 1

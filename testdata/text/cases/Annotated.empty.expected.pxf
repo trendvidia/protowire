@@ -1,0 +1,8 @@
+n = 0
+s = ""
+b = false
+req = 0
+rl = []
+rm = {}
+w = null
+ts = null
