@@ -256,7 +256,10 @@ run_one() {
   done
   local cmd
   case "$port" in
-    ts)     cmd=(npx --yes tsx "$TS_DIR/scripts/check-decode.ts" "${args[@]}") ;;
+    # From the port's own directory, so npx runs the tsx its lockfile pins.
+    # From anywhere else npx asks the registry for tsx on every pair, and a
+    # slow answer spends the wall-clock budget before the decoder starts.
+    ts)     cmd=(bash -c 'cd "$1" && shift && exec npx --yes tsx scripts/check-decode.ts "$@"' -- "$TS_DIR" "${args[@]}") ;;
     python) cmd=("$bin" "$PYTHON_DIR/scripts/check_decode.py" "${args[@]}") ;;
     *)      cmd=("$bin" "${args[@]}") ;;
   esac

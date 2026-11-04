@@ -24,8 +24,8 @@
 #
 #   Same SKIP_PORTS and REQUIRE_PORTS as cross_security_check.sh. A port with
 #   no pxf-pb harness is not run and the script says so, so an absent port
-#   can't pass for a clean run. Today go, java, java-lite, csharp, rust and dart
-#   have one.
+#   can't pass for a clean run. Today go, cpp, java, java-lite, csharp, rust,
+#   dart, ts and swift have one.
 
 set -euo pipefail
 
@@ -34,13 +34,16 @@ SIBLING_DIR="$(dirname "$REPO_DIR")"
 TEXT_DIR="$REPO_DIR/testdata/text"
 WRITE_DIR="$REPO_DIR/testdata/write"
 GO_DIR="${GO_DIR:-${SIBLING_DIR}/protowire-go}"
+CPP_DIR="${CPP_DIR:-${SIBLING_DIR}/protowire-cpp}"
 JAVA_DIR="${JAVA_DIR:-${SIBLING_DIR}/protowire-java}"
 CSHARP_DIR="${CSHARP_DIR:-${SIBLING_DIR}/protowire-csharp}"
 RUST_DIR="${RUST_DIR:-${SIBLING_DIR}/protowire-rust}"
 DART_DIR="${DART_DIR:-${SIBLING_DIR}/protowire-dart}"
+TS_DIR="${TS_DIR:-${SIBLING_DIR}/protowire-typescript}"
+SWIFT_DIR="${SWIFT_DIR:-${SIBLING_DIR}/protowire-swift}"
 SKIP_PORTS="${SKIP_PORTS:-}"
 REQUIRE_PORTS="${REQUIRE_PORTS:-}"
-NOT_YET=(cpp ts swift python)
+NOT_YET=(python)
 
 # Cases no port is held to yet, each with the question it waits on.
 declare -A EXCLUDED=()
@@ -76,6 +79,16 @@ if ! skip go && [[ -d "$GO_DIR/scripts/check_decode" ]]; then
   PORT_BINS[go]="$(mktemp -t check-decode-go.XXXXXX)"
   (cd "$GO_DIR" && go build -o "${PORT_BINS[go]}" ./scripts/check_decode)
 fi
+if ! skip cpp && [[ -f "$CPP_DIR/cmd/check_decode/main.cc" ]]; then
+  echo "→ C++ build" >&2
+  # check_decode only: the test suite needs libprotoc pieces Ubuntu's
+  # libprotobuf-dev lacks, as in cross_security_check.sh.
+  if [[ ! -d "$CPP_DIR/build" ]]; then
+    cmake -S "$CPP_DIR" -B "$CPP_DIR/build" -DPROTOWIRE_BUILD_TESTS=OFF >&2
+  fi
+  cmake --build "$CPP_DIR/build" --target check_decode -j >&2
+  PORT_BINS[cpp]="$CPP_DIR/build/bin/check_decode"
+fi
 if ! skip java && [[ -d "$JAVA_DIR/check-decode" ]]; then
   echo "→ Java build" >&2
   (cd "$JAVA_DIR" && ./gradlew --quiet :check-decode:installDist)
@@ -102,8 +115,24 @@ if ! skip dart && [[ -f "$DART_DIR/bin/check_decode.dart" ]]; then
   (cd "$DART_DIR" && dart pub get >/dev/null &&
     dart compile exe bin/check_decode.dart -o "${PORT_BINS[dart]}" >/dev/null)
 fi
+if ! skip swift && [[ -f "$SWIFT_DIR/cmd/check-decode/main.swift" ]]; then
+  echo "→ Swift build" >&2
+  (cd "$SWIFT_DIR" && swift build -c release --product check-decode >&2)
+  PORT_BINS[swift]="$SWIFT_DIR/.build/release/check-decode"
+fi
 
-for p in go java java-lite csharp rust dart; do
+if ! skip ts && [[ -f "$TS_DIR/scripts/check-decode.ts" ]]; then
+  # A script, not a build: it runs the harness from the port's directory, so
+  # npx runs the tsx the port's lockfile pins without asking the registry.
+  # The port's dependencies must be installed (npm ci).
+  echo "→ TypeScript harness" >&2
+  PORT_BINS[ts]="$(mktemp -t check-decode-ts.XXXXXX)"
+  printf '#!/usr/bin/env bash\ncd %q && exec npx --yes tsx scripts/check-decode.ts "$@"\n' \
+    "$TS_DIR" > "${PORT_BINS[ts]}"
+  chmod +x "${PORT_BINS[ts]}"
+fi
+
+for p in go cpp java java-lite csharp rust dart ts swift; do
   [[ -n "${PORT_BINS[$p]:-}" ]] || echo "· $p: not run" >&2
 done
 for p in "${NOT_YET[@]}"; do
