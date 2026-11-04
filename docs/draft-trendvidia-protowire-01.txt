@@ -96,12 +96,12 @@ Table of Contents
      1.2.  Terminology . . . . . . . . . . . . . . . . . . . . . . .   7
    2.  The protowire Family  . . . . . . . . . . . . . . . . . . . .   8
      2.1.  Common Schema Layer . . . . . . . . . . . . . . . . . . .   8
-     2.2.  Wire Equivalence  . . . . . . . . . . . . . . . . . . . .   8
+     2.2.  Wire Equivalence  . . . . . . . . . . . . . . . . . . . .   9
    3.  PXF Text Format . . . . . . . . . . . . . . . . . . . . . . .   9
      3.1.  Character Set . . . . . . . . . . . . . . . . . . . . . .   9
      3.2.  Whitespace and Comments . . . . . . . . . . . . . . . . .   9
      3.3.  ABNF Grammar  . . . . . . . . . . . . . . . . . . . . . .  10
-     3.4.  Documents and Directives  . . . . . . . . . . . . . . . .  13
+     3.4.  Documents and Directives  . . . . . . . . . . . . . . . .  14
        3.4.1.  The "@type" Directive . . . . . . . . . . . . . . . .  14
        3.4.2.  Named Directives  . . . . . . . . . . . . . . . . . .  14
        3.4.3.  The "@entry" Directive  . . . . . . . . . . . . . . .  15
@@ -114,19 +114,19 @@ Franco Jr.                 Expires 1 May 2027                   [Page 2]
 Internet-Draft                  protowire                   October 2026
 
 
-       3.4.5.  The "@proto" Directive  . . . . . . . . . . . . . . .  21
+       3.4.5.  The "@proto" Directive  . . . . . . . . . . . . . . .  22
        3.4.6.  Reserved Directive Names  . . . . . . . . . . . . . .  24
-     3.5.  Entries and Keys  . . . . . . . . . . . . . . . . . . . .  24
+     3.5.  Entries and Keys  . . . . . . . . . . . . . . . . . . . .  25
      3.6.  String Literals . . . . . . . . . . . . . . . . . . . . .  27
-     3.7.  Bytes Literals  . . . . . . . . . . . . . . . . . . . . .  28
+     3.7.  Bytes Literals  . . . . . . . . . . . . . . . . . . . . .  29
      3.8.  Numeric Literals  . . . . . . . . . . . . . . . . . . . .  29
      3.9.  Booleans, Null, and Identifier Values . . . . . . . . . .  30
-     3.10. Timestamps and Durations  . . . . . . . . . . . . . . . .  31
-     3.11. Lists . . . . . . . . . . . . . . . . . . . . . . . . . .  32
+     3.10. Timestamps and Durations  . . . . . . . . . . . . . . . .  32
+     3.11. Lists . . . . . . . . . . . . . . . . . . . . . . . . . .  33
      3.12. Blocks and Map Tails  . . . . . . . . . . . . . . . . . .  33
-     3.13. Keyed Repeated Fields . . . . . . . . . . . . . . . . . .  33
+     3.13. Keyed Repeated Fields . . . . . . . . . . . . . . . . . .  34
        3.13.1.  Schema Placement . . . . . . . . . . . . . . . . . .  34
-       3.13.2.  Keyed Surface Form . . . . . . . . . . . . . . . . .  34
+       3.13.2.  Keyed Surface Form . . . . . . . . . . . . . . . . .  35
        3.13.3.  Decoding . . . . . . . . . . . . . . . . . . . . . .  35
        3.13.4.  Encoding and Canonical Form  . . . . . . . . . . . .  36
      3.14. Schema Constraints  . . . . . . . . . . . . . . . . . . .  37
@@ -432,16 +432,16 @@ Internet-Draft                  protowire                   October 2026
    Equality is defined per [PROTOBUF] Section "Message equality" (field-
    by-field, with proto3 default semantics applied).
 
-2.2.  Wire Equivalence
+   A decode that applies pxf.default (Section 6.1) has two exceptions to
+   decode_PXF(encode_PXF(v)) == v.  Both come from what an absent or
+   null field means, and no text avoids them:
 
-   Two ports are wire-equivalent for schema S if, for every value v of
-   every message type in S, both ports produce byte-identical PB and
-   Envelope output and parse each other's PXF and SBE output to equal
-   values.  Wire equivalence is the contract this document specifies; it
-   is not an API-stability or performance contract.
-
-
-
+   *  An unset scalar field with explicit presence and pxf.default (a
+      proto3 "optional" scalar, or a scalar member of a oneof with no
+      member set) reads back holding its default.  An absent field with
+      a default means the default, and an encoder leaves such a field
+      out. "null" would keep the field unset (Section 3.9), but writing
+      it is not required.
 
 
 
@@ -449,6 +449,20 @@ Franco Jr.                 Expires 1 May 2027                   [Page 8]
 
 Internet-Draft                  protowire                   October 2026
 
+
+   *  In a message that declares a "_null" field mask, an unset field
+      with pxf.default reads back either holding its default, if it is
+      left out, or listed in the mask, if it is written "null".
+
+   A decode that applies no annotations has neither exception.
+
+2.2.  Wire Equivalence
+
+   Two ports are wire-equivalent for schema S if, for every value v of
+   every message type in S, both ports produce byte-identical PB and
+   Envelope output and parse each other's PXF and SBE output to equal
+   values.  Wire equivalence is the contract this document specifies; it
+   is not an API-stability or performance contract.
 
 3.  PXF Text Format
 
@@ -484,6 +498,14 @@ Internet-Draft                  protowire                   October 2026
    U+000A (LF), U+000D (CR), and U+0020 (SPACE).  Whitespace separates
    tokens but is otherwise insignificant.
 
+
+
+
+Franco Jr.                 Expires 1 May 2027                   [Page 9]
+
+Internet-Draft                  protowire                   October 2026
+
+
    PXF supports two comment forms:
 
    *  Line comments begin with "#" or "//" and extend to (but do not
@@ -495,16 +517,6 @@ Internet-Draft                  protowire                   October 2026
    Comments MAY appear anywhere whitespace MAY appear.  A comment is
    treated as a single whitespace character for the purposes of
    tokenization.
-
-
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                   [Page 9]
-
-Internet-Draft                  protowire                   October 2026
-
 
 3.3.  ABNF Grammar
 
@@ -542,6 +554,14 @@ Internet-Draft                  protowire                   October 2026
    row             = "(" row-cell *( "," row-cell ) ")"
    row-cell        = [ value ]
                    ; a cell means "column = value"
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 10]
+
+Internet-Draft                  protowire                   October 2026
+
+
                    ; ({{the-dataset-directive}})
 
    proto-directive = %s"@proto" proto-body
@@ -554,14 +574,6 @@ Internet-Draft                  protowire                   October 2026
                    = 1*WSP identifier
                      1*WSP "{" proto-message-body "}"
    proto-source-body
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 10]
-
-Internet-Draft                  protowire                   October 2026
-
-
                    = 1*WSP triple-string
    proto-descr-body
                    = 1*WSP bytes
@@ -598,6 +610,14 @@ Internet-Draft                  protowire                   October 2026
    list            = "[" [ value *( [","] value ) ] "]"
    block-value     = "{" [ any-type-entry ] *entry "}"
    any-type-entry  = %s"@type" "=" string
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 11]
+
+Internet-Draft                  protowire                   October 2026
+
+
                    ; only in a block bound to google.protobuf.Any
                    ; ({{any-blocks}})
 
@@ -609,14 +629,6 @@ Internet-Draft                  protowire                   October 2026
    float           = [ "-" ] 1*DIGIT
                      ( "." *DIGIT [ exponent ] / exponent )
    exponent        = ( "e" / "E" ) [ "+" / "-" ] 1*DIGIT
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 11]
-
-Internet-Draft                  protowire                   October 2026
-
 
    bool            = %s"true" / %s"false"
    null            = %s"null"
@@ -654,6 +666,14 @@ Internet-Draft                  protowire                   October 2026
    timestamp       = date-time     ; per RFC 3339, Section 5.6
 
    duration        = ["-"] 1*duration-segment
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 12]
+
+Internet-Draft                  protowire                   October 2026
+
+
    duration-segment = 1*DIGIT [ "." 1*DIGIT ] time-unit
    time-unit       = "ns" / "us" / micro-us / "ms"
                    / "s" / "m" / "h"
@@ -664,15 +684,6 @@ Internet-Draft                  protowire                   October 2026
    3DQUOTE         = DQUOTE DQUOTE DQUOTE
    utf8-non-ascii  = <any UTF-8-encoded Unicode scalar value
                      in U+0080..U+10FFFF, excluding surrogates>
-
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 12]
-
-Internet-Draft                  protowire                   October 2026
-
 
    ABNF core productions ALPHA, DIGIT, HEXDIG, DQUOTE, and WSP are
    imported from [RFC5234] Appendix B.1.  The case-sensitive string-
@@ -707,6 +718,18 @@ Internet-Draft                  protowire                   October 2026
       may begin is the identifier "+inf" (Section 3.8), so "+30s" is not
       a duration.
 
+
+
+
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 13]
+
+Internet-Draft                  protowire                   October 2026
+
+
 3.4.  Documents and Directives
 
    A PXF document represents a single message value.  Before the body,
@@ -719,16 +742,6 @@ Internet-Draft                  protowire                   October 2026
    messages (Section 3.4.3) via the named-directive shape
    (Section 3.4.2).  Directive names beyond the reserved set
    (Section 3.4.6) are application-extensible.
-
-
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 13]
-
-Internet-Draft                  protowire                   October 2026
-
 
 3.4.1.  The "@type" Directive
 
@@ -764,6 +777,15 @@ Internet-Draft                  protowire                   October 2026
    Section 3.4.3 defines a second shape ("@entry") that uses two prefix
    identifiers.
 
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 14]
+
+Internet-Draft                  protowire                   October 2026
+
+
    Named directives carry side-channel metadata that the consumer's
    runtime interprets — never the body's schema layer.  This document
    defines no <name> beyond those registered in subsections of
@@ -777,14 +799,6 @@ Internet-Draft                  protowire                   October 2026
       present) for syntactic well-formedness, or MAY reject the
       document.  Implementations SHOULD document which policy they
       apply.
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 14]
-
-Internet-Draft                  protowire                   October 2026
-
 
    *  A decoder MUST NOT attempt to interpret the inner block against
       the body's schema; the inner block is a self-contained sub-
@@ -821,6 +835,13 @@ Internet-Draft                  protowire                   October 2026
    heterogeneous, typed sub-messages alongside (or in place of) a
    document body.  Its form is
 
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 15]
+
+Internet-Draft                  protowire                   October 2026
+
+
    @entry [ <name> ] [ <type> ] [ "{" inner "}" ]
 
    where <name> is a caller-provided label identifier, <type> is a
@@ -832,15 +853,6 @@ Internet-Draft                  protowire                   October 2026
    @entry name { ... }                  ; labeled, typeless
    @entry name some.pkg.Type { ... }    ; labeled and typed
    @entry some.pkg.Type { ... }         ; typed only (no label)
-
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 15]
-
-Internet-Draft                  protowire                   October 2026
-
 
    The fourth shape is disambiguated from the second by the presence of
    a "." in the single prefix identifier: a dotted identifier is
@@ -878,6 +890,14 @@ Internet-Draft                  protowire                   October 2026
    many instances of a single message type in a single document — the
    protowire-native replacement for CSV.  Its form is
 
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 16]
+
+Internet-Draft                  protowire                   October 2026
+
+
    @dataset <type> ( <col1> [ , <col2> ... ] )
    ( <val1> [ , <val2> ... ] )
    ( <val1> [ , <val2> ... ] )
@@ -887,16 +907,6 @@ Internet-Draft                  protowire                   October 2026
    <col1>, <col2>, ... is the column list (at least one column); and
    each subsequent parenthesized tuple is a row whose values bind
    positionally to the columns.
-
-
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 16]
-
-Internet-Draft                  protowire                   October 2026
-
 
    Anonymous binding. <type> MAY be omitted when an anonymous "@proto"
    directive (Section 3.4.5) precedes the "@dataset" in document order.
@@ -934,6 +944,16 @@ Internet-Draft                  protowire                   October 2026
    streaming reader finds row boundaries that way, never by splitting on
    commas.
 
+
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 17]
+
+Internet-Draft                  protowire                   October 2026
+
+
    Three-state cells.  Each row cell denotes one of three states,
    carried into the bound message via the same semantics as the PXF
    annotations of Section 6.1:
@@ -945,14 +965,6 @@ Internet-Draft                  protowire                   October 2026
       For a field inside a sub-message, named by a column path, both
       hold only when the row makes that sub-message present (see Column
       paths).
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 17]
-
-Internet-Draft                  protowire                   October 2026
-
 
    *  A bare "null" literal denotes a present-but-null field.  This
       suppresses (pxf.default).  In a column whose field carries
@@ -989,6 +1001,15 @@ Internet-Draft                  protowire                   October 2026
    min_bpm = 60 } tags = [ TAG_WARM ] }'.  The rules that follow from
    the grouping:
 
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 18]
+
+Internet-Draft                  protowire                   October 2026
+
+
    *  A block none of whose cells is non-empty is not written, so its
       sub-message is absent, as an empty cell in a column naming it
       would be.  In the second row above, "desc" is absent.  A sub-
@@ -999,16 +1020,6 @@ Internet-Draft                  protowire                   October 2026
    *  "null" in a dotted cell is the entry "c = null" inside the block.
       The leaf's nullability rules apply, and the enclosing blocks are
       written, so the sub-messages on the path are present.
-
-
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 18]
-
-Internet-Draft                  protowire                   October 2026
-
 
    *  Columns may reach different members of one oneof, and several
       columns may fill the same member.  A row that fills two members is
@@ -1046,6 +1057,15 @@ Internet-Draft                  protowire                   October 2026
       and value, as a block with no type entry does (Section 3.16), and
       it cannot reach the fields of the message the Any holds.
 
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 19]
+
+Internet-Draft                  protowire                   October 2026
+
+
    The first rule needs no schema, so a parser that does not bind rows
    applies it too.  The others need <type>, and a decoder applies them
    when it binds a row.  It applies them to every row it binds, whatever
@@ -1057,14 +1077,6 @@ Internet-Draft                  protowire                   October 2026
    rules are checked per row because a streaming reader may learn <type>
    only when its caller binds the first row.  Before v1.13, a column
    entry containing a "." was rejected.
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 19]
-
-Internet-Draft                  protowire                   October 2026
-
 
    Standalone.  A document containing a "@dataset" directive MUST NOT
    also contain a "@type" directive and MUST NOT contain top-level field
@@ -1102,6 +1114,14 @@ Internet-Draft                  protowire                   October 2026
    where a row could begin is a decode error, never an end of the
    sequence.  That includes a row whose closing ")" never arrives, which
    is what an interrupted append leaves behind.  This holds for the
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 20]
+
+Internet-Draft                  protowire                   October 2026
+
+
    streaming API as much as the materializing one, so a row cut short by
    a failed write is reported and does not silently hide the rows
    appended after it.
@@ -1114,13 +1134,6 @@ Internet-Draft                  protowire                   October 2026
 
    *  A decoder MUST reject a row whose arity differs from the column
       count.
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 20]
-
-Internet-Draft                  protowire                   October 2026
-
 
    *  A decoder MUST reject a row that is not closed before end of
       input, and MUST reject any token other than "(" or "@" where a row
@@ -1155,6 +1168,16 @@ Internet-Draft                  protowire                   October 2026
       (Section 3.9); a string-typed column accepts only quoted strings,
       not bare identifiers.
 
+
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 21]
+
+Internet-Draft                  protowire                   October 2026
+
+
    *  "@dataset" inherits the schema constraint of Section 3.14: <type>
       MUST refer to a non-conformant-name-free message type, and each
       field a column entry names, every segment of a column path
@@ -1169,14 +1192,6 @@ Internet-Draft                  protowire                   October 2026
    @proto <body>
 
    where <body> is one of four shapes distinguished lexically:
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 21]
-
-Internet-Draft                  protowire                   October 2026
-
 
    @proto { <message-body> }                  ; anonymous
    @proto <dotted-name> { <message-body> }    ; named
@@ -1209,6 +1224,16 @@ Internet-Draft                  protowire                   October 2026
    Imports.  Source-form "@proto" directives that contain "import"
    statements MUST resolve those imports from one of:
 
+
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 22]
+
+Internet-Draft                  protowire                   October 2026
+
+
    *  the Protocol Buffers well-known types under "google/protobuf/":
       "any.proto", "api.proto", "descriptor.proto", "duration.proto",
       "empty.proto", "field_mask.proto", "source_context.proto",
@@ -1226,14 +1251,6 @@ Internet-Draft                  protowire                   October 2026
    Imports from the filesystem, a remote schema registry, or an external
    schema supplied to the decoder (such as a tool's -p flag) are NOT
    permitted from inside a source-form "@proto" body, and neither is any
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 22]
-
-Internet-Draft                  protowire                   October 2026
-
-
    other schema the canonical repository distributes.  The list above is
    exhaustive.  An import that does not resolve to one of the four
    sources above MUST be rejected.  The fixtures under testdata/proto-
@@ -1266,6 +1283,13 @@ Internet-Draft                  protowire                   October 2026
       separate tool (e.g. protowire compile) is the recommended
       fallback.
 
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 23]
+
+Internet-Draft                  protowire                   October 2026
+
+
    *  A decoder MUST reject an anonymous "@proto" directive that is not
       consumed by a subsequent typed directive in the same document.
 
@@ -1281,14 +1305,6 @@ Internet-Draft                  protowire                   October 2026
       embedded schema MUST NOT declare a message field, oneof, or enum
       value whose name case-sensitively equals "null", "true", or
       "false".
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 23]
-
-Internet-Draft                  protowire                   October 2026
-
 
 3.4.6.  Reserved Directive Names
 
@@ -1319,6 +1335,17 @@ Internet-Draft                  protowire                   October 2026
    *  "null", "true", "false" — value keywords (Section 3.9); excluded
       to keep the directive-name lexer unambiguous.
 
+
+
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 24]
+
+Internet-Draft                  protowire                   October 2026
+
+
    The check is case-sensitive: directive names such as "@TABLE",
    "@Proto", "@DATASOURCE" lex as ordinary application directives
    (Section 3.4.2) and are accepted, subject to any application's own
@@ -1336,15 +1363,6 @@ Internet-Draft                  protowire                   October 2026
 
    An entry binds a key to a value.  The key is a field name within the
    surrounding message type, with the following rules:
-
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 24]
-
-Internet-Draft                  protowire                   October 2026
-
 
    *  An identifier key matches a field by its proto field name (the
       lowerCamelCase or snake_case name in the schema, as written; both
@@ -1375,6 +1393,15 @@ Internet-Draft                  protowire                   October 2026
       names a field, and a map has none, so "t", "TRUE" and "yes" are
       errors rather than values.
 
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 25]
+
+Internet-Draft                  protowire                   October 2026
+
+
    Canonical spelling of map keys.  Because the bare spellings true,
    false and 123 are a bool key, a bool key and an integer key rather
    than the strings they resemble, the quotes on a key are meaningful,
@@ -1393,14 +1420,6 @@ Internet-Draft                  protowire                   October 2026
    formatter and a marshaller thus agree on every key that both can
    produce (issue #306).  The fixture pairs "fmt-keyword-keys" and "fmt-
    bare-keys" under testdata/map-keys/ pin both directions.
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 25]
-
-Internet-Draft                  protowire                   October 2026
-
 
    The three entry tails are NOT interchangeable; the grammar in
    Section 3.3 splits them across two productions:
@@ -1427,6 +1446,18 @@ Internet-Draft                  protowire                   October 2026
       messages MUST use the explicit form "key: { ... }"; the bare-block
       form is not accepted in map context.
 
+
+
+
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 26]
+
+Internet-Draft                  protowire                   October 2026
+
+
    Inside a "{ ... }" block the parser cannot statically tell whether
    the surrounding field is message-typed or map-typed; both _field-
    entry_ and _map-entry_ are accepted in that position and the message-
@@ -1450,14 +1481,6 @@ Internet-Draft                  protowire                   October 2026
    twice ("s = "a"" twice), "null" and then a value, or two blocks for
    one message-typed field ("m { a = 1 }" then "m { b = 2 }", or "m = {
    ... }" then "m { ... }").  Two blocks do not merge.  A oneof's
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 26]
-
-Internet-Draft                  protowire                   October 2026
-
-
    members are singular fields, so a member bound twice is rejected by
    this rule, and binding a second member of the same oneof is rejected
    as Section 3.9 says.  Each message body is a scope of its own: a
@@ -1483,6 +1506,14 @@ Internet-Draft                  protowire                   October 2026
    PXF supports two string forms.  Both denote sequences of Unicode
    scalar values.
 
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 27]
+
+Internet-Draft                  protowire                   October 2026
+
+
    Simple strings use double-quote delimiters and recognize escape
    sequences:
 
@@ -1505,14 +1536,6 @@ Internet-Draft                  protowire                   October 2026
    \r      U+000D CARRIAGE RETURN
    \t      U+0009 CHARACTER TABULATION
    \v      U+000B LINE TABULATION
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 27]
-
-Internet-Draft                  protowire                   October 2026
-
 
    Numeric escapes:
 
@@ -1537,6 +1560,15 @@ Internet-Draft                  protowire                   October 2026
 
    *  When the surrounding string literal is bound to a proto3 bytes-
       typed field, no UTF-8 constraint applies.
+
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 28]
+
+Internet-Draft                  protowire                   October 2026
+
 
    Triple-quoted strings ("""...""") begin with three U+0022 characters
    and end at the next occurrence of three consecutive U+0022
@@ -1563,13 +1595,6 @@ Internet-Draft                  protowire                   October 2026
    A bytes literal is the lowercase letter "b" immediately followed by a
    double-quoted body containing only base64 characters [RFC4648]:
 
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 28]
-
-Internet-Draft                  protowire                   October 2026
-
-
    b"SGVsbG8sIHdvcmxkIQ=="
 
    Decoders MUST accept both the standard base64 alphabet and the URL-
@@ -1594,6 +1619,13 @@ Internet-Draft                  protowire                   October 2026
    This restriction is intentional: an unprefixed "." is reserved for
    future qualified-key syntax.
 
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 29]
+
+Internet-Draft                  protowire                   October 2026
+
+
    The target field type determines the numeric domain:
 
    *  For fixed-width integer fields (int32, int64, uint32, uint64,
@@ -1617,15 +1649,6 @@ Internet-Draft                  protowire                   October 2026
       are, so that a NaN read from PB keeps its encoding (issue
       protowire-java#161).
 
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 29]
-
-Internet-Draft                  protowire                   October 2026
-
-
    *  For fields of the well-known types pxf.BigInt and pxf.Decimal
       (Section 6.1), decoders MUST preserve the literal's exact value,
       including, for Decimal, the exact scale: the literal "1.00"
@@ -1646,6 +1669,18 @@ Internet-Draft                  protowire                   October 2026
 
    *  When bound to a singular message-typed field, MUST clear the
       field.
+
+
+
+
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 30]
+
+Internet-Draft                  protowire                   October 2026
+
 
    *  When bound to a singular scalar field with explicit presence, as
       protobuf defines it (a proto3 "optional" scalar, a scalar member
@@ -1673,15 +1708,6 @@ Internet-Draft                  protowire                   October 2026
       presence.  A required field holds a value: neither absent nor null
       satisfies it (Section 6.1).
 
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 30]
-
-Internet-Draft                  protowire                   October 2026
-
-
    *  When bound to a list-typed (repeated) field, a map field included,
       MUST be rejected; so MUST a null list element and a null map
       value, whatever the map's value type: list elements and map
@@ -1703,6 +1729,14 @@ Internet-Draft                  protowire                   October 2026
    Because "true", "false", and "null" are reserved value keywords, a
    protobuf schema MUST NOT declare an enum value, message field, or
    oneof bearing any of those names; see Section 3.14.
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 31]
+
+Internet-Draft                  protowire                   October 2026
+
 
 3.10.  Timestamps and Durations
 
@@ -1731,13 +1765,6 @@ Internet-Draft                  protowire                   October 2026
    A duration literal is a sequence of one or more segments, each
    consisting of a numeric magnitude followed by a unit suffix:
 
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 31]
-
-Internet-Draft                  protowire                   October 2026
-
-
    30s          ; 30 seconds
    1h30m        ; 1 hour 30 minutes
    500ms        ; 500 milliseconds
@@ -1756,6 +1783,16 @@ Internet-Draft                  protowire                   October 2026
    leading "+" is admitted is not settled by this revision; it is not
    part of the grammar, no encoder writes it, and decoders that accept
    it are lenient rather than conformant.
+
+
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 32]
+
+Internet-Draft                  protowire                   October 2026
+
 
    A duration literal holds a signed 64-bit count of nanoseconds, about
    292 years, while google.protobuf.Duration reaches about 10,000 years.
@@ -1784,16 +1821,6 @@ Internet-Draft                  protowire                   October 2026
 
    A trailing comma is permitted.
 
-
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 32]
-
-Internet-Draft                  protowire                   October 2026
-
-
    List values bind only to repeated fields, to fields whose Protocol
    Buffers type is a list-shaped well-known type, and to list elements
    within other lists.
@@ -1815,6 +1842,13 @@ Internet-Draft                  protowire                   October 2026
    A map field is bound with "=" between the field name and the block,
    but the entries inside the block use ":" because each entry is a key-
    of-the-map-to-value pair:
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 33]
+
+Internet-Draft                  protowire                   October 2026
+
 
    headers = {
      "X-Request-ID":  "abc123"
@@ -1842,14 +1876,6 @@ Internet-Draft                  protowire                   October 2026
      repeated Node children = 5 [(pxf.key) = "id"];
    }
 
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 33]
-
-Internet-Draft                  protowire                   October 2026
-
-
    The annotation makes the field's collection-of-named-elements
    semantics visible to the schema layer: entry order is list order, and
    each element's identity is the value of its key field.
@@ -1872,6 +1898,13 @@ Internet-Draft                  protowire                   October 2026
    This revision restricts the key field to type string.  A future
    revision may extend the key-field type set (for example to the
    integer map-key types); such an extension would be additive.
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 34]
+
+Internet-Draft                  protowire                   October 2026
+
 
 3.13.2.  Keyed Surface Form
 
@@ -1898,14 +1931,6 @@ Internet-Draft                  protowire                   October 2026
    value on a named entry is an error, since the element type is a
    message.
 
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 34]
-
-Internet-Draft                  protowire                   October 2026
-
-
    The existing anonymous list form remains valid for the same field,
    with the key field written explicitly:
 
@@ -1926,6 +1951,16 @@ Internet-Draft                  protowire                   October 2026
 
    *  The entry name (unquoted value, for string-literal names)
       populates the element's key field.
+
+
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 35]
+
+Internet-Draft                  protowire                   October 2026
+
 
    *  Two entries in the same block whose names are equal after
       unquoting are duplicate keys, and decoders MUST reject the block.
@@ -1951,17 +1986,6 @@ Internet-Draft                  protowire                   October 2026
       The anonymous list form has no entry name, so neither case arises
       there, and an element whose key is absent stays legal.
 
-
-
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 35]
-
-Internet-Draft                  protowire                   October 2026
-
-
    A quoted entry name anywhere other than inside a keyed repeated
    field's block is grammatically well-formed but MUST be rejected by
    the schema layer: a string entry name never names a field, so it is
@@ -1986,6 +2010,14 @@ Internet-Draft                  protowire                   October 2026
 
    In keyed form:
 
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 36]
+
+Internet-Draft                  protowire                   October 2026
+
+
    *  An entry name is emitted unquoted whenever the key is identifier-
       safe — it matches the _identifier_ production of Section 3.3 and
       is not one of the value keywords "null", "true", "false" — and
@@ -2003,20 +2035,6 @@ Internet-Draft                  protowire                   October 2026
    unaffected: a keyed repeated field is a plain repeated field on the
    wire, and the key travels as an ordinary field of the element
    message.
-
-
-
-
-
-
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 36]
-
-Internet-Draft                  protowire                   October 2026
-
 
 3.14.  Schema Constraints
 
@@ -2046,6 +2064,16 @@ Internet-Draft                  protowire                   October 2026
    Section 3.4.6.  This is already enforced by the directive-name
    production of Section 3.3.
 
+
+
+
+
+
+Franco Jr.                 Expires 1 May 2027                  [Page 37]
+
+Internet-Draft                  protowire                   October 2026
+
+
    The check is case-sensitive.  Names such as "NULL", "True", or
    "FALSE" lex as ordinary identifiers and are unaffected.  Names that
    begin with a digit (e.g. "1null") are already forbidden by the
@@ -2062,17 +2090,6 @@ Internet-Draft                  protowire                   October 2026
    *  Implementations SHOULD report the offending element by its fully-
       qualified protobuf name (e.g. "trades.v1.Side.null") and SHOULD
       point at this section.
-
-
-
-
-
-
-
-Franco Jr.                 Expires 1 May 2027                  [Page 37]
-
-Internet-Draft                  protowire                   October 2026
-
 
    *  Schemas that violate this constraint were never round-trippable
       through PXF.  Rejecting them on upgrade surfaces a pre-existing
@@ -2092,23 +2109,6 @@ Internet-Draft                  protowire                   October 2026
    one of these names unless it declares each listed field with that
    name and type, singular unless the table says repeated.  Protocol
    Buffers presence ("optional") does not change a field's shape.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
