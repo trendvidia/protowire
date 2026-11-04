@@ -296,6 +296,53 @@ func TestNullableFields(t *testing.T) {
 	}
 }
 
+// A field with (pxf.required) holds a value, so it is not nullable even with
+// explicit presence (decided 2026-11-04). Both spellings: the bracket option
+// (1314) and the @required carrier (1327).
+func TestNullableFieldsLeaveOutRequired(t *testing.T) {
+	bracket := field("bracket", 1, optionalLabel, int32Type, "")
+	bracket.Proto3Optional = proto.Bool(true)
+	bracket.OneofIndex = proto.Int32(0)
+	bracket.Options = &descriptorpb.FieldOptions{}
+	bracket.Options.ProtoReflect().SetUnknown(protowire.AppendVarint(protowire.AppendTag(nil, 1314, protowire.VarintType), 1))
+	annotated := field("annotated", 2, optionalLabel, int32Type, "")
+	annotated.Proto3Optional = proto.Bool(true)
+	annotated.OneofIndex = proto.Int32(1)
+	annotated.Options = &descriptorpb.FieldOptions{}
+	annotated.Options.ProtoReflect().SetUnknown(carrierRequired())
+	wrapper := field("w", 3, optionalLabel, messageType, ".keyed.v1.Inner")
+	wrapper.Options = &descriptorpb.FieldOptions{}
+	wrapper.Options.ProtoReflect().SetUnknown(protowire.AppendVarint(protowire.AppendTag(nil, 1314, protowire.VarintType), 1))
+	plain := field("free", 4, optionalLabel, int32Type, "")
+	plain.Proto3Optional = proto.Bool(true)
+	plain.OneofIndex = proto.Int32(2)
+	meta := generated(t, generate(t, protoFile("req.proto", nil,
+		&descriptorpb.DescriptorProto{Name: proto.String("Inner")},
+		&descriptorpb.DescriptorProto{
+			Name:      proto.String("Req"),
+			Field:     []*descriptorpb.FieldDescriptorProto{bracket, annotated, wrapper, plain},
+			OneofDecl: []*descriptorpb.OneofDescriptorProto{{Name: proto.String("_bracket")}, {Name: proto.String("_annotated")}, {Name: proto.String("_free")}},
+		})), "ReqPxfMeta.java")
+	if got, want := table(t, meta, "REQUIRED_FIELDS"), "Set.of(1, 2, 3)"; got != want {
+		t.Fatalf("REQUIRED_FIELDS = %s, want %s: the options did not read as required", got, want)
+	}
+	if got, want := table(t, meta, "NULLABLE_FIELDS"), "Set.of(4)"; got != want {
+		t.Errorf("NULLABLE_FIELDS = %s, want %s", got, want)
+	}
+}
+
+// carrierRequired is one AnnotationList holding @required.
+func carrierRequired() []byte {
+	var ann []byte
+	ann = protowire.AppendTag(ann, 1, protowire.BytesType)
+	ann = protowire.AppendString(ann, "protowire.schema.v1.required")
+	var list []byte
+	list = protowire.AppendTag(list, 1, protowire.BytesType)
+	list = protowire.AppendBytes(list, ann)
+	out := protowire.AppendTag(nil, 1327, protowire.BytesType)
+	return protowire.AppendBytes(out, list)
+}
+
 // editionsFile is a 2023 file, whose defaults are explicit presence and packed
 // repeated scalars.
 func editionsFile(msgs ...*descriptorpb.DescriptorProto) *descriptorpb.FileDescriptorProto {
