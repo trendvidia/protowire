@@ -494,6 +494,8 @@ Conformance:
 
 * Multiple named directives MAY appear; their relative order is preserved by decoders that expose a directive list to callers.
 
+* A formatter, which rewrites a document's text without changing what it denotes, MUST keep every directive, in document order: "@dataset" with each of its rows, "@proto", "@entry", and every named directive. It writes a named directive's block and a "@proto" body as they were written. It MAY write "@type" first, since "@type" binds no anonymous "@proto" (issue #558).
+
 A document with no entries denotes the message-typed default value (all fields unset).
 
 ### The "@entry" Directive {#the-entry-directive}
