@@ -42,9 +42,6 @@ NOT_YET=(ts rust swift python)
 # and java-lite, dart and csharp compile a copy of text.proto that has no
 # Annotated message yet.
 declare -A PORT_EXCLUDED=(
-  ["cpp Annotated.empty"]="trendvidia/protowire-cpp#129"
-  ["cpp Annotated.oneof-sibling-set"]="trendvidia/protowire-cpp#129"
-  ["cpp Annotated.unset"]="trendvidia/protowire-cpp#129"
   ["java Annotated.empty"]="trendvidia/protowire-java#187"
   ["java Annotated.oneof-sibling-set"]="trendvidia/protowire-java#187"
   ["java Annotated.unset"]="trendvidia/protowire-java#187"
