@@ -256,7 +256,7 @@ engine
 
 A protowire implementation accepts and emits four wire forms for any message defined in a schema: PXF text, PB binary, SBE binary (when the message carries SBE annotations), and Envelope binary (which is itself a PB message).
 
-## Common Schema Layer
+## Common Schema Layer {#common-schema-layer}
 
 For any schema S, the four encodings represent the same logical value space. Implementations MUST produce wire output that round-trips through every encoding for which the schema is well defined; concretely, for a value v of type T defined in S:
 
@@ -1194,6 +1194,8 @@ pxf.default: when set, the value is a PXF literal (parsed by the same rules as a
 Both rules apply in every message body a document writes, not only at the top level: the body of a singular message field, each element of a list of messages, each value of a map whose values are messages, and the body of a google.protobuf.Any written with "@type". A body is checked against its own message type, and a field bound to "null" has no body to check.
 
 Both rules depend on knowing which fields a document wrote, so they bind a decoder's presence-tracking decode, the entry point that reports field presence to its caller. An implementation MAY also offer a decode that tracks no presence, and that decode does not apply these rules: it accepts a document with an absent pxf.required field and leaves an absent pxf.default field unset. An implementation MAY let a caller turn the rules off on a presence-tracking decode, so that the caller can apply them itself, for example to the result of merging several documents. Documentation of any entry point that does not apply these rules MUST say so.
+
+An encoder MUST NOT leave out an unset field with pxf.required or pxf.default when a text reads back as the same value: the zero value of a field without presence ("[]" or "{}" for a list or map), or "null" on a message-typed field with pxf.default. Left out, such a field reads back holding its default, or the document is rejected. The two cases of {{common-schema-layer}} are exceptions, and there an encoder MAY leave the field out.
 
 pxf.key: names the key field of a keyed repeated field. The value is the proto field name of a singular string-typed field of the element message. The annotation is valid only on repeated message-typed fields; placement constraints and the decode, encode, and canonicalization semantics it enables are specified in {{keyed-repeated-fields}}. The annotation affects only the PXF text surface — pb and SBE wire outputs are unchanged.
 

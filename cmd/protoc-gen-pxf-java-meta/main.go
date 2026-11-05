@@ -586,6 +586,23 @@ func javaTypeName(byName map[string]*descriptorpb.FileDescriptorProto, protoFQN 
 // suffix "PxfMeta" yields "com.example.sample.Person_AddressPxfMeta".
 // Nested type chains are flattened to underscore-separated form to match
 // the file-and-class-name layout that emitMeta / emitEnum produce.
+// runtimeCompanionFiles are the google/protobuf files whose companions ship
+// in the Java runtime, in runtimeCompanionPackage (protowire#539). Their types
+// are ordinary messages to PXF (Any read without a type resolver, Empty,
+// FieldMask, Struct, Value, ListValue, and the NullValue enum), but no build
+// runs this plugin over them, so a reference to a companion in their own
+// java_package (com.google.protobuf) would name a class that does not exist.
+// The runtime's copies are this plugin's output for these files, with only
+// the package changed.
+var runtimeCompanionFiles = map[string]bool{
+	"google/protobuf/any.proto":        true,
+	"google/protobuf/empty.proto":      true,
+	"google/protobuf/field_mask.proto": true,
+	"google/protobuf/struct.proto":     true,
+}
+
+const runtimeCompanionPackage = "org.protowire.pxf.wkt"
+
 func javaCompanionName(byName map[string]*descriptorpb.FileDescriptorProto, protoFQN, suffix string) string {
 	name := strings.TrimPrefix(protoFQN, ".")
 	declFile := findDeclaringFile(byName, name)
@@ -600,6 +617,9 @@ func javaCompanionName(byName map[string]*descriptorpb.FileDescriptorProto, prot
 		rel = strings.TrimPrefix(rel, ".")
 	}
 	rel = strings.ReplaceAll(rel, ".", "_") + suffix
+	if runtimeCompanionFiles[declFile.GetName()] {
+		return runtimeCompanionPackage + "." + rel
+	}
 	javaPkg := declFile.GetOptions().GetJavaPackage()
 	if javaPkg == "" {
 		return rel
