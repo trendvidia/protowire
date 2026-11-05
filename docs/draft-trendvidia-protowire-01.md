@@ -1124,7 +1124,7 @@ Constraints applied by protowire:
 
 * Annotation extensions defined in {{annotation-extensions}} are encoded as Protocol Buffers field options on the relevant FieldOptions, MessageOptions, and FileOptions messages. Their field numbers are reserved ({{annotation-field-number-range}}).
 
-* Decoders MUST enforce the limits in {{mandatory-limits}} on PB inputs. In particular, the depth limit applies to nested submessages, groups, and map entries; the length-prefix limit MUST be enforced before allocation.
+* Decoders MUST enforce the limits in {{mandatory-limits}} on PB inputs. In particular, the depth limit applies to nested submessages, groups, and map entries, except a big-number message a decoder binds to a native number ({{recursion}}); the length-prefix limit MUST be enforced before allocation.
 
 * A protowire emitter SHOULD produce fields in field-number order; decoders MUST accept any field order, per the existing PB rules.
 
@@ -2234,7 +2234,7 @@ Conforming decoders MUST enforce the following limits. Defaults are recommended;
 
 | Limit | Default | Applies to |
 |-------|---------|------------|
-| MaxNestingDepth | 100 | PXF block/list nesting; PB submessage / group / map-entry nesting |
+| MaxNestingDepth | 100 | PXF block/list nesting; PB submessage / group / map-entry nesting, a big-number message bound to a native number excepted ({{recursion}}) |
 | MaxMessageSize | 67108864 (64 MiB) | Total input length to a single decode call |
 | MaxNumericLiteralDigits | 4096 | Significant digits of any PXF numeric literal's mantissa, its exponent and precision suffix not counted; magnitude of pxf.Decimal.scale on the PB wire; the digit count N a pxf.BigFloat precision suffix implies, and the same N for a pxf.BigFloat's prec on the PB wire |
 | MaxBigFloatExponent | 16384 | Magnitude of a pxf.BigFloat value's binary exponent, from the PB wire or a PXF literal |
@@ -2259,6 +2259,8 @@ PXF parsers descend recursively into "{...}" blocks and "\[...\]" lists; PB pars
 2. reject input that would cause the counter to exceed MaxNestingDepth;
 
 3. thread the depth counter through inner decoder instances constructed mid-stream. In particular, when a nested submessage is decoded by handing its bytes to a freshly constructed input-stream object, the depth counter MUST be passed in rather than reset to zero.
+
+A pxf.BigInt, pxf.Decimal or pxf.BigFloat message that a decoder binds to a native arbitrary-precision number is a value, not a recursive descent, as its PXF literal is: the decoder reads it as one field and descends into nothing. A struct at depth MaxNestingDepth may therefore hold one. Read as a message of plain fields, as a generic protobuf decoder or the PXF block form reads it, it is a submessage and counts as one (protowire-cpp#148).
 
 A producer of PXF text or of PB MUST fail with an error on a message nested more deeply than MaxNestingDepth, counted as a decoder reading its output would count it, rather than write a document that a decoder at the same limit rejects (issue #502). The limit is configurable per call, as a decoder's is. Such a message can only come from somewhere other than a conforming decoder at that limit, such as a language value built in memory or a protobuf runtime with a higher limit, and a producer that follows a reference cycle meets the limit instead of exhausting its stack.
 
