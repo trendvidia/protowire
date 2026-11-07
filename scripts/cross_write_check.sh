@@ -26,7 +26,7 @@
 #   Same SKIP_PORTS and REQUIRE_PORTS as cross_security_check.sh. A port with
 #   no pxf-pb harness is not run and the script says so, so an absent port
 #   can't pass for a clean run. Today go, cpp, java, java-lite, csharp, rust,
-#   dart, ts and swift have one.
+#   dart, ts, swift and python have one.
 
 set -euo pipefail
 
@@ -42,9 +42,10 @@ RUST_DIR="${RUST_DIR:-${SIBLING_DIR}/protowire-rust}"
 DART_DIR="${DART_DIR:-${SIBLING_DIR}/protowire-dart}"
 TS_DIR="${TS_DIR:-${SIBLING_DIR}/protowire-typescript}"
 SWIFT_DIR="${SWIFT_DIR:-${SIBLING_DIR}/protowire-swift}"
+PYTHON_DIR="${PYTHON_DIR:-${SIBLING_DIR}/protowire-python}"
 SKIP_PORTS="${SKIP_PORTS:-}"
 REQUIRE_PORTS="${REQUIRE_PORTS:-}"
-NOT_YET=(python)
+NOT_YET=()
 
 # Cases no port is held to yet, each with the question it waits on.
 declare -A EXCLUDED=()
@@ -153,7 +154,20 @@ if ! skip ts && [[ -f "$TS_DIR/scripts/check-decode.ts" ]]; then
   chmod +x "${PORT_BINS[ts]}"
 fi
 
-for p in go cpp java java-lite csharp rust dart ts swift; do
+if ! skip python && [[ -f "$PYTHON_DIR/scripts/check_decode.py" ]]; then
+  # A script, not a build: the port's venv holds the protowire package and its
+  # protowire-cpp extension, built against the cpp ref the port pins. Without
+  # a venv, python3 must have the package installed.
+  echo "→ Python harness" >&2
+  py="python3"
+  [[ -x "$PYTHON_DIR/.venv/bin/python3" ]] && py="$PYTHON_DIR/.venv/bin/python3"
+  PORT_BINS[python]="$(mktemp -t check-decode-python.XXXXXX)"
+  printf '#!/usr/bin/env bash\nexec %q %q "$@"\n' "$py" "$PYTHON_DIR/scripts/check_decode.py" \
+    > "${PORT_BINS[python]}"
+  chmod +x "${PORT_BINS[python]}"
+fi
+
+for p in go cpp java java-lite csharp rust dart ts swift python; do
   [[ -n "${PORT_BINS[$p]:-}" ]] || echo "· $p: not run" >&2
 done
 for p in "${NOT_YET[@]}"; do

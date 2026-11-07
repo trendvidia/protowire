@@ -122,7 +122,22 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: protowire-rust
+      - name: Checkout protowire-python
+        uses: actions/checkout@v7
+        with:
+          repository: trendvidia/protowire-python
+          path: protowire-python
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      # The harness runs from the port's .venv. The extension builds against
+      # the protowire-cpp checkout beside it, which CMakeLists.txt looks for by
+      # default, so Python is checked at cpp's default branch, as cpp is.
+      - name: Build protowire-python
+        run: |
+          python -m venv protowire-python/.venv
+          protowire-python/.venv/bin/pip install --quiet ./protowire-python
       - name: Write conformance
         env:
-          REQUIRE_PORTS: 'go,cpp,java,java-lite,csharp,rust,dart,ts,swift'
+          REQUIRE_PORTS: 'go,cpp,java,java-lite,csharp,rust,dart,ts,swift,python'
         run: ./protowire/scripts/cross_write_check.sh
