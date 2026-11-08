@@ -112,6 +112,9 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
+      # Caches the Gradle distribution that protowire-java's wrapper would
+      # otherwise download on every run (#592).
+      - uses: gradle/actions/setup-gradle@v6
       - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'

@@ -84,6 +84,9 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
+      # Caches the Gradle distribution that protowire-java's wrapper would
+      # otherwise download on every run (#592).
+      - uses: gradle/actions/setup-gradle@v6
       - name: Checkout protowire-python
         uses: actions/checkout@v7
         with:

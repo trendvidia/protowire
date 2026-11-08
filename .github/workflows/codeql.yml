@@ -46,6 +46,11 @@ jobs:
           distribution: temurin
           java-version: 21
 
+      # Caches the Gradle distribution the plugin's wrapper would otherwise
+      # download on every run (#592).
+      - if: matrix.language == 'java-kotlin'
+        uses: gradle/actions/setup-gradle@v6
+
       - uses: github/codeql-action/init@v4.39.1
         with:
           languages: ${{ matrix.language }}
@@ -56,7 +61,10 @@ jobs:
 
       - if: matrix.language == 'java-kotlin'
         working-directory: editors/jetbrains/plugin
-        run: ./gradlew --quiet classes
+        # The plugin sets org.gradle.caching=true. Classes restored from the
+        # build cache are never compiled, and CodeQL then has nothing to
+        # analyse, so the build cache stays off here.
+        run: ./gradlew --quiet --no-build-cache classes
 
       - uses: github/codeql-action/analyze@v4.39.1
         with:
