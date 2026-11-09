@@ -7,11 +7,12 @@ name: Cross-port envelope check
 # `pb` output for the same canonical Envelope. ROADMAP.md M1 step 1.
 #
 # Scope is the four ports scripts/cross_envelope_check.sh marks `required`
-# — Go, C++, TypeScript, Java — plus Dart. The other optional ports (Rust,
-# Swift, C#, Java/Android-lite) are opted out here and still run locally; Swift and
-# the Android modules in particular need a toolchain that is not a cheap
-# add on ubuntu-latest. STABILITY.md says which ports this gate covers, so
-# the promise is not overstated again.
+# — Go, C++, TypeScript, Java — plus Java's lite tier (the java-lite and
+# java-pxf-lite rows), Swift and Dart. Rust and C# are opted out here and
+# still run locally. The lite rows build protowire-java's *-android modules,
+# which are plain JVM Gradle modules, as the text, write and security gates
+# already do (#594). STABILITY.md says which ports this gate covers, so the
+# promise is not overstated again.
 #
 # This job is deliberately NOT hermetic: it fetches every port at its
 # default branch, so a wire regression pushed to a port turns this red
@@ -136,6 +137,4 @@ jobs:
         env:
           WITH_RUST: '0'
           WITH_CSHARP: '0'
-          WITH_JAVA_LITE: '0'
-          WITH_JAVA_PXF_LITE: '0'
         run: ./protowire/scripts/cross_envelope_check.sh
