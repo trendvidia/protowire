@@ -3,13 +3,13 @@ module github.com/trendvidia/protowire
 go 1.26.2
 
 require (
-	github.com/itchyny/gojq v0.12.19
+	github.com/itchyny/gojq v0.12.20
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
 	github.com/spf13/cobra v1.10.2
 	github.com/trendvidia/protocompile v0.38.1
-	github.com/trendvidia/protoregistry v0.75.0
+	github.com/trendvidia/protoregistry v0.75.1
 	github.com/trendvidia/protos v0.1.4
-	github.com/trendvidia/protowire-go v1.16.0
+	github.com/trendvidia/protowire-go v1.16.1
 	google.golang.org/genproto/googleapis/api v0.0.0-20260817212433-ac3dfec99bb1
 	google.golang.org/grpc v1.85.0
 	google.golang.org/protobuf v1.36.12
@@ -18,7 +18,7 @@ require (
 
 require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/itchyny/timefmt-go v0.1.8 // indirect
+	github.com/itchyny/timefmt-go v0.1.9 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/petermattis/goid v0.0.0-20260113132338-7c7de50cc741 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
