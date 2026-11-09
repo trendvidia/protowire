@@ -39,17 +39,12 @@ NOT_YET=(ts rust swift)
 
 # Cases one port is not held to yet, keyed "<port> <case>", each with the
 # issue that tracks it. The Annotated cases (#561) hold fields with
-# (pxf.default) or (pxf.required): cpp and java leave the unset ones out,
-# and java-lite, dart and csharp compile a copy of text.proto that has no
-# Annotated message yet.
+# (pxf.default) or (pxf.required): dart and csharp compile a copy of
+# text.proto that has no Annotated message yet, and java-lite writes the
+# fields in number order, not the order they are declared in.
 declare -A PORT_EXCLUDED=(
-  ["java Annotated.empty"]="trendvidia/protowire-java#187"
-  ["java Annotated.oneof-sibling-set"]="trendvidia/protowire-java#187"
-  ["java Annotated.unset"]="trendvidia/protowire-java#187"
-  ["java-lite Annotated.empty"]="trendvidia/protowire-java#187"
-  ["java-lite Annotated.oneof-sibling-set"]="trendvidia/protowire-java#187"
-  ["java-lite Annotated.unset"]="trendvidia/protowire-java#187"
-  ["java-lite Annotated.set"]="trendvidia/protowire-java#187"
+  ["java-lite Annotated.oneof-sibling-set"]="trendvidia/protowire-java#224"
+  ["java-lite Annotated.set"]="trendvidia/protowire-java#224"
   ["dart Annotated.empty"]="trendvidia/protowire-dart#93"
   ["dart Annotated.oneof-sibling-set"]="trendvidia/protowire-dart#93"
   ["dart Annotated.unset"]="trendvidia/protowire-dart#93"

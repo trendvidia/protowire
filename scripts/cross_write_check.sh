@@ -56,7 +56,7 @@ declare -A EXCLUDED=()
 # (trendvidia/protowire-csharp#91). Rust writes a DynamicMessage through
 # prost-reflect, which drops -0.0 (trendvidia/protowire-rust#98), and rounds a
 # BigFloat literal near a tie twice (trendvidia/protowire-rust#108).
-# java-lite, dart and csharp compile a copy of text.proto that has no
+# dart and csharp compile a copy of text.proto that has no
 # Annotated (#561) or Ordered (#568) message yet, each tracked by its port's
 # issue.
 declare -A PORT_EXCLUDED=(
@@ -69,10 +69,6 @@ declare -A PORT_EXCLUDED=(
   ["csharp Shapes.map-string-keys-unsorted"]="trendvidia/protowire-csharp#91"
   ["csharp Shapes.map-zero-key-and-value"]="trendvidia/protowire-csharp#91"
   ["rust Scalars.float-negzero"]="trendvidia/protowire-rust#98"
-  ["java-lite Annotated.empty"]="trendvidia/protowire-java#187"
-  ["java-lite Annotated.oneof-sibling-set"]="trendvidia/protowire-java#187"
-  ["java-lite Annotated.set"]="trendvidia/protowire-java#187"
-  ["java-lite Annotated.unset"]="trendvidia/protowire-java#187"
   ["dart Annotated.empty"]="trendvidia/protowire-dart#93"
   ["dart Annotated.oneof-sibling-set"]="trendvidia/protowire-dart#93"
   ["dart Annotated.set"]="trendvidia/protowire-dart#93"
@@ -82,7 +78,6 @@ declare -A PORT_EXCLUDED=(
   ["csharp Annotated.set"]="trendvidia/protowire-csharp#104"
   ["csharp Annotated.unset"]="trendvidia/protowire-csharp#104"
   ["rust WellKnown.bigfloat-near-tie"]="trendvidia/protowire-rust#108"
-  ["java-lite Ordered.oneof-below-field"]="trendvidia/protowire-java#187"
   ["dart Ordered.oneof-below-field"]="trendvidia/protowire-dart#93"
   ["csharp Ordered.oneof-below-field"]="trendvidia/protowire-csharp#104"
 )
