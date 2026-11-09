@@ -301,6 +301,36 @@ func TestNullableFields(t *testing.T) {
 	}
 }
 
+// FIELD_ORDER is the declaration order, which is not the number order when a
+// oneof numbered above later fields is declared before them, as in the spec's
+// text.v1.Annotated (protowire-java#224).
+func TestFieldOrder(t *testing.T) {
+	a := field("a", 13, optionalLabel, int32Type, "")
+	a.OneofIndex = proto.Int32(0)
+	other := field("other", 14, optionalLabel, stringType, "")
+	other.OneofIndex = proto.Int32(0)
+	resp := generate(t, protoFile("order.proto", nil,
+		&descriptorpb.DescriptorProto{
+			Name: proto.String("Ordered"),
+			Field: []*descriptorpb.FieldDescriptorProto{
+				field("n", 1, optionalLabel, int32Type, ""),
+				a, other,
+				field("plain", 9, optionalLabel, int32Type, ""),
+			},
+			OneofDecl: []*descriptorpb.OneofDescriptorProto{{Name: proto.String("o")}},
+		},
+		&descriptorpb.DescriptorProto{Name: proto.String("Empty")}))
+	if got, want := table(t, generated(t, resp, "OrderedPxfMeta.java"), "FIELD_ORDER"), "List.of(1, 13, 14, 9)"; got != want {
+		t.Errorf("FIELD_ORDER = %s, want %s", got, want)
+	}
+	if got, want := table(t, generated(t, resp, "EmptyPxfMeta.java"), "FIELD_ORDER"), "List.of()"; got != want {
+		t.Errorf("empty: FIELD_ORDER = %s, want %s", got, want)
+	}
+	if meta := generated(t, resp, "OrderedPxfMeta.java"); !strings.Contains(meta, "public List<Integer>                   fieldOrder()        { return FIELD_ORDER; }") {
+		t.Errorf("no fieldOrder() accessor in:\n%s", meta)
+	}
+}
+
 // A field with (pxf.required) holds a value, so it is not nullable even with
 // explicit presence (decided 2026-11-04). Both spellings: the bracket option
 // (1314) and the @required carrier (1327).

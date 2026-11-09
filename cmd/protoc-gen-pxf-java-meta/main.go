@@ -57,6 +57,10 @@
 //     value is not written, as protobuf writes it; the
 //     runtime cannot tell one from a proto2 required field
 //     by NULLABLE_FIELDS alone, and that one is written.
+//   - FIELD_ORDER          — List<Integer> of the field numbers in declaration
+//     order. protowire-go writes a message's fields in
+//     that order, which FIELD_NUMBERS, a Map.ofEntries,
+//     does not keep at runtime (protowire-java#224).
 //   - KEY_FIELDS           — Map<Integer, String> of field number → key field
 //     name, from (pxf.key). A misplaced (pxf.key) fails
 //     generation, so every entry names a singular
@@ -848,6 +852,7 @@ func emitMeta(
 	p()
 	p("package ", javaPkg, ";")
 	p()
+	p("import java.util.List;")
 	p("import java.util.Map;")
 	p("import java.util.Set;")
 	p()
@@ -899,6 +904,8 @@ func emitMeta(
 	emitFieldSet(p, "IMPLICIT_PRESENCE_FIELDS", msg.desc.Field, func(f *descriptorpb.FieldDescriptorProto) bool {
 		return implicitPresence(fieldOf(md, f))
 	})
+	p()
+	emitFieldOrder(p, msg.desc.Field)
 	p()
 	emitKeyFields(p, msg.desc.Field)
 	p()
@@ -1073,7 +1080,9 @@ func qualifiedProtoName(file *descriptorpb.FileDescriptorProto, msg *flatMsg) st
 // unchecked, as it was. Unlike keyFields(), nearly every message has a field
 // outside the set, so overriding only when needed would not spare any consumer
 // the runtime bump. implicitPresenceFields() has no @Override for the same
-// reason: on an older runtime it goes unused and every zero is written.
+// reason: on an older runtime it goes unused and every zero is written. Nor
+// has fieldOrder(): on an older runtime it goes unused and fields are written
+// in number order.
 func emitAccessors(p func(args ...any), fullName string, hasKeyFields bool) {
 	p("    @Override public Map<String, Integer>  fieldNumbers()      { return FIELD_NUMBERS; }")
 	p("    @Override public Map<Integer, Integer> fieldKinds()        { return FIELD_KINDS; }")
@@ -1089,6 +1098,7 @@ func emitAccessors(p func(args ...any), fullName string, hasKeyFields bool) {
 	}
 	p("    public Set<Integer>                    nullableFields()    { return NULLABLE_FIELDS; }")
 	p("    public Set<Integer>                    implicitPresenceFields() { return IMPLICIT_PRESENCE_FIELDS; }")
+	p("    public List<Integer>                   fieldOrder()        { return FIELD_ORDER; }")
 	p("    @Override public int                   sbeTemplateId()     { return SBE_TEMPLATE_ID; }")
 	p("    @Override public Map<Integer, Integer> sbeFieldLengths()   { return SBE_FIELD_LENGTHS; }")
 	p("    @Override public Map<Integer, String>  sbeFieldEncodings() { return SBE_FIELD_ENCODINGS; }")
@@ -1457,6 +1467,22 @@ func emitWireTypes(p func(args ...any), fields []*descriptorpb.FieldDescriptorPr
 		p("        Map.entry(", fld.GetNumber(), ", ", wireTypeFor(fld.GetType()), ")", comma)
 	}
 	p("    );")
+}
+
+// emitFieldOrder writes FIELD_ORDER: every field's number, in the order the
+// message declares them, which is the order protowire-go writes them in. A
+// oneof's members sit where the oneof is declared.
+func emitFieldOrder(p func(args ...any), fields []*descriptorpb.FieldDescriptorProto) {
+	p("    /** Field numbers in declaration order, the order a writer emits them in. */")
+	if len(fields) == 0 {
+		p("    public static final List<Integer> FIELD_ORDER = List.of();")
+		return
+	}
+	nums := make([]string, len(fields))
+	for i, f := range fields {
+		nums[i] = fmt.Sprintf("%d", f.GetNumber())
+	}
+	p("    public static final List<Integer> FIELD_ORDER = List.of(", strings.Join(nums, ", "), ");")
 }
 
 func emitFieldSet(
