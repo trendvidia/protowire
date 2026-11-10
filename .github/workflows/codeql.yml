@@ -51,7 +51,7 @@ jobs:
       - if: matrix.language == 'java-kotlin'
         uses: gradle/actions/setup-gradle@v6
 
-      - uses: github/codeql-action/init@v4.39.1
+      - uses: github/codeql-action/init@v4.39.3
         with:
           languages: ${{ matrix.language }}
           queries: security-and-quality
@@ -66,6 +66,6 @@ jobs:
         # analyse, so the build cache stays off here.
         run: ./gradlew --quiet --no-build-cache classes
 
-      - uses: github/codeql-action/analyze@v4.39.1
+      - uses: github/codeql-action/analyze@v4.39.3
         with:
           category: "/language:${{ matrix.language }}"
