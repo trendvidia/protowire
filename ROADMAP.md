@@ -18,7 +18,7 @@ The latest version of each repository, measured on 2026-11-11 from git tags and 
 | `protowire-go` | v1.17.0 | proxy.golang.org: v1.17.0 |
 | `protocompile` | v0.38.1 | proxy.golang.org: v0.38.1 |
 | `protowire-java` | v2.0.1 | Maven Central `org.protowire:protowire-pxf`: 2.0.1 (v2.0.0 was tagged but never published) |
-| `protowire-kotlin` | v2.0.0 | Maven Central `org.protowire:protowire-kotlin`: 2.0.0 |
+| `protowire-kotlin` | v2.0.1 | Maven Central `org.protowire:protowire-kotlin`: 2.0.1 |
 | `protowire-typescript` | v1.3.0 | npm `@trendvidia/protowire`: 1.2.0 (v1.3.0's publish has not run) |
 | `protowire-cpp` | v2.1.0 | none: not in vcpkg or Conan Center |
 | `protowire-rust` | v1.2.0 | crates.io `protowire`: 1.2.0 |
