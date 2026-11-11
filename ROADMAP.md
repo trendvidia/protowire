@@ -10,22 +10,22 @@ The roadmap is itself governed by [Steward](https://steward-dev.ai) — the [`go
 
 **What is true today: each repository has its own version line.** A spec release in this repository does not imply a port release. A port tags a release when its own code changes, so most spec releases leave most ports untouched. For example, v1.10.0 changed only compiler and CLI output, and its PXF, `pb`, SBE, envelope and report bytes are identical to v1.9.0's. Each release's section in [`STABILITY.md`](STABILITY.md) and [`CHANGELOG.md`](CHANGELOG.md) says which outputs changed, and so which ports have anything to pick up.
 
-The latest version of each repository, measured on 2026-10-28 from git tags and from each registry's public API:
+The latest version of each repository, measured on 2026-11-11 from git tags and from each registry's public API:
 
 | Repository | Latest tag | Registry, latest version there |
 |---|---|---|
-| `protowire` (spec, `cmd/pxf`) | v1.12.0 | proxy.golang.org: v1.12.0 |
-| `protowire-go` | v1.12.0 | proxy.golang.org: v1.12.0 |
-| `protocompile` | v0.35.1 | proxy.golang.org: v0.35.1 |
-| `protowire-java` | v1.2.0 | Maven Central `org.protowire:protowire-pxf`: 1.1.0 |
-| `protowire-kotlin` | v1.0.0 | Maven Central `org.protowire:protowire-kotlin`: 1.0.0 |
-| `protowire-typescript` | v1.2.0 | npm `@trendvidia/protowire`: 1.2.0 |
-| `protowire-cpp` | v1.1.0 | none: not in vcpkg or Conan Center |
-| `protowire-rust` | v1.0.0 | crates.io `protowire`: 1.0.0 |
-| `protowire-python` | v1.0.0 | PyPI `protowire-python`: 1.0.0 (PyPI's `protowire` is an unrelated project) |
-| `protowire-csharp` | v1.0.0 | NuGet `Protowire.Pxf`, `Protowire.Pb`: 1.0.0 |
-| `protowire-dart` | v1.0.0 | pub.dev `protowire`: 1.0.0 |
-| `protowire-swift` | v1.0.0 | none: SwiftPM reads the git tag; not on Swift Package Index or CocoaPods |
+| `protowire` (spec, `cmd/pxf`) | v1.16.0 | proxy.golang.org: v1.16.0 |
+| `protowire-go` | v1.17.0 | proxy.golang.org: v1.17.0 |
+| `protocompile` | v0.38.1 | proxy.golang.org: v0.38.1 |
+| `protowire-java` | v2.0.1 | Maven Central `org.protowire:protowire-pxf`: 2.0.1 (v2.0.0 was tagged but never published) |
+| `protowire-kotlin` | v1.4.0 | Maven Central `org.protowire:protowire-kotlin`: 1.4.0 |
+| `protowire-typescript` | v1.3.0 | npm `@trendvidia/protowire`: 1.2.0 (v1.3.0's publish has not run) |
+| `protowire-cpp` | v2.1.0 | none: not in vcpkg or Conan Center |
+| `protowire-rust` | v1.2.0 | crates.io `protowire`: 1.2.0 |
+| `protowire-python` | v2.0.0 | PyPI `protowire-python`: 2.0.0 (PyPI's `protowire` is an unrelated project) |
+| `protowire-csharp` | v1.1.0 | NuGet `Protowire.Pxf`, `Protowire.Pb`: 1.0.0 (v1.1.0's publish has not run) |
+| `protowire-dart` | v1.2.0 | pub.dev `protowire`: 1.2.0 |
+| `protowire-swift` | v1.1.0 | none: SwiftPM reads the git tag; not on Swift Package Index or CocoaPods |
 
 This table is a snapshot, so check the registry before relying on a row.
 
