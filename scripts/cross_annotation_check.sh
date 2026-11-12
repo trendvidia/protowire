@@ -49,7 +49,7 @@ SOURCE="${SOURCE:-local}"
 # handled by continue-on-error on the CI job, which has now been removed.
 # The gate is blocking again.
 #
-# Note STRICT=1 does NOT pass today and is not expected to -- eight copies
+# Note STRICT=1 does NOT pass today and is not expected to -- five copies
 # omit (pxf.key) deliberately, declared in NOT_IMPLEMENTED below. "No
 # undeclared divergence" is the passing condition, not "no difference".
 #
@@ -80,7 +80,6 @@ NOT_IMPLEMENTED="$(cat <<'NI'
 chameleon            google.protobuf.FieldOptions|string|key|1316  keyed repeated fields (#116) not implemented
 protowire-csharp     google.protobuf.FieldOptions|string|key|1316  keyed repeated fields (#116) not implemented
 protowire-dart       google.protobuf.FieldOptions|string|key|1316  keyed repeated fields (#116) not implemented
-protowire-rust       google.protobuf.FieldOptions|string|key|1316  keyed repeated fields (#116) not implemented
 protowire-swift      google.protobuf.FieldOptions|string|key|1316  keyed repeated fields (#116) not implemented
 protowire-typescript google.protobuf.FieldOptions|string|key|1316  keyed repeated fields (#116) not implemented
 NI
