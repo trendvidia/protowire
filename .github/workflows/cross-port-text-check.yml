@@ -87,6 +87,15 @@ jobs:
       # Caches the Gradle distribution that protowire-java's wrapper would
       # otherwise download on every run (#592).
       - uses: gradle/actions/setup-gradle@v6
+      - name: Checkout protowire-rust
+        uses: actions/checkout@v7
+        with:
+          repository: trendvidia/protowire-rust
+          path: protowire-rust
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: protowire-rust
       - name: Checkout protowire-python
         uses: actions/checkout@v7
         with:
@@ -104,5 +113,5 @@ jobs:
           protowire-python/.venv/bin/pip install --quiet ./protowire-python
       - name: Text conformance
         env:
-          REQUIRE_PORTS: 'go,cpp,java,java-lite,csharp,dart,python'
+          REQUIRE_PORTS: 'go,cpp,java,java-lite,csharp,dart,rust,python'
         run: ./protowire/scripts/cross_text_check.sh
