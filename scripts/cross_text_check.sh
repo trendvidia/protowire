@@ -19,8 +19,8 @@
 #
 #   Same SKIP_PORTS and REQUIRE_PORTS as cross_security_check.sh. A port with
 #   no pb-text harness is not run and the script says so, so an absent port
-#   can't pass for a clean run. Today go, cpp, java, java-lite, csharp, dart
-#   and python have one.
+#   can't pass for a clean run. Today go, cpp, java, java-lite, csharp, dart,
+#   rust and python have one.
 
 set -euo pipefail
 
@@ -33,14 +33,16 @@ JAVA_DIR="${JAVA_DIR:-${SIBLING_DIR}/protowire-java}"
 CSHARP_DIR="${CSHARP_DIR:-${SIBLING_DIR}/protowire-csharp}"
 DART_DIR="${DART_DIR:-${SIBLING_DIR}/protowire-dart}"
 PYTHON_DIR="${PYTHON_DIR:-${SIBLING_DIR}/protowire-python}"
+RUST_DIR="${RUST_DIR:-${SIBLING_DIR}/protowire-rust}"
 SKIP_PORTS="${SKIP_PORTS:-}"
 REQUIRE_PORTS="${REQUIRE_PORTS:-}"
-NOT_YET=(ts rust swift)
+NOT_YET=(ts swift)
 
 # Cases one port is not held to yet, keyed "<port> <case>", each with the
 # issue that tracks it. The Annotated cases (#561) hold fields with
 # (pxf.default) or (pxf.required): dart and csharp compile a copy of
 # text.proto that has no Annotated message yet.
+# The rust rows wait on unset annotated fields (trendvidia/protowire-rust#116).
 declare -A PORT_EXCLUDED=(
   ["dart Annotated.empty"]="trendvidia/protowire-dart#93"
   ["dart Annotated.oneof-sibling-set"]="trendvidia/protowire-dart#93"
@@ -50,6 +52,9 @@ declare -A PORT_EXCLUDED=(
   ["csharp Annotated.oneof-sibling-set"]="trendvidia/protowire-csharp#104"
   ["csharp Annotated.unset"]="trendvidia/protowire-csharp#104"
   ["csharp Annotated.set"]="trendvidia/protowire-csharp#104"
+  ["rust Annotated.empty"]="trendvidia/protowire-rust#116"
+  ["rust Annotated.oneof-sibling-set"]="trendvidia/protowire-rust#116"
+  ["rust Annotated.unset"]="trendvidia/protowire-rust#116"
 )
 
 skip() {
@@ -100,6 +105,12 @@ if ! skip dart && [[ -f "$DART_DIR/bin/check_decode.dart" ]]; then
     dart compile exe bin/check_decode.dart -o "${PORT_BINS[dart]}" >/dev/null)
 fi
 
+if ! skip rust && [[ -d "$RUST_DIR/crates/check-decode" ]]; then
+  echo "→ Rust build" >&2
+  (cd "$RUST_DIR" && cargo build --release --quiet -p check-decode)
+  PORT_BINS[rust]="$RUST_DIR/target/release/check-decode"
+fi
+
 if ! skip python && [[ -f "$PYTHON_DIR/scripts/check_decode.py" ]]; then
   # A script, not a build: the port's venv holds the protowire package and its
   # protowire-cpp extension, built against the cpp ref the port pins. Without
@@ -113,7 +124,7 @@ if ! skip python && [[ -f "$PYTHON_DIR/scripts/check_decode.py" ]]; then
   chmod +x "${PORT_BINS[python]}"
 fi
 
-for p in go cpp java java-lite csharp dart python; do
+for p in go cpp java java-lite csharp dart rust python; do
   [[ -n "${PORT_BINS[$p]:-}" ]] || echo "· $p: not run" >&2
 done
 for p in "${NOT_YET[@]}"; do
