@@ -42,9 +42,7 @@ NOT_YET=(ts swift)
 # issue that tracks it. The Annotated cases (#561) hold fields with
 # (pxf.default) or (pxf.required): dart and csharp compile a copy of
 # text.proto that has no Annotated message yet.
-# The rust rows are what protowire-rust main wrote when its pb-text harness
-# landed (trendvidia/protowire-rust#113): exponent form and -0 (#114), field
-# order (#115), unset annotated fields (#116, which needs #115 as well).
+# The rust rows wait on unset annotated fields (trendvidia/protowire-rust#116).
 declare -A PORT_EXCLUDED=(
   ["dart Annotated.empty"]="trendvidia/protowire-dart#93"
   ["dart Annotated.oneof-sibling-set"]="trendvidia/protowire-dart#93"
@@ -54,11 +52,6 @@ declare -A PORT_EXCLUDED=(
   ["csharp Annotated.oneof-sibling-set"]="trendvidia/protowire-csharp#104"
   ["csharp Annotated.unset"]="trendvidia/protowire-csharp#104"
   ["csharp Annotated.set"]="trendvidia/protowire-csharp#104"
-  ["rust Scalars.float-large"]="trendvidia/protowire-rust#114"
-  ["rust Scalars.float-small"]="trendvidia/protowire-rust#114"
-  ["rust Scalars.float-negzero"]="trendvidia/protowire-rust#114"
-  ["rust WellKnown.wrappers-float"]="trendvidia/protowire-rust#114"
-  ["rust Annotated.set"]="trendvidia/protowire-rust#115"
   ["rust Annotated.empty"]="trendvidia/protowire-rust#116"
   ["rust Annotated.oneof-sibling-set"]="trendvidia/protowire-rust#116"
   ["rust Annotated.unset"]="trendvidia/protowire-rust#116"
