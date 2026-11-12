@@ -42,7 +42,6 @@ NOT_YET=(ts swift)
 # issue that tracks it. The Annotated cases (#561) hold fields with
 # (pxf.default) or (pxf.required): dart and csharp compile a copy of
 # text.proto that has no Annotated message yet.
-# The rust rows wait on unset annotated fields (trendvidia/protowire-rust#116).
 declare -A PORT_EXCLUDED=(
   ["dart Annotated.empty"]="trendvidia/protowire-dart#93"
   ["dart Annotated.oneof-sibling-set"]="trendvidia/protowire-dart#93"
@@ -52,9 +51,6 @@ declare -A PORT_EXCLUDED=(
   ["csharp Annotated.oneof-sibling-set"]="trendvidia/protowire-csharp#104"
   ["csharp Annotated.unset"]="trendvidia/protowire-csharp#104"
   ["csharp Annotated.set"]="trendvidia/protowire-csharp#104"
-  ["rust Annotated.empty"]="trendvidia/protowire-rust#116"
-  ["rust Annotated.oneof-sibling-set"]="trendvidia/protowire-rust#116"
-  ["rust Annotated.unset"]="trendvidia/protowire-rust#116"
 )
 
 skip() {
