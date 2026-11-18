@@ -13,6 +13,7 @@ import (
 	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/trendvidia/protocompile"
 	"github.com/trendvidia/protowire-go/encoding/pxf"
@@ -284,6 +285,16 @@ func validateDescriptor(doc *pxf.Document) (protoreflect.MessageDescriptor, *sch
 	if err != nil {
 		return nil, nil, err
 	}
+	if msgName == "" && doc.TypeURL == "" && len(doc.Datasets) > 0 {
+		// A @dataset document has no body and no @type (draft §3.4.4):
+		// each header names its row type, or takes the anonymous @proto
+		// before it, so the rows need no -m. The body is decoded against
+		// Empty, which an empty body always satisfies; validateDatasets
+		// then checks the rows. Asking for -m here refused a
+		// self-describing dataset, whose anonymous type has no name to
+		// pass (#618).
+		return (&emptypb.Empty{}).ProtoReflect().Descriptor(), sch, nil
+	}
 	if doc.TypeURL != "" && sch != nil && sch.reg.FromDocument(doc.TypeURL) {
 		md, err := sch.lookup(doc.TypeURL)
 		return md, sch, err
@@ -351,22 +362,33 @@ func validateDatasets(res *pxf.Result) error {
 		if md == nil {
 			return fmt.Errorf("%s: @dataset %s: message not found in resolved schema (bundled canonical types + -p + protoregistry + @proto)", ds.Pos, ds.Type)
 		}
-		if vs := pxf.ValidateDescriptor(md); len(vs) > 0 {
-			return fmt.Errorf("%s: @dataset %s: %s", ds.Pos, ds.Type, vs[0])
+		if err := bindDatasetRows(ds, md, sch); err != nil {
+			return err
 		}
-		msg := dynamicpb.NewMessage(md)
-		// The descriptor was validated once above. A cell may hold an
-		// Any block that names its type (#356).
-		opts := pxf.UnmarshalOptions{SkipValidate: true, TypeResolver: typeResolver{find: sch.find, check: sch.check}}
-		for _, row := range ds.Rows {
-			proto.Reset(msg)
-			// BindRow binds the row as the body its cells stand for,
-			// grouping dotted columns into one block per prefix (draft
-			// §3.4.4). Its error starts with the row's position and
-			// names the column it fell in.
-			if err := opts.BindRow(msg, ds.Columns, row); err != nil {
-				return err
-			}
+	}
+	return nil
+}
+
+// bindDatasetRows binds every row of ds to md, its row type resolved in
+// sch, and returns the first row that does not bind. validate and query
+// both check rows through it, so they accept and reject the same cells
+// with the same error (#618).
+func bindDatasetRows(ds pxf.DatasetDirective, md protoreflect.MessageDescriptor, sch *schema) error {
+	if vs := pxf.ValidateDescriptor(md); len(vs) > 0 {
+		return fmt.Errorf("%s: @dataset %s: %s", ds.Pos, ds.Type, vs[0])
+	}
+	msg := dynamicpb.NewMessage(md)
+	// The descriptor was validated once above. A cell may hold an
+	// Any block that names its type (#356).
+	opts := pxf.UnmarshalOptions{SkipValidate: true, TypeResolver: typeResolver{find: sch.find, check: sch.check}}
+	for _, row := range ds.Rows {
+		proto.Reset(msg)
+		// BindRow binds the row as the body its cells stand for,
+		// grouping dotted columns into one block per prefix (draft
+		// §3.4.4). Its error starts with the row's position and
+		// names the column it fell in.
+		if err := opts.BindRow(msg, ds.Columns, row); err != nil {
+			return err
 		}
 	}
 	return nil

@@ -46,6 +46,8 @@ loosely; the project follows [SemVer](https://semver.org/) per
 
 ### Fixed
 
+- **`pxf query` and `pxf validate` agree on `@dataset` rows** ([#618](https://github.com/trendvidia/protowire/issues/618)). `query` now binds each row of a typed `@dataset` as `validate` does, so a cell that does not fit its field fails with the same row and column error. Before, `.rows` returned `price = "192.34"` for a `double` column with exit 0. A document that carries its own `@proto` now runs `query` in strict mode with no flags, as QUERY.md already said; a `@dataset` document has no `@type`, so it always ran loose and a bad row read as `null`. `validate` reads a `@dataset` document without `-m`: the rows carry their type, and the anonymous `@proto` of a self-describing dataset has no name to pass. It stopped at `--message is required` before.
+
 - **`protoc-gen-pxf-java-meta` compiles for an SBE template with no groups** (#525). The group dispatch methods were each a switch expression with only a throwing `default`, which javac refuses, so `adversarial.v1.SbeText` gave the Java lite tier no codec. With nothing to dispatch, a method now throws directly, as `getMessageField` already did; the same holds for `getField` on a block whose only field is a composite. Templates with groups generate the same Java as before.
 
 ## [1.16.0] — 2026-11-02

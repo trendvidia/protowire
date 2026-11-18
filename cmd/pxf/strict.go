@@ -11,8 +11,8 @@ import (
 
 // modeFlag is the {auto, strict, loose} tri-state controlling whether
 // strict-mode compile-time validation runs. The default is auto:
-// strict when a top-level type is bound (via -m or the document's
-// @type), loose otherwise. --strict / --loose force the corresponding
+// strict when a type is bound (via -m, the document's @type, or an
+// @proto the document carries), loose otherwise. --strict / --loose force the corresponding
 // branch regardless.
 type modeFlag int
 
