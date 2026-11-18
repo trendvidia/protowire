@@ -106,7 +106,13 @@ func runQueryCmd(_ *cobra.Command, args []string) error {
 	if err := sch.check(rootType); err != nil {
 		return err
 	}
-	strict, err := effectiveMode(mode, rootType != nil)
+	// A document that carries its own @proto is bound, in any of the
+	// four shapes (QUERY.md, "Two modes"): its types come with it, so a
+	// self-describing @dataset runs strict with no flags. Keying the mode
+	// on the root type alone left every @dataset document loose, since
+	// one has no @type, and a row that did not bind read as null with
+	// exit 0 (#618).
+	strict, err := effectiveMode(mode, rootType != nil || len(doc.protos) > 0)
 	if err != nil {
 		return err
 	}

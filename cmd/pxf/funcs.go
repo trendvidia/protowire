@@ -108,7 +108,7 @@ func registerFuncs(env *funcEnv) []gojq.CompilerOption {
 //	"dataset"    → []map with dataset-shaped entries
 //	"proto"      → []map with proto-shaped entries
 //	"<other>"    → generic `@<name>` directives filtered by name
-func directiveList(env *funcEnv, name string) []any {
+func directiveList(env *funcEnv, name string) any {
 	switch name {
 	case "type":
 		if env.doc == nil || env.doc.typeURL == "" {
@@ -123,8 +123,11 @@ func directiveList(env *funcEnv, name string) []any {
 		for _, ds := range env.doc.datasets {
 			v, err := datasetToValueWithSchema(ds, env.sch)
 			if err != nil {
-				out = append(out, map[string]any{"error": err.Error()})
-				continue
+				// A runtime error, as any pxf_* function's: a strict run
+				// fails with it and a loose one reads null. Returned as an
+				// {"error": ...} entry, a row that did not bind was output
+				// with exit 0 (#618).
+				return err
 			}
 			out = append(out, v)
 		}
@@ -163,6 +166,14 @@ func datasetToValueWithSchema(ds pxf.DatasetDirective, sch *schema) (any, error)
 		var err error
 		if md, err = sch.lookup(ds.Type); err != nil {
 			return nil, fmt.Errorf("@dataset %s: %w", ds.Type, err)
+		}
+	}
+	if md != nil {
+		// Bound rows are checked as validate checks them: a cell that
+		// does not fit its field fails with the row and column, rather
+		// than coming back as whatever valueToAny made of it (#618).
+		if err := bindDatasetRows(ds, md, sch); err != nil {
+			return nil, err
 		}
 	}
 

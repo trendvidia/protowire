@@ -124,11 +124,14 @@ Parses the PXF document against the bound message and reports `valid` on stderr 
 
 A body whose `@type` names a type the document's own `@proto` defines is checked against that type, whatever `-m` says: the embedded schema is authoritative (draft § The "@proto" Directive). For any other document `-m` names the type, and the document's `@type` stands in when `-m` is absent.
 
+A `@dataset` document has no body, so it needs no `-m`: each row is bound to the type its header names, or to the anonymous `@proto` before it, and a cell that does not fit its field fails with its row and column. `pxf query` binds `.rows` the same way.
+
 An `Any` block that opens with a type entry (`@type = "..."`, draft § Any Blocks) is read as the message its URL names, resolved by the name after the URL's last `/` through the same chain: `-p`, the bundled schemas, protoregistry and the document's own `@proto`. `encode` resolves it the same way, and so do `@dataset` cells.
 
 ```bash
 pxf validate -p schema.proto -m pkg.Type input.pxf
 pxf validate self-describing.pxf   # @type + @proto, no -m needed
+pxf validate trades.pxf            # @proto + @dataset, no -m needed
 # stderr: valid
 # exit:   0 on success, 1 on any parse / bind / required-field error
 ```

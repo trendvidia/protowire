@@ -175,7 +175,7 @@ Namespaced functions for query-time operations that have no jq equivalent.
 
 | Function | Purpose |
 |---|---|
-| `pxf_directive(name)` | Returns the list of directives matching `name` from the input document, in source order. For `pxf_directive("dataset")` each entry's `.rows` is an array of schema-bound row objects when a schema is in scope (otherwise an array of cell tuples). For `pxf_directive("proto")` each entry exposes `.shape`, `.typeName`, and the raw `.body` bytes (draft §3.4.5). |
+| `pxf_directive(name)` | Returns the list of directives matching `name` from the input document, in source order. For `pxf_directive("dataset")` each entry's `.rows` is an array of schema-bound row objects when a schema is in scope (otherwise an array of cell tuples); a row is bound as `pxf validate` binds it, so a cell that does not fit its field is a runtime error naming the row and column. For `pxf_directive("proto")` each entry exposes `.shape`, `.typeName`, and the raw `.body` bytes (draft §3.4.5). |
 | `pxf_fieldnames` | Declared field names per the bound schema (not just present ones); errors in loose mode |
 | `pxf_type` | Returns the proto type of the input value as a string. Use as `.x \| pxf_type`. |
 | `pxf_has(field)` | Schema-aware `has` — distinguishes absent from zero-value, unlike jq's plain `has`. Use as `.x \| pxf_has("field")`. |
