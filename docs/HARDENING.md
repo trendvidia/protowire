@@ -71,7 +71,7 @@ A proto3 `string` field is a sequence of valid UTF-8 bytes. A conforming decoder
 
 - **MUST** validate UTF-8 strictly when populating any `string`-typed field, regardless of the source encoding (PB length-delimited bytes, SBE `char[]` array, SBE varData, PXF `"…"` literal).
 - **MUST NOT** use lossy decoders that substitute U+FFFD silently. This rules out `Encoding.UTF8.GetString` (C# default), `TextDecoder("utf-8")` without `{fatal: true}` (TS), `String(decoding: bytes, as: UTF8.self)` (Swift), `String.fromCharCodes(bytes)` (Dart), `new String(bytes, UTF_8)` (Java default), `utf8.decode(bytes, allowMalformed: true)` (Dart), or any equivalent.
-- **MUST** reject PXF `\xHH` byte escapes and octal `\NNN` escapes that produce invalid UTF-8 when the surrounding literal is being decoded into a `string` field. Invalid byte sequences inside PXF `b"…"` (`bytes` field) are permitted; invalid byte sequences anywhere else are not.
+- **MUST** reject PXF `\xHH` byte escapes and octal `\NNN` escapes that produce invalid UTF-8 when the surrounding literal is being decoded into a `string` field. Invalid byte sequences inside PXF `b"…"` (`bytes` field) are permitted; invalid byte sequences anywhere else are not. A string literal never binds to a `bytes` field (draft -01 § Bytes Literals, #613), so a port may refuse an escape that produces invalid UTF-8 as soon as it reads the string.
 - **MUST** reject `\u` / `\U` / `\xHH` escapes that encode Unicode surrogates (U+D800–U+DFFF) or values above U+10FFFF.
 
 `bytes` fields and SBE non-string varData impose no UTF-8 constraint. An SBE char type whose `characterEncoding` is not US-ASCII or UTF-8 is imported as `bytes` for this reason (draft -01 § Character Encoding, #494).
@@ -125,6 +125,7 @@ The repository ships an adversarial test corpus under `testdata/adversarial/`, s
 | `pxf/invalid-utf8-string.pxf` | UTF-8 enforcement on `string` |
 | `pb/utf8-{invalid,surrogate,valid}-string.binpb`, `pb/utf8-invalid-bytes.binpb`, `sbe/utf8-{invalid,split-char,valid}-string.sbe`, `sbe/utf8-invalid-bytes.sbe` | UTF-8 enforcement on the binary wires (#496): invalid bytes, a lone surrogate and a character cut in two are refused in a `string`; valid multi-byte text, and the same invalid bytes in a `bytes` field, are accepted |
 | `pxf/lone-surrogate.pxf` | Surrogate rejection in `\u` |
+| `pxf/bytes-field-{literal,quoted-string,quoted-invalid-utf8,triple-quoted}.pxf` | A `bytes` field takes a bytes literal only (#613): `b"…"` holding bytes that are not UTF-8 is accepted; a quoted, escaped or triple-quoted string is refused |
 | `pxf/giant-base64.pxf` | Bytes literal length cap (`MaxBytesLiteralLength`, via `limits`) |
 | `pxf/oversize-2kib.pxf`, `pb/oversize-2kib.binpb` | Total input size cap (`MaxMessageSize`, via `limits`) |
 | `pxf/many-elements-16.pxf`, `pb/many-elements-16.binpb`, `sbe/group-count-16.sbe` | Element count cap (`MaxRepeatedCount`, via `limits`; the SBE one before any entry is allocated) |

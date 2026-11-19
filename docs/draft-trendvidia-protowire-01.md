@@ -783,11 +783,7 @@ Numeric escapes:
 
 The \\uHHHH and \\UHHHHHHHH forms MUST denote a Unicode scalar value: the code point MUST be in U+0000..U+10FFFF and MUST NOT be a surrogate (U+D800..U+DFFF). Decoders MUST reject otherwise.
 
-The interpretation of \\xHH and octal escapes depends on the target field type:
-
-* When the surrounding string literal is bound to a proto3 string-typed field, the result of escape expansion MUST be valid UTF-8. Decoders MUST reject a string-typed value whose escape-expanded byte sequence is not valid UTF-8 ({{utf-8-enforcement}}).
-
-* When the surrounding string literal is bound to a proto3 bytes-typed field, no UTF-8 constraint applies.
+When a string literal is bound to a proto3 string-typed field, the result of escape expansion MUST be valid UTF-8. Decoders MUST reject a string-typed value whose escape-expanded byte sequence is not valid UTF-8 ({{utf-8-enforcement}}). A string literal never binds to a bytes-typed field ({{bytes-literals}}): bytes are written as a bytes literal.
 
 Triple-quoted strings ("""...""") begin with three U+0022 characters and end at the next occurrence of three consecutive U+0022 characters. Inside a triple-quoted string:
 
@@ -810,6 +806,8 @@ b"SGVsbG8sIHdvcmxkIQ=="
 Decoders MUST accept both the standard base64 alphabet and the URL-safe alphabet {{RFC4648}} Section 5; padding ("=") is OPTIONAL and MUST be tolerated whether present or absent. Decoders MUST reject input containing characters outside both alphabets and "=". Whitespace is NOT permitted inside the body.
 
 Backslashes inside `b"..."` are NOT interpreted as escape introducers.
+
+A bytes-typed field takes a bytes literal and nothing else: wherever a value is bound to a bytes-typed field, whether in a field entry, a list element, a map value or a "@dataset" cell, decoders MUST reject any other literal, a string literal or a triple-quoted string included. The null literal binds as {{booleans-null-and-identifier-values}} says.
 
 ## Numeric Literals {#numeric-literals}
 
@@ -2274,7 +2272,7 @@ Proto3 string fields are sequences of valid UTF-8 {{RFC3629}}. Conforming decode
 
 * MUST NOT use UTF-8 decoders that substitute U+FFFD for invalid sequences when populating string-typed fields.
 
-* MUST reject PXF \\xHH and \\NNN (octal) escapes that produce invalid UTF-8 when the surrounding literal is bound to a string-typed field. The same byte sequences are permitted inside `b"..."` (bytes literal) and inside string literals bound to bytes-typed fields.
+* MUST reject PXF \\xHH and \\NNN (octal) escapes that produce invalid UTF-8 when the surrounding literal is bound to a string-typed field. A string literal never binds to a bytes-typed field ({{bytes-literals}}); bytes that are not UTF-8 are written as a `b"..."` bytes literal, whose base64 body holds any byte sequence.
 
 * MUST reject PXF \\uHHHH and \\UHHHHHHHH escapes that encode a surrogate code point or a code point above U+10FFFF.
 

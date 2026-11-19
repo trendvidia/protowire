@@ -1,0 +1,4 @@
+@type adversarial.v1.BytesHolder
+
+# A triple-quoted string is a string literal, so a bytes field refuses it (#613).
+value = """abc"""
