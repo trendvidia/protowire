@@ -1,0 +1,7 @@
+@proto fmt.v1.Pair {
+  string key = 1;
+  int64 value = 2;
+}
+@dataset fmt.v1.Pair (key, value)
+("a", 1)
+("b", 2)

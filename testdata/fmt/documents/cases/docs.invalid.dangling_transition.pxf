@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 TrendVidia, LLC.
+#
+# Invalid: a transition anchor against a registry export that predates
+# the transition vocabulary (catalog schema v9).
+@type protowire.docs.v1.TopicFile
+topics = [
+  {
+    key = "bad.transition"
+    locale = "en"
+    title = "Dangling transition"
+    meta { audience = AUDIENCE_PUBLIC }
+    anchors = [{ transition { name = "slide" } }]
+    body { blocks = [{ paragraph { runs = [{ text = "Body." }] } }] }
+    review { state = REVIEW_STATE_DRAFT author = "a@example.com" }
+  }
+]

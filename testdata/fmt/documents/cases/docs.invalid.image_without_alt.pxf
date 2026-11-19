@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 TrendVidia, LLC.
+#
+# Invalid: an image with no alt text. Accessibility is a property of the
+# model, not of one renderer's diligence, so it fails the build.
+@type protowire.docs.v1.TopicFile
+topics = [
+  {
+    key = "bad.image"
+    locale = "en"
+    title = "Image without alt text"
+    meta { audience = AUDIENCE_PUBLIC }
+    body {
+      blocks = [
+        { image { path = "assets/x.png" caption = "No alt" } }
+      ]
+    }
+    review { state = REVIEW_STATE_DRAFT author = "a@example.com" }
+  }
+]

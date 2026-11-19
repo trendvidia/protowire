@@ -1,6 +1,6 @@
 # fmt
 
-Fixtures for `pxf fmt` on `.proto` sources (#425).
+Fixtures for `pxf fmt` on `.proto` sources (#425). [`documents/`](documents/) holds the cross-port fixtures for formatting PXF documents (#584).
 
 - `annotated.proto`: v1.2 syntax, with annotation uses on a message, field, oneof, oneof member, enum, enum value, service and rpc, plus comments. Not laid out. The tests check that formatting keeps every annotation use and comment, that the output parses, and that formatting it again changes nothing.
 - `stock.proto`: no v1.2 syntax, deliberately not laid out.

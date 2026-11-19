@@ -1,0 +1,15 @@
+# Leading comment of the document.
+@header chameleon.v1.LayerHeader {
+  version = 3 # trailing on a field
+}
+# Between the named directive and the dataset.
+
+// A line comment of the other kind.
+@dataset test.v1.AllTypes (string_field, int32_field)
+# Before the first row.
+("a", 1)
+/* Before the second row. */
+("b", 2)
+# After the last row, before the next directive.
+@entry x a.v1.M { n = 1 }
+# Last comment of the document.

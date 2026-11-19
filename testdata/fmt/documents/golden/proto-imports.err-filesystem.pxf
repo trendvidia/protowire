@@ -1,0 +1,11 @@
+@type imports.v1.Wrap
+# reject: a source-form @proto never imports from the filesystem, even
+# when the file exists next to the document (sibling.proto does).
+@proto """syntax = "proto3";
+package imports.v1;
+import "sibling.proto";
+message Wrap { imports.v1.Sibling s = 1; }"""
+
+s {
+  a = 1
+}
