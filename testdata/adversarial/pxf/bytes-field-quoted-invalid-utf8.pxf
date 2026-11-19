@@ -1,0 +1,4 @@
+@type adversarial.v1.BytesHolder
+
+# A string literal on a bytes field is refused, here also not UTF-8 (#613).
+value = "\xff\xfe"
