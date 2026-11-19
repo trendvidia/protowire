@@ -126,6 +126,7 @@ The repository ships an adversarial test corpus under `testdata/adversarial/`, s
 | `pb/utf8-{invalid,surrogate,valid}-string.binpb`, `pb/utf8-invalid-bytes.binpb`, `sbe/utf8-{invalid,split-char,valid}-string.sbe`, `sbe/utf8-invalid-bytes.sbe` | UTF-8 enforcement on the binary wires (#496): invalid bytes, a lone surrogate and a character cut in two are refused in a `string`; valid multi-byte text, and the same invalid bytes in a `bytes` field, are accepted |
 | `pxf/lone-surrogate.pxf` | Surrogate rejection in `\u` |
 | `pxf/bytes-field-{literal,quoted-string,quoted-invalid-utf8,triple-quoted}.pxf` | A `bytes` field takes a bytes literal only (#613): `b"…"` holding bytes that are not UTF-8 is accepted; a quoted, escaped or triple-quoted string is refused |
+| `pxf/proto-source-{simple-quoted,triple-quoted}.pxf`, `pxf/proto-descriptor-bytes.pxf` | A `@proto` source body is a triple-quoted string only (#623): `@proto "…"` is refused, because its escapes can put `"""` in a body no formatter can write back; the same body triple-quoted, and the descriptor form `@proto b"…"`, are accepted |
 | `pxf/giant-base64.pxf` | Bytes literal length cap (`MaxBytesLiteralLength`, via `limits`) |
 | `pxf/oversize-2kib.pxf`, `pb/oversize-2kib.binpb` | Total input size cap (`MaxMessageSize`, via `limits`) |
 | `pxf/many-elements-16.pxf`, `pb/many-elements-16.binpb`, `sbe/group-count-16.sbe` | Element count cap (`MaxRepeatedCount`, via `limits`; the SBE one before any entry is allocated) |
