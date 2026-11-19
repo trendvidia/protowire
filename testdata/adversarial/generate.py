@@ -372,6 +372,30 @@ def main() -> None:
     write_bytes(HERE / "sbe" / "utf8-valid-string.sbe", sbe_text("café€".encode()))
     write_bytes(HERE / "sbe" / "utf8-invalid-bytes.sbe", sbe_text(b"AB", raw=b"AB\xff\xfe"))
 
+    # --- Wire types (draft -01 § PB Binary Encoding, #614) ---
+    # A decoder does what protobuf does with a tag's wire type: 6 and 7 are
+    # reserved and rejected on any field, and a known field whose wire type is
+    # not its type's is an unknown field, skipped by its wire type. Field 1 is
+    # an int64 in BigIntHolder and a string in StringHolder.
+    #   0e 01        field 1, wire type 6
+    #   0f 01 61     field 1, wire type 7
+    #   9f 06        field 99 (unknown), wire type 7, nothing after it
+    #   9e 06 01     field 99 (unknown), wire type 6
+    #   0a 01 01     int64 sent length-delimited: unknown, so accepted
+    #   0d 01000000  int64 sent as fixed32: unknown, so accepted
+    #   08 01        string sent as a varint: unknown, so accepted
+    #   0a 01        length 1 with no byte after it: cut short
+    #   0d 01        fixed32 with one byte of four: cut short
+    write_bytes(HERE / "pb" / "wiretype-6-known.binpb", b"\x0e\x01")
+    write_bytes(HERE / "pb" / "wiretype-7-known.binpb", b"\x0f\x01\x61")
+    write_bytes(HERE / "pb" / "wiretype-7-unknown.binpb", b"\x9f\x06")
+    write_bytes(HERE / "pb" / "wiretype-6-unknown.binpb", b"\x9e\x06\x01")
+    write_bytes(HERE / "pb" / "wiretype-mismatch-len-on-int64.binpb", b"\x0a\x01\x01")
+    write_bytes(HERE / "pb" / "wiretype-mismatch-fixed32-on-int64.binpb", b"\x0d\x01\x00\x00\x00")
+    write_bytes(HERE / "pb" / "wiretype-mismatch-varint-on-string.binpb", b"\x08\x01")
+    write_bytes(HERE / "pb" / "wiretype-mismatch-len-cut-short.binpb", b"\x0a\x01")
+    write_bytes(HERE / "pb" / "wiretype-mismatch-fixed32-cut-short.binpb", b"\x0d\x01")
+
     # --- Size limits, proved with small fixtures under per-call overrides ---
     # HARDENING.md § Mandatory limits makes MaxMessageSize (64 MiB),
     # MaxBytesLiteralLength and MaxRepeatedCount mandatory, and configurable
