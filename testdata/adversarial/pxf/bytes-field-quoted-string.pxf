@@ -1,0 +1,4 @@
+@type adversarial.v1.BytesHolder
+
+# A bytes field takes a bytes literal only; a plain ASCII string is refused (#613).
+value = "abc"

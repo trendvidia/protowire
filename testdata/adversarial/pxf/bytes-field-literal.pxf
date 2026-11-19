@@ -1,0 +1,4 @@
+@type adversarial.v1.BytesHolder
+
+# A bytes field takes a bytes literal: b"//4=" is FF FE, which is not UTF-8 (#613).
+value = b"//4="

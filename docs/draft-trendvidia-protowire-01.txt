@@ -1550,17 +1550,17 @@ Internet-Draft                  protowire                   October 2026
    the code point MUST be in U+0000..U+10FFFF and MUST NOT be a
    surrogate (U+D800..U+DFFF).  Decoders MUST reject otherwise.
 
-   The interpretation of \xHH and octal escapes depends on the target
-   field type:
+   When a string literal is bound to a proto3 string-typed field, the
+   result of escape expansion MUST be valid UTF-8.  Decoders MUST reject
+   a string-typed value whose escape-expanded byte sequence is not valid
+   UTF-8 (Section 9.3).  A string literal never binds to a bytes-typed
+   field (Section 3.7): bytes are written as a bytes literal.
 
-   *  When the surrounding string literal is bound to a proto3 string-
-      typed field, the result of escape expansion MUST be valid UTF-8.
-      Decoders MUST reject a string-typed value whose escape-expanded
-      byte sequence is not valid UTF-8 (Section 9.3).
+   Triple-quoted strings ("""...""") begin with three U+0022 characters
+   and end at the next occurrence of three consecutive U+0022
+   characters.  Inside a triple-quoted string:
 
-   *  When the surrounding string literal is bound to a proto3 bytes-
-      typed field, no UTF-8 constraint applies.
-
+   *  Escape sequences are NOT interpreted; backslashes are literal.
 
 
 
@@ -1569,12 +1569,6 @@ Franco Jr.                 Expires 1 May 2027                  [Page 28]
 
 Internet-Draft                  protowire                   October 2026
 
-
-   Triple-quoted strings ("""...""") begin with three U+0022 characters
-   and end at the next occurrence of three consecutive U+0022
-   characters.  Inside a triple-quoted string:
-
-   *  Escape sequences are NOT interpreted; backslashes are literal.
 
    *  If the byte immediately following the opening """ is U+000A, that
       LF MUST be removed by the decoder.
@@ -1604,6 +1598,12 @@ Internet-Draft                  protowire                   October 2026
    NOT permitted inside the body.
 
    Backslashes inside b"..." are NOT interpreted as escape introducers.
+
+   A bytes-typed field takes a bytes literal and nothing else: wherever
+   a value is bound to a bytes-typed field, whether in a field entry, a
+   list element, a map value or a "@dataset" cell, decoders MUST reject
+   any other literal, a string literal or a triple-quoted string
+   included.  The null literal binds as Section 3.9 says.
 
 3.8.  Numeric Literals
 
@@ -4526,9 +4526,9 @@ Internet-Draft                  protowire                   October 2026
 
    *  MUST reject PXF \xHH and \NNN (octal) escapes that produce invalid
       UTF-8 when the surrounding literal is bound to a string-typed
-      field.  The same byte sequences are permitted inside b"..." (bytes
-      literal) and inside string literals bound to bytes-typed fields.
-
+      field.  A string literal never binds to a bytes-typed field
+      (Section 3.7); bytes that are not UTF-8 are written as a b"..."
+      bytes literal, whose base64 body holds any byte sequence.
 
 
 
