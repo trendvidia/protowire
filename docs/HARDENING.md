@@ -131,6 +131,7 @@ The repository ships an adversarial test corpus under `testdata/adversarial/`, s
 | `pxf/many-elements-16.pxf`, `pb/many-elements-16.binpb`, `sbe/group-count-16.sbe` | Element count cap (`MaxRepeatedCount`, via `limits`; the SBE one before any entry is allocated) |
 | `pb/deep-submessage-{100,101,200}.binpb`, `pb/deep-{map,scalar-map}-{100,101}.binpb` | PB submessage and map-entry depth limit, both sides of the bound |
 | `pb/length-prefix-overflow.binpb` | Length-prefix integer overflow |
+| `pb/wiretype-{6,7}-{known,unknown}.binpb`, `pb/wiretype-mismatch-*.binpb` | Wire types (draft -01 § PB Binary Encoding, #614): 6 and 7 are refused on any field; a known field sent with another wire type is an unknown field, accepted with the field left as it was, and refused when its bytes are cut short |
 | `pb/recursion-via-fresh-stream.binpb` | Depth counter survives nested-stream construction |
 | `sbe/group-count-overflow.sbe` | `count × block_length` overflow |
 | `sbe/group-zero-blocklength-nonzero-count.sbe` | Pre-iteration allocation |
