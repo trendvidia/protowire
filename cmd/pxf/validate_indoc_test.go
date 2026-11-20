@@ -63,6 +63,22 @@ func TestValidate_TypeDirectiveStandsInForMessage(t *testing.T) {
 	}
 }
 
+// A @proto source body is a triple-quoted string only (#623,
+// protowire-go#305): the grammar admits no other, so a simple-quoted
+// body is refused, with protowire-go's error. protowire-go before
+// v1.19.0 read one as a source body, so pxf validate accepted it.
+func TestValidate_ProtoSourceMustBeTripleQuoted(t *testing.T) {
+	doc := "@proto \"syntax = \\\"proto3\\\"; package q.v1; message Q { string s = 1; }\"\n@type q.v1.Q\ns = \"x\"\n"
+	err := validateDoc(t, doc)
+	if err == nil || !strings.Contains(err.Error(), `@proto source body must be a triple-quoted string ("""...""")`) {
+		t.Fatalf("want a simple-quoted @proto refused, got %v", err)
+	}
+	triple := "@proto \"\"\"syntax = \"proto3\"; package q.v1; message Q { string s = 1; }\"\"\"\n@type q.v1.Q\ns = \"x\"\n"
+	if err := validateDoc(t, triple); err != nil {
+		t.Fatalf("the same body triple-quoted was rejected: %v", err)
+	}
+}
+
 // A body consumes no anonymous @proto, so one in a body document is
 // unbound and rejected (draft §3.4.5).
 func TestValidate_BodyRejectsUnboundAnonymousProto(t *testing.T) {
