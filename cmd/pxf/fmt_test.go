@@ -181,6 +181,27 @@ func TestFmtKeepsDataset(t *testing.T) {
 	}
 }
 
+// TestFmtProtoBodyOwnLines: pxf fmt writes a triple-quoted @proto body
+// with its """ on lines of their own (protowire-go#303). Before
+// protowire-go v1.18.0 it wrote the body straight after the opening """,
+// so a one-line body stayed on the directive's line.
+func TestFmtProtoBodyOwnLines(t *testing.T) {
+	src := "@type t.v1.M\n@proto \"\"\"syntax = \"proto3\"; package t.v1; message M { string value = 1; }\"\"\"\n\nvalue = \"x\"\n"
+	want := "@type t.v1.M\n@proto \"\"\"\nsyntax = \"proto3\"; package t.v1; message M { string value = 1; }\n\"\"\"\n\nvalue = \"x\"\n"
+	path := filepath.Join(t.TempDir(), "m.pxf")
+	if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 2; i++ { // the second pass checks the output is stable
+		if _, err := runCLI(t, "fmt", "-w", path); err != nil {
+			t.Fatal(err)
+		}
+		if got := readFile(t, path); got != want {
+			t.Fatalf("pass %d: pxf fmt -w wrote\n%q\nwant\n%q", i+1, got, want)
+		}
+	}
+}
+
 // TestLostTokens: the check pxf fmt runs on the printer's output names
 // what the output lacks, so a printer that drops source again (as
 // protocompile#258 and #273 did) is refused instead of written.
