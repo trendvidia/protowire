@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 TrendVidia, LLC.
+#
+# Invalid: a widget anchor naming a property the registry export does
+# not carry.
+@type protowire.docs.v1.TopicFile
+topics = [
+  {
+    key = "bad.widget"
+    locale = "en"
+    title = "Dangling widget prop"
+    meta { audience = AUDIENCE_PUBLIC }
+    anchors = [{ widget { type = "Button" prop = "colour" } }]
+    body { blocks = [{ paragraph { runs = [{ text = "Body." }] } }] }
+    review { state = REVIEW_STATE_DRAFT author = "a@example.com" }
+  }
+]

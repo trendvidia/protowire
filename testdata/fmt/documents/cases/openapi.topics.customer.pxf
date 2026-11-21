@@ -1,0 +1,34 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 TrendVidia, LLC.
+#
+# Fixture: a partner-tier topic anchored to demo.store.Customer.
+# The doc pack contributes its tier to the anchored schema element
+# (RFC-001 §#080 Gap 2): with this pack, Customer is partner-restricted
+# and the public GetCustomer operation's closure fails generation.
+
+@type protowire.docs.v1.TopicFile
+
+topics = [
+  {
+    key = "store.customer"
+    locale = "en"
+    title = "The Customer record"
+    summary = "What a customer account carries and how it validates."
+
+    meta {
+      audience = AUDIENCE_PARTNER
+      tags = ["reference"]
+      order = 100
+    }
+
+    anchors = [
+      { schema { fqn = "demo.store.Customer" } }
+    ]
+
+    body {
+      blocks = [
+        { paragraph { runs = [ { text = "Partner-facing details." } ] } }
+      ]
+    }
+  }
+]

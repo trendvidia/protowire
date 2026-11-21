@@ -1,0 +1,12 @@
+@type imports.v1.Reply
+# accept: a source-form @proto may import envelope/v1/envelope.proto.
+@proto """
+syntax = "proto3";
+package imports.v1;
+import "envelope/v1/envelope.proto";
+message Reply { envelope.v1.AppError error = 1; }
+"""
+
+error {
+  code = "E1"
+}

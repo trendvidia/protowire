@@ -1,0 +1,34 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 TrendVidia, LLC.
+#
+# Invalid: an in-pack link to a heading id the target topic does not
+# have. Deep links are part of the contract, so they are checked.
+@type protowire.docs.v1.TopicFile
+topics = [
+  {
+    key = "link.source"
+    locale = "en"
+    title = "Link source"
+    meta { audience = AUDIENCE_PUBLIC }
+    body {
+      blocks = [
+        {
+          paragraph {
+            runs = [
+              { link { text = "see this" topic = "link.target" fragment = "no-such-heading" } }
+            ]
+          }
+        }
+      ]
+    }
+    review { state = REVIEW_STATE_DRAFT author = "a@example.com" }
+  }
+  {
+    key = "link.target"
+    locale = "en"
+    title = "Link target"
+    meta { audience = AUDIENCE_PUBLIC }
+    body { blocks = [{ heading { level = 1 runs = [{ text = "Real heading" }] } }] }
+    review { state = REVIEW_STATE_DRAFT author = "a@example.com" }
+  }
+]

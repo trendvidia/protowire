@@ -1,0 +1,6 @@
+@type adversarial.v1.StringHolder
+
+# A bytes literal is the descriptor form, not a source body: refusing quoted
+# source bodies must leave it alone (#623).
+@proto b""
+value = "x"

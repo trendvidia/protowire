@@ -1,0 +1,83 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 TrendVidia, LLC.
+#
+# Fixture: widget-anchored topics.
+# Exercises: widget anchors (type, prop, event), a child-prop anchor, an
+# ExampleBlock with a live PXF sample, an image block with alt text, and
+# a route anchor.
+
+@type protowire.docs.v1.TopicFile
+
+topics = [
+  {
+    key = "widgets.button"
+    locale = "en"
+    title = "Button"
+    summary = "A tappable button with a text label."
+
+    meta {
+      audience = AUDIENCE_PUBLIC
+      tags = ["widgets", "input"]
+      order = 100
+      since = "1.5.0"
+    }
+
+    anchors = [
+      { widget { type = "Button" } }
+      { widget { type = "Button" prop = "text" } label = "Button.text" }
+      { widget { type = "Button" event = "onTapped" } label = "Button.onTapped" }
+      { widget { type = "Border" prop = "position" } label = "Border child position" }
+      { route { path = "/gallery/button" } label = "Button gallery" }
+    ]
+
+    body {
+      blocks = [
+        {
+          paragraph {
+            runs = [
+              { text = "A " }
+              { anchor_ref { anchor { widget { type = "Button" } } text = "Button" } }
+              { text = " fires " }
+              { anchor_ref { anchor { widget { type = "Button" event = "onTapped" } } text = "onTapped" } }
+              { text = " when tapped." }
+            ]
+          }
+        }
+        {
+          heading {
+            level = 1
+            runs = [{ text = "Example" }]
+          }
+        }
+        {
+          example {
+            subject { widget { type = "Button" } }
+            source = """
+            Button {
+              text = "Save"
+              onTapped = "ctx.set('saved', true)"
+            }
+            """
+            caption = "A button that writes to state"
+            show_source_fallback = true
+          }
+        }
+        {
+          image {
+            path = "assets/button.png"
+            alt = "A button labelled Save in its default and pressed states"
+            caption = "Button states"
+          }
+        }
+      ]
+    }
+
+    review {
+      state = REVIEW_STATE_APPROVED
+      author = "author@trendvidia.com"
+      revisor = "revisor@trendvidia.com"
+      approved_digest = "8904acc6456e755d54a1a528ffa19e08ce8b302da42238d465357c4cfac5d4d1"
+      approved_version = "1.5.0"
+    }
+  }
+]

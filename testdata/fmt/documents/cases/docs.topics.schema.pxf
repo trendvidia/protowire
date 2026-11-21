@@ -1,0 +1,83 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 TrendVidia, LLC.
+#
+# Fixture: schema-anchored topics and the redirect path.
+# Exercises: schema FQN anchors (message, field, type alias), a
+# descriptor-path anchor authored in element terms, and an anchor that
+# only resolves through a redirect — the renamed-target contract.
+#
+# Anchors resolve against an image built from
+# testdata/schema-extensions/01_basic.proto.
+
+@type protowire.docs.v1.TopicFile
+
+topics = [
+  {
+    key = "schema.user"
+    locale = "en"
+    title = "The User message"
+    summary = "Contact identity, and the validation its email field carries."
+
+    meta {
+      audience = AUDIENCE_PUBLIC
+      tags = ["schema", "reference"]
+      order = 200
+      since = "1.5.0"
+    }
+
+    anchors = [
+      { schema { fqn = "fixtures.basic.User" } }
+      { schema { fqn = "fixtures.basic.User.email" } label = "User.email" }
+      { schema { fqn = "fixtures.basic.Email" } label = "the Email alias" }
+
+      # Renamed before 1.5.0: resolves through the redirect below.
+      { schema { fqn = "fixtures.basic.Person" } label = "User (formerly Person)" }
+
+      # The second @validate use site on the field, addressed in element
+      # terms. The compiler derives the canonical §8.3.1 path and stamps
+      # it with the image digest; the source never spells the path.
+      {
+        descriptor_path {
+          element_fqn = "fixtures.basic.User.email"
+          annotation_fqn = "protowire.schema.v1.validate"
+          ordinal = 0
+        }
+        label = "the email validation rule"
+      }
+    ]
+
+    body {
+      blocks = [
+        {
+          paragraph {
+            runs = [
+              { text = "The " }
+              { anchor_ref { anchor { schema { fqn = "fixtures.basic.User.email" } } text = "email field" } }
+              { text = " is typed as " }
+              { anchor_ref { anchor { schema { fqn = "fixtures.basic.Email" } } text = "Email" } }
+              { text = ", which refines string with a validation rule." }
+            ]
+          }
+        }
+      ]
+    }
+
+    review {
+      state = REVIEW_STATE_APPROVED
+      author = "author@trendvidia.com"
+      revisor = "revisor@trendvidia.com"
+      approved_digest = "622d689252f1e1c2be6e13797030baacc2fe178419b9b0486038bda0ad111c59"
+      approved_version = "1.5.0"
+    }
+  }
+]
+
+# A schema rename is a documented event, not a wave of dangling links.
+redirects = [
+  {
+    from { schema { fqn = "fixtures.basic.Person" } }
+    to { schema { fqn = "fixtures.basic.User" } }
+    since_version = "1.5.0"
+    note = "Person was renamed to User"
+  }
+]
