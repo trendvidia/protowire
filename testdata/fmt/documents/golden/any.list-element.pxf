@@ -1,0 +1,13 @@
+@type any.v1.Holder
+
+# Accept: each element of a repeated Any may open with a type entry.
+anys = [
+  {
+    @type = "any.v1.Leaf"
+    tag = "a"
+  },
+  {
+    @type = "any.v1.Leaf"
+    n = 2
+  }
+]

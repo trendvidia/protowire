@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 TrendVidia, LLC.
+#
+# Policy fixture: an approved topic edited after sign-off, so the
+# approved digest no longer covers the content. The normal authoring
+# loop passes through this state, so it warns while working (goed runs
+# the compiler on its diagnostics debounce) and refuses at release.
+@type protowire.docs.v1.TopicFile
+topics = [
+  {
+    key = "policy.stale_approval"
+    locale = "en"
+    title = "Edited after approval"
+    summary = "The body moved on; the sign-off did not."
+    meta { audience = AUDIENCE_PUBLIC }
+    body { blocks = [{ paragraph { runs = [{ text = "Edited after the revisor signed off." }] } }] }
+    review {
+      state = REVIEW_STATE_APPROVED
+      author = "a@example.com"
+      revisor = "r@example.com"
+      approved_digest = "1111111111111111111111111111111111111111111111111111111111111111"
+      approved_version = "1.4.0"
+    }
+  }
+]

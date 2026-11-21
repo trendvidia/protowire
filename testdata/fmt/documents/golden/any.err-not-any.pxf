@@ -1,0 +1,7 @@
+@type any.v1.Holder
+
+# Reject: leaf is an any.v1.Leaf, not a google.protobuf.Any.
+leaf {
+  @type = "any.v1.Leaf"
+  tag = "t"
+}

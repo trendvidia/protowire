@@ -1,0 +1,4 @@
+@type nulls.v1.Holder
+
+# Accept: null on a singular message field clears it: msg is unset.
+msg = null

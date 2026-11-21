@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 TrendVidia, LLC.
+#
+# Invalid: a redirect chain that loops. The compiler resolves chains so
+# consumers never have to — and a consumer that had to would loop.
+@type protowire.docs.v1.TopicFile
+topics = [
+  {
+    key = "bad.redirect"
+    locale = "en"
+    title = "Cyclic redirects"
+    meta { audience = AUDIENCE_PUBLIC }
+    body { blocks = [{ paragraph { runs = [{ text = "Body." }] } }] }
+    review { state = REVIEW_STATE_DRAFT author = "a@example.com" }
+  }
+]
+redirects = [
+  { from { schema { fqn = "a.B" } } to { schema { fqn = "a.C" } } }
+  { from { schema { fqn = "a.C" } } to { schema { fqn = "a.B" } } }
+]

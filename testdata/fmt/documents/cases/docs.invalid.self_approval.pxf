@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 TrendVidia, LLC.
+#
+# Invalid: the revisor is the author. Self-approval defeats the gate.
+@type protowire.docs.v1.TopicFile
+topics = [
+  {
+    key = "bad.self_approval"
+    locale = "en"
+    title = "Self-approved topic"
+    meta { audience = AUDIENCE_PUBLIC }
+    body { blocks = [{ paragraph { runs = [{ text = "Body." }] } }] }
+    review {
+      state = REVIEW_STATE_APPROVED
+      author = "a@example.com"
+      revisor = "a@example.com"
+      approved_digest = "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  }
+]
