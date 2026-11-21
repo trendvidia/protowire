@@ -1,0 +1,11 @@
+@dataset test.v1.AllTypes (string_field, int32_field, bytes_field, timestamp_field, duration_field, repeated_string, bool_field, double_field)
+("tab\there \"quoted\" \\ back", 1, b"AAEC", 2026-11-19T10:00:00Z, 1h30m, [
+  "x",
+  "y"
+], true, 1.5)
+(, , , , , , , )
+(null, -2, b"", 2026-11-19T10:00:00.123456789+01:00, 0s, [
+], false, -0.0)
+("é😀", 2147483647, , , 90s, [
+  "only"
+], , 1e300)

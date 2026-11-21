@@ -1,0 +1,10 @@
+@type bundle.v1.Manifest
+@entry primary users.v1.User {
+  name = "Alice"
+  roles = ["admin", "ops"]
+  address { city = "Lisbon" }
+}
+@entry users.v1.User { name = "Bob" }
+@entry { note = "free-form" }
+
+title = "bundle"

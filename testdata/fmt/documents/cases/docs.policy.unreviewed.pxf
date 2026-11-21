@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 TrendVidia, LLC.
+#
+# Policy fixture: a draft topic. Legitimate while writing — a warning by
+# default — and refused by --release, which is the revisor gate.
+@type protowire.docs.v1.TopicFile
+topics = [
+  {
+    key = "policy.draft"
+    locale = "en"
+    title = "A draft topic"
+    summary = "Still being written."
+    meta { audience = AUDIENCE_PUBLIC }
+    body { blocks = [{ paragraph { runs = [{ text = "Work in progress." }] } }] }
+    review { state = REVIEW_STATE_DRAFT author = "a@example.com" }
+  }
+]

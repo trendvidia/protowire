@@ -1,0 +1,11 @@
+# A triple-quoted @proto, an anonymous @proto block, then @type.
+@proto """
+  syntax = "proto3";
+  package fmt.v1;
+  message Doc { string name = 1; }
+"""
+@proto {
+  string label = 1;
+}
+@type fmt.v1.Doc
+name = "n"

@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 TrendVidia, LLC.
+#
+# Invalid: a schema anchor whose target is not in the image and has no
+# redirect. A dangling anchor is a compile error — the runtime never
+# shrugs at a miss.
+@type protowire.docs.v1.TopicFile
+topics = [
+  {
+    key = "bad.schema"
+    locale = "en"
+    title = "Dangling schema anchor"
+    meta { audience = AUDIENCE_PUBLIC }
+    anchors = [{ schema { fqn = "fixtures.basic.NoSuchMessage" } }]
+    body { blocks = [{ paragraph { runs = [{ text = "Body." }] } }] }
+    review { state = REVIEW_STATE_DRAFT author = "a@example.com" }
+  }
+]

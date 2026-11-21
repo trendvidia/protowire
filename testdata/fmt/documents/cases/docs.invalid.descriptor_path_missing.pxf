@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 TrendVidia, LLC.
+#
+# Invalid: the element exists in the image but carries no @validate at
+# that ordinal. Descriptor paths are re-derived and verified against the
+# image's own source map, never trusted from the source.
+@type protowire.docs.v1.TopicFile
+topics = [
+  {
+    key = "bad.descriptor_path"
+    locale = "en"
+    title = "Descriptor path that is not in the source map"
+    meta { audience = AUDIENCE_PUBLIC }
+    anchors = [
+      {
+        descriptor_path {
+          element_fqn = "fixtures.basic.User.email"
+          annotation_fqn = "protowire.schema.v1.validate"
+          ordinal = 7
+        }
+      }
+    ]
+    body { blocks = [{ paragraph { runs = [{ text = "Body." }] } }] }
+    review { state = REVIEW_STATE_DRAFT author = "a@example.com" }
+  }
+]
