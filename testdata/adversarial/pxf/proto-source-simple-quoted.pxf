@@ -1,0 +1,5 @@
+@type adversarial.v1.StringHolder
+
+# A @proto source body is a triple-quoted string only; a quoted string is refused (#623).
+@proto "syntax = \"proto3\";"
+value = "x"

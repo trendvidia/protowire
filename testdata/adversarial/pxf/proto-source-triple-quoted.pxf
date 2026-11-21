@@ -1,0 +1,5 @@
+@type adversarial.v1.StringHolder
+
+# The same body triple-quoted: the form the grammar admits (#623).
+@proto """syntax = "proto3";"""
+value = "x"
