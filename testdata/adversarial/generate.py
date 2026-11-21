@@ -395,6 +395,20 @@ def main() -> None:
     write_bytes(HERE / "pb" / "wiretype-mismatch-varint-on-string.binpb", b"\x08\x01")
     write_bytes(HERE / "pb" / "wiretype-mismatch-len-cut-short.binpb", b"\x0a\x01")
     write_bytes(HERE / "pb" / "wiretype-mismatch-fixed32-cut-short.binpb", b"\x0d\x01")
+    # The same rule inside a map entry (#625). Field 5 of Tree is a
+    # map<string, string>, so 2a <len> frames one entry, whose own fields are
+    # 1 (key) and 2 (value).
+    #   2a 01 1f        entry field 3, wire type 7
+    #   2a 01 1e        entry field 3, wire type 6
+    #   2a 03 0a00 1f   an empty key, then field 3 with wire type 7
+    #   2a 02 18 00     entry field 3 as a varint: unknown, skipped, accepted
+    #   2a 02 08 01     the key sent as a varint: unknown, so accepted with
+    #                   an empty key
+    write_bytes(HERE / "pb" / "wiretype-7-in-map-entry.binpb", b"\x2a\x01\x1f")
+    write_bytes(HERE / "pb" / "wiretype-6-in-map-entry.binpb", b"\x2a\x01\x1e")
+    write_bytes(HERE / "pb" / "wiretype-7-in-map-entry-after-key.binpb", b"\x2a\x03\x0a\x00\x1f")
+    write_bytes(HERE / "pb" / "map-entry-unknown-field.binpb", b"\x2a\x02\x18\x00")
+    write_bytes(HERE / "pb" / "wiretype-mismatch-in-map-entry.binpb", b"\x2a\x02\x08\x01")
 
     # --- Size limits, proved with small fixtures under per-call overrides ---
     # HARDENING.md § Mandatory limits makes MaxMessageSize (64 MiB),
